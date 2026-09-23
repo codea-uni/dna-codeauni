@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { panBy, screenToWorld, zoomAt, type PlanViewState } from './planView';
+import { fitBounds, panBy, screenToWorld, zoomAt, type PlanViewState } from './planView';
 
 const W = 800;
 const H = 600;
@@ -27,5 +27,13 @@ describe('vista en planta', () => {
     const after = screenToWorld(zoomAt(view, 0.5, px, py, W, H), px, py, W, H);
     expect(after.x).toBeCloseTo(before.x, 9);
     expect(after.y).toBeCloseTo(before.y, 9);
+  });
+
+  it('encuadre de límites con margen', () => {
+    const v = fitBounds({ minX: 0, minY: 0, maxX: 100, maxY: 50 }, 800, 600, 0.1);
+    expect(v.centerX).toBe(50);
+    expect(v.centerY).toBe(25);
+    // Ancho útil 640 px → 100 m / 640 px
+    expect(v.metersPerPixel).toBeCloseTo(100 / 640);
   });
 });

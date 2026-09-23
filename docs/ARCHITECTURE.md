@@ -82,11 +82,17 @@ Aplicación React + Vite:
 
 ## Decisiones clave
 
-| Decisión                              | Motivo                                                                                           |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Simulación 100 % en cliente           | Latencia cero y funcionamiento offline; el backend futuro se limita a auth, persistencia y lotes |
-| Document store en core, no en Zustand | Evita que React se re-renderice en ediciones masivas; undo/redo testeable en Node                |
-| ChangeSets incrementales              | Actualizar 1 taladro no reconstruye 20.000 instancias                                            |
-| Origen local en render                | float32 en la GPU no tiene precisión con coordenadas UTM                                         |
-| Picking con flatbush                  | O(log n) frente a un raycast lineal sobre instancias                                             |
-| TS primero, WASM después              | Solo se migra un kernel cuando una medición lo justifique                                        |
+| Decisión                                                  | Motivo                                                                                                                                                      |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Simulación 100 % en cliente                               | Latencia cero y funcionamiento offline; el backend futuro se limita a auth, persistencia y lotes                                                            |
+| Document store en core, no en Zustand                     | Evita que React se re-renderice en ediciones masivas; undo/redo testeable en Node                                                                           |
+| ChangeSets incrementales                                  | Actualizar 1 taladro no reconstruye 20.000 instancias                                                                                                       |
+| Origen local en render                                    | float32 en la GPU no tiene precisión con coordenadas UTM                                                                                                    |
+| Picking con flatbush                                      | O(log n) frente a un raycast lineal sobre instancias                                                                                                        |
+| TS primero, WASM después                                  | Solo se migra un kernel cuando una medición lo justifique                                                                                                   |
+| Arrastre con preview en el engine                         | Mientras se arrastra, solo se desplazan instancias en la GPU; el documento recibe un único comando al soltar (un paso de undo, sin re-render de React)      |
+| Operaciones con inversa exacta                            | `DocumentStore` guarda ops primitivas (`holes/insert`, `holes/remove`, `holes/replace`, `patterns/*`, `blast/patch`) y sus inversas, no copias del proyecto |
+| Índice espacial en el hilo principal                      | El picking es interactivo y síncrono; reconstruir flatbush con 20.000 puntos cuesta ~1–2 ms y solo ocurre tras cambios                                      |
+| Generación de mallas, parseo y serialización en el worker | Son O(n) sobre taladros; el hilo principal solo aplica el resultado                                                                                         |
+| Símbolos y etiquetas en espacio de pantalla               | Quads instanciados con tamaño constante en píxeles; las etiquetas usan un atlas de glifos y se ocultan por LOD según la separación entre taladros           |
+| Recentrado automático del origen de render                | Si la geometría queda a más de 5 km del origen, el engine recentra y reconstruye (precisión float32 con coordenadas UTM)                                    |

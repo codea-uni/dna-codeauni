@@ -1,10 +1,8 @@
 /**
- * Alias documentales de unidades SI. Internamente todo el modelo usa SI;
- * las conversiones solo ocurren en la capa de presentación.
+ * Conversiones SI ↔ presentación. Internamente todo el modelo usa SI;
+ * estas funciones solo se usan en la capa de presentación e IO.
  */
-export type Meters = number; // m
-export type Seconds = number; // s
-export type Radians = number; // rad
+import type { Meters, Radians, Seconds } from '../model/types';
 
 const DEG_PER_RAD = 180 / Math.PI;
 const MM_PER_M = 1000;

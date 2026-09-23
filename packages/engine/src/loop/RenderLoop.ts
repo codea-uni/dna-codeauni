@@ -1,16 +1,30 @@
+export interface FrameStats {
+  /** Frames por segundo durante la actividad reciente. */
+  fps: number;
+  /** Tiempo de CPU medio por frame (JS + envío de comandos a la GPU) [ms]. */
+  cpuMs: number;
+}
+
+/** Hueco entre frames a partir del cual se considera que la vista estaba en reposo. */
+const IDLE_GAP_MS = 250;
+const WINDOW_MS = 500;
+
 /**
  * Loop de render propio con requestAnimationFrame, a demanda:
- * solo agenda un frame cuando algo lo invalida.
+ * solo agenda un frame cuando algo lo invalida. Las estadísticas se miden solo
+ * sobre ráfagas de actividad continua (en reposo no hay frames que medir).
  */
 export class RenderLoop {
   private frameHandle: number | null = null;
   private disposed = false;
-  private framesInWindow = 0;
-  private windowStart = performance.now();
+  private frames = 0;
+  private cpuTotal = 0;
+  private windowStart = 0;
+  private lastFrame = -Infinity;
 
   constructor(
     private readonly renderFrame: () => void,
-    private readonly onFps?: (fps: number) => void,
+    private readonly onStats?: (stats: FrameStats) => void,
   ) {}
 
   /** Marca el frame como sucio; se renderiza en el próximo rAF. */
@@ -27,13 +41,25 @@ export class RenderLoop {
 
   private readonly tick = (now: number): void => {
     this.frameHandle = null;
+    const t0 = performance.now();
     this.renderFrame();
-    this.framesInWindow++;
-    const elapsed = now - this.windowStart;
-    if (elapsed >= 1000) {
-      this.onFps?.((this.framesInWindow * 1000) / elapsed);
-      this.framesInWindow = 0;
+    const cpu = performance.now() - t0;
+
+    if (now - this.lastFrame > IDLE_GAP_MS) {
+      this.frames = 0;
+      this.cpuTotal = 0;
       this.windowStart = now;
+    } else {
+      this.frames++;
+      this.cpuTotal += cpu;
+      const elapsed = now - this.windowStart;
+      if (elapsed >= WINDOW_MS && this.frames >= 5) {
+        this.onStats?.({ fps: (this.frames * 1000) / elapsed, cpuMs: this.cpuTotal / this.frames });
+        this.frames = 0;
+        this.cpuTotal = 0;
+        this.windowStart = now;
+      }
     }
+    this.lastFrame = now;
   };
 }

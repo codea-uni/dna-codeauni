@@ -57,3 +57,24 @@ export function zoomAt(
     centerY: anchor.y + (py - height / 2) * mpp,
   };
 }
+
+/** Vista que encuadra un rectángulo del mundo dejando un margen relativo. */
+export function fitBounds(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  width: number,
+  height: number,
+  margin = 0.1,
+): PlanViewState {
+  const w = Math.max(bounds.maxX - bounds.minX, 1);
+  const h = Math.max(bounds.maxY - bounds.minY, 1);
+  const usable = Math.max(1 - 2 * margin, 0.1);
+  const mpp = Math.min(
+    MAX_METERS_PER_PIXEL,
+    Math.max(MIN_METERS_PER_PIXEL, Math.max(w / (width * usable), h / (height * usable))),
+  );
+  return {
+    centerX: (bounds.minX + bounds.maxX) / 2,
+    centerY: (bounds.minY + bounds.maxY) / 2,
+    metersPerPixel: mpp,
+  };
+}

@@ -1,38 +1,33 @@
-import { createComputeClient } from '@blastlab/workers';
 import { useEffect } from 'react';
-import { useUiStore } from './stores/uiStore';
+import { StatusBar } from './components/StatusBar';
+import { Toolbar } from './components/Toolbar';
+import { useShortcuts } from './hooks/useShortcuts';
+import { BlastPanel } from './panels/BlastPanel';
+import { PatternPanel } from './panels/PatternPanel';
+import { PropertiesPanel } from './panels/PropertiesPanel';
+import { getCompute } from './session';
 import { Viewport } from './viewport/Viewport';
 
 export function App() {
-  const fps = useUiStore((s) => s.fps);
-  const workerStatus = useUiStore((s) => s.workerStatus);
-
+  useShortcuts();
   useEffect(() => {
-    const client = createComputeClient();
-    const { setWorkerStatus } = useUiStore.getState();
-    client.api
-      .ping('BlastLab')
-      .then((reply) => {
-        console.info(`[worker] ${reply}`);
-        setWorkerStatus(reply);
-      })
-      .catch((err: unknown) => {
-        console.error('[worker] error', err);
-        setWorkerStatus('error');
-      });
-    return () => {
-      client.terminate();
-    };
+    // Precalienta el worker (carga de módulos) para que la primera operación real no pague el arranque.
+    void getCompute().api.ping('warmup');
   }, []);
-
   return (
     <div className="app">
-      <Viewport />
-      <footer className="statusbar">
-        <span>BlastLab</span>
-        <span>Worker: {workerStatus}</span>
-        <span>{fps.toFixed(0)} fps</span>
-      </footer>
+      <Toolbar />
+      <aside className="sidebar left">
+        <BlastPanel />
+        <PatternPanel />
+      </aside>
+      <main className="viewport-host">
+        <Viewport />
+      </main>
+      <aside className="sidebar right">
+        <PropertiesPanel />
+      </aside>
+      <StatusBar />
     </div>
   );
 }
