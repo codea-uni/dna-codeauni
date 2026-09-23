@@ -38,18 +38,19 @@ Aplicación web de diseño y simulación de voladuras mineras. Prioridades: **fl
 - **pnpm** exclusivamente, nunca npm ni yarn.
 - **Comandos:** `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm lint` y `pnpm format`.
 - **Commits:** Conventional Commits (`feat(core): …`, `fix(engine): …`, `chore: …`, `docs: …`, `test: …`, `perf: …`).
-- **Tests obligatorios en core.** Toda función de cálculo nueva o modificada lleva tests en Vitest (`*.test.ts` junto al fuente), con valores de referencia documentados (bibliografía o cálculo manual en un comentario).
+- **Tests obligatorios en core.** Toda función de cálculo nueva o modificada lleva tests en Vitest (`*.test.ts` junto al fuente), con valores de referencia documentados (bibliografía o cálculo manual en un comentario). Tests suficientes para asegurar la precisión, sin sobredimensionar: priorizar los cálculos de ingeniería sobre la UI.
 - **Nombres:** código e identificadores en inglés; UI y documentación en español.
 - **Rendimiento:** un cambio que toque engine o workers se valida con el fixture de 5.000 taladros (60 fps en pan/zoom).
 
 ## Orden de módulos del MVP (uno a la vez; no avanzar sin aprobación)
 
-0. Bootstrap del monorepo
-1. Editor de malla y taladros en planta (patrón, edición, selección múltiple, snapping, undo/redo)
-2. Vista 3D del banco con decks coloreados
-3. Carguío (librería de productos, decks, kg/taladro, factor de carga, cubicación)
-4. Tiempos (retardos, tiempos de detonación, animación, isócronas, coincidencias, ventana entre filas)
+0. Bootstrap del monorepo ✅
+1. Editor de malla y taladros en planta (patrón, edición, selección múltiple, snapping, undo/redo) ✅
+2. Carguío (librería de productos, decks, diagrama de columna, kg/taladro, factor de carga, cubicación)
+3. Tiempos (retardos, amarres, tiempos de detonación, animación, isócronas, coincidencias, ventana entre filas)
+4. Importación CSV de taladros
 5. Contornos de energía y distribución de explosivo
 6. Fragmentación (Kuz-Ram, Swebrec/KCO, P50/P80)
 7. Vibración (PPV), flyrock (Lundborg) y sobrepresión
-8. Importación y exportación (CSV, DXF, PDF)
+8. DXF y reporte PDF
+9. Vista 3D del banco con decks coloreados (al final)

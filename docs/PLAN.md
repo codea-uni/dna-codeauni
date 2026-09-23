@@ -570,7 +570,7 @@ export interface FragmentationResult {
 Todas las fases comparten estos criterios de "hecho":
 
 - `typecheck`, `lint` y `test` en verde
-- tests unitarios de core con valores de referencia (bibliografía o cálculo manual documentado)
+- tests unitarios de core con valores de referencia (bibliografía o cálculo manual documentado), los suficientes para asegurar la precisión de los cálculos sin sobredimensionar la suite
 - sin `any`
 - presupuesto de rendimiento verificado con un fixture de 5.000 taladros
 - commit convencional
@@ -596,31 +596,33 @@ Todas las fases comparten estos criterios de "hecho":
   - Generar 5.000 taladros en menos de 50 ms.
   - Guardar y abrir el JSON sin pérdidas (ida y vuelta testeado).
 
-**Fase 2: Vista 3D.**
+> **Reordenamiento (2026-09-23):** la vista 3D pasa al final; primero van las herramientas técnicas.
+> Carguío y Tiempos se implementan juntos, y la importación CSV se adelanta para validar con datos reales.
 
-- Cambiar entre planta y 3D sobre la misma escena, con transición de cámara y órbita.
-- Banco plano o con topografía.
-- Taladros como cilindros instanciados y decks coloreados por material (una sola InstancedMesh con `instanceColor`).
-- Criterio de hecho: 5.000 taladros × 4 decks a ≥ 45 fps en órbita.
+**Fase 2: Carguío.**
 
-**Fase 3: Carguío.**
+- Librería de productos editable (explosivos, detonadores, conectores de superficie, primas, tacos) con valores por defecto de referencia.
+- Reglas de carga aplicables en lote y editor de decks por taladro, con diagrama de columna 2D (sustituye a la vista 3D para el diseño de decks).
+- Cálculo en worker de: kg/taladro, factor de carga en kg/m³ y kg/t, y cubicación por área de influencia (Voronoi recortado al perímetro, o al contorno de los taladros expandido si no hay perímetro).
+- Criterio de hecho: cálculos contra casos manuales documentados.
 
-- Librería de productos editable (CRUD, importar y exportar).
-- Editor de decks y reglas de carga aplicables en lote.
-- Cálculo en worker de: kg/taladro, kg por retardo, factor de carga en kg/m³ y kg/t, y cubicación por área de influencia (Voronoi recortado al perímetro).
-- Criterio de hecho: cálculos contra 3 casos manuales documentados.
+**Fase 3: Tiempos.**
 
-**Fase 4: Tiempos.**
-
-- Retardos en taladro y en superficie, con edición gráfica de conexiones.
+- Retardos en taladro y en superficie, con edición gráfica de conexiones y generador de amarres por filas (línea a línea o en V desde una columna).
+- Asignación de tiempos electrónicos.
 - Tiempos de detonación calculados con Dijkstra.
 - Animación de la secuencia.
-- Isócronas.
-- Detección de coincidencias con ventana configurable (por ejemplo, 8 ms).
+- Isócronas (sobre la triangulación de las bocas).
+- Detección de coincidencias con ventana configurable (por defecto 8 ms), máxima carga por retardo.
 - Ventana de tiempos entre filas.
 - Criterios de hecho:
   - Casos de prueba de redes (en V, línea por línea, electrónicos).
   - 5.000 taladros resueltos en menos de 20 ms dentro del worker.
+
+**Fase 4: Importación CSV.**
+
+- CSV de taladros, con mapeo de columnas y selección de unidades.
+- Criterio de hecho: ida y vuelta CSV sin pérdida de geometría.
 
 **Fase 5: Energía.**
 
@@ -641,11 +643,17 @@ Todas las fases comparten estos criterios de "hecho":
 - Flyrock con Lundborg, dibujado como zona de exclusión.
 - Criterio de hecho: tests con valores tabulados.
 
-**Fase 8: Importación y exportación.**
+**Fase 8: DXF y reportes.**
 
-- CSV de taladros, con mapeo de columnas y selección de unidades.
 - DXF de entrada y salida con dxf-parser y dxf-writer (collars, trazas, polígonos).
 - Reporte PDF generado en worker.
-- Criterio de hecho: ida y vuelta CSV y DXF sin pérdida de geometría, y PDF con plano, tablas y gráficos.
+- Criterio de hecho: ida y vuelta DXF sin pérdida de geometría, y PDF con plano, tablas y gráficos.
+
+**Fase 9: Vista 3D.**
+
+- Cambiar entre planta y 3D sobre la misma escena, con transición de cámara y órbita.
+- Banco plano o con topografía.
+- Taladros como cilindros instanciados y decks coloreados por material (una sola InstancedMesh con `instanceColor`).
+- Criterio de hecho: 5.000 taladros × 4 decks a ≥ 45 fps en órbita.
 
 Cada fase posterior (costos, secciones, simulación Monte Carlo de dispersión de retardos, etc.) se agrega como módulo de core + panel, siempre leyendo del mismo modelo.
