@@ -52,5 +52,5 @@ Aplicación web de diseño y simulación de voladuras mineras. Prioridades: **fl
 5. Contornos de energía y distribución de explosivo ✅
 6. Fragmentación (Kuz-Ram, Swebrec/KCO, P50/P80) ✅
 7. Vibración (PPV), flyrock (Lundborg) y sobrepresión ✅
-8. DXF y reporte PDF
-9. Vista 3D del banco con decks coloreados (al final)
+8. DXF y reporte PDF ✅
+9. Vista 3D del banco con decks coloreados ✅

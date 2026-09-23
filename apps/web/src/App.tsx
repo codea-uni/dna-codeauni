@@ -20,6 +20,7 @@ import { ResultsPanel } from './panels/ResultsPanel';
 import { TimingPanel } from './panels/TimingPanel';
 import { ViewPanel } from './panels/ViewPanel';
 import { CsvImportDialog } from './dialogs/CsvImportDialog';
+import { DxfImportDialog } from './dialogs/DxfImportDialog';
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
 import { FragmentationPanel } from './panels/FragmentationPanel';
 import { VibrationPanel } from './panels/VibrationPanel';
@@ -44,6 +45,8 @@ export function App() {
   const csvPreview = useUiStore((s) => s.csvPreview);
   const setCsvPreview = useUiStore((s) => s.setCsvPreview);
   const shortcutsOpen = useUiStore((s) => s.shortcutsOpen);
+  const dxfPreview = useUiStore((s) => s.dxfPreview);
+  const setDxfPreview = useUiStore((s) => s.setDxfPreview);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
   useEffect(() => {
     // Precalienta el worker (carga de módulos) para que la primera operación real no pague el arranque.
@@ -106,6 +109,14 @@ export function App() {
         <ShortcutsDialog
           onClose={() => {
             setShortcutsOpen(false);
+          }}
+        />
+      )}
+      {dxfPreview && (
+        <DxfImportDialog
+          preview={dxfPreview}
+          onClose={() => {
+            setDxfPreview(null);
           }}
         />
       )}

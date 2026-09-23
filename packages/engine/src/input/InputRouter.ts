@@ -8,6 +8,11 @@ export interface InputHost {
   getView(): PlanViewState;
   setView(view: PlanViewState): void;
   getTool(): Tool;
+  /** Vista 3D activa: el puntero navega (orbitar/desplazar/acercar) en vez de usar herramientas. */
+  is3D(): boolean;
+  orbit3d(dx: number, dy: number): void;
+  pan3d(dx: number, dy: number): void;
+  dolly3d(factor: number): void;
   /** Convierte un evento de puntero a coordenadas de proyecto. */
   toToolPointer(e: PointerEvent | MouseEvent): ToolPointer;
   onPointerDown(p: ToolPointer): void;
@@ -35,6 +40,7 @@ export class InputRouter {
   private lastX = 0;
   private lastY = 0;
   private spaceHeld = false;
+  private drag3d: { pointer: number; mode: 'orbit' | 'pan' } | null = null;
 
   constructor(private readonly host: InputHost) {
     const el = host.element;
@@ -72,6 +78,18 @@ export class InputRouter {
   }
 
   private readonly onPointerDown = (e: PointerEvent): void => {
+    if (this.host.is3D()) {
+      if (this.drag3d) return;
+      e.preventDefault();
+      this.host.element.focus({ preventScroll: true });
+      this.host.element.setPointerCapture(e.pointerId);
+      const orbit = e.button === 0 && !e.shiftKey && !this.spaceHeld;
+      this.drag3d = { pointer: e.pointerId, mode: orbit ? 'orbit' : 'pan' };
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      this.host.onCursorChange('grabbing');
+      return;
+    }
     if (this.panPointer !== null || this.toolPointer !== null) return;
     this.host.element.focus({ preventScroll: true });
     this.host.element.setPointerCapture(e.pointerId);
@@ -88,6 +106,17 @@ export class InputRouter {
   };
 
   private readonly onPointerMove = (e: PointerEvent): void => {
+    if (this.drag3d) {
+      if (e.pointerId !== this.drag3d.pointer) return;
+      const dx = e.clientX - this.lastX;
+      const dy = e.clientY - this.lastY;
+      this.lastX = e.clientX;
+      this.lastY = e.clientY;
+      if (this.drag3d.mode === 'orbit') this.host.orbit3d(dx, dy);
+      else this.host.pan3d(dx, dy);
+      return;
+    }
+    if (this.host.is3D()) return;
     if (e.pointerId === this.panPointer) {
       const dx = e.clientX - this.lastX;
       const dy = e.clientY - this.lastY;
@@ -103,6 +132,11 @@ export class InputRouter {
   private readonly onPointerUp = (e: PointerEvent): void => {
     if (this.host.element.hasPointerCapture(e.pointerId))
       this.host.element.releasePointerCapture(e.pointerId);
+    if (this.drag3d?.pointer === e.pointerId) {
+      this.drag3d = null;
+      this.host.onCursorChange('grab');
+      return;
+    }
     if (e.pointerId === this.panPointer) {
       this.panPointer = null;
       this.host.onCursorChange(this.host.getTool().cursor);
@@ -119,11 +153,17 @@ export class InputRouter {
   };
 
   private readonly onDoubleClick = (e: MouseEvent): void => {
+    if (this.host.is3D()) return;
     this.host.onDoubleClick(this.host.toToolPointer(e));
   };
 
   private readonly onWheel = (e: WheelEvent): void => {
     e.preventDefault();
+    if (this.host.is3D()) {
+      const d = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 16 : e.deltaY;
+      this.host.dolly3d(Math.exp(d * WHEEL_ZOOM_SPEED));
+      return;
+    }
     const rect = this.host.element.getBoundingClientRect();
     const delta = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 16 : e.deltaY;
     const factor = Math.exp(delta * WHEEL_ZOOM_SPEED);

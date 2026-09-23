@@ -333,8 +333,8 @@ export async function exportCsv(): Promise<void> {
   });
 }
 
-function download(text: string, fileName: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+function download(data: string | Uint8Array, fileName: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([data as BlobPart], { type }));
   const a = window.document.createElement('a');
   a.href = url;
   a.download = fileName;
@@ -342,4 +342,44 @@ function download(text: string, fileName: string, type: string): void {
   setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 1000);
+}
+
+// ------------------------------------------------------------------ DXF y PDF
+
+export async function openDxf(file: File): Promise<void> {
+  await withBusy('Leyendo DXF…', async () => {
+    const text = await file.text();
+    const inspection = await getCompute().api.dxfInspect(text);
+    if (inspection.entityCount === 0) {
+      notify('El DXF no tiene entidades', 'error');
+      return;
+    }
+    useUiStore.getState().setDxfPreview({ fileName: file.name, text, inspection });
+  });
+}
+
+const baseName = () => document.project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'voladura';
+
+export async function exportDxf(): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  await withBusy('Exportando DXF…', async () => {
+    const text = await getCompute().api.dxfExport(document.project, blast.id, { ties: true });
+    download(text, `${baseName()}.dxf`, 'application/dxf');
+    notify('DXF exportado');
+  });
+}
+
+export async function exportReport(): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  await withBusy('Generando informe…', async () => {
+    const bytes = await getCompute().api.report(document.project, blast.id, {
+      date: new Date().toISOString(),
+      appVersion: APP_VERSION,
+      holeTable: true,
+    });
+    download(bytes, `${baseName()}-informe.pdf`, 'application/pdf');
+    notify('Informe PDF generado');
+  });
 }

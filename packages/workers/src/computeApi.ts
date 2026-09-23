@@ -1,5 +1,8 @@
 import {
   analyzeBlast,
+  exportDxf,
+  importDxf,
+  inspectDxf,
   computeCharges,
   computeVibration,
   fragmentation,
@@ -15,6 +18,11 @@ import {
   serializeProject,
   type AnalysisOptions,
   type Bench,
+  type DxfExportOptions,
+  type DxfImport,
+  type DxfImportDefaults,
+  type DxfInspection,
+  type DxfLayerRole,
   type EnergyOptions,
   type FragmentationOptions,
   type FragmentationResult,
@@ -36,6 +44,7 @@ import {
 } from '@blastlab/core';
 
 import { transfer } from 'comlink';
+import { buildReport, type ReportOptions } from './report/pdfReport';
 
 /**
  * API que el worker de cómputo expone vía Comlink.
@@ -102,6 +111,33 @@ export const computeApi = {
       r.contours.segments.buffer,
       r.contours.levels.buffer,
     ] as ArrayBuffer[]);
+  },
+
+  /** Informe PDF de la voladura (bytes del archivo). */
+  async report(project: Project, blastId: BlastId, options: ReportOptions): Promise<Uint8Array> {
+    const bytes = await buildReport(project, blastId, options);
+    return transfer(bytes, [bytes.buffer as ArrayBuffer]);
+  },
+
+  /** Exporta la voladura a DXF (R12). */
+  dxfExport(project: Project, blastId: BlastId, options: DxfExportOptions): string {
+    const blast = project.blasts.find((b) => b.id === blastId);
+    if (!blast) throw new Error('Voladura inexistente');
+    return exportDxf(blast, { ...options, surfaces: project.surfaces });
+  },
+
+  /** Capas del DXF con su rol sugerido. */
+  dxfInspect(text: string): DxfInspection {
+    return inspectDxf(text);
+  },
+
+  /** Importa taladros, perímetros y topografía según los roles de capa. */
+  dxfImport(
+    text: string,
+    roles: Record<string, DxfLayerRole>,
+    defaults: DxfImportDefaults,
+  ): DxfImport {
+    return importDxf(text, roles, defaults);
   },
 
   /** Vista previa de un CSV: encabezados, primeras filas y mapeo sugerido. */

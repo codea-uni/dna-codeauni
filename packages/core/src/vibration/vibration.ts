@@ -174,6 +174,8 @@ export interface VibrationOptions {
   /** Niveles de contorno (m/s para PPV, Pa para sobrepresión); vacío = por defecto. */
   levels: number[];
   maxCells: number;
+  /** Solo puntos de control y flyrock (sin mapa). */
+  skipGrid?: boolean;
 }
 
 export const DEFAULT_VIBRATION_OPTIONS: VibrationOptions = {
@@ -346,7 +348,7 @@ export function computeVibration(
     receivers,
     flyrock: { range: flyrockRange, zone: flyrockZone },
   };
-  if (sources.length === 0 || (isPpv && !law))
+  if (sources.length === 0 || (isPpv && !law) || options.skipGrid)
     return { ...emptyGrid, ...base, elapsedMs: performance.now() - t0 };
 
   // Extensión: hasta el nivel más bajo (con la MIC), limitada a 3 km.

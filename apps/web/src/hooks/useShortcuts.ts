@@ -25,6 +25,9 @@ export function useShortcuts(): void {
         actions.selectAll();
       } else if (mod && key === 's') {
         void actions.saveProject();
+      } else if (!mod && !e.altKey && e.key === '3') {
+        const ui = useUiStore.getState();
+        ui.setViewMode(ui.viewMode === '3d' ? 'plan' : '3d');
       } else if (e.key === '?') {
         useUiStore.getState().setShortcutsOpen(!useUiStore.getState().shortcutsOpen);
       } else if (e.key === 'Delete') {
@@ -35,6 +38,8 @@ export function useShortcuts(): void {
       } else if (!mod && !e.altKey && key === 'f') {
         actions.zoomToFit();
       } else if (!mod && !e.altKey && TOOL_KEYS[key]) {
+        // Las herramientas editan en planta: si se está en 3D, se vuelve a planta.
+        useUiStore.getState().setViewMode('plan');
         useUiStore.getState().setTool(TOOL_KEYS[key]);
       } else {
         return;

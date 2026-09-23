@@ -6,9 +6,10 @@ import {
   type SurfaceConnectorId,
   type Vec2,
 } from '@blastlab/core';
-import type { FrameStats, SnapSettings, ToolName } from '@blastlab/engine';
+import type { FrameStats, SnapSettings, ToolName, ViewMode } from '@blastlab/engine';
 import { create } from 'zustand';
 import type { CsvPreview } from '../dialogs/CsvImportDialog';
+import type { DxfPreview } from '../dialogs/DxfImportDialog';
 
 /**
  * Estado de UI. Nunca contiene el diseño (ver CLAUDE.md: React no renderiza el diseño).
@@ -26,6 +27,13 @@ interface UiState {
   /** Vista previa del CSV a importar (abre el diálogo). */
   csvPreview: CsvPreview | null;
   shortcutsOpen: boolean;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  /** Exageración del radio de los taladros en 3D. */
+  radiusScale: number;
+  setRadiusScale: (scale: number) => void;
+  dxfPreview: DxfPreview | null;
+  setDxfPreview: (preview: DxfPreview | null) => void;
   setShortcutsOpen: (open: boolean) => void;
   setCsvPreview: (preview: CsvPreview | null) => void;
   setActiveBoundary: (id: BoundaryId | null) => void;
@@ -55,6 +63,18 @@ export const useUiStore = create<UiState>()((set) => ({
   activeBoundaryId: null,
   csvPreview: null,
   shortcutsOpen: false,
+  viewMode: 'plan',
+  setViewMode: (viewMode) => {
+    set({ viewMode });
+  },
+  radiusScale: 2,
+  setRadiusScale: (radiusScale) => {
+    set({ radiusScale });
+  },
+  dxfPreview: null,
+  setDxfPreview: (dxfPreview) => {
+    set({ dxfPreview });
+  },
   setShortcutsOpen: (shortcutsOpen) => {
     set({ shortcutsOpen });
   },

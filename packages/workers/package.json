@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@blastlab/core": "workspace:*",
-    "comlink": "^4.4.2"
+    "comlink": "^4.4.2",
+    "pdf-lib": "1.17.1"
   }
 }

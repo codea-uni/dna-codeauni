@@ -6,6 +6,7 @@ export default defineConfig({
       'packages/*/vitest.config.ts',
       'apps/*/vitest.config.ts',
       'packages/core/vitest.perf.config.ts',
+      'packages/engine/vitest.perf.config.ts',
     ],
   },
 });

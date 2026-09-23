@@ -11,6 +11,7 @@ export function StatusBar() {
   const hover = useUiStore((s) => s.hover);
   const frameStats = useUiStore((s) => s.frameStats);
   const tool = useUiStore((s) => s.tool);
+  const viewMode = useUiStore((s) => s.viewMode);
   const message = useUiStore((s) => s.message);
   const busy = useUiStore((s) => s.busy);
   const holeCount = project.blasts.reduce((n, b) => n + b.holes.length, 0);
@@ -38,7 +39,14 @@ export function StatusBar() {
       <span>{selected.size} seleccionados</span>
       {hoverLabel !== undefined && <span>Taladro {hoverLabel}</span>}
       <span className="grow muted">
-        {busy ?? (message ? <span className={message.kind}>{message.text}</span> : toolHint(tool))}
+        {busy ??
+          (message ? (
+            <span className={message.kind}>{message.text}</span>
+          ) : viewMode === '3d' ? (
+            'Vista 3D: arrastre orbita · Shift o botón derecho desplaza · rueda acerca · 3 vuelve a planta'
+          ) : (
+            toolHint(tool)
+          ))}
       </span>
       <span className="mono" title="Medido durante la última interacción (el render es a demanda)">
         {frameStats

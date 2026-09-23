@@ -1,9 +1,12 @@
 import type { ToolName } from '@blastlab/engine';
 import {
+  Box,
   Cable,
   CircleDot,
   CirclePlus,
+  DraftingCompass,
   FileDown,
+  FileText,
   FilePlus,
   FileUp,
   FolderOpen,
@@ -13,6 +16,7 @@ import {
   Keyboard,
   Lasso,
   Magnet,
+  Map as MapIcon,
   MapPin,
   Maximize2,
   Mountain,
@@ -21,6 +25,7 @@ import {
   Redo2,
   Save,
   Shapes,
+  Sheet,
   Undo2,
   Zap,
   type LucideIcon,
@@ -30,6 +35,7 @@ import * as actions from '../actions';
 import { useHistory } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { IconButton } from './IconButton';
+import { MenuButton } from './MenuButton';
 
 export interface ToolDef {
   name: ToolName;
@@ -133,9 +139,12 @@ export function Toolbar() {
   const snap = useUiStore((s) => s.snap);
   const setSnap = useUiStore((s) => s.setSnap);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
+  const viewMode = useUiStore((s) => s.viewMode);
+  const setViewMode = useUiStore((s) => s.setViewMode);
   const history = useHistory();
   const fileInput = useRef<HTMLInputElement>(null);
   const csvInput = useRef<HTMLInputElement>(null);
+  const dxfInput = useRef<HTMLInputElement>(null);
 
   return (
     <header className="toolbar">
@@ -153,15 +162,34 @@ export function Toolbar() {
           shortcut="Ctrl+S"
           onClick={() => void actions.saveProject()}
         />
-        <IconButton
+        <MenuButton
           icon={FileUp}
-          label="Importar taladros (CSV)"
-          onClick={() => csvInput.current?.click()}
+          label="Importar"
+          items={[
+            {
+              icon: Sheet,
+              label: 'Taladros desde CSV…',
+              onSelect: () => csvInput.current?.click(),
+            },
+            {
+              icon: DraftingCompass,
+              label: 'Taladros, perímetros y topografía desde DXF…',
+              onSelect: () => dxfInput.current?.click(),
+            },
+          ]}
         />
-        <IconButton
+        <MenuButton
           icon={FileDown}
-          label="Exportar taladros (CSV)"
-          onClick={() => void actions.exportCsv()}
+          label="Exportar"
+          items={[
+            { icon: Sheet, label: 'Taladros a CSV', onSelect: () => void actions.exportCsv() },
+            {
+              icon: DraftingCompass,
+              label: 'Plano a DXF',
+              onSelect: () => void actions.exportDxf(),
+            },
+            { icon: FileText, label: 'Informe PDF', onSelect: () => void actions.exportReport() },
+          ]}
         />
         <input
           ref={fileInput}
@@ -171,6 +199,17 @@ export function Toolbar() {
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) void actions.openProject(file);
+            e.target.value = '';
+          }}
+        />
+        <input
+          ref={dxfInput}
+          type="file"
+          accept=".dxf"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void actions.openDxf(file);
             e.target.value = '';
           }}
         />
@@ -202,6 +241,26 @@ export function Toolbar() {
           onClick={actions.redo}
         />
       </div>
+      <div className="toolbar-group" role="radiogroup" aria-label="Vista">
+        <IconButton
+          icon={MapIcon}
+          label="Vista en planta (edición)"
+          shortcut="3"
+          active={viewMode === 'plan'}
+          onClick={() => {
+            setViewMode('plan');
+          }}
+        />
+        <IconButton
+          icon={Box}
+          label="Vista 3D del banco"
+          shortcut="3"
+          active={viewMode === '3d'}
+          onClick={() => {
+            setViewMode('3d');
+          }}
+        />
+      </div>
       {TOOLS.map((group, g) => (
         <div key={g} className="toolbar-group" role="radiogroup" aria-label="Herramientas">
           {group.map((t) => (
@@ -213,6 +272,7 @@ export function Toolbar() {
               hint={t.hint}
               active={tool === t.name}
               onClick={() => {
+                setViewMode('plan');
                 setTool(t.name);
               }}
             />

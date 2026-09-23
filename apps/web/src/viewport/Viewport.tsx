@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { bindVisualization } from '../analysis/visualize';
 import { session, setEngine } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { Legend3D } from './Legend3D';
 
 /**
  * Monta el canvas y crea el Engine una sola vez. React no vuelve a tocar el render:
@@ -32,6 +33,9 @@ export function Viewport() {
         engine.setTieConnector(state.tieConnectorId);
       if (state.activeBoundaryId !== prev.activeBoundaryId)
         engine.setActiveBoundary(state.activeBoundaryId);
+      if (state.viewMode !== prev.viewMode) engine.setViewMode(state.viewMode);
+      if (state.radiusScale !== prev.radiusScale)
+        engine.set3DOptions({ radiusScale: state.radiusScale });
     });
     const offs = [
       engine.on('frameStats', (stats) => {
@@ -43,6 +47,9 @@ export function Viewport() {
       engine.on('activeBoundary', (id) => {
         if (useUiStore.getState().activeBoundaryId !== id)
           useUiStore.getState().setActiveBoundary(id);
+      }),
+      engine.on('viewMode', (mode) => {
+        if (useUiStore.getState().viewMode !== mode) useUiStore.getState().setViewMode(mode);
       }),
       engine.on('hover', (id) => {
         useUiStore.getState().setHover(id);
@@ -58,5 +65,10 @@ export function Viewport() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="viewport" />;
+  return (
+    <>
+      <canvas ref={canvasRef} className="viewport" />
+      <Legend3D />
+    </>
+  );
 }

@@ -96,3 +96,6 @@ Aplicación React + Vite:
 | Generación de mallas, parseo y serialización en el worker | Son O(n) sobre taladros; el hilo principal solo aplica el resultado                                                                                         |
 | Símbolos y etiquetas en espacio de pantalla               | Quads instanciados con tamaño constante en píxeles; las etiquetas usan un atlas de glifos y se ocultan por LOD según la separación entre taladros           |
 | Recentrado automático del origen de render                | Si la geometría queda a más de 5 km del origen, el engine recentra y reconstruye (precisión float32 con coordenadas UTM)                                    |
+| DXF R12 propio para escribir                              | Conserva Z en todas las entidades (bocas, trazas, textos, perímetros, 3DFACE); dxf-parser para leer                                                         |
+| Informe PDF vectorial en el worker                        | pdf-lib no depende del DOM: plano, curvas y tablas se dibujan como vectores sin bloquear la UI                                                              |
+| 3D sobre la misma escena                                  | Las capas de planta van en un grupo que se oculta; la escena 3D reutiliza documento, origen de render y loop a demanda                                      |

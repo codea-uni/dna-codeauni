@@ -718,3 +718,101 @@ kbd {
   padding: 3px 6px 3px 0;
   vertical-align: middle;
 }
+
+.menu {
+  position: relative;
+}
+
+.menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px #0008;
+}
+
+.menu-list button {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border: 0;
+  background: transparent;
+}
+
+.menu-list button:hover {
+  background: #1f2937;
+}
+
+.grid-table.layers {
+  table-layout: auto;
+}
+
+.grid-table.layers td {
+  padding: 2px 6px 2px 0;
+}
+
+.overlay-3d {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  max-width: 280px;
+  padding: 0.5rem 0.6rem;
+  font-size: 11.5px;
+  background: #0d1117d9;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  pointer-events: auto;
+}
+
+.overlay-3d ul {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  columns: 2;
+}
+
+.overlay-3d li {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overlay-3d i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.overlay-3d label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.overlay-3d input[type='range'] {
+  flex: 1;
+  padding: 0;
+}
+
+.overlay-3d p {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+}
+
+.overlay-3d kbd {
+  font-size: 10px;
+  padding: 0 3px;
+}

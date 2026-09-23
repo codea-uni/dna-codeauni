@@ -654,11 +654,20 @@ Todas las fases comparten estos criterios de "hecho":
 
 **Fase 8: DXF y reportes.**
 
+> Implementado. La escritura DXF usa un generador R12 propio (dxf-writer no admite Z en líneas,
+> puntos ni textos, y se perdía la cota); la lectura usa dxf-parser con roles por capa (taladros por
+> líneas o puntos/círculos, etiquetas, perímetros, caras libres, topografía 3DFACE). El informe PDF
+> es vectorial y se genera en el worker con pdf-lib.
+
 - DXF de entrada y salida con dxf-parser y dxf-writer (collars, trazas, polígonos).
 - Reporte PDF generado en worker.
 - Criterio de hecho: ida y vuelta DXF sin pérdida de geometría, y PDF con plano, tablas y gráficos.
 
 **Fase 9: Vista 3D.**
+
+> Implementado: tecla 3 alterna planta/3D; cámara orbital (arrastre orbita, Shift/derecho desplaza,
+> rueda acerca); cilindros instanciados por tramo coloreados por material, banco translúcido, caras
+> de talud según el ángulo de cara, topografía importada y leyenda. La edición sigue en planta.
 
 - Cambiar entre planta y 3D sobre la misma escena, con transición de cámara y órbita.
 - Banco plano o con topografía.

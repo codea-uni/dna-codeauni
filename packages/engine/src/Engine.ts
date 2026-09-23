@@ -1,4 +1,12 @@
-import { Color, OrthographicCamera, Scene, Vector2, WebGLRenderer } from 'three';
+import {
+  Color,
+  Group,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Scene,
+  Vector2,
+  WebGLRenderer,
+} from 'three';
 import {
   DEFAULT_HOLE_TEMPLATE,
   snapPoint,
@@ -19,6 +27,15 @@ import {
   type Vec3,
 } from '@blastlab/core';
 import { fitBounds, screenToWorld, type PlanViewState } from './cameras/planView';
+import {
+  dollyOrbit,
+  fitOrbit,
+  orbitBy,
+  orbitPosition,
+  panOrbit,
+  type OrbitState,
+} from './cameras/orbit';
+import { DEFAULT_3D_OPTIONS, Scene3D, type Scene3DOptions } from './scene3d/Scene3D';
 import { Emitter } from './events';
 import { InputRouter } from './input/InputRouter';
 import { BoundaryLayer } from './layers/BoundaryLayer';
@@ -62,7 +79,11 @@ export interface EngineEvents extends Record<string, unknown> {
   sequenceEnded: null;
   /** Cambió el perímetro activo (por herramienta o al dibujar uno nuevo). */
   activeBoundary: BoundaryId | null;
+  /** Cambió la vista (planta o 3D). */
+  viewMode: ViewMode;
 }
+
+export type ViewMode = 'plan' | '3d';
 
 export type EngineLayer =
   'labels' | 'traces' | 'connections' | 'isochrones' | 'energy' | 'vibration' | 'flyrock';
@@ -98,6 +119,13 @@ export class Engine {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
   private readonly camera = new OrthographicCamera();
+  private readonly camera3d = new PerspectiveCamera(45, 1, 0.5, 200_000);
+  private readonly planRoot = new Group();
+  private readonly scene3d = new Scene3D();
+  private viewMode: ViewMode = 'plan';
+  private orbit: OrbitState | null = null;
+  private scene3dDirty = true;
+  private options3d: Scene3DOptions = DEFAULT_3D_OPTIONS;
   private readonly loop: RenderLoop;
   private readonly input: InputRouter;
   private readonly resizeObserver: ResizeObserver;
@@ -201,7 +229,9 @@ export class Engine {
     this.camera.near = 0.1;
     this.camera.far = 2000;
     this.camera.lookAt(0, 0, 0);
-    this.scene.add(
+    this.camera3d.up.set(0, 0, 1);
+    this.scene.add(this.planRoot, this.scene3d.root);
+    this.planRoot.add(
       this.grid.mesh,
       this.energy.root,
       this.vibration.root,
@@ -220,7 +250,7 @@ export class Engine {
       () => {
         this.flushPointer();
         this.advanceSequence();
-        this.renderer.render(this.scene, this.camera);
+        this.renderer.render(this.scene, this.viewMode === '3d' ? this.camera3d : this.camera);
       },
       (stats) => {
         this.events.emit('frameStats', stats);
@@ -238,6 +268,24 @@ export class Engine {
       },
       getTool: () => this.tool,
       toToolPointer: (e) => this.toToolPointer(e),
+      is3D: () => this.viewMode === '3d',
+      orbit3d: (dx, dy) => {
+        if (!this.orbit) return;
+        this.orbit = orbitBy(this.orbit, dx, dy);
+        this.applyCamera3d();
+      },
+      pan3d: (dx, dy) => {
+        if (!this.orbit) return;
+        const mpp =
+          (2 * this.orbit.distance * Math.tan((this.camera3d.fov * Math.PI) / 360)) / this.height;
+        this.orbit = panOrbit(this.orbit, dx, dy, mpp);
+        this.applyCamera3d();
+      },
+      dolly3d: (factor) => {
+        if (!this.orbit) return;
+        this.orbit = dollyOrbit(this.orbit, factor);
+        this.applyCamera3d();
+      },
       onPointerDown: (p) => this.tool.onPointerDown?.(p, this.toolContext),
       onPointerMove: (p) => {
         this.queuePointer({ x: p.x, y: p.y });
@@ -331,6 +379,12 @@ export class Engine {
 
   /** Encuadra todos los taladros y perímetros (o la selección si `selectionOnly`). */
   zoomToFit(selectionOnly = false): void {
+    if (this.viewMode === '3d') {
+      if (this.scene3dDirty) this.rebuild3d();
+      this.fit3d();
+      this.applyCamera3d();
+      return;
+    }
     const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
     const add = (x: number, y: number): void => {
       bounds.minX = Math.min(bounds.minX, x - this.origin.x);
@@ -356,6 +410,39 @@ export class Engine {
     bounds.maxX += pad;
     bounds.maxY += pad;
     this.setView(fitBounds(bounds, this.width, this.height, 0.05));
+  }
+
+  get currentViewMode(): ViewMode {
+    return this.viewMode;
+  }
+
+  /** Planta (edición) o 3D (visualización del banco, taladros y decks). */
+  setViewMode(mode: ViewMode): void {
+    if (mode === this.viewMode) return;
+    this.tool.cancel?.(this.toolContext);
+    this.viewMode = mode;
+    const is3d = mode === '3d';
+    this.planRoot.visible = !is3d;
+    this.scene3d.root.visible = is3d;
+    if (is3d) {
+      if (this.scene3dDirty) this.rebuild3d();
+      if (!this.orbit) this.fit3d();
+      this.applyCamera3d();
+    }
+    this.canvas.style.cursor = is3d ? 'grab' : this.tool.cursor;
+    this.events.emit('viewMode', mode);
+    this.loop.invalidate();
+  }
+
+  set3DOptions(options: Partial<Scene3DOptions>): void {
+    this.options3d = { ...this.options3d, ...options };
+    this.scene3dDirty = true;
+    if (this.viewMode === '3d') this.rebuild3d();
+  }
+
+  /** Cantidad de tramos (cilindros) dibujados en 3D. */
+  get segments3d(): number {
+    return this.scene3d.segmentCount;
   }
 
   /** Resalta un perímetro (el que usará la generación de mallas). */
@@ -499,9 +586,22 @@ export class Engine {
   // ------------------------------------------------------------------ Sincronización con el documento
 
   private onDocumentChange(cs: ChangeSet): void {
+    this.onDocumentChangePlan(cs);
+    this.scene3dDirty = true;
+    if (this.viewMode === '3d') {
+      this.rebuild3d();
+      if (!this.orbit) {
+        this.fit3d();
+        this.applyCamera3d();
+      }
+    }
+  }
+
+  private onDocumentChangePlan(cs: ChangeSet): void {
     if (cs.reset) {
       this.activeBlastId = undefined;
       this.activeBoundaryId = null;
+      this.orbit = null;
       this.origin = { ...this.document.project.coordinateSystem.origin };
       this.rebuildAll();
       this.zoomToFit();
@@ -531,6 +631,36 @@ export class Engine {
     if (cs.project) this.rebuildSite();
     if (cs.patterns) this.updateTypicalSpacing();
     this.applyView();
+  }
+
+  private rebuild3d(): void {
+    const project = this.document.project;
+    this.scene3d.rebuild(project, project.blasts, this.origin, this.options3d);
+    this.scene3dDirty = false;
+    this.loop.invalidate();
+  }
+
+  private fit3d(): void {
+    const b = this.scene3d.bounds ?? {
+      minX: -50,
+      minY: -50,
+      minZ: -10,
+      maxX: 50,
+      maxY: 50,
+      maxZ: 10,
+    };
+    this.orbit = fitOrbit(b, (this.camera3d.fov * Math.PI) / 180);
+  }
+
+  private applyCamera3d(): void {
+    if (!this.orbit) return;
+    const p = orbitPosition(this.orbit);
+    this.camera3d.position.set(p.x, p.y, p.z);
+    this.camera3d.lookAt(this.orbit.targetX, this.orbit.targetY, this.orbit.targetZ);
+    this.camera3d.near = Math.max(0.1, this.orbit.distance / 2000);
+    this.camera3d.far = this.orbit.distance * 50;
+    this.camera3d.updateProjectionMatrix();
+    this.loop.invalidate();
   }
 
   private rebuildBoundaries(): void {
@@ -767,6 +897,8 @@ export class Engine {
     this.pixelRatio = Math.min(window.devicePixelRatio, 2);
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(this.width, this.height, false);
+    this.camera3d.aspect = this.width / this.height;
+    this.camera3d.updateProjectionMatrix();
     this.applyView();
   }
 

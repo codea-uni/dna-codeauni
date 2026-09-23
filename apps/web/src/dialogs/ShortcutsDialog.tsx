@@ -8,6 +8,7 @@ const GENERAL: [string, string][] = [
   ['Supr', 'Borrar selección'],
   ['Esc', 'Cancelar / limpiar selección'],
   ['F', 'Encuadrar todo'],
+  ['3', 'Alternar planta / 3D'],
   ['Espacio + arrastre', 'Desplazar vista'],
   ['Rueda', 'Zoom al cursor'],
   ['Shift / Ctrl + clic', 'Agregar / quitar de la selección'],

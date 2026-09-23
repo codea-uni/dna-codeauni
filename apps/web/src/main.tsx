@@ -1,12 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { getEngine, session } from './session';
+import { getCompute, getEngine, session } from './session';
 import './styles.css';
 
 if (import.meta.env.DEV) {
   // Gancho de depuración y medición (solo en desarrollo).
-  Object.assign(window, { __blastlab: { session, getEngine } });
+  Object.assign(window, { __blastlab: { session, getEngine, getCompute } });
 }
 
 const root = document.getElementById('root');

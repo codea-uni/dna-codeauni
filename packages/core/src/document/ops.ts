@@ -11,6 +11,7 @@ export interface IndexedEntry<T> {
 export type ProjectFields = Pick<
   Project,
   | 'monitoringPoints'
+  | 'surfaces'
   | 'name'
   | 'description'
   | 'currency'
