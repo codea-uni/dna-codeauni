@@ -391,9 +391,7 @@ function resetView(): void {
 
 const SCENARIO_VIEWS: Record<string, () => void> = {
   production: () => {
-    useAnalysisStore
-      .getState()
-      .set({ colorBy: 'time', labelBy: 'label', vibEnabled: true, fragAuto: true });
+    useAnalysisStore.getState().set({ colorBy: 'time', labelBy: 'label' });
     useAnalysisStore.getState().setLayer('isochrones', true);
     useUiStore.setState({ leftTab: 'timing', rightTab: 'results', viewMode: 'plan' });
   },

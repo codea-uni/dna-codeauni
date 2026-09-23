@@ -6,7 +6,7 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from 'three';
-import type { Blast, HoleId, ProductLibrary, Vec2, Vec3 } from '@blastlab/core';
+import type { Blast, HoleId, ProductLibrary, Vec3 } from '@blastlab/core';
 import { connectorColorHex } from './colormap';
 
 const ARROW_AT = 0.62;
@@ -37,24 +37,39 @@ export class InitiationLayer {
     this.starts.renderOrder = 4;
   }
 
-  rebuild(blasts: readonly Blast[], library: ProductLibrary, origin: Vec3): void {
+  /** `use3d`: las líneas van a la cota de las bocas (vista 3D); si no, en z = 0 (planta). */
+  rebuild(blasts: readonly Blast[], library: ProductLibrary, origin: Vec3, use3d = false): void {
     const delays = new Map(library.surfaceConnectors.map((c) => [c.id, c.delay]));
     const pos: number[] = [];
     const col: number[] = [];
     const startPos: number[] = [];
     const color = new Color();
+    const lift = 0.15; // un poco sobre la boca para que no se hunda en la superficie
     for (const blast of blasts) {
-      const at = new Map<HoleId, Vec2>();
-      for (const h of blast.holes)
-        at.set(h.id, { x: h.collar.x - origin.x, y: h.collar.y - origin.y });
+      const at = new Map<HoleId, Vec3>();
+      for (const h of blast.holes) {
+        at.set(h.id, {
+          x: h.collar.x - origin.x,
+          y: h.collar.y - origin.y,
+          z: use3d ? h.collar.z - origin.z + lift : 0,
+        });
+      }
       const nodes = new Map(
         blast.initiation.nodes.map((n) => [
           n.id,
-          { x: n.position.x - origin.x, y: n.position.y - origin.y },
+          {
+            x: n.position.x - origin.x,
+            y: n.position.y - origin.y,
+            z: use3d ? n.position.z - origin.z + lift : 0,
+          },
         ]),
       );
       const resolve = (ref: Blast['initiation']['connections'][number]['from']) =>
         ref.kind === 'hole' ? at.get(ref.holeId) : nodes.get(ref.nodeId);
+      const push = (x: number, y: number, z: number) => {
+        pos.push(x, y, z);
+        col.push(color.r, color.g, color.b);
+      };
       for (const c of blast.initiation.connections) {
         const a = resolve(c.from);
         const b = resolve(c.to);
@@ -66,26 +81,15 @@ export class InitiationLayer {
         if (len === 0) continue;
         const ux = dx / len;
         const uy = dy / len;
+        const tz = a.z + (b.z - a.z) * ARROW_AT;
         const tip = { x: a.x + dx * ARROW_AT, y: a.y + dy * ARROW_AT };
         const size = Math.min(len * 0.18, 1.2);
-        const segs = [
-          a.x,
-          a.y,
-          b.x,
-          b.y,
-          tip.x,
-          tip.y,
-          tip.x - ux * size - uy * size * 0.55,
-          tip.y - uy * size + ux * size * 0.55,
-          tip.x,
-          tip.y,
-          tip.x - ux * size + uy * size * 0.55,
-          tip.y - uy * size - ux * size * 0.55,
-        ];
-        for (let k = 0; k < segs.length; k += 2) {
-          pos.push(segs[k] ?? 0, segs[k + 1] ?? 0, 0);
-          col.push(color.r, color.g, color.b);
-        }
+        push(a.x, a.y, a.z);
+        push(b.x, b.y, b.z);
+        push(tip.x, tip.y, tz);
+        push(tip.x - ux * size - uy * size * 0.55, tip.y - uy * size + ux * size * 0.55, tz);
+        push(tip.x, tip.y, tz);
+        push(tip.x - ux * size + uy * size * 0.55, tip.y - uy * size - ux * size * 0.55, tz);
       }
       for (const ip of blast.initiation.initiationPoints) {
         const p = resolve(ip.at);
@@ -97,10 +101,10 @@ export class InitiationLayer {
           startPos.push(
             p.x - Math.cos(ang) * r,
             p.y - Math.sin(ang) * r,
-            0,
+            p.z,
             p.x + Math.cos(ang) * r,
             p.y + Math.sin(ang) * r,
-            0,
+            p.z,
           );
         }
       }

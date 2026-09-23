@@ -53,6 +53,11 @@ export class SiteLayer {
   private zoneEnabled = true;
   private hasZone = false;
 
+  /** Cota de render del conjunto (0 en planta; superficie del banco en 3D). */
+  setElevation(z: number): void {
+    this.root.position.z = z;
+  }
+
   setZoneVisible(visible: boolean): void {
     this.zoneEnabled = visible;
     this.zone.visible = visible && this.hasZone;

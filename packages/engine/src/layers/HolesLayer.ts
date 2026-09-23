@@ -202,6 +202,10 @@ export class HolesLayer {
     this.previewIds = [];
   }
 
+  get currentColorSource(): ((id: HoleId) => Color | null) | null {
+    return this.colorSource;
+  }
+
   /** Define el color base por taladro y recolorea todo. Selección y hover tienen prioridad. */
   setColorSource(source: ((id: HoleId) => Color | null) | null): void {
     this.colorSource = source;

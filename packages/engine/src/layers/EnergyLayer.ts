@@ -2,6 +2,8 @@ import {
   BufferGeometry,
   Color,
   DataTexture,
+  DoubleSide,
+  FrontSide,
   Float32BufferAttribute,
   Group,
   LinearFilter,
@@ -27,6 +29,8 @@ export interface EnergyData {
   colorMin: number;
   colorMax: number;
   colorLog: boolean;
+  /** Cota del plano evaluado [m] (se usa en 3D). */
+  elevation?: number;
 }
 
 /** Mapa de calor de energía con sus contornos, debajo de los taladros. */
@@ -62,7 +66,14 @@ export class EnergyLayer {
     this.plane.material.opacity = opacity;
   }
 
-  set(data: EnergyData | null, origin: Vec3): void {
+  /** `use3d`: el mapa se ubica a su cota (`elevation`); en planta queda bajo los taladros. */
+  set(data: EnergyData | null, origin: Vec3, use3d = false): void {
+    this.root.position.z =
+      use3d && data?.elevation !== undefined ? data.elevation - origin.z + 0.5 : 0;
+    this.plane.material.side = use3d ? DoubleSide : FrontSide;
+    // En 3D el mapa se intersecta con los taladros; en planta queda siempre debajo.
+    this.plane.material.depthTest = use3d;
+    this.lines.material.depthTest = use3d;
     this.texture?.dispose();
     this.texture = null;
     if (!data || data.nx === 0) {

@@ -155,6 +155,14 @@ export class Engine {
   private readonly vibration = new EnergyLayer();
   private vibrationData: EnergyData | null = null;
   private readonly site = new SiteLayer();
+  // Capas equivalentes en la escena 3D (mismos datos, a la cota que corresponde).
+  private readonly initiation3d = new InitiationLayer();
+  private readonly isochrones3d = new IsochronesLayer();
+  private readonly energy3d = new EnergyLayer();
+  private readonly vibration3d = new EnergyLayer();
+  private readonly site3d = new SiteLayer();
+  private readonly labels3d = new LabelsLayer();
+  private readonly siteLabels3d = new LabelsLayer();
   private readonly siteLabels = new LabelsLayer();
   private flyrockZone: Vec2[] | null = null;
   private isochroneData: IsochroneData | null = null;
@@ -243,6 +251,15 @@ export class Engine {
     this.camera.lookAt(0, 0, 0);
     this.camera3d.up.set(0, 0, 1);
     this.scene.add(this.planRoot, this.scene3d.root);
+    this.scene3d.root.add(
+      this.energy3d.root,
+      this.vibration3d.root,
+      this.isochrones3d.lines,
+      this.initiation3d.root,
+      this.site3d.root,
+      this.labels3d.mesh,
+      this.siteLabels3d.mesh,
+    );
     this.planRoot.add(
       this.grid.mesh,
       this.energy.root,
@@ -452,6 +469,7 @@ export class Engine {
     this.scene3d.root.visible = is3d;
     if (is3d) {
       if (this.scene3dDirty) this.rebuild3d();
+      else this.rebuild3dOverlays();
       if (!this.orbit) this.fit3d();
       this.applyCamera3d();
     }
@@ -511,6 +529,7 @@ export class Engine {
         );
     }
     this.labels.flush();
+    if (this.viewMode === '3d') this.rebuild3dOverlays();
     this.loop.invalidate();
   }
 
@@ -519,6 +538,8 @@ export class Engine {
     this.energyData = data;
     this.energy.setOpacity(opacity);
     this.energy.set(data, this.origin);
+    this.energy3d.setOpacity(Math.min(1, opacity + 0.15));
+    if (this.viewMode === '3d') this.energy3d.set(data, this.origin, true);
     this.loop.invalidate();
   }
 
@@ -527,6 +548,8 @@ export class Engine {
     this.vibrationData = data;
     this.vibration.setOpacity(opacity);
     this.vibration.set(data, this.origin);
+    this.vibration3d.setOpacity(Math.min(1, opacity + 0.15));
+    if (this.viewMode === '3d') this.rebuild3dOverlays();
     this.loop.invalidate();
   }
 
@@ -534,12 +557,14 @@ export class Engine {
   setFlyrockZone(zone: Vec2[] | null): void {
     this.flyrockZone = zone;
     this.site.setZone(zone, this.origin, this.view.metersPerPixel);
+    if (this.viewMode === '3d') this.rebuild3dOverlays();
     this.applyView();
   }
 
   setIsochrones(data: IsochroneData | null): void {
     this.isochroneData = data;
     this.isochrones.set(data, this.origin);
+    if (this.viewMode === '3d') this.isochrones3d.set(data, this.origin, this.topZ() + 0.25);
     this.loop.invalidate();
   }
 
@@ -604,6 +629,13 @@ export class Engine {
     this.initiation.dispose();
     this.isochrones.dispose();
     this.energy.dispose();
+    this.energy3d.dispose();
+    this.vibration3d.dispose();
+    this.initiation3d.dispose();
+    this.isochrones3d.dispose();
+    this.site3d.dispose();
+    this.labels3d.dispose();
+    this.siteLabels3d.dispose();
     this.vibration.dispose();
     this.site.dispose();
     this.siteLabels.dispose();
@@ -673,7 +705,71 @@ export class Engine {
     const project = this.document.project;
     this.scene3d.rebuild(project, project.blasts, this.origin, this.options3d);
     this.scene3dDirty = false;
+    this.rebuild3dOverlays();
     this.loop.invalidate();
+  }
+
+  /** Cota de render de la superficie del banco (para mapas y marcas en 3D). */
+  private topZ(): number {
+    const b = this.document.project.blasts[0]?.bench;
+    return (b ? b.floorElevation + b.height : 0) - this.origin.z;
+  }
+
+  /** Amarres, isócronas, mapas, sitio y etiquetas en 3D (baratos: se rehacen enteros). */
+  private rebuild3dOverlays(): void {
+    const project = this.document.project;
+    const top = this.topZ();
+    this.initiation3d.rebuild(project.blasts, project.library, this.origin, true);
+    this.isochrones3d.set(this.isochroneData, this.origin, top + 0.25);
+    this.energy3d.set(this.energyData, this.origin, true);
+    // La vibración se evalúa en la superficie del banco (cota de los receptores).
+    this.vibration3d.set(
+      this.vibrationData ? { ...this.vibrationData, elevation: top + this.origin.z } : null,
+      this.origin,
+      true,
+    );
+    this.site3d.setElevation(top + 0.3);
+    this.site3d.setZone(this.flyrockZone, this.origin, 0.6);
+    const points = this.document.project.monitoringPoints ?? [];
+    this.site3d.setMarkers(points, this.origin, 3);
+    this.siteLabels3d.clear();
+    for (const p of points) {
+      this.siteLabels3d.upsert(
+        p.id,
+        p.position.x - this.origin.x,
+        p.position.y - this.origin.y,
+        p.name,
+        top + 0.3,
+      );
+    }
+    this.siteLabels3d.flush();
+    this.labels3d.clear();
+    for (const blast of project.blasts) {
+      for (const h of blast.holes) {
+        this.labels3d.upsert(
+          h.id,
+          h.collar.x - this.origin.x,
+          h.collar.y - this.origin.y,
+          this.labelFor(h.id, h.label),
+          h.collar.z - this.origin.z + 1.2,
+        );
+      }
+    }
+    this.labels3d.flush();
+    this.apply3dVisibility();
+    this.loop.invalidate();
+  }
+
+  private apply3dVisibility(): void {
+    const v = this.layerVisible;
+    this.initiation3d.root.visible = v.connections;
+    this.isochrones3d.lines.visible = v.isochrones;
+    this.energy3d.root.visible = v.energy;
+    this.vibration3d.root.visible = v.vibration;
+    this.site3d.setZoneVisible(v.flyrock);
+    // Etiquetas en 3D solo con cantidades legibles.
+    const n = this.document.project.blasts.reduce((sum, b) => sum + b.holes.length, 0);
+    this.labels3d.mesh.visible = v.labels && n <= 2500;
   }
 
   private fit3d(): void {
@@ -697,6 +793,9 @@ export class Engine {
     this.camera3d.far = this.orbit.distance * 50;
     this.camera3d.updateProjectionMatrix();
     this.decorations.update3d(this.orbit.yaw);
+    const buffer = this.renderer.getDrawingBufferSize(new Vector2());
+    this.labels3d.setViewport(buffer.x, buffer.y, this.pixelRatio, 4 * this.pixelRatio);
+    this.siteLabels3d.setViewport(buffer.x, buffer.y, this.pixelRatio, 6 * this.pixelRatio);
     this.loop.invalidate();
   }
 
@@ -788,6 +887,7 @@ export class Engine {
     } else {
       this.holes.setColorSource(null);
     }
+    this.scene3d.setColorSource(this.holes.currentColorSource);
     this.holes.flush();
     this.loop.invalidate();
   }
@@ -805,6 +905,7 @@ export class Engine {
     }
     this.holes.refreshColors();
     this.holes.flush();
+    if (this.viewMode === '3d') this.scene3d.refreshColors();
     this.events.emit('sequenceTime', seq.t);
     if (seq.playing) this.loop.invalidate();
   }
@@ -981,6 +1082,7 @@ export class Engine {
     this.initiation.root.visible = this.layerVisible.connections;
     this.isochrones.lines.visible = this.layerVisible.isochrones;
     this.energy.root.visible = this.layerVisible.energy;
+    this.apply3dVisibility();
     this.vibration.root.visible = this.layerVisible.vibration;
     this.site.setDashScale(mpp);
     this.site.setZoneVisible(this.layerVisible.flyrock);

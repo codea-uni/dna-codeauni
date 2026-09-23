@@ -24,6 +24,7 @@ import {
   holeSegments3d,
   holeToe,
   type Blast,
+  type HoleId,
   type Project,
   type SegmentKind,
   type Vec3,
@@ -83,6 +84,10 @@ export class Scene3D {
   private readonly dynamic = new Group();
   bounds: Bounds3 | null = null;
   segmentCount = 0;
+  private instanceHole: HoleId[] = [];
+  private instancePaint = new Uint8Array(0);
+  private baseColors = new Float32Array(0);
+  private colorSource: ((id: HoleId) => Color | null) | null = null;
 
   constructor() {
     const ambient = new AmbientLight(0xffffff, 1.1);
@@ -116,7 +121,8 @@ export class Scene3D {
     const rel = (p: Vec3) => ({ x: p.x - origin.x, y: p.y - origin.y, z: p.z - origin.z });
 
     // ---------------------------------------------------------------- Taladros
-    const segs: { from: Vec3; to: Vec3; r: number; color: number }[] = [];
+    const segs: { from: Vec3; to: Vec3; r: number; color: number; hole: HoleId; paint: boolean }[] =
+      [];
     for (const blast of blasts) {
       for (const h of blast.holes) {
         const r = Math.max(options.minRadius, (h.diameter / 2) * options.radiusScale);
@@ -131,6 +137,9 @@ export class Scene3D {
             to: rel(s.to),
             r: s.kind === 'empty' ? r * 0.6 : r,
             color,
+            hole: h.id,
+            // Se colorea por tiempo/valor la columna explosiva (y el taladro vacío); taco y aire conservan su material.
+            paint: s.kind === 'explosive' || s.kind === 'empty',
           });
         }
         const c = rel(h.collar);
@@ -168,6 +177,10 @@ export class Scene3D {
         colors[i * 3 + 2] = tmp.b;
       }
     });
+    this.instanceHole = segs.map((x) => x.hole);
+    this.instancePaint = Uint8Array.from(segs, (x) => (x.paint ? 1 : 0));
+    this.baseColors = new Float32Array(segs.length * 3);
+    if (colors) this.baseColors.set(colors.subarray(0, segs.length * 3));
     mesh.count = segs.length;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -253,6 +266,33 @@ export class Scene3D {
       if (surface) this.addSurface(surface.vertices, surface.triangles, origin);
     }
     this.bounds = Number.isFinite(b.minX) ? b : null;
+    this.refreshColors();
+  }
+
+  /** Color por taladro (tiempo, kg, secuencia…) para la columna explosiva; null = color del material. */
+  setColorSource(source: ((id: HoleId) => Color | null) | null): void {
+    this.colorSource = source;
+    this.refreshColors();
+  }
+
+  refreshColors(): void {
+    const mesh = this.cylinders;
+    const colors = mesh?.instanceColor?.array as Float32Array | undefined;
+    if (!mesh || !colors) return;
+    const source = this.colorSource;
+    for (let i = 0; i < this.instanceHole.length; i++) {
+      const c = source && this.instancePaint[i] ? source(this.instanceHole[i] as HoleId) : null;
+      if (c) {
+        colors[i * 3] = c.r;
+        colors[i * 3 + 1] = c.g;
+        colors[i * 3 + 2] = c.b;
+      } else {
+        colors[i * 3] = this.baseColors[i * 3] ?? 0;
+        colors[i * 3 + 1] = this.baseColors[i * 3 + 1] ?? 0;
+        colors[i * 3 + 2] = this.baseColors[i * 3 + 2] ?? 0;
+      }
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }
 
   dispose(): void {

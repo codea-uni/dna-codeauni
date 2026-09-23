@@ -72,7 +72,7 @@ export class LabelsLayer {
   private readonly ids: string[] = [];
   private readonly slotOf = new Map<string, number>();
   /** Ancla base por slot (x, y) en coordenadas de render. */
-  private base = new Float32Array(INITIAL_CAPACITY * 2);
+  private base = new Float32Array(INITIAL_CAPACITY * 3);
   private previewIds: string[] = [];
   private readonly texture: CanvasTexture;
 
@@ -92,13 +92,13 @@ export class LabelsLayer {
         uniform vec2 uViewport;
         uniform float uPixelRatio;
         uniform vec2 uOffsetPx;
-        attribute vec2 aAnchor;
+        attribute vec3 aAnchor;
         attribute float aGlyph;
         attribute float aChar;
         varying vec2 vUv;
         void main() {
           if (aGlyph < 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
-          vec4 c = projectionMatrix * modelViewMatrix * vec4(aAnchor, 0.0, 1.0);
+          vec4 c = projectionMatrix * modelViewMatrix * vec4(aAnchor, 1.0);
           vec2 quadPx = vec2(${CHAR_QUAD_W_PX.toFixed(3)}, ${CHAR_H_PX.toFixed(1)});
           vec2 px = (uOffsetPx + vec2((aChar + 0.5) * ${advancePx.toFixed(3)}, 0.0) + position.xy * quadPx) * uPixelRatio;
           c.xy += px * 2.0 / uViewport * c.w;
@@ -146,7 +146,8 @@ export class LabelsLayer {
     this.flush();
   }
 
-  upsert(id: string, x: number, y: number, text: string): void {
+  /** Ancla en coordenadas de render; `z` para usarla en 3D (en planta, 0). */
+  upsert(id: string, x: number, y: number, text: string, z = 0): void {
     let slot = this.slotOf.get(id);
     if (slot === undefined) {
       if (this.count === this.capacity) this.grow();
@@ -154,8 +155,9 @@ export class LabelsLayer {
       this.ids[slot] = id;
       this.slotOf.set(id, slot);
     }
-    this.base[slot * 2] = x;
-    this.base[slot * 2 + 1] = y;
+    this.base[slot * 3] = x;
+    this.base[slot * 3 + 1] = y;
+    this.base[slot * 3 + 2] = z;
     const glyphs = this.glyphs.array;
     const label = text.length > MAX_LABEL_CHARS ? `${text.slice(0, MAX_LABEL_CHARS - 1)}~` : text;
     for (let i = 0; i < MAX_LABEL_CHARS; i++) {
@@ -171,7 +173,7 @@ export class LabelsLayer {
     if (slot !== last) {
       const lastId = this.ids[last];
       if (lastId === undefined) throw new Error('Slot de taladro inconsistente');
-      this.base.copyWithin(slot * 2, last * 2, last * 2 + 2);
+      this.base.copyWithin(slot * 3, last * 3, last * 3 + 3);
       const g = this.glyphs.array;
       g.copyWithin(slot * MAX_LABEL_CHARS, last * MAX_LABEL_CHARS, (last + 1) * MAX_LABEL_CHARS);
       this.ids[slot] = lastId;
@@ -230,7 +232,7 @@ export class LabelsLayer {
     for (let i = 0; i < n; i++) chars[i] = i % MAX_LABEL_CHARS;
     geometry.setAttribute(
       'aAnchor',
-      new InstancedBufferAttribute(new Float32Array(n * 2), 2).setUsage(DynamicDrawUsage),
+      new InstancedBufferAttribute(new Float32Array(n * 3), 3).setUsage(DynamicDrawUsage),
     );
     geometry.setAttribute(
       'aGlyph',
@@ -249,20 +251,22 @@ export class LabelsLayer {
     (geometry.getAttribute('aGlyph') as InstancedBufferAttribute).array.set(this.glyphs.array);
     this.mesh.geometry = geometry;
     old.dispose();
-    const base = new Float32Array(capacity * 2);
+    const base = new Float32Array(capacity * 3);
     base.set(this.base);
     this.base = base;
     this.capacity = capacity;
   }
 
   private writeAnchor(slot: number, dx: number, dy: number): void {
-    const x = (this.base[slot * 2] ?? 0) + dx;
-    const y = (this.base[slot * 2 + 1] ?? 0) + dy;
+    const x = (this.base[slot * 3] ?? 0) + dx;
+    const y = (this.base[slot * 3 + 1] ?? 0) + dy;
+    const z = this.base[slot * 3 + 2] ?? 0;
     const a = this.anchors.array;
     for (let i = 0; i < MAX_LABEL_CHARS; i++) {
-      const o = (slot * MAX_LABEL_CHARS + i) * 2;
+      const o = (slot * MAX_LABEL_CHARS + i) * 3;
       a[o] = x;
       a[o + 1] = y;
+      a[o + 2] = z;
     }
   }
 }

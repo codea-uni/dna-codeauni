@@ -33,7 +33,9 @@ export class IsochronesLayer {
     this.lines.renderOrder = 0;
   }
 
-  set(data: IsochroneData | null, origin: Vec3): void {
+  /** `z`: cota de render donde dibujar (0 en planta; la superficie del banco en 3D). */
+  set(data: IsochroneData | null, origin: Vec3, z = 0): void {
+    this.lines.position.z = z;
     const n = data ? data.levels.length : 0;
     const pos = new Float32Array(n * 6);
     const col = new Float32Array(n * 6);

@@ -894,3 +894,13 @@ kbd {
   margin: 0.2rem 0;
   color: #3fb950;
 }
+
+.overlay-3d strong {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.overlay-3d .gradient {
+  margin: 0.2rem 0;
+}
