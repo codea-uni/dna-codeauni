@@ -7,6 +7,20 @@ export interface IndexedEntry<T> {
   readonly item: T;
 }
 
+/** Campos del proyecto modificables con `project/patch` (las voladuras tienen sus propias ops). */
+export type ProjectFields = Pick<
+  Project,
+  | 'name'
+  | 'description'
+  | 'currency'
+  | 'library'
+  | 'rockMasses'
+  | 'siteModels'
+  | 'displayUnits'
+  | 'coordinateSystem'
+>;
+export type ProjectPatch = { readonly [K in keyof ProjectFields]?: ProjectFields[K] | undefined };
+
 /** Campos propios de una voladura modificables con `blast/patch`. */
 export type BlastFields = Omit<Blast, 'id' | 'holes' | 'patterns'>;
 /** `undefined` en un campo opcional significa eliminarlo. */
@@ -34,7 +48,8 @@ export type Op =
       readonly blastId: BlastId;
       readonly ids: readonly PatternId[];
     }
-  | { readonly type: 'blast/patch'; readonly blastId: BlastId; readonly patch: BlastPatch };
+  | { readonly type: 'blast/patch'; readonly blastId: BlastId; readonly patch: BlastPatch }
+  | { readonly type: 'project/patch'; readonly patch: ProjectPatch };
 
 export interface OpResult {
   readonly project: Project;
@@ -101,17 +116,21 @@ function replaceById<T extends WithId>(
   return { list: out, previous };
 }
 
-function patchBlast(blast: Blast, patch: BlastPatch): { blast: Blast; inverse: BlastPatch } {
+/** Aplica un parche de campos (`undefined` elimina la clave) y devuelve el parche inverso. */
+function patchObject<T extends object, P extends object>(
+  obj: T,
+  patch: P,
+): { next: T; inverse: P } {
   const keys = new Set(Object.keys(patch));
   const next: Record<string, unknown> = {};
   const inverse: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(blast)) if (!keys.has(key)) next[key] = value;
-  for (const key of keys as Set<keyof BlastPatch>) {
-    inverse[key] = blast[key];
-    const value = patch[key];
+  for (const [key, value] of Object.entries(obj)) if (!keys.has(key)) next[key] = value;
+  for (const key of keys) {
+    inverse[key] = (obj as Record<string, unknown>)[key];
+    const value = (patch as Record<string, unknown>)[key];
     if (value !== undefined) next[key] = value;
   }
-  return { blast: next as unknown as Blast, inverse };
+  return { next: next as T, inverse: inverse as P };
 }
 
 function withBlast(project: Project, blastId: BlastId, fn: (blast: Blast) => Blast): Project {
@@ -125,6 +144,11 @@ function withBlast(project: Project, blastId: BlastId, fn: (blast: Blast) => Bla
 
 /** Aplica una operación de forma inmutable y devuelve el proyecto nuevo y la operación inversa. */
 export function applyOp(project: Project, op: Op, changes: ChangeSetBuilder): OpResult {
+  if (op.type === 'project/patch') {
+    const r = patchObject(project, op.patch);
+    changes.projectChanged();
+    return { project: r.next, inverse: { type: 'project/patch', patch: r.inverse } };
+  }
   let inverse: Op | undefined;
   const next = withBlast(project, op.blastId, (blast) => {
     switch (op.type) {
@@ -169,10 +193,10 @@ export function applyOp(project: Project, op: Op, changes: ChangeSetBuilder): Op
         return { ...blast, patterns: list };
       }
       case 'blast/patch': {
-        const r = patchBlast(blast, op.patch);
+        const r = patchObject(blast, op.patch);
         changes.blastChanged(op.blastId);
         inverse = { type: 'blast/patch', blastId: op.blastId, patch: r.inverse };
-        return r.blast;
+        return r.next;
       }
     }
   });

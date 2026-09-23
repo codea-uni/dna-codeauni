@@ -28,7 +28,7 @@ body {
 
 .app {
   display: grid;
-  grid-template-columns: 280px 1fr 280px;
+  grid-template-columns: 330px 1fr 330px;
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
     'toolbar toolbar toolbar'
@@ -255,4 +255,187 @@ button.danger:hover:not(:disabled) {
 
 .statusbar .info {
   color: var(--text);
+}
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabs button {
+  flex: 1;
+  padding: 0.45rem 0.2rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+}
+
+.tabs button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.panel h3 {
+  margin: 0.8rem 0 0.3rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.grid-table {
+  width: 100%;
+  margin: 0.3rem 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.grid-table th {
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: left;
+  padding: 0 2px;
+}
+
+.grid-table th:first-child {
+  width: 38%;
+}
+
+.grid-table th:last-child:empty {
+  width: 22px;
+}
+
+.grid-table td {
+  padding: 1px 2px;
+}
+
+.grid-table.compact th:first-child {
+  width: auto;
+}
+
+.cell {
+  width: 100%;
+  padding: 0.1rem 0.25rem;
+  font-size: 12px;
+}
+
+button.icon {
+  padding: 0 0.3rem;
+  line-height: 1.3;
+}
+
+button.primary-inline {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+
+.kv {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kv td {
+  padding: 1px 0;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+tr.warn td,
+.warn {
+  color: #e3b341;
+}
+
+.small {
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.column {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0.3rem 0;
+}
+
+.col-label {
+  font-size: 10.5px;
+  fill: var(--text);
+}
+
+.col-label.muted {
+  fill: var(--muted);
+}
+
+.col-depth {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.legend {
+  margin: 0.3rem 0 0.5rem;
+}
+
+.gradient {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.legend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.7rem;
+  margin: 0.3rem 0;
+  font-size: 11px;
+}
+
+.legend-chip {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.legend-chip i {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.8rem;
+}
+
+.checks .check {
+  margin: 0.2rem 0;
+}
+
+.slider {
+  width: 100%;
+  padding: 0;
+  margin-top: 0.5rem;
+}
+
+.chart {
+  width: 100%;
+  height: 170px;
+  margin: 0.4rem 0;
 }

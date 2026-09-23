@@ -139,18 +139,4 @@ describe('DocumentStore', () => {
     session.document.load(createEmptyProject());
     expect(session.selection.size).toBe(0);
   });
-
-  it('rendimiento: mover 500 de 5.000 taladros y deshacer es rápido', () => {
-    const { store, holes } = setup(5000);
-    const ids = holes.slice(0, 500).map((h) => h.id);
-    let best = Infinity;
-    for (let i = 0; i < 5; i++) {
-      const t0 = performance.now();
-      store.dispatch(moveHoles(store, ids, 1, 1), 'Mover');
-      store.undo();
-      store.redo();
-      best = Math.min(best, performance.now() - t0);
-    }
-    expect(best).toBeLessThan(50);
-  });
 });

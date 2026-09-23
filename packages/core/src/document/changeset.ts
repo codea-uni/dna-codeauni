@@ -14,8 +14,10 @@ export interface ChangeSet {
   };
   /** Cambió la lista de patrones de alguna voladura. */
   readonly patterns: boolean;
-  /** Voladuras con cambios en sus campos propios (banco, perímetro, nombre…). */
+  /** Voladuras con cambios en sus campos propios (banco, perímetro, iniciación…). */
   readonly blasts: readonly BlastId[];
+  /** Cambiaron campos del proyecto (librería de productos, macizos rocosos…). */
+  readonly project: boolean;
 }
 
 type HoleChange = 'added' | 'removed' | 'updated';
@@ -25,6 +27,7 @@ export class ChangeSetBuilder {
   private readonly holes = new Map<HoleId, HoleChange>();
   private readonly blasts = new Set<BlastId>();
   private patterns = false;
+  private project = false;
   private reset = false;
 
   holeAdded(id: HoleId): void {
@@ -48,12 +51,22 @@ export class ChangeSetBuilder {
     this.blasts.add(id);
   }
 
+  projectChanged(): void {
+    this.project = true;
+  }
+
   markReset(): void {
     this.reset = true;
   }
 
   get isEmpty(): boolean {
-    return !this.reset && !this.patterns && this.holes.size === 0 && this.blasts.size === 0;
+    return (
+      !this.reset &&
+      !this.patterns &&
+      !this.project &&
+      this.holes.size === 0 &&
+      this.blasts.size === 0
+    );
   }
 
   build(): ChangeSet {
@@ -70,6 +83,7 @@ export class ChangeSetBuilder {
       holes: { added, removed, updated },
       patterns: this.patterns,
       blasts: [...this.blasts],
+      project: this.project,
     };
   }
 }

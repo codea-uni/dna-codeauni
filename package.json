@@ -13,8 +13,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run --project core --project engine --project workers --project web && vitest run --project perf",
+    "test:watch": "vitest",
+    "test:perf": "vitest run --project perf"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

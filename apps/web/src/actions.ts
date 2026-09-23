@@ -2,10 +2,16 @@ import {
   centeredPatternOrigin,
   commands,
   createEmptyProject,
+  electronicTimes,
   fitPatternToPolygon,
   newId,
   nextHoleNumber,
+  rowTieUp,
+  type DetonatorId,
+  type NodeRef,
   type Pattern,
+  type PatternId,
+  type SurfaceConnectorId,
 } from '@blastlab/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
 import { useUiStore } from './stores/uiStore';
@@ -178,4 +184,104 @@ export async function generatePerfFixture(): Promise<void> {
     clipToBoundary: false,
   });
   getEngine()?.zoomToFit();
+}
+
+// ------------------------------------------------------------------ Tiempos
+
+export interface TieUpForm {
+  patternId: PatternId;
+  startRow: number;
+  startCol: number;
+}
+
+/** Reemplaza las conexiones y puntos de inicio de los taladros del patrón por un amarre por filas. */
+export function generateRowTieUp(
+  form: TieUpForm,
+  interHoleConnectorId: SurfaceConnectorId,
+  interRowConnectorId: SurfaceConnectorId,
+): void {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  const generated = rowTieUp(blast, { ...form, interHoleConnectorId, interRowConnectorId });
+  if (generated.connections.length === 0) {
+    notify('El patrón no tiene taladros con fila/columna', 'error');
+    return;
+  }
+  const inPattern = new Set<string>(
+    blast.holes.filter((h) => h.patternId === form.patternId).map((h) => h.id),
+  );
+  const touches = (ref: NodeRef) => ref.kind === 'hole' && inPattern.has(ref.holeId);
+  const plan = blast.initiation;
+  document.dispatch(
+    commands.setInitiation(blast.id, {
+      ...plan,
+      system: plan.system === 'electronic' ? 'mixed' : plan.system,
+      connections: [
+        ...plan.connections.filter((c) => !touches(c.from) && !touches(c.to)),
+        ...generated.connections,
+      ],
+      initiationPoints: [
+        ...plan.initiationPoints.filter((p) => !touches(p.at)),
+        ...generated.initiationPoints,
+      ],
+    }),
+    'Amarre por filas',
+  );
+  notify(`Amarre generado: ${generated.connections.length} conexiones`);
+}
+
+/** Programa detonadores electrónicos en los taladros del patrón y quita su red de superficie. */
+export function assignElectronicTimes(
+  form: TieUpForm,
+  detonatorId: DetonatorId,
+  interHole: number,
+  interRow: number,
+  offset: number,
+): void {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  const times = electronicTimes(blast, { ...form, detonatorId, interHole, interRow, offset });
+  if (times.size === 0) {
+    notify('El patrón no tiene taladros con fila/columna', 'error');
+    return;
+  }
+  const ids = [...times.keys()];
+  const idSet = new Set<string>(ids);
+  const touches = (ref: NodeRef) => ref.kind === 'hole' && idSet.has(ref.holeId);
+  const plan = blast.initiation;
+  document.dispatch(
+    [
+      ...commands.setDownholeDetonator(document, ids, detonatorId, (id) => times.get(id) ?? 0),
+      ...commands.setInitiation(blast.id, {
+        ...plan,
+        system: plan.connections.every((c) => touches(c.from) || touches(c.to))
+          ? 'electronic'
+          : 'mixed',
+        connections: plan.connections.filter((c) => !touches(c.from) && !touches(c.to)),
+        initiationPoints: plan.initiationPoints.filter((p) => !touches(p.at)),
+      }),
+    ],
+    `Tiempos electrónicos (${ids.length} taladros)`,
+  );
+  notify(`Tiempos electrónicos asignados a ${ids.length} taladros`);
+}
+
+export function clearConnections(onlySelection: boolean): void {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  if (onlySelection) {
+    document.dispatch(
+      commands.removeConnectionsOfHoles(document, blast.id, selection.ids),
+      'Borrar amarres de la selección',
+    );
+  } else {
+    document.dispatch(
+      commands.setInitiation(blast.id, {
+        ...blast.initiation,
+        connections: [],
+        initiationPoints: [],
+      }),
+      'Borrar todos los amarres',
+    );
+  }
 }

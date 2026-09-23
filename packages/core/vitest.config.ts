@@ -5,5 +5,6 @@ export default defineProject({
     name: 'core',
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    exclude: ['src/**/*.perf.test.ts'],
   },
 });

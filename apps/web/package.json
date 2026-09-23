@@ -13,6 +13,7 @@
     "@blastlab/core": "workspace:*",
     "@blastlab/engine": "workspace:*",
     "@blastlab/workers": "workspace:*",
+    "echarts": "^6.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zustand": "^5.0.15"

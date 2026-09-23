@@ -33,6 +33,8 @@ export class HolesLayer {
   private selected = new Uint8Array(INITIAL_CAPACITY);
   private hoverSlot = -1;
   private previewIds: HoleId[] = [];
+  /** Color base por taladro (p.ej. por tiempo o kg); null = color por defecto. */
+  private colorSource: ((id: HoleId) => Color | null) | null = null;
 
   private readonly quad = new PlaneGeometry(2, 2);
   private readonly material: ShaderMaterial;
@@ -200,6 +202,17 @@ export class HolesLayer {
     this.previewIds = [];
   }
 
+  /** Define el color base por taladro y recolorea todo. Selección y hover tienen prioridad. */
+  setColorSource(source: ((id: HoleId) => Color | null) | null): void {
+    this.colorSource = source;
+    this.refreshColors();
+  }
+
+  refreshColors(): void {
+    for (let slot = 0; slot < this.count; slot++) this.writeColor(slot);
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+
   /** Sube los buffers modificados a la GPU. Llamar una vez por lote de cambios. */
   flush(): void {
     this.mesh.count = this.count;
@@ -294,12 +307,13 @@ export class HolesLayer {
   }
 
   private writeColor(slot: number): void {
-    const c: Color =
-      slot === this.hoverSlot
-        ? COLORS.holeHover
-        : this.selected[slot]
-          ? COLORS.holeSelected
-          : COLORS.hole;
+    let c: Color;
+    if (slot === this.hoverSlot) c = COLORS.holeHover;
+    else if (this.selected[slot]) c = COLORS.holeSelected;
+    else {
+      const id = this.ids[slot];
+      c = (id !== undefined ? this.colorSource?.(id) : null) ?? COLORS.hole;
+    }
     const colors = this.mesh.instanceColor;
     if (!colors) return;
     colors.array[slot * 3] = c.r;

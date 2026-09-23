@@ -1,0 +1,90 @@
+/**
+ * Presupuestos de rendimiento (docs/PLAN.md). Corren en el proyecto `perf`, después del resto
+ * y sin paralelismo, para medir el algoritmo y no la contención con otros tests.
+ * Se toma el mínimo de varias corridas (descarta JIT en frío y ruido del sistema).
+ */
+import { describe, expect, it } from 'vitest';
+import * as commands from './document/commands';
+import { DocumentStore } from './document/DocumentStore';
+import {
+  createBlast,
+  createEmptyProject,
+  DEFAULT_BENCH,
+  DEFAULT_HOLE_TEMPLATE,
+} from './model/factories';
+import { newId } from './model/ids';
+import { createDefaultLibrary } from './model/library';
+import type { Pattern } from './model/types';
+import { generatePatternHoles } from './patterns/pattern';
+import { computeTiming } from './timing/timing';
+import { rowTieUp, withDownholeDetonator } from './timing/tieUp';
+
+function best(runs: number, fn: () => void): number {
+  let min = Infinity;
+  for (let i = 0; i < runs; i++) {
+    const t0 = performance.now();
+    fn();
+    min = Math.min(min, performance.now() - t0);
+  }
+  return min;
+}
+
+const pattern: Pattern = {
+  id: newId<'Pattern'>(),
+  name: 'P',
+  kind: 'staggered',
+  burden: 5,
+  spacing: 6,
+  origin: { x: 350_000, y: 8_500_000 },
+  rowAzimuth: Math.PI / 2,
+  rowAdvance: 'right',
+  rows: 50,
+  holesPerRow: 100,
+  holeTemplate: DEFAULT_HOLE_TEMPLATE,
+};
+
+describe('rendimiento con 5.000 taladros', () => {
+  it('generar la malla en < 50 ms', () => {
+    const ms = best(5, () => generatePatternHoles(pattern, DEFAULT_BENCH, { startNumber: 1 }));
+    expect(ms).toBeLessThan(50);
+  });
+
+  it('mover 500, deshacer y rehacer en < 50 ms', () => {
+    const store = new DocumentStore(createEmptyProject());
+    const blastId = store.project.blasts[0]?.id;
+    if (!blastId) throw new Error('sin voladura');
+    const holes = generatePatternHoles(pattern, DEFAULT_BENCH, { startNumber: 1 });
+    store.dispatch(commands.addHoles(blastId, holes), 'Agregar');
+    const ids = holes.slice(0, 500).map((h) => h.id);
+    const ms = best(5, () => {
+      store.dispatch(commands.moveHoles(store, ids, 1, 1), 'Mover');
+      store.undo();
+      store.redo();
+    });
+    expect(ms).toBeLessThan(50);
+  });
+
+  it('tiempos (Dijkstra + ventanas + entre filas) en < 20 ms', () => {
+    const lib = createDefaultLibrary();
+    const det = lib.detonators[0];
+    const c17 = lib.surfaceConnectors[0];
+    const c42 = lib.surfaceConnectors[2];
+    if (!det || !c17 || !c42) throw new Error('librería incompleta');
+    const holes = generatePatternHoles(pattern, DEFAULT_BENCH, { startNumber: 1 }).map((h) => ({
+      ...h,
+      initiators: withDownholeDetonator(h, det.id, 0.5),
+    }));
+    const base = { ...createBlast('V', newId<'RockMass'>()), patterns: [pattern], holes };
+    const plan = rowTieUp(base, {
+      patternId: pattern.id,
+      startRow: 0,
+      startCol: 50,
+      interHoleConnectorId: c17.id,
+      interRowConnectorId: c42.id,
+    });
+    const blast = { ...base, initiation: { ...base.initiation, ...plan } };
+    const kg = new Float64Array(5000).fill(300);
+    const ms = best(10, () => computeTiming(blast, lib, undefined, kg));
+    expect(ms).toBeLessThan(20);
+  });
+});

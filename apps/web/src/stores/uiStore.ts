@@ -1,4 +1,10 @@
-import { DEFAULT_HOLE_TEMPLATE, type HoleId, type HoleTemplate, type Vec2 } from '@blastlab/core';
+import {
+  DEFAULT_HOLE_TEMPLATE,
+  type HoleId,
+  type HoleTemplate,
+  type SurfaceConnectorId,
+  type Vec2,
+} from '@blastlab/core';
 import type { FrameStats, SnapSettings, ToolName } from '@blastlab/engine';
 import { create } from 'zustand';
 
@@ -10,6 +16,9 @@ interface UiState {
   tool: ToolName;
   snap: SnapSettings;
   holeTemplate: HoleTemplate;
+  /** Conector de la herramienta Amarre. */
+  tieConnectorId: SurfaceConnectorId | undefined;
+  leftTab: 'design' | 'charge' | 'timing' | 'library';
   frameStats: FrameStats | null;
   pointer: Vec2 | null;
   hover: HoleId | null;
@@ -18,6 +27,8 @@ interface UiState {
   setTool: (tool: ToolName) => void;
   setSnap: (snap: Partial<SnapSettings>) => void;
   setHoleTemplate: (template: Partial<HoleTemplate>) => void;
+  setTieConnector: (id: SurfaceConnectorId | undefined) => void;
+  setLeftTab: (tab: UiState['leftTab']) => void;
   setFrameStats: (stats: FrameStats) => void;
   setPointer: (pointer: Vec2 | null) => void;
   setHover: (hover: HoleId | null) => void;
@@ -29,6 +40,8 @@ export const useUiStore = create<UiState>()((set) => ({
   tool: 'select',
   snap: { grid: false, gridSize: 1, holes: true, pattern: true, tolerancePx: 10 },
   holeTemplate: DEFAULT_HOLE_TEMPLATE,
+  tieConnectorId: undefined,
+  leftTab: 'design',
   frameStats: null,
   pointer: null,
   hover: null,
@@ -42,6 +55,12 @@ export const useUiStore = create<UiState>()((set) => ({
   },
   setHoleTemplate: (template) => {
     set((s) => ({ holeTemplate: { ...s.holeTemplate, ...template } }));
+  },
+  setTieConnector: (tieConnectorId) => {
+    set({ tieConnectorId });
+  },
+  setLeftTab: (leftTab) => {
+    set({ leftTab });
   },
   setFrameStats: (frameStats) => {
     set({ frameStats });

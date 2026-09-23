@@ -15,9 +15,26 @@ export { PointIndex } from './geometry/spatialIndex';
 // Patrones
 export * from './patterns/pattern';
 
+// Carguío y tiempos
+export * from './model/library';
+export * from './charging/charge';
+export * from './charging/influence';
+export * from './charging/chargeAnalysis';
+export * from './timing/timing';
+export * from './timing/isochrones';
+export * from './timing/tieUp';
+export * from './analysis/analyzeBlast';
+
 // Documento
 export type { ChangeSet } from './document/changeset';
-export type { Op, IndexedEntry, BlastPatch, BlastFields } from './document/ops';
+export type {
+  Op,
+  IndexedEntry,
+  BlastPatch,
+  BlastFields,
+  ProjectPatch,
+  ProjectFields,
+} from './document/ops';
 export {
   DocumentStore,
   type DocumentListener,

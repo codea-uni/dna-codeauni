@@ -91,20 +91,6 @@ describe('generación de patrones', () => {
     expect(far.col).toBe(20);
   });
 
-  it('rendimiento: 5.000 taladros en < 50 ms', () => {
-    const p = pattern({ rows: 50, holesPerRow: 100 });
-    // Mínimo de varias corridas: mide el costo del algoritmo, no el JIT en frío ni la contención
-    // con otros archivos de test que corren en paralelo.
-    let best = Infinity;
-    for (let i = 0; i < 5; i++) {
-      const t0 = performance.now();
-      const holes = generatePatternHoles(p, DEFAULT_BENCH, { startNumber: 1 });
-      best = Math.min(best, performance.now() - t0);
-      expect(holes).toHaveLength(5000);
-    }
-    expect(best).toBeLessThan(50);
-  });
-
   it('ajuste a un polígono: la red cubre todos los puntos interiores', () => {
     const polygon = [
       { x: 0, y: 0 },

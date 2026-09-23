@@ -1,10 +1,12 @@
-import { OrthographicCamera, Scene, Vector2, WebGLRenderer } from 'three';
+import { Color, OrthographicCamera, Scene, Vector2, WebGLRenderer } from 'three';
 import {
   DEFAULT_HOLE_TEMPLATE,
   snapPoint,
   type Blast,
   type BlastId,
   type ChangeSet,
+  type ConnectionId,
+  type SurfaceConnectorId,
   type DocumentStore,
   type HoleId,
   type HoleTemplate,
@@ -21,13 +23,18 @@ import { InputRouter } from './input/InputRouter';
 import { BoundaryLayer } from './layers/BoundaryLayer';
 import { COLORS } from './layers/colors';
 import { GridLayer } from './layers/GridLayer';
+import { turbo } from './layers/colormap';
 import { HolesLayer } from './layers/HolesLayer';
+import { InitiationLayer } from './layers/InitiationLayer';
+import { IsochronesLayer, type IsochroneData } from './layers/IsochronesLayer';
 import { LabelsLayer } from './layers/LabelsLayer';
 import { OverlayLayer } from './layers/OverlayLayer';
 import { RenderLoop, type FrameStats } from './loop/RenderLoop';
 import { HolePicker } from './picking/HolePicker';
 import { AddHoleTool } from './tools/AddHoleTool';
 import { BoundaryTool } from './tools/BoundaryTool';
+import { InitiateTool } from './tools/InitiateTool';
+import { TieTool } from './tools/TieTool';
 import { PanTool } from './tools/PanTool';
 import { SelectTool } from './tools/SelectTool';
 import type { Tool, ToolContext, ToolName, ToolPointer } from './tools/types';
@@ -44,6 +51,19 @@ export interface EngineEvents extends Record<string, unknown> {
   pointer: Vec2 | null;
   hover: HoleId | null;
   tool: ToolName;
+  /** Tiempo actual de la animación de secuencia [s] (null al detenerla). */
+  sequenceTime: number | null;
+  /** La animación llegó al final. */
+  sequenceEnded: null;
+}
+
+export type EngineLayer = 'labels' | 'traces' | 'connections' | 'isochrones';
+
+/** Valores escalares por taladro para colorear con el mapa turbo. */
+export interface HoleScalars {
+  values: ReadonlyMap<HoleId, number>;
+  min: number;
+  max: number;
 }
 
 export interface SnapSettings {
@@ -78,6 +98,26 @@ export class Engine {
   private readonly holes = new HolesLayer();
   private readonly labels = new LabelsLayer();
   private readonly boundaries = new BoundaryLayer();
+  private readonly initiation = new InitiationLayer();
+  private readonly isochrones = new IsochronesLayer();
+  private isochroneData: IsochroneData | null = null;
+  private layerVisible: Record<EngineLayer, boolean> = {
+    labels: true,
+    traces: true,
+    connections: true,
+    isochrones: true,
+  };
+  private scalars: HoleScalars | null = null;
+  private labelOverride: ReadonlyMap<HoleId, string> | null = null;
+  private tieConnectorId: SurfaceConnectorId | undefined;
+  private sequence: {
+    times: ReadonlyMap<HoleId, number>;
+    t: number;
+    playing: boolean;
+    speed: number;
+    end: number;
+    last: number;
+  } | null = null;
   private readonly overlay = new OverlayLayer();
   private readonly picker: HolePicker;
 
@@ -90,6 +130,8 @@ export class Engine {
     add: new AddHoleTool(),
     boundary: new BoundaryTool(),
     pan: new PanTool(),
+    tie: new TieTool(),
+    initiate: new InitiateTool(),
   };
   private tool: Tool = this.tools.select;
   private readonly toolContext: ToolContext;
@@ -137,7 +179,9 @@ export class Engine {
     this.camera.lookAt(0, 0, 0);
     this.scene.add(
       this.grid.mesh,
+      this.isochrones.lines,
       this.boundaries.root,
+      this.initiation.root,
       this.holes.root,
       this.labels.mesh,
       this.overlay.root,
@@ -146,6 +190,7 @@ export class Engine {
     this.loop = new RenderLoop(
       () => {
         this.flushPointer();
+        this.advanceSequence();
         this.renderer.render(this.scene, this.camera);
       },
       (stats) => {
@@ -283,6 +328,91 @@ export class Engine {
     this.setView(fitBounds(bounds, this.width, this.height, 0.05));
   }
 
+  setLayerVisible(layer: EngineLayer, visible: boolean): void {
+    this.layerVisible = { ...this.layerVisible, [layer]: visible };
+    this.applyView();
+  }
+
+  /** Conector con el que la herramienta Amarre crea conexiones. */
+  setTieConnector(id: SurfaceConnectorId | undefined): void {
+    this.tieConnectorId = id;
+  }
+
+  /** Colorea los taladros por un valor (tiempo, kg…); null vuelve al color por defecto. */
+  setHoleScalars(scalars: HoleScalars | null): void {
+    this.scalars = scalars;
+    if (!this.sequence) this.applyHoleColors();
+  }
+
+  /** Reemplaza el texto de las etiquetas (p.ej. tiempos); null vuelve a la etiqueta del taladro. */
+  setHoleLabels(labels: ReadonlyMap<HoleId, string> | null): void {
+    this.labelOverride = labels;
+    for (const blast of this.document.project.blasts) {
+      for (const h of blast.holes)
+        this.labels.upsert(
+          h.id,
+          h.collar.x - this.origin.x,
+          h.collar.y - this.origin.y,
+          this.labelFor(h.id, h.label),
+        );
+    }
+    this.labels.flush();
+    this.loop.invalidate();
+  }
+
+  setIsochrones(data: IsochroneData | null): void {
+    this.isochroneData = data;
+    this.isochrones.set(data, this.origin);
+    this.loop.invalidate();
+  }
+
+  /**
+   * Animación de la secuencia de disparo. `times` en segundos por taladro.
+   * `speed` = segundos de secuencia por segundo real (p.ej. 0.1 → 10× más lento).
+   */
+  playSequence(times: ReadonlyMap<HoleId, number>, speed: number, from?: number): void {
+    let first = Infinity;
+    let end = -Infinity;
+    for (const t of times.values()) {
+      first = Math.min(first, t);
+      end = Math.max(end, t);
+    }
+    if (!Number.isFinite(first)) return;
+    const start = from ?? (this.sequence && this.sequence.t < end ? this.sequence.t : first - 0.05);
+    this.sequence = {
+      times,
+      t: start,
+      playing: true,
+      speed,
+      end: end + 0.3,
+      last: performance.now(),
+    };
+    this.applyHoleColors();
+  }
+
+  pauseSequence(): void {
+    if (this.sequence) this.sequence.playing = false;
+  }
+
+  setSequenceSpeed(speed: number): void {
+    if (this.sequence) this.sequence.speed = speed;
+  }
+
+  /** Posiciona la animación en `t` (en pausa). */
+  seekSequence(times: ReadonlyMap<HoleId, number>, t: number): void {
+    const speed = this.sequence?.speed ?? 0.1;
+    this.sequence = { times, t, playing: false, speed, end: Infinity, last: performance.now() };
+    this.applyHoleColors();
+    this.events.emit('sequenceTime', t);
+  }
+
+  stopSequence(): void {
+    if (!this.sequence) return;
+    this.sequence = null;
+    this.applyHoleColors();
+    this.events.emit('sequenceTime', null);
+  }
+
   dispose(): void {
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.resizeObserver.disconnect();
@@ -293,6 +423,8 @@ export class Engine {
     this.holes.dispose();
     this.labels.dispose();
     this.boundaries.dispose();
+    this.initiation.dispose();
+    this.isochrones.dispose();
     this.overlay.dispose();
     this.renderer.dispose();
   }
@@ -325,8 +457,71 @@ export class Engine {
       this.picker.markDirty();
     }
     if (cs.blasts.length > 0) this.boundaries.rebuild(this.document.project.blasts, this.origin);
+    // Las conexiones siguen a los taladros: se reconstruyen si cambian taladros, iniciación o librería.
+    if (cs.blasts.length > 0 || cs.project || added.length + removed.length + updated.length > 0)
+      this.rebuildInitiation();
     if (cs.patterns) this.updateTypicalSpacing();
     this.applyView();
+  }
+
+  private rebuildInitiation(): void {
+    this.initiation.rebuild(
+      this.document.project.blasts,
+      this.document.project.library,
+      this.origin,
+    );
+  }
+
+  private labelFor(id: HoleId, fallback: string): string {
+    return this.labelOverride?.get(id) ?? fallback;
+  }
+
+  private readonly firedColor = new Color(0xff5a1f);
+  private readonly flashColor = new Color(0xfff3b0);
+  private readonly pendingColor = new Color(0x2a3442);
+
+  /** Color de taladros según prioridad: secuencia > escalares > por defecto. */
+  private applyHoleColors(): void {
+    const seq = this.sequence;
+    if (seq) {
+      this.holes.setColorSource((id) => {
+        const t = seq.times.get(id);
+        if (t === undefined || seq.t < t) return this.pendingColor;
+        return seq.t - t < 0.025 ? this.flashColor : this.firedColor;
+      });
+    } else if (this.scalars) {
+      const { values, min, max } = this.scalars;
+      const span = max - min;
+      const cache = new Map<HoleId, Color>();
+      this.holes.setColorSource((id) => {
+        const v = values.get(id);
+        if (v === undefined || !Number.isFinite(v)) return null;
+        let c = cache.get(id);
+        if (!c) cache.set(id, (c = turbo(span > 0 ? (v - min) / span : 0.5, new Color())));
+        return c;
+      });
+    } else {
+      this.holes.setColorSource(null);
+    }
+    this.holes.flush();
+    this.loop.invalidate();
+  }
+
+  private advanceSequence(): void {
+    const seq = this.sequence;
+    if (!seq?.playing) return;
+    const now = performance.now();
+    seq.t += ((now - seq.last) / 1000) * seq.speed;
+    seq.last = now;
+    if (seq.t >= seq.end) {
+      seq.t = seq.end;
+      seq.playing = false;
+      this.events.emit('sequenceEnded', null);
+    }
+    this.holes.refreshColors();
+    this.holes.flush();
+    this.events.emit('sequenceTime', seq.t);
+    if (seq.playing) this.loop.invalidate();
   }
 
   private onSelectionChange(ids: ReadonlySet<HoleId>): void {
@@ -347,7 +542,12 @@ export class Engine {
     if (!loc) return;
     const h = loc.hole;
     this.holes.upsert(h, this.origin, this.selection.has(id));
-    this.labels.upsert(id, h.collar.x - this.origin.x, h.collar.y - this.origin.y, h.label);
+    this.labels.upsert(
+      id,
+      h.collar.x - this.origin.x,
+      h.collar.y - this.origin.y,
+      this.labelFor(id, h.label),
+    );
   }
 
   private rebuildAll(checkRebase = true): void {
@@ -358,7 +558,12 @@ export class Engine {
     for (const blast of this.document.project.blasts) {
       for (const h of blast.holes) {
         this.holes.upsert(h, this.origin, this.selection.has(h.id));
-        this.labels.upsert(h.id, h.collar.x - this.origin.x, h.collar.y - this.origin.y, h.label);
+        this.labels.upsert(
+          h.id,
+          h.collar.x - this.origin.x,
+          h.collar.y - this.origin.y,
+          this.labelFor(h.id, h.label),
+        );
       }
     }
     if (checkRebase && this.needsRebase([])) {
@@ -369,6 +574,9 @@ export class Engine {
     this.labels.flush();
     this.picker.markDirty();
     this.boundaries.rebuild(this.document.project.blasts, this.origin);
+    this.rebuildInitiation();
+    this.isochrones.set(this.isochroneData, this.origin);
+    this.holes.refreshColors();
     this.updateTypicalSpacing();
     this.applyView();
   }
@@ -459,8 +667,10 @@ export class Engine {
     const buffer = this.renderer.getDrawingBufferSize(new Vector2());
     this.holes.setViewport(buffer.x, buffer.y, radiusCss * this.pixelRatio);
     this.labels.setViewport(buffer.x, buffer.y, this.pixelRatio, radiusCss * this.pixelRatio);
-    this.labels.mesh.visible = spacingPx >= LABEL_MIN_SPACING_PX;
-    this.holes.traceObject.visible = spacingPx >= 8;
+    this.labels.mesh.visible = this.layerVisible.labels && spacingPx >= LABEL_MIN_SPACING_PX;
+    this.holes.traceObject.visible = this.layerVisible.traces && spacingPx >= 8;
+    this.initiation.root.visible = this.layerVisible.connections;
+    this.isochrones.lines.visible = this.layerVisible.isochrones;
     this.loop.invalidate();
   }
 
@@ -492,7 +702,9 @@ export class Engine {
 
   private updateHover(p: ToolPointer): void {
     const tool = this.tool.name;
-    this.setHover(tool === 'select' || tool === 'lasso' ? this.pickHole(p.x, p.y) : null);
+    this.setHover(
+      tool === 'add' || tool === 'boundary' || tool === 'pan' ? null : this.pickHole(p.x, p.y),
+    );
   }
 
   private setHover(id: HoleId | null): void {
@@ -521,6 +733,31 @@ export class Engine {
     if (this.tool.onKeyDown?.(e, this.toolContext)) return true;
     if (e.key === 'Escape') return this.tool.cancel?.(this.toolContext) ?? false;
     return false;
+  }
+
+  /** Conexión más cercana (distancia punto-segmento) dentro de la tolerancia de picking. */
+  private pickConnection(x: number, y: number): ConnectionId | null {
+    const blast = this.activeBlast();
+    if (!blast) return null;
+    const tol = this.pickTolerancePx * this.view.metersPerPixel;
+    let best: ConnectionId | null = null;
+    let bestD = tol;
+    for (const c of blast.initiation.connections) {
+      if (c.from.kind !== 'hole' || c.to.kind !== 'hole') continue;
+      const a = this.document.findHole(c.from.holeId)?.hole.collar;
+      const b = this.document.findHole(c.to.holeId)?.hole.collar;
+      if (!a || !b) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len2 = dx * dx + dy * dy;
+      const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / len2)) : 0;
+      const d = Math.hypot(a.x + dx * t - x, a.y + dy * t - y);
+      if (d < bestD) {
+        bestD = d;
+        best = c.id;
+      }
+    }
+    return best;
   }
 
   private activeBlast(): Blast | undefined {
@@ -562,6 +799,11 @@ export class Engine {
       metersPerPixel: () => this.view.metersPerPixel,
       activeBlast: () => this.activeBlast(),
       holeTemplate: () => this.template,
+      tieConnector: () => {
+        const connectors = this.document.project.library.surfaceConnectors;
+        return connectors.find((c) => c.id === this.tieConnectorId)?.id ?? connectors[0]?.id;
+      },
+      pickConnection: (x, y) => this.pickConnection(x, y),
       showPolyline: (points) => {
         this.overlay.setPolyline(points ? toRender(points) : null);
       },

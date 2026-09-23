@@ -24,6 +24,18 @@ const TOOLS: { name: ToolName; label: string; key: string; hint: string }[] = [
     key: 'B',
     hint: 'Clic: vértice · Doble clic / Enter: cerrar · Retroceso: deshacer vértice',
   },
+  {
+    name: 'tie',
+    label: 'Amarrar',
+    key: 'T',
+    hint: 'Clic en taladros para encadenar conexiones · Clic en vacío/Esc termina · Ctrl+clic borra una conexión',
+  },
+  {
+    name: 'initiate',
+    label: 'Inicio',
+    key: 'I',
+    hint: 'Clic en un taladro: agrega/quita punto de inicio',
+  },
   { name: 'pan', label: 'Desplazar', key: 'H', hint: 'Arrastre: desplazar la vista' },
 ];
 

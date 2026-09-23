@@ -1,5 +1,7 @@
 import type {
   Blast,
+  ConnectionId,
+  SurfaceConnectorId,
   DocumentStore,
   HoleId,
   HoleTemplate,
@@ -8,7 +10,7 @@ import type {
   Vec2,
 } from '@blastlab/core';
 
-export type ToolName = 'select' | 'lasso' | 'add' | 'boundary' | 'pan';
+export type ToolName = 'select' | 'lasso' | 'add' | 'boundary' | 'pan' | 'tie' | 'initiate';
 
 /** Evento de puntero ya traducido a coordenadas de proyecto [m]. */
 export interface ToolPointer {
@@ -41,6 +43,9 @@ export interface ToolContext {
   metersPerPixel(): number;
   activeBlast(): Blast | undefined;
   holeTemplate(): HoleTemplate;
+  /** Conector que usa la herramienta Amarre. */
+  tieConnector(): SurfaceConnectorId | undefined;
+  pickConnection(x: number, y: number): ConnectionId | null;
   showPolyline(points: readonly Vec2[] | null): void;
   showPolygon(points: readonly Vec2[] | null): void;
   showSnapMarker(point: SnapResult | null): void;

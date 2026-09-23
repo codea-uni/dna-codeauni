@@ -11,7 +11,11 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "d3-delaunay": "^6.0.4",
     "flatbush": "^4.6.2",
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/d3-delaunay": "^6.0.4"
   }
 }

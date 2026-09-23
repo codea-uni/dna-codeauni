@@ -1,9 +1,13 @@
 import {
+  analyzeBlast,
   generatePatternHoles,
   parseProjectFile,
   ping,
   serializeProject,
+  type AnalysisOptions,
   type Bench,
+  type BlastAnalysis,
+  type BlastId,
   type Hole,
   type ParseResult,
   type Pattern,
@@ -23,6 +27,11 @@ export const computeApi = {
   /** Genera los taladros de un patrón (O(filas × columnas)). */
   generatePattern(pattern: Pattern, bench: Bench, startNumber: number): Hole[] {
     return generatePatternHoles(pattern, bench, { startNumber });
+  },
+
+  /** Carguío, cubicación, tiempos e isócronas de una voladura. */
+  analyzeBlast(project: Project, blastId: BlastId, options: AnalysisOptions): BlastAnalysis | null {
+    return analyzeBlast(project, blastId, options);
   },
 
   /** Serializa el proyecto a JSON (.blastlab.json). */

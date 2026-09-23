@@ -1,5 +1,6 @@
 import { Engine } from '@blastlab/engine';
 import { useEffect, useRef } from 'react';
+import { bindVisualization } from '../analysis/visualize';
 import { session, setEngine } from '../session';
 import { useUiStore } from '../stores/uiStore';
 
@@ -20,11 +21,15 @@ export function Viewport() {
     engine.setTool(ui.tool);
     engine.setSnapSettings(ui.snap);
     engine.setHoleTemplate(ui.holeTemplate);
+    engine.setTieConnector(ui.tieConnectorId);
+    const unbindVisualization = bindVisualization(engine);
 
     const unsubscribeUi = useUiStore.subscribe((state, prev) => {
       if (state.tool !== prev.tool) engine.setTool(state.tool);
       if (state.snap !== prev.snap) engine.setSnapSettings(state.snap);
       if (state.holeTemplate !== prev.holeTemplate) engine.setHoleTemplate(state.holeTemplate);
+      if (state.tieConnectorId !== prev.tieConnectorId)
+        engine.setTieConnector(state.tieConnectorId);
     });
     const offs = [
       engine.on('frameStats', (stats) => {
@@ -40,6 +45,7 @@ export function Viewport() {
 
     return () => {
       unsubscribeUi();
+      unbindVisualization();
       for (const off of offs) off();
       setEngine(null);
       engine.dispose();

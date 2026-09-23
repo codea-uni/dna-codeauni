@@ -1,6 +1,7 @@
 import { benchTopElevation, lengthToFloor } from '../geometry/hole';
 import { degToRad } from '../units/units';
 import { newId } from './ids';
+import { createDefaultLibrary } from './library';
 import type {
   Bench,
   Blast,
@@ -87,13 +88,7 @@ export function createEmptyProject(name = 'Proyecto sin título', now = new Date
     updatedAt: iso,
     currency: 'USD',
     coordinateSystem: { origin: { x: 0, y: 0, z: 0 } },
-    library: {
-      explosives: [],
-      detonators: [],
-      surfaceConnectors: [],
-      primers: [],
-      stemmingMaterials: [],
-    },
+    library: createDefaultLibrary(),
     rockMasses: [rock],
     siteModels: createDefaultSiteModels(),
     surfaces: [],

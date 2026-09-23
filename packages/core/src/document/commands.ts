@@ -1,14 +1,27 @@
+import { applyChargeRule as chargeRuleDecks } from '../charging/charge';
 import { lengthToFloor } from '../geometry/hole';
+import { newId } from '../model/ids';
 import type {
   Blast,
   BlastId,
+  ChargeRule,
+  ConnectionId,
+  Deck,
+  DetonatorId,
   Hole,
   HoleId,
+  InitiationPlan,
   Meters,
+  NodeRef,
   Pattern,
   Polygon2,
+  ProductLibrary,
   Radians,
+  RockMass,
+  Seconds,
+  SurfaceConnectorId,
 } from '../model/types';
+import { withDownholeDetonator } from '../timing/tieUp';
 import type { DocumentReader } from './DocumentStore';
 import type { Op } from './ops';
 
@@ -34,12 +47,34 @@ export function addHoles(blastId: BlastId, holes: readonly Hole[]): Op[] {
   return [{ type: 'holes/insert', blastId, entries: holes.map((item) => ({ item })) }];
 }
 
+const refersTo = (ref: NodeRef, ids: ReadonlySet<string>) =>
+  ref.kind === 'hole' && ids.has(ref.holeId);
+
+/** Borra taladros y, con ellos, las conexiones y puntos de inicio que los referencian. */
 export function deleteHoles(doc: DocumentReader, ids: Iterable<HoleId>): Op[] {
-  return [...groupByBlast(doc, ids)].map(([blastId, holes]) => ({
-    type: 'holes/remove',
-    blastId,
-    ids: holes.map((h) => h.id),
-  }));
+  const ops: Op[] = [];
+  for (const [blastId, holes] of groupByBlast(doc, ids)) {
+    const removed = new Set<string>(holes.map((h) => h.id));
+    const plan = doc.getBlast(blastId)?.initiation;
+    if (plan) {
+      const connections = plan.connections.filter(
+        (c) => !refersTo(c.from, removed) && !refersTo(c.to, removed),
+      );
+      const initiationPoints = plan.initiationPoints.filter((p) => !refersTo(p.at, removed));
+      if (
+        connections.length !== plan.connections.length ||
+        initiationPoints.length !== plan.initiationPoints.length
+      ) {
+        ops.push({
+          type: 'blast/patch',
+          blastId,
+          patch: { initiation: { ...plan, connections, initiationPoints } },
+        });
+      }
+    }
+    ops.push({ type: 'holes/remove', blastId, ids: holes.map((h) => h.id) });
+  }
+  return ops;
 }
 
 /** Desplaza taladros en planta (la cota de boca no cambia, así que la longitud tampoco). */
@@ -127,4 +162,139 @@ export function addPattern(blastId: BlastId, pattern: Pattern, holes: readonly H
 
 export function setBlastBoundary(blastId: BlastId, boundary: Polygon2 | undefined): Op[] {
   return [{ type: 'blast/patch', blastId, patch: { boundary } }];
+}
+
+// ------------------------------------------------------------------ Carguío
+
+export function setLibrary(library: ProductLibrary): Op[] {
+  return [{ type: 'project/patch', patch: { library } }];
+}
+
+export function setRockMasses(rockMasses: RockMass[]): Op[] {
+  return [{ type: 'project/patch', patch: { rockMasses } }];
+}
+
+/** Aplica una regla de carga (decks + iniciador) a los taladros indicados. */
+export function applyChargeRule(
+  doc: DocumentReader,
+  ids: Iterable<HoleId>,
+  rule: ChargeRule,
+): Op[] {
+  const library = doc.project.library;
+  return [...groupByBlast(doc, ids)].map(([blastId, holes]) => ({
+    type: 'holes/replace',
+    blastId,
+    holes: holes.map((h) => ({ ...h, ...chargeRuleDecks(h, rule, library) })),
+  }));
+}
+
+/** Reemplaza la columna de carga (decks de fondo a boca) de un taladro. */
+export function setHoleDecks(doc: DocumentReader, id: HoleId, decks: Deck[]): Op[] {
+  const loc = doc.findHole(id);
+  if (!loc) return [];
+  return [{ type: 'holes/replace', blastId: loc.blast.id, holes: [{ ...loc.hole, decks }] }];
+}
+
+/** Quita decks e iniciadores. */
+export function clearCharge(doc: DocumentReader, ids: Iterable<HoleId>): Op[] {
+  return [...groupByBlast(doc, ids)].map(([blastId, holes]) => ({
+    type: 'holes/replace',
+    blastId,
+    holes: holes.map((h) => ({ ...h, decks: [], initiators: [] })),
+  }));
+}
+
+// ------------------------------------------------------------------ Tiempos
+
+/** Detonador en el taladro (y retardo) para cada taladro; `delays` permite un valor por taladro. */
+export function setDownholeDetonator(
+  doc: DocumentReader,
+  ids: Iterable<HoleId>,
+  detonatorId: DetonatorId,
+  delay: Seconds | ((id: HoleId) => Seconds),
+): Op[] {
+  const delayOf = typeof delay === 'function' ? delay : () => delay;
+  return [...groupByBlast(doc, ids)].map(([blastId, holes]) => ({
+    type: 'holes/replace',
+    blastId,
+    holes: holes.map((h) => ({
+      ...h,
+      initiators: withDownholeDetonator(h, detonatorId, delayOf(h.id)),
+    })),
+  }));
+}
+
+export function setInitiation(blastId: BlastId, initiation: InitiationPlan): Op[] {
+  return [{ type: 'blast/patch', blastId, patch: { initiation } }];
+}
+
+export function addConnection(
+  doc: DocumentReader,
+  blastId: BlastId,
+  from: HoleId,
+  to: HoleId,
+  connectorId: SurfaceConnectorId,
+): Op[] {
+  const plan = doc.getBlast(blastId)?.initiation;
+  if (!plan || from === to) return [];
+  // Reemplaza una conexión existente entre el mismo par (en cualquier sentido).
+  const connections = plan.connections.filter(
+    (c) =>
+      !(
+        c.from.kind === 'hole' &&
+        c.to.kind === 'hole' &&
+        ((c.from.holeId === from && c.to.holeId === to) ||
+          (c.from.holeId === to && c.to.holeId === from))
+      ),
+  );
+  connections.push({
+    id: newId<'Connection'>(),
+    from: { kind: 'hole', holeId: from },
+    to: { kind: 'hole', holeId: to },
+    connectorId,
+  });
+  return setInitiation(blastId, { ...plan, connections });
+}
+
+export function removeConnections(
+  doc: DocumentReader,
+  blastId: BlastId,
+  ids: Iterable<ConnectionId>,
+): Op[] {
+  const plan = doc.getBlast(blastId)?.initiation;
+  if (!plan) return [];
+  const remove = new Set<string>(ids);
+  return setInitiation(blastId, {
+    ...plan,
+    connections: plan.connections.filter((c) => !remove.has(c.id)),
+  });
+}
+
+/** Quita las conexiones que tocan alguno de los taladros. */
+export function removeConnectionsOfHoles(
+  doc: DocumentReader,
+  blastId: BlastId,
+  holeIds: Iterable<HoleId>,
+): Op[] {
+  const plan = doc.getBlast(blastId)?.initiation;
+  if (!plan) return [];
+  const ids = new Set<string>(holeIds);
+  return setInitiation(blastId, {
+    ...plan,
+    connections: plan.connections.filter((c) => !refersTo(c.from, ids) && !refersTo(c.to, ids)),
+  });
+}
+
+/** Agrega o quita un punto de inicio en el taladro. */
+export function toggleInitiationPoint(doc: DocumentReader, blastId: BlastId, holeId: HoleId): Op[] {
+  const plan = doc.getBlast(blastId)?.initiation;
+  if (!plan) return [];
+  const exists = plan.initiationPoints.some((p) => p.at.kind === 'hole' && p.at.holeId === holeId);
+  const initiationPoints = exists
+    ? plan.initiationPoints.filter((p) => !(p.at.kind === 'hole' && p.at.holeId === holeId))
+    : [
+        ...plan.initiationPoints,
+        { id: newId<'InitiationPoint'>(), at: { kind: 'hole' as const, holeId }, time: 0 },
+      ];
+  return setInitiation(blastId, { ...plan, initiationPoints });
 }
