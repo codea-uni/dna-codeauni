@@ -1,3 +1,4 @@
+import { DEFAULT_ENERGY_OPTIONS, DEFAULT_NEAR_FIELD, type EnergyOptions } from '@blastlab/core';
 import { getCompute, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 
@@ -47,6 +48,80 @@ export function startAnalysisRunner(): () => void {
       schedule();
   });
   schedule();
+  return () => {
+    offDoc();
+    offOptions();
+    if (timer) clearTimeout(timer);
+  };
+}
+
+/** Opciones de energía (SI) a partir del estado de UI y del proyecto. */
+function energyOptions(): EnergyOptions | null {
+  const blast = session.document.project.blasts[0];
+  if (!blast) return null;
+  const s = useAnalysisStore.getState();
+  const nearField = session.document.project.siteModels.nearField ?? DEFAULT_NEAR_FIELD;
+  const toSi = s.energyMetric === 'nearFieldPpv' ? 1 / 1000 : 1; // mm/s → m/s
+  return {
+    ...DEFAULT_ENERGY_OPTIONS,
+    metric: s.energyMetric,
+    elevation: s.energyElevation ?? blast.bench.floorElevation + blast.bench.height / 2,
+    cellSize: s.energyCellSize,
+    cutoff: s.energyCutoff,
+    sigma: s.energySigma,
+    levels: s.energyLevels.map((l) => l * toSi),
+    nearField,
+  };
+}
+
+/** Recalcula la energía en el worker cuando está habilitada (debounce + latest-wins). */
+export function startEnergyRunner(): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let token = 0;
+  const run = async () => {
+    timer = null;
+    const s = useAnalysisStore.getState();
+    if (!s.energyEnabled) return;
+    const blast = session.document.project.blasts[0];
+    const options = energyOptions();
+    if (!blast || !options) return;
+    const mine = ++token;
+    s.set({ energyComputing: true });
+    try {
+      const energy = await getCompute().api.computeEnergy(
+        session.document.project,
+        blast.id,
+        options,
+      );
+      if (mine !== token) return;
+      useAnalysisStore.getState().set({ energy, energyComputing: false });
+    } catch (err) {
+      console.error('[energía]', err);
+      useAnalysisStore.getState().set({ energyComputing: false });
+    }
+  };
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void run(), DEBOUNCE_MS * 2);
+  };
+  const offDoc = session.document.subscribe(() => {
+    if (useAnalysisStore.getState().energyEnabled) schedule();
+  });
+  const keys = [
+    'energyEnabled',
+    'energyMetric',
+    'energyElevation',
+    'energyCellSize',
+    'energyCutoff',
+    'energySigma',
+    'energyLevels',
+  ] as const;
+  const offOptions = useAnalysisStore.subscribe((s, prev) => {
+    if (keys.some((k) => s[k] !== prev[k])) {
+      if (!s.energyEnabled) useAnalysisStore.getState().set({ energy: null });
+      else schedule();
+    }
+  });
   return () => {
     offDoc();
     offOptions();

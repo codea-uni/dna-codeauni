@@ -8,6 +8,7 @@ import {
 } from '@blastlab/core';
 import type { FrameStats, SnapSettings, ToolName } from '@blastlab/engine';
 import { create } from 'zustand';
+import type { CsvPreview } from '../dialogs/CsvImportDialog';
 
 /**
  * Estado de UI. Nunca contiene el diseño (ver CLAUDE.md: React no renderiza el diseño).
@@ -19,9 +20,12 @@ interface UiState {
   holeTemplate: HoleTemplate;
   /** Conector de la herramienta Amarre. */
   tieConnectorId: SurfaceConnectorId | undefined;
-  leftTab: 'design' | 'charge' | 'timing' | 'library';
+  leftTab: 'design' | 'charge' | 'timing' | 'energy' | 'library';
   /** Perímetro activo (resaltado; destino por defecto al generar mallas). */
   activeBoundaryId: BoundaryId | null;
+  /** Vista previa del CSV a importar (abre el diálogo). */
+  csvPreview: CsvPreview | null;
+  setCsvPreview: (preview: CsvPreview | null) => void;
   setActiveBoundary: (id: BoundaryId | null) => void;
   frameStats: FrameStats | null;
   pointer: Vec2 | null;
@@ -47,6 +51,10 @@ export const useUiStore = create<UiState>()((set) => ({
   tieConnectorId: undefined,
   leftTab: 'design',
   activeBoundaryId: null,
+  csvPreview: null,
+  setCsvPreview: (csvPreview) => {
+    set({ csvPreview });
+  },
   setActiveBoundary: (activeBoundaryId) => {
     set({ activeBoundaryId });
   },

@@ -25,6 +25,7 @@ import { BoundaryLayer } from './layers/BoundaryLayer';
 import { COLORS } from './layers/colors';
 import { GridLayer } from './layers/GridLayer';
 import { turbo } from './layers/colormap';
+import { EnergyLayer, type EnergyData } from './layers/EnergyLayer';
 import { HolesLayer } from './layers/HolesLayer';
 import { InitiationLayer } from './layers/InitiationLayer';
 import { IsochronesLayer, type IsochroneData } from './layers/IsochronesLayer';
@@ -61,7 +62,7 @@ export interface EngineEvents extends Record<string, unknown> {
   activeBoundary: BoundaryId | null;
 }
 
-export type EngineLayer = 'labels' | 'traces' | 'connections' | 'isochrones';
+export type EngineLayer = 'labels' | 'traces' | 'connections' | 'isochrones' | 'energy';
 
 /** Valores escalares por taladro para colorear con el mapa turbo. */
 export interface HoleScalars {
@@ -107,12 +108,15 @@ export class Engine {
   private lastVertexMpp = 0;
   private readonly initiation = new InitiationLayer();
   private readonly isochrones = new IsochronesLayer();
+  private readonly energy = new EnergyLayer();
+  private energyData: EnergyData | null = null;
   private isochroneData: IsochroneData | null = null;
   private layerVisible: Record<EngineLayer, boolean> = {
     labels: true,
     traces: true,
     connections: true,
     isochrones: true,
+    energy: true,
   };
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
@@ -187,6 +191,7 @@ export class Engine {
     this.camera.lookAt(0, 0, 0);
     this.scene.add(
       this.grid.mesh,
+      this.energy.root,
       this.isochrones.lines,
       this.boundaries.root,
       this.initiation.root,
@@ -379,6 +384,14 @@ export class Engine {
     this.loop.invalidate();
   }
 
+  /** Mapa de energía (raster coloreado + contornos); null lo oculta. */
+  setEnergy(data: EnergyData | null, opacity = 0.6): void {
+    this.energyData = data;
+    this.energy.setOpacity(opacity);
+    this.energy.set(data, this.origin);
+    this.loop.invalidate();
+  }
+
   setIsochrones(data: IsochroneData | null): void {
     this.isochroneData = data;
     this.isochrones.set(data, this.origin);
@@ -445,6 +458,7 @@ export class Engine {
     this.boundaryLabels.dispose();
     this.initiation.dispose();
     this.isochrones.dispose();
+    this.energy.dispose();
     this.overlay.dispose();
     this.renderer.dispose();
   }
@@ -630,6 +644,7 @@ export class Engine {
     this.rebuildBoundaries();
     this.rebuildInitiation();
     this.isochrones.set(this.isochroneData, this.origin);
+    this.energy.set(this.energyData, this.origin);
     this.holes.refreshColors();
     this.updateTypicalSpacing();
     this.applyView();
@@ -731,6 +746,7 @@ export class Engine {
     this.holes.traceObject.visible = this.layerVisible.traces && spacingPx >= 8;
     this.initiation.root.visible = this.layerVisible.connections;
     this.isochrones.lines.visible = this.layerVisible.isochrones;
+    this.energy.root.visible = this.layerVisible.energy;
     this.loop.invalidate();
   }
 

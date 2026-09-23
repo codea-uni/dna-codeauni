@@ -626,6 +626,10 @@ Todas las fases comparten estos criterios de "hecho":
 
 **Fase 5: Energía.**
 
+> Implementado con dos métricas en un plano horizontal: PPV de campo cercano (Holmberg–Persson,
+> integrado por taladro y tomando el máximo entre taladros, porque detonan en tiempos distintos) y
+> densidad de carga (núcleo gaussiano). Las secciones verticales quedan para una fase posterior.
+
 - Distribución de energía y explosivo sobre una grilla, a una cota o sección.
 - Contornos (marching squares en worker) mostrados como capa del engine.
 - Criterio de hecho: el cálculo no bloquea la UI y se actualiza en menos de 300 ms tras una edición.

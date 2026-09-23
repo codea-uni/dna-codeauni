@@ -25,6 +25,9 @@ export * from './timing/timing';
 export * from './timing/isochrones';
 export * from './timing/tieUp';
 export * from './analysis/analyzeBlast';
+export * from './energy/energy';
+export * from './energy/contours';
+export * from './energy/colormap';
 
 // Documento
 export type { ChangeSet } from './document/changeset';

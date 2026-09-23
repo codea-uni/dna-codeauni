@@ -364,6 +364,8 @@ export interface RockMass {
 
 export interface SiteModels {
   vibrationLaws: VibrationLaw[];
+  /** Holmberg–Persson (campo cercano): v = k·[Σ q·dx / d^(β/α)]^α, v y k en m/s. Opcional: hay valores por defecto. */
+  nearField?: { k: number; alpha: number; beta: number };
   airblast: AirblastLaw;
   flyrock: FlyrockParams;
 }

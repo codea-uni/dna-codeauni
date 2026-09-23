@@ -268,7 +268,8 @@ button.danger:hover:not(:disabled) {
 
 .tabs button {
   flex: 1;
-  padding: 0.45rem 0.2rem;
+  padding: 0.45rem 0.1rem;
+  font-size: 12px;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
@@ -466,4 +467,88 @@ tr.warn td,
   padding: 0;
   border-radius: 3px;
   border: 1px solid #0008;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: #0009;
+}
+
+.modal {
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 1rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px #0008;
+}
+
+.modal header,
+.modal footer {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal footer {
+  justify-content: flex-end;
+  margin-top: 0.8rem;
+}
+
+.modal footer .warn {
+  margin-right: auto;
+}
+
+.modal h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.modal-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+
+@media (max-width: 700px) {
+  .modal-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.table-scroll {
+  overflow-x: auto;
+  max-height: 220px;
+}
+
+.grid-table.preview {
+  table-layout: auto;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.grid-table.preview td {
+  padding: 1px 8px 1px 2px;
+  color: var(--muted);
+}
+
+.errors {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  color: #e3b341;
+  border: 1px solid #e3b34155;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.errors ul {
+  margin: 0.2rem 0 0;
+  padding-left: 1.2rem;
 }

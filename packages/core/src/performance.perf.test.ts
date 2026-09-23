@@ -16,6 +16,8 @@ import { newId } from './model/ids';
 import { createDefaultLibrary } from './model/library';
 import type { Pattern } from './model/types';
 import { generatePatternHoles } from './patterns/pattern';
+import { applyChargeRule } from './charging/charge';
+import { computeEnergyGrid, DEFAULT_ENERGY_OPTIONS } from './energy/energy';
 import { computeTiming } from './timing/timing';
 import { rowTieUp, withDownholeDetonator } from './timing/tieUp';
 
@@ -86,5 +88,30 @@ describe('rendimiento con 5.000 taladros', () => {
     const kg = new Float64Array(5000).fill(300);
     const ms = best(10, () => computeTiming(blast, lib, undefined, kg));
     expect(ms).toBeLessThan(20);
+  });
+
+  it('energía (Holmberg–Persson) en < 300 ms', () => {
+    const lib = createDefaultLibrary();
+    const anfo = lib.explosives[0];
+    const stem = lib.stemmingMaterials[0];
+    if (!anfo || !stem) throw new Error('librería incompleta');
+    const holes = generatePatternHoles(pattern, DEFAULT_BENCH, { startNumber: 1 }).map((h) => ({
+      ...h,
+      ...applyChargeRule(
+        h,
+        {
+          stemmingLength: 4,
+          stemmingMaterialId: stem.id,
+          explosiveId: anfo.id,
+          primerOffsetFromToe: 0.5,
+        },
+        lib,
+      ),
+    }));
+    const blast = { ...createBlast('V', newId<'RockMass'>()), patterns: [pattern], holes };
+    const ms = best(3, () =>
+      computeEnergyGrid(blast, lib, { ...DEFAULT_ENERGY_OPTIONS, elevation: 7.5 }),
+    );
+    expect(ms).toBeLessThan(300);
   });
 });

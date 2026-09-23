@@ -9,6 +9,7 @@ export {
 export { connectorColorCss, turboCss } from './layers/colormap';
 export { boundaryColorCss } from './layers/BoundaryLayer';
 export type { IsochroneData } from './layers/IsochronesLayer';
+export type { EnergyData } from './layers/EnergyLayer';
 export { fitBounds, panBy, screenToWorld, zoomAt, type PlanViewState } from './cameras/planView';
 export type { ToolName } from './tools/types';
 export type { FrameStats } from './loop/RenderLoop';

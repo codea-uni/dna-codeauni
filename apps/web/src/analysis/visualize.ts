@@ -77,6 +77,7 @@ export function bindVisualization(engine: Engine): () => void {
     }
     if (changed('analysis') || changed('labelBy'))
       engine.setHoleLabels(analysis ? labels(analysis, s.labelBy) : null);
+    if (changed('energy') || changed('energyOpacity')) engine.setEnergy(s.energy, s.energyOpacity);
     if (changed('analysis')) {
       const iso = analysis?.isochrones;
       const t = analysis?.timing;

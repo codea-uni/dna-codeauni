@@ -21,6 +21,7 @@ import type {
   Radians,
   RockMass,
   Seconds,
+  SiteModels,
   SurfaceConnectorId,
 } from '../model/types';
 import { withDownholeDetonator } from '../timing/tieUp';
@@ -234,6 +235,10 @@ export function makeBoundary(blast: Pick<Blast, 'boundaries'>, polygon: Polygon2
 
 export function setLibrary(library: ProductLibrary): Op[] {
   return [{ type: 'project/patch', patch: { library } }];
+}
+
+export function setSiteModels(siteModels: SiteModels): Op[] {
+  return [{ type: 'project/patch', patch: { siteModels } }];
 }
 
 export function setRockMasses(rockMasses: RockMass[]): Op[] {

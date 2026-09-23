@@ -60,6 +60,7 @@ export function Toolbar() {
   const setSnap = useUiStore((s) => s.setSnap);
   const history = useHistory();
   const fileInput = useRef<HTMLInputElement>(null);
+  const csvInput = useRef<HTMLInputElement>(null);
 
   return (
     <header className="toolbar">
@@ -76,6 +77,23 @@ export function Toolbar() {
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) void actions.openProject(file);
+            e.target.value = '';
+          }}
+        />
+        <button onClick={() => csvInput.current?.click()} title="Importar taladros desde CSV">
+          Importar CSV…
+        </button>
+        <button onClick={() => void actions.exportCsv()} title="Exportar taladros a CSV">
+          Exportar CSV
+        </button>
+        <input
+          ref={csvInput}
+          type="file"
+          accept=".csv,.txt,.tsv,text/csv"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void actions.openCsv(file);
             e.target.value = '';
           }}
         />

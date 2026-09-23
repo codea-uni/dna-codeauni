@@ -15,6 +15,7 @@ import {
   type SurfaceConnectorId,
 } from '@blastlab/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
+import { useAnalysisStore } from './stores/analysisStore';
 import { useUiStore } from './stores/uiStore';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
@@ -294,4 +295,51 @@ export function clearConnections(onlySelection: boolean): void {
       'Borrar todos los amarres',
     );
   }
+}
+
+// ------------------------------------------------------------------ CSV
+
+/** Lee el archivo y pide la vista previa al worker; abre el diálogo de importación. */
+export async function openCsv(file: File): Promise<void> {
+  await withBusy('Leyendo CSV…', async () => {
+    const text = await file.text();
+    const preview = await getCompute().api.csvPreview(text);
+    if (preview.headers.length === 0) {
+      notify('El archivo está vacío', 'error');
+      return;
+    }
+    useUiStore.getState().setCsvPreview({ fileName: file.name, text, ...preview });
+  });
+}
+
+/** Exporta los taladros de la voladura (con kg por taladro si hay análisis) a CSV. */
+export async function exportCsv(): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  await withBusy('Exportando CSV…', async () => {
+    const analysis = useAnalysisStore.getState().analysis;
+    const kg = analysis
+      ? new Map<string, number>(
+          analysis.charge.holeIds.map((id, i) => [id, analysis.charge.perHole[i] ?? 0]),
+        )
+      : undefined;
+    const text = await getCompute().api.csvExport(blast.holes, kg);
+    download(
+      text,
+      `${document.project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'taladros'}.csv`,
+      'text/csv',
+    );
+    notify(`${blast.holes.length} taladros exportados`);
+  });
+}
+
+function download(text: string, fileName: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = window.document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
