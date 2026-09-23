@@ -23,6 +23,7 @@ import {
   MousePointer2,
   Pentagon,
   Redo2,
+  Ruler,
   Save,
   Shapes,
   Sheet,
@@ -112,6 +113,13 @@ export const TOOLS: ToolDef[][] = [
     },
   ],
   [
+    {
+      name: 'measure',
+      label: 'Medir distancia',
+      key: 'R',
+      icon: Ruler,
+      hint: 'Clic en el origen y clic en el destino · distancia, azimut, ΔE y ΔN',
+    },
     {
       name: 'pan',
       label: 'Desplazar vista',

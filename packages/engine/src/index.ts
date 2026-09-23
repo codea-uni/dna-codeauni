@@ -21,3 +21,5 @@ export {
   hexCss,
   type Scene3DOptions,
 } from './scene3d/Scene3D';
+export { DEFAULT_DECORATIONS, type DecorationSettings } from './overlay/MapDecorations';
+export { formatDistance } from './cameras/mapScale';

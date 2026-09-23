@@ -7,6 +7,8 @@ import { COLORS } from './colors';
  */
 export class GridLayer {
   readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>;
+  /** Paso actual de la grilla menor [m] (la mayor es 10×). */
+  step = 10;
 
   constructor() {
     const material = new ShaderMaterial({
@@ -61,6 +63,7 @@ export class GridLayer {
     this.mesh.position.set(centerX, centerY, -1);
     this.mesh.scale.set(widthM * 1.1, heightM * 1.1, 1);
     const step = Math.pow(10, Math.ceil(Math.log10(Math.max(1e-6, metersPerPixel * 12))));
+    this.step = step;
     const uniform = this.mesh.material.uniforms.uStep;
     if (uniform) uniform.value = step;
   }

@@ -55,6 +55,12 @@ import { AddHoleTool } from './tools/AddHoleTool';
 import { BoundaryTool } from './tools/BoundaryTool';
 import { FreeFaceTool } from './tools/FreeFaceTool';
 import { MonitorTool } from './tools/MonitorTool';
+import { MeasureTool } from './tools/MeasureTool';
+import {
+  DEFAULT_DECORATIONS,
+  MapDecorations,
+  type DecorationSettings,
+} from './overlay/MapDecorations';
 import { InitiateTool } from './tools/InitiateTool';
 import { TieTool } from './tools/TieTool';
 import { PanTool } from './tools/PanTool';
@@ -121,6 +127,10 @@ export class Engine {
   private readonly camera = new OrthographicCamera();
   private readonly camera3d = new PerspectiveCamera(45, 1, 0.5, 200_000);
   private readonly planRoot = new Group();
+  private readonly decorations: MapDecorations;
+  private decorationSettings: DecorationSettings = DEFAULT_DECORATIONS;
+  private measureA: Vec2 | null = null;
+  private measureB: Vec2 | null = null;
   private readonly scene3d = new Scene3D();
   private viewMode: ViewMode = 'plan';
   private orbit: OrbitState | null = null;
@@ -181,6 +191,7 @@ export class Engine {
     boundary: new BoundaryTool(),
     freeFace: new FreeFaceTool(),
     monitor: new MonitorTool(),
+    measure: new MeasureTool(),
     pan: new PanTool(),
     tie: new TieTool(),
     initiate: new InitiateTool(),
@@ -224,6 +235,7 @@ export class Engine {
       antialias: true,
       powerPreference: 'high-performance',
     });
+    this.decorations = new MapDecorations(canvas.parentElement ?? document.body);
     this.scene.background = COLORS.background;
     this.camera.position.set(0, 0, 1000);
     this.camera.near = 0.1;
@@ -409,11 +421,25 @@ export class Engine {
     bounds.minY -= pad;
     bounds.maxX += pad;
     bounds.maxY += pad;
-    this.setView(fitBounds(bounds, this.width, this.height, 0.05));
+    // Encuadra en el área libre de reglas y desplaza el centro para que quede centrado en ella.
+    const inset = this.decorations.rulerInset;
+    const fit = fitBounds(bounds, this.width - inset.left, this.height - inset.top, 0.05);
+    this.setView({
+      ...fit,
+      centerX: fit.centerX - (inset.left / 2) * fit.metersPerPixel,
+      centerY: fit.centerY + (inset.top / 2) * fit.metersPerPixel,
+    });
   }
 
   get currentViewMode(): ViewMode {
     return this.viewMode;
+  }
+
+  /** Grilla, reglas, barra de escala y brújula. */
+  setDecorations(settings: Partial<DecorationSettings>): void {
+    this.decorationSettings = { ...this.decorationSettings, ...settings };
+    this.decorations.setSettings(this.decorationSettings);
+    this.applyView();
   }
 
   /** Planta (edición) o 3D (visualización del banco, taladros y decks). */
@@ -430,6 +456,8 @@ export class Engine {
       this.applyCamera3d();
     }
     this.canvas.style.cursor = is3d ? 'grab' : this.tool.cursor;
+    this.decorations.setMode(mode);
+    if (!is3d) this.applyView();
     this.events.emit('viewMode', mode);
     this.loop.invalidate();
   }
@@ -580,6 +608,7 @@ export class Engine {
     this.site.dispose();
     this.siteLabels.dispose();
     this.overlay.dispose();
+    this.decorations.dispose();
     this.renderer.dispose();
   }
 
@@ -633,6 +662,13 @@ export class Engine {
     this.applyView();
   }
 
+  /** Coloca la etiqueta de medición junto al extremo B (sigue a la vista al desplazar/zoom). */
+  private positionMeasure(): void {
+    const a = this.measureA;
+    const b = this.measureB;
+    this.decorations.setMeasure(a, b, b ? this.projectToScreen(b.x, b.y) : null);
+  }
+
   private rebuild3d(): void {
     const project = this.document.project;
     this.scene3d.rebuild(project, project.blasts, this.origin, this.options3d);
@@ -660,6 +696,7 @@ export class Engine {
     this.camera3d.near = Math.max(0.1, this.orbit.distance / 2000);
     this.camera3d.far = this.orbit.distance * 50;
     this.camera3d.updateProjectionMatrix();
+    this.decorations.update3d(this.orbit.yaw);
     this.loop.invalidate();
   }
 
@@ -914,6 +951,18 @@ export class Engine {
     this.camera.position.set(centerX, centerY, 1000);
     this.camera.updateProjectionMatrix();
     this.grid.update(centerX, centerY, halfW * 2, halfH * 2, mpp);
+    this.grid.mesh.visible = this.decorationSettings.grid;
+    this.decorations.updatePlan({
+      minX: centerX - halfW + this.origin.x,
+      maxX: centerX + halfW + this.origin.x,
+      minY: centerY - halfH + this.origin.y,
+      maxY: centerY + halfH + this.origin.y,
+      metersPerPixel: mpp,
+      width: this.width,
+      height: this.height,
+      gridStep: this.grid.step,
+    });
+    this.positionMeasure();
 
     const spacingPx = this.typicalSpacing / mpp;
     const radiusCss = Math.min(7, Math.max(2.5, spacingPx * 0.18));
@@ -976,6 +1025,7 @@ export class Engine {
         tool === 'boundary' ||
         tool === 'freeFace' ||
         tool === 'monitor' ||
+        tool === 'measure' ||
         tool === 'pan'
         ? null
         : this.pickHole(p.x, p.y),
@@ -1079,6 +1129,11 @@ export class Engine {
         return connectors.find((c) => c.id === this.tieConnectorId)?.id ?? connectors[0]?.id;
       },
       pickConnection: (x, y) => this.pickConnection(x, y),
+      showMeasure: (a, b) => {
+        this.measureA = a;
+        this.measureB = b;
+        this.positionMeasure();
+      },
       setActiveBoundary: (id) => {
         this.setActiveBoundary(id);
       },

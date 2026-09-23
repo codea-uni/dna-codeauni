@@ -23,6 +23,7 @@ export function Viewport() {
     engine.setSnapSettings(ui.snap);
     engine.setHoleTemplate(ui.holeTemplate);
     engine.setTieConnector(ui.tieConnectorId);
+    engine.setDecorations(ui.decorations);
     const unbindVisualization = bindVisualization(engine);
 
     const unsubscribeUi = useUiStore.subscribe((state, prev) => {
@@ -34,6 +35,7 @@ export function Viewport() {
       if (state.activeBoundaryId !== prev.activeBoundaryId)
         engine.setActiveBoundary(state.activeBoundaryId);
       if (state.viewMode !== prev.viewMode) engine.setViewMode(state.viewMode);
+      if (state.decorations !== prev.decorations) engine.setDecorations(state.decorations);
       if (state.radiusScale !== prev.radiusScale)
         engine.set3DOptions({ radiusScale: state.radiusScale });
     });

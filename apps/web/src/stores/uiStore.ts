@@ -6,7 +6,14 @@ import {
   type SurfaceConnectorId,
   type Vec2,
 } from '@blastlab/core';
-import type { FrameStats, SnapSettings, ToolName, ViewMode } from '@blastlab/engine';
+import {
+  DEFAULT_DECORATIONS,
+  type DecorationSettings,
+  type FrameStats,
+  type SnapSettings,
+  type ToolName,
+  type ViewMode,
+} from '@blastlab/engine';
 import { create } from 'zustand';
 import type { CsvPreview } from '../dialogs/CsvImportDialog';
 import type { DxfPreview } from '../dialogs/DxfImportDialog';
@@ -28,6 +35,11 @@ interface UiState {
   csvPreview: CsvPreview | null;
   shortcutsOpen: boolean;
   viewMode: ViewMode;
+  /** Pestaña del panel derecho. */
+  rightTab: 'selection' | 'view' | 'results';
+  setRightTab: (tab: UiState['rightTab']) => void;
+  decorations: DecorationSettings;
+  setDecorations: (patch: Partial<DecorationSettings>) => void;
   setViewMode: (mode: ViewMode) => void;
   /** Exageración del radio de los taladros en 3D. */
   radiusScale: number;
@@ -64,6 +76,14 @@ export const useUiStore = create<UiState>()((set) => ({
   csvPreview: null,
   shortcutsOpen: false,
   viewMode: 'plan',
+  rightTab: 'view',
+  setRightTab: (rightTab) => {
+    set({ rightTab });
+  },
+  decorations: DEFAULT_DECORATIONS,
+  setDecorations: (patch) => {
+    set((s) => ({ decorations: { ...s.decorations, ...patch } }));
+  },
   setViewMode: (viewMode) => {
     set({ viewMode });
   },

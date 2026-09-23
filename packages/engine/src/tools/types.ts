@@ -12,7 +12,16 @@ import type {
 } from '@blastlab/core';
 
 export type ToolName =
-  'select' | 'lasso' | 'add' | 'boundary' | 'freeFace' | 'pan' | 'tie' | 'initiate' | 'monitor';
+  | 'select'
+  | 'lasso'
+  | 'add'
+  | 'boundary'
+  | 'freeFace'
+  | 'pan'
+  | 'tie'
+  | 'initiate'
+  | 'monitor'
+  | 'measure';
 
 /** Evento de puntero ya traducido a coordenadas de proyecto [m]. */
 export interface ToolPointer {
@@ -48,6 +57,8 @@ export interface ToolContext {
   /** Conector que usa la herramienta Amarre. */
   tieConnector(): SurfaceConnectorId | undefined;
   pickConnection(x: number, y: number): ConnectionId | null;
+  /** Etiqueta de medición entre a y b (null la oculta). */
+  showMeasure(a: Vec2 | null, b: Vec2 | null): void;
   /** Perímetro activo (resaltado; destino de la generación de mallas). */
   setActiveBoundary(id: BoundaryId | null): void;
   showPolyline(points: readonly Vec2[] | null): void;

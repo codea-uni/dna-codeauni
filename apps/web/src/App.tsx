@@ -15,10 +15,8 @@ import { ChargePanel } from './panels/ChargePanel';
 import { EnergyPanel } from './panels/EnergyPanel';
 import { LibraryPanel } from './panels/LibraryPanel';
 import { PatternPanel } from './panels/PatternPanel';
-import { PropertiesPanel } from './panels/PropertiesPanel';
-import { ResultsPanel } from './panels/ResultsPanel';
+import { RightSidebar } from './panels/RightSidebar';
 import { TimingPanel } from './panels/TimingPanel';
-import { ViewPanel } from './panels/ViewPanel';
 import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { DxfImportDialog } from './dialogs/DxfImportDialog';
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
@@ -97,13 +95,7 @@ export function App() {
       <main className="viewport-host">
         <Viewport />
       </main>
-      <aside className="sidebar right">
-        <ErrorBoundary>
-          <PropertiesPanel />
-          <ViewPanel />
-          <ResultsPanel />
-        </ErrorBoundary>
-      </aside>
+      <RightSidebar />
       <StatusBar />
       {shortcutsOpen && (
         <ShortcutsDialog

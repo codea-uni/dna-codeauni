@@ -46,7 +46,8 @@ export function PropertiesPanel() {
         <h2>Propiedades</h2>
         <p className="muted">Sin selección.</p>
         <p className="hint">
-          Selecciona taladros para editarlos · <kbd>?</kbd> atajos
+          Haz clic en un taladro (<kbd>V</kbd>) o arrastra una caja para editarlo. Los ajustes
+          generales están en la pestaña Vista.
         </p>
       </section>
     );
