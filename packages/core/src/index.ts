@@ -32,6 +32,8 @@ export * from './energy/contours';
 export * from './energy/colormap';
 export * from './fragmentation/fragmentation';
 export * from './vibration/vibration';
+export * from './diagnostics/designChecks';
+export * from './scenarios/scenarios';
 
 // Documento
 export type { ChangeSet } from './document/changeset';

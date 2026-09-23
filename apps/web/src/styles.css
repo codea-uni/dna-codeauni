@@ -834,3 +834,63 @@ kbd {
 .viewport-host {
   overflow: hidden;
 }
+
+.menu-list button span {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-list button small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.checks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checks-list button {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  width: 100%;
+  margin: 2px 0;
+  padding: 0.3rem 0.45rem;
+  text-align: left;
+  background: transparent;
+}
+
+.checks-list button span {
+  flex: 1;
+}
+
+.checks-list em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.sev-error {
+  color: #ff7b72;
+  border-color: #ff7b7255;
+}
+
+.sev-warning {
+  color: #e3b341;
+  border-color: #e3b34155;
+}
+
+.sev-info {
+  color: #79c0ff;
+  border-color: #79c0ff55;
+}
+
+.check-ok {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.2rem 0;
+  color: #3fb950;
+}

@@ -10,7 +10,6 @@ import {
   FilePlus,
   FileUp,
   FolderOpen,
-  Gauge,
   Grid3x3,
   Hand,
   Keyboard,
@@ -21,6 +20,7 @@ import {
   Maximize2,
   Mountain,
   MousePointer2,
+  Presentation,
   Pentagon,
   Redo2,
   Ruler,
@@ -31,6 +31,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
+import { SCENARIOS } from '@blastlab/core';
 import { useRef } from 'react';
 import * as actions from '../actions';
 import { useHistory } from '../hooks/useDocument';
@@ -340,10 +341,15 @@ export function Toolbar() {
             actions.zoomToFit();
           }}
         />
-        <IconButton
-          icon={Gauge}
-          label="Prueba de rendimiento (5.000 taladros)"
-          onClick={() => void actions.generatePerfFixture()}
+        <MenuButton
+          icon={Presentation}
+          label="Ejemplos (proyectos de muestra)"
+          items={SCENARIOS.map((sc) => ({
+            icon: Presentation,
+            label: sc.name,
+            hint: sc.description,
+            onSelect: () => void actions.loadScenario(sc.id, sc.name),
+          }))}
         />
         <IconButton
           icon={Keyboard}

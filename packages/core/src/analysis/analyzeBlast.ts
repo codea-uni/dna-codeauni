@@ -1,4 +1,5 @@
 import { computeCharges, type ChargeResult } from '../charging/chargeAnalysis';
+import { DEFAULT_CHECK_OPTIONS, designChecks, type DesignCheck } from '../diagnostics/designChecks';
 import type { BlastId, Project } from '../model/types';
 import { computeIsochrones, niceInterval, type Isochrones } from '../timing/isochrones';
 import { computeTiming, DEFAULT_TIMING_OPTIONS, type TimingResult } from '../timing/timing';
@@ -19,6 +20,8 @@ export interface BlastAnalysis {
   charge: ChargeResult;
   timing: TimingResult;
   isochrones: Isochrones;
+  /** Revisión del diseño (reglas prácticas). */
+  checks: DesignCheck[];
   /** Duración del cálculo [ms]. */
   elapsedMs: number;
 }
@@ -49,5 +52,15 @@ export function analyzeBlast(
     timing.fireTime,
     interval,
   );
-  return { blastId, charge, timing, isochrones, elapsedMs: performance.now() - t0 };
+  return {
+    blastId,
+    charge,
+    timing,
+    isochrones,
+    checks: designChecks(blast, timing, {
+      ...DEFAULT_CHECK_OPTIONS,
+      coincidenceWindow: options.coincidenceWindow,
+    }),
+    elapsedMs: performance.now() - t0,
+  };
 }

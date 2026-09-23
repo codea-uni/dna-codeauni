@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 export interface MenuItem {
   icon: LucideIcon;
   label: string;
+  /** Segunda línea descriptiva (opcional). */
+  hint?: string;
   onSelect: () => void;
 }
 
@@ -61,7 +63,10 @@ export function MenuButton({
               }}
             >
               <it.icon size={15} aria-hidden />
-              {it.label}
+              <span>
+                {it.label}
+                {it.hint && <small>{it.hint}</small>}
+              </span>
             </button>
           ))}
         </div>

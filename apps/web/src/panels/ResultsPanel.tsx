@@ -1,4 +1,6 @@
-import type { BlastAnalysis } from '@blastlab/core';
+import type { BlastAnalysis, DesignCheck } from '@blastlab/core';
+import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react';
+import * as actions from '../actions';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { lazy, Suspense, useMemo } from 'react';
 import { session } from '../session';
@@ -63,6 +65,7 @@ export function ResultsPanel() {
 
   return (
     <>
+      <ChecksSection checks={analysis.checks} />
       <section className="panel">
         <h2>
           Carguío y cubicación{' '}
@@ -115,17 +118,12 @@ export function ResultsPanel() {
                 <Row
                   label={`Máx. taladros en ${windowMs} ms`}
                   value={String(t.maxHolesPerWindow)}
-                  warn={t.maxHolesPerWindow > 1}
                 />
                 <Row
                   label={`Máx. kg en ${windowMs} ms`}
                   value={`${fmt(t.maxChargePerWindow)} kg @ ${fmt(t.maxChargeWindowStart * 1000)} ms`}
                 />
-                <Row
-                  label="Grupos coincidentes"
-                  value={String(t.coincidentGroups.length)}
-                  warn={t.coincidentGroups.length > 0}
-                />
+                <Row label="Grupos coincidentes" value={String(t.coincidentGroups.length)} />
               </>
             )}
           </tbody>
@@ -171,5 +169,46 @@ export function ResultsPanel() {
         )}
       </section>
     </>
+  );
+}
+
+const SEVERITY = {
+  error: { icon: CircleX, cls: 'sev-error', label: 'Error' },
+  warning: { icon: TriangleAlert, cls: 'sev-warning', label: 'Advertencia' },
+  info: { icon: Info, cls: 'sev-info', label: 'Aviso' },
+} as const;
+
+/** Revisión del diseño: cada alerta selecciona y encuadra sus taladros. */
+function ChecksSection({ checks }: { checks: DesignCheck[] }) {
+  return (
+    <section className="panel">
+      <h2>Revisión del diseño</h2>
+      {checks.length === 0 ? (
+        <p className="check-ok">
+          <CircleCheck size={15} aria-hidden /> Sin observaciones
+        </p>
+      ) : (
+        <ul className="checks-list">
+          {checks.map((c) => {
+            const sev = SEVERITY[c.severity];
+            return (
+              <li key={c.id}>
+                <button
+                  className={sev.cls}
+                  title={`${sev.label}: ${c.detail}\nClic: seleccionar y encuadrar`}
+                  onClick={() => {
+                    actions.focusHoles(c.holes);
+                  }}
+                >
+                  <sev.icon size={15} aria-hidden />
+                  <span>{c.title}</span>
+                  <em>{c.holes.length}</em>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

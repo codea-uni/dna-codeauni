@@ -9,6 +9,7 @@ import {
   rowTieUp,
   type BoundaryId,
   type DetonatorId,
+  type HoleId,
   type NodeRef,
   type Pattern,
   type PatternId,
@@ -179,22 +180,6 @@ export async function generatePattern(form: PatternForm): Promise<void> {
       `${pattern.name}: ${holes.length} taladros (worker ${(t1 - t0).toFixed(0)} ms, documento + render ${(t2 - t1).toFixed(0)} ms)`,
     );
   });
-}
-
-/** Fixture de rendimiento: malla de 50 × 100 = 5.000 taladros centrada en la vista. */
-export async function generatePerfFixture(): Promise<void> {
-  await generatePattern({
-    kind: 'staggered',
-    burden: 6,
-    spacing: 7,
-    rows: 50,
-    holesPerRow: 100,
-    rowAzimuth: Math.PI / 2,
-    rowAdvance: 'right',
-    boundaryId: null,
-    frontOffset: 0,
-  });
-  getEngine()?.zoomToFit();
 }
 
 // ------------------------------------------------------------------ Tiempos
@@ -382,4 +367,77 @@ export async function exportReport(): Promise<void> {
     download(bytes, `${baseName()}-informe.pdf`, 'application/pdf');
     notify('Informe PDF generado');
   });
+}
+
+// ------------------------------------------------------------------ Ejemplos
+
+/** Vista con la que abre cada ejemplo, para que se entienda de un vistazo. */
+/** Vista base: cada ejemplo parte limpio, sin capas ni cálculos heredados del anterior. */
+function resetView(): void {
+  getEngine()?.stopSequence();
+  const a = useAnalysisStore.getState();
+  a.set({
+    colorBy: 'none',
+    labelBy: 'label',
+    vibEnabled: false,
+    energyEnabled: false,
+    fragAuto: true,
+    sequencePlaying: false,
+    sequenceTime: null,
+  });
+  a.setLayer('isochrones', false);
+  a.setLayer('connections', true);
+}
+
+const SCENARIO_VIEWS: Record<string, () => void> = {
+  production: () => {
+    useAnalysisStore
+      .getState()
+      .set({ colorBy: 'time', labelBy: 'label', vibEnabled: true, fragAuto: true });
+    useAnalysisStore.getState().setLayer('isochrones', true);
+    useUiStore.setState({ leftTab: 'timing', rightTab: 'results', viewMode: 'plan' });
+  },
+  wet: () => {
+    useAnalysisStore.getState().set({ colorBy: 'kg', labelBy: 'kg' });
+    useUiStore.setState({ leftTab: 'charge', rightTab: 'results', viewMode: 'plan' });
+  },
+  electronic: () => {
+    useAnalysisStore
+      .getState()
+      .set({ colorBy: 'time', labelBy: 'time', vibEnabled: true, vibMetric: 'ppv' });
+    useUiStore.setState({ leftTab: 'vibration', rightTab: 'results', viewMode: 'plan' });
+  },
+  inclined: () => {
+    useAnalysisStore.getState().set({ colorBy: 'none', labelBy: 'label' });
+    useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: '3d' });
+  },
+  problems: () => {
+    useAnalysisStore.getState().set({ colorBy: 'none', labelBy: 'label' });
+    useUiStore.setState({ leftTab: 'design', rightTab: 'results', viewMode: 'plan' });
+  },
+};
+
+/** Abre un proyecto de ejemplo completamente configurado (se genera en el worker). */
+export async function loadScenario(id: string, name: string): Promise<void> {
+  if (
+    document.canUndo &&
+    !window.confirm(`¿Descartar el proyecto actual y abrir el ejemplo "${name}"?`)
+  )
+    return;
+  await withBusy('Preparando ejemplo…', async () => {
+    const project = await getCompute().api.buildScenario(id);
+    document.load(project);
+    useUiStore.getState().setActiveBoundary(project.blasts[0]?.boundaries[0]?.id ?? null);
+    resetView();
+    SCENARIO_VIEWS[id]?.();
+    const holes = project.blasts[0]?.holes.length ?? 0;
+    notify(`Ejemplo "${name}": ${holes} taladros`);
+  });
+}
+
+/** Selecciona los taladros de una alerta y los encuadra. */
+export function focusHoles(ids: readonly HoleId[]): void {
+  selection.set(ids);
+  useUiStore.getState().setViewMode('plan');
+  getEngine()?.zoomToFit(true);
 }

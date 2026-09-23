@@ -418,7 +418,9 @@ export function computeVibration(
   const rgba = new Uint8Array(nx * ny * 4);
   for (let k = 0; k < values.length; k++) {
     const v = values[k] ?? 0;
-    if (v < colorMin) continue;
+    // Bajo el nivel mínimo: sin color. Sobre el máximo: campo cercano (pestaña Energía), transparente
+    // para no tapar el diseño.
+    if (v < colorMin || v > colorMax * 1.0001) continue;
     const [r, g, b] = turboRgb(hi > lo ? (Math.log(v) - lo) / (hi - lo) : 1);
     rgba[k * 4] = r;
     rgba[k * 4 + 1] = g;
