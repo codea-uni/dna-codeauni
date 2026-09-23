@@ -280,6 +280,9 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
   siteModels,
   surfaces: z.array(surface),
   blasts: z.array(blast),
+  monitoringPoints: z
+    .array(z.object({ id: id<'MonitoringPoint'>(), name: z.string(), position: vec3 }))
+    .exactOptional(),
   displayUnits,
 });
 

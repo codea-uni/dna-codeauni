@@ -14,6 +14,8 @@ import type {
   HoleId,
   InitiationPlan,
   Meters,
+  MonitoringPoint,
+  MonitoringPointId,
   NodeRef,
   Pattern,
   Polygon2,
@@ -23,6 +25,7 @@ import type {
   Seconds,
   SiteModels,
   SurfaceConnectorId,
+  Vec3,
 } from '../model/types';
 import { withDownholeDetonator } from '../timing/tieUp';
 import type { DocumentReader } from './DocumentStore';
@@ -368,4 +371,42 @@ export function toggleInitiationPoint(doc: DocumentReader, blastId: BlastId, hol
         { id: newId<'InitiationPoint'>(), at: { kind: 'hole' as const, holeId }, time: 0 },
       ];
   return setInitiation(blastId, { ...plan, initiationPoints });
+}
+
+// ------------------------------------------------------------------ Puntos de control
+
+export function addMonitoringPoint(
+  doc: DocumentReader,
+  position: Vec3,
+  name?: string,
+): { ops: Op[]; point: MonitoringPoint } {
+  const list = doc.project.monitoringPoints ?? [];
+  const used = new Set(list.map((p) => p.name));
+  let n = list.length + 1;
+  while (used.has(`PC${n}`)) n++;
+  const point: MonitoringPoint = {
+    id: newId<'MonitoringPoint'>(),
+    name: name ?? `PC${n}`,
+    position: { ...position },
+  };
+  return { ops: [{ type: 'project/patch', patch: { monitoringPoints: [...list, point] } }], point };
+}
+
+export function removeMonitoringPoint(doc: DocumentReader, id: MonitoringPointId): Op[] {
+  const list = doc.project.monitoringPoints ?? [];
+  return [{ type: 'project/patch', patch: { monitoringPoints: list.filter((p) => p.id !== id) } }];
+}
+
+export function updateMonitoringPoint(
+  doc: DocumentReader,
+  id: MonitoringPointId,
+  patch: Partial<Pick<MonitoringPoint, 'name' | 'position'>>,
+): Op[] {
+  const list = doc.project.monitoringPoints ?? [];
+  return [
+    {
+      type: 'project/patch',
+      patch: { monitoringPoints: list.map((p) => (p.id === id ? { ...p, ...patch } : p)) },
+    },
+  ];
 }

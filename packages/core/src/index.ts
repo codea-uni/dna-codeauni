@@ -28,6 +28,8 @@ export * from './analysis/analyzeBlast';
 export * from './energy/energy';
 export * from './energy/contours';
 export * from './energy/colormap';
+export * from './fragmentation/fragmentation';
+export * from './vibration/vibration';
 
 // Documento
 export type { ChangeSet } from './document/changeset';

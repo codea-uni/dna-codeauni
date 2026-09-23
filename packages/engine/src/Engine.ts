@@ -26,6 +26,7 @@ import { COLORS } from './layers/colors';
 import { GridLayer } from './layers/GridLayer';
 import { turbo } from './layers/colormap';
 import { EnergyLayer, type EnergyData } from './layers/EnergyLayer';
+import { SiteLayer } from './layers/SiteLayer';
 import { HolesLayer } from './layers/HolesLayer';
 import { InitiationLayer } from './layers/InitiationLayer';
 import { IsochronesLayer, type IsochroneData } from './layers/IsochronesLayer';
@@ -36,6 +37,7 @@ import { HolePicker } from './picking/HolePicker';
 import { AddHoleTool } from './tools/AddHoleTool';
 import { BoundaryTool } from './tools/BoundaryTool';
 import { FreeFaceTool } from './tools/FreeFaceTool';
+import { MonitorTool } from './tools/MonitorTool';
 import { InitiateTool } from './tools/InitiateTool';
 import { TieTool } from './tools/TieTool';
 import { PanTool } from './tools/PanTool';
@@ -62,7 +64,8 @@ export interface EngineEvents extends Record<string, unknown> {
   activeBoundary: BoundaryId | null;
 }
 
-export type EngineLayer = 'labels' | 'traces' | 'connections' | 'isochrones' | 'energy';
+export type EngineLayer =
+  'labels' | 'traces' | 'connections' | 'isochrones' | 'energy' | 'vibration' | 'flyrock';
 
 /** Valores escalares por taladro para colorear con el mapa turbo. */
 export interface HoleScalars {
@@ -106,10 +109,16 @@ export class Engine {
   private readonly boundaryLabels = new LabelsLayer();
   private activeBoundaryId: BoundaryId | null = null;
   private lastVertexMpp = 0;
+  private lastSiteMpp = 0;
   private readonly initiation = new InitiationLayer();
   private readonly isochrones = new IsochronesLayer();
   private readonly energy = new EnergyLayer();
   private energyData: EnergyData | null = null;
+  private readonly vibration = new EnergyLayer();
+  private vibrationData: EnergyData | null = null;
+  private readonly site = new SiteLayer();
+  private readonly siteLabels = new LabelsLayer();
+  private flyrockZone: Vec2[] | null = null;
   private isochroneData: IsochroneData | null = null;
   private layerVisible: Record<EngineLayer, boolean> = {
     labels: true,
@@ -117,6 +126,8 @@ export class Engine {
     connections: true,
     isochrones: true,
     energy: true,
+    vibration: true,
+    flyrock: true,
   };
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
@@ -141,6 +152,7 @@ export class Engine {
     add: new AddHoleTool(),
     boundary: new BoundaryTool(),
     freeFace: new FreeFaceTool(),
+    monitor: new MonitorTool(),
     pan: new PanTool(),
     tie: new TieTool(),
     initiate: new InitiateTool(),
@@ -192,12 +204,15 @@ export class Engine {
     this.scene.add(
       this.grid.mesh,
       this.energy.root,
+      this.vibration.root,
       this.isochrones.lines,
       this.boundaries.root,
       this.initiation.root,
       this.holes.root,
       this.labels.mesh,
       this.boundaryLabels.mesh,
+      this.site.root,
+      this.siteLabels.mesh,
       this.overlay.root,
     );
 
@@ -392,6 +407,21 @@ export class Engine {
     this.loop.invalidate();
   }
 
+  /** Mapa de vibración o sobrepresión; null lo oculta. */
+  setVibration(data: EnergyData | null, opacity = 0.5): void {
+    this.vibrationData = data;
+    this.vibration.setOpacity(opacity);
+    this.vibration.set(data, this.origin);
+    this.loop.invalidate();
+  }
+
+  /** Zona de exclusión por proyecciones (polígono en coordenadas de proyecto). */
+  setFlyrockZone(zone: Vec2[] | null): void {
+    this.flyrockZone = zone;
+    this.site.setZone(zone, this.origin, this.view.metersPerPixel);
+    this.applyView();
+  }
+
   setIsochrones(data: IsochroneData | null): void {
     this.isochroneData = data;
     this.isochrones.set(data, this.origin);
@@ -459,6 +489,9 @@ export class Engine {
     this.initiation.dispose();
     this.isochrones.dispose();
     this.energy.dispose();
+    this.vibration.dispose();
+    this.site.dispose();
+    this.siteLabels.dispose();
     this.overlay.dispose();
     this.renderer.dispose();
   }
@@ -495,6 +528,7 @@ export class Engine {
     // Las conexiones siguen a los taladros: se reconstruyen si cambian taladros, iniciación o librería.
     if (cs.blasts.length > 0 || cs.project || added.length + removed.length + updated.length > 0)
       this.rebuildInitiation();
+    if (cs.project) this.rebuildSite();
     if (cs.patterns) this.updateTypicalSpacing();
     this.applyView();
   }
@@ -530,6 +564,22 @@ export class Engine {
       }
     }
     this.boundaryLabels.flush();
+  }
+
+  /** Marcadores y nombres de los puntos de control (tamaño constante en pantalla). */
+  private rebuildSite(): void {
+    const points = this.document.project.monitoringPoints ?? [];
+    this.site.setMarkers(points, this.origin, 5 * this.view.metersPerPixel);
+    this.siteLabels.clear();
+    for (const p of points) {
+      this.siteLabels.upsert(
+        p.id,
+        p.position.x - this.origin.x,
+        p.position.y - this.origin.y,
+        p.name,
+      );
+    }
+    this.siteLabels.flush();
   }
 
   private rebuildInitiation(): void {
@@ -645,6 +695,9 @@ export class Engine {
     this.rebuildInitiation();
     this.isochrones.set(this.isochroneData, this.origin);
     this.energy.set(this.energyData, this.origin);
+    this.vibration.set(this.vibrationData, this.origin);
+    this.site.setZone(this.flyrockZone, this.origin, this.view.metersPerPixel);
+    this.rebuildSite();
     this.holes.refreshColors();
     this.updateTypicalSpacing();
     this.applyView();
@@ -747,6 +800,14 @@ export class Engine {
     this.initiation.root.visible = this.layerVisible.connections;
     this.isochrones.lines.visible = this.layerVisible.isochrones;
     this.energy.root.visible = this.layerVisible.energy;
+    this.vibration.root.visible = this.layerVisible.vibration;
+    this.site.setDashScale(mpp);
+    this.site.setZoneVisible(this.layerVisible.flyrock);
+    this.siteLabels.setViewport(buffer.x, buffer.y, this.pixelRatio, 5 * this.pixelRatio);
+    if (Math.abs(this.lastSiteMpp - mpp) > mpp * 0.05) {
+      this.lastSiteMpp = mpp;
+      this.rebuildSite();
+    }
     this.loop.invalidate();
   }
 
@@ -779,7 +840,11 @@ export class Engine {
   private updateHover(p: ToolPointer): void {
     const tool = this.tool.name;
     this.setHover(
-      tool === 'add' || tool === 'boundary' || tool === 'freeFace' || tool === 'pan'
+      tool === 'add' ||
+        tool === 'boundary' ||
+        tool === 'freeFace' ||
+        tool === 'monitor' ||
+        tool === 'pan'
         ? null
         : this.pickHole(p.x, p.y),
     );

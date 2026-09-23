@@ -38,6 +38,7 @@ export type VibrationLawId = Id<'VibrationLaw'>;
 export type FreeFaceId = Id<'FreeFace'>;
 export type InHoleInitiatorId = Id<'InHoleInitiator'>;
 export type BoundaryId = Id<'Boundary'>;
+export type MonitoringPointId = Id<'MonitoringPoint'>;
 
 /** Punto en coordenadas de proyecto [m], float64. */
 export interface Vec3 {
@@ -76,8 +77,17 @@ export interface Project {
   siteModels: SiteModels;
   surfaces: Surface[];
   blasts: Blast[];
+  /** Puntos de control (monitoreo de vibración y sobrepresión). */
+  monitoringPoints?: MonitoringPoint[];
   /** Preferencias de visualización; nunca afectan cálculos. */
   displayUnits: DisplayUnits;
+}
+
+export interface MonitoringPoint {
+  id: MonitoringPointId;
+  name: string;
+  /** Ubicación del receptor [m]. */
+  position: Vec3;
 }
 
 export interface CoordinateSystem {

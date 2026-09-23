@@ -20,11 +20,13 @@ interface UiState {
   holeTemplate: HoleTemplate;
   /** Conector de la herramienta Amarre. */
   tieConnectorId: SurfaceConnectorId | undefined;
-  leftTab: 'design' | 'charge' | 'timing' | 'energy' | 'library';
+  leftTab: 'design' | 'charge' | 'timing' | 'energy' | 'fragmentation' | 'vibration' | 'library';
   /** Perímetro activo (resaltado; destino por defecto al generar mallas). */
   activeBoundaryId: BoundaryId | null;
   /** Vista previa del CSV a importar (abre el diálogo). */
   csvPreview: CsvPreview | null;
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (open: boolean) => void;
   setCsvPreview: (preview: CsvPreview | null) => void;
   setActiveBoundary: (id: BoundaryId | null) => void;
   frameStats: FrameStats | null;
@@ -52,6 +54,10 @@ export const useUiStore = create<UiState>()((set) => ({
   leftTab: 'design',
   activeBoundaryId: null,
   csvPreview: null,
+  shortcutsOpen: false,
+  setShortcutsOpen: (shortcutsOpen) => {
+    set({ shortcutsOpen });
+  },
   setCsvPreview: (csvPreview) => {
     set({ csvPreview });
   },

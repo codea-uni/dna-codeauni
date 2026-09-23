@@ -1,6 +1,8 @@
 import type { DetonatorId, PatternId, SurfaceConnectorId } from '@blastlab/core';
 import { connectorColorCss } from '@blastlab/engine';
+import { Cable, Zap } from 'lucide-react';
 import { useState } from 'react';
+import { IconButton } from '../components/IconButton';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';
@@ -294,22 +296,25 @@ export function TimingPanel() {
           ))}
         </div>
         <div className="row">
-          <button
+          <IconButton
+            icon={Cable}
+            label="Amarrar"
+            shortcut="T"
+            showLabel
+            hint="Clic en taladros encadena · Ctrl+clic borra una conexión"
             onClick={() => {
               setTool('tie');
             }}
-            title="Clic en taladros para encadenar; Ctrl+clic en una conexión la borra"
-          >
-            Amarrar (T)
-          </button>
-          <button
+          />
+          <IconButton
+            icon={Zap}
+            label="Punto de inicio"
+            shortcut="I"
+            showLabel
             onClick={() => {
               setTool('initiate');
             }}
-            title="Clic en un taladro: agrega/quita punto de inicio"
-          >
-            Punto de inicio (I)
-          </button>
+          />
         </div>
         <div className="row">
           <button

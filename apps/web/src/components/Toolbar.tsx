@@ -1,56 +1,130 @@
 import type { ToolName } from '@blastlab/engine';
+import {
+  Cable,
+  CircleDot,
+  CirclePlus,
+  FileDown,
+  FilePlus,
+  FileUp,
+  FolderOpen,
+  Gauge,
+  Grid3x3,
+  Hand,
+  Keyboard,
+  Lasso,
+  Magnet,
+  MapPin,
+  Maximize2,
+  Mountain,
+  MousePointer2,
+  Pentagon,
+  Redo2,
+  Save,
+  Shapes,
+  Undo2,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
 import { useRef } from 'react';
 import * as actions from '../actions';
 import { useHistory } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
+import { IconButton } from './IconButton';
 
-const TOOLS: { name: ToolName; label: string; key: string; hint: string }[] = [
-  {
-    name: 'select',
-    label: 'Seleccionar',
-    key: 'V',
-    hint: 'Clic: seleccionar · Arrastre: caja / mover · Shift agrega · Ctrl quita',
-  },
-  {
-    name: 'lasso',
-    label: 'Lazo',
-    key: 'L',
-    hint: 'Arrastre: selección por lazo · Shift agrega · Ctrl quita',
-  },
-  { name: 'add', label: 'Agregar', key: 'A', hint: 'Clic: agregar taladro con la plantilla' },
-  {
-    name: 'boundary',
-    label: 'Perímetro',
-    key: 'B',
-    hint: 'Clic: vértice · Doble clic / Enter: cerrar · Retroceso: deshacer vértice',
-  },
-  {
-    name: 'freeFace',
-    label: 'Cara libre',
-    key: 'C',
-    hint: 'Clic junto a una arista del perímetro: marca/desmarca cara libre (talud) · Clic dentro: activa el perímetro',
-  },
-  {
-    name: 'tie',
-    label: 'Amarrar',
-    key: 'T',
-    hint: 'Clic en taladros para encadenar conexiones · Clic en vacío/Esc termina · Ctrl+clic borra una conexión',
-  },
-  {
-    name: 'initiate',
-    label: 'Inicio',
-    key: 'I',
-    hint: 'Clic en un taladro: agrega/quita punto de inicio',
-  },
-  { name: 'pan', label: 'Desplazar', key: 'H', hint: 'Arrastre: desplazar la vista' },
+export interface ToolDef {
+  name: ToolName;
+  label: string;
+  key: string;
+  icon: LucideIcon;
+  hint: string;
+}
+
+/** Herramientas del plano, agrupadas por flujo: selección · diseño · iniciación · sitio · vista. */
+export const TOOLS: ToolDef[][] = [
+  [
+    {
+      name: 'select',
+      label: 'Seleccionar / mover',
+      key: 'V',
+      icon: MousePointer2,
+      hint: 'Arrastre en vacío: caja · Shift agrega · Ctrl quita',
+    },
+    {
+      name: 'lasso',
+      label: 'Selección por lazo',
+      key: 'L',
+      icon: Lasso,
+      hint: 'Shift agrega · Ctrl quita',
+    },
+  ],
+  [
+    {
+      name: 'add',
+      label: 'Agregar taladro',
+      key: 'A',
+      icon: CirclePlus,
+      hint: 'Clic: taladro con la plantilla',
+    },
+    {
+      name: 'boundary',
+      label: 'Dibujar perímetro',
+      key: 'B',
+      icon: Pentagon,
+      hint: 'Clic: vértice · Doble clic o Enter: cerrar',
+    },
+    {
+      name: 'freeFace',
+      label: 'Cara libre (talud)',
+      key: 'C',
+      icon: Mountain,
+      hint: 'Clic junto a una arista del perímetro',
+    },
+  ],
+  [
+    {
+      name: 'tie',
+      label: 'Amarrar taladros',
+      key: 'T',
+      icon: Cable,
+      hint: 'Clic en taladros encadena · Ctrl+clic borra una conexión',
+    },
+    {
+      name: 'initiate',
+      label: 'Punto de inicio',
+      key: 'I',
+      icon: Zap,
+      hint: 'Clic en un taladro agrega o quita',
+    },
+  ],
+  [
+    {
+      name: 'monitor',
+      label: 'Punto de control',
+      key: 'M',
+      icon: MapPin,
+      hint: 'Clic agrega · Ctrl+clic borra',
+    },
+  ],
+  [
+    {
+      name: 'pan',
+      label: 'Desplazar vista',
+      key: 'H',
+      icon: Hand,
+      hint: 'También: Espacio + arrastre o botón medio',
+    },
+  ],
 ];
 
+const ALL_TOOLS = TOOLS.flat();
+
 export const TOOL_KEYS: Record<string, ToolName> = Object.fromEntries(
-  TOOLS.map((t) => [t.key.toLowerCase(), t.name]),
+  ALL_TOOLS.map((t) => [t.key.toLowerCase(), t.name]),
 );
 
 export function toolHint(tool: ToolName): string {
-  return TOOLS.find((t) => t.name === tool)?.hint ?? '';
+  const t = ALL_TOOLS.find((x) => x.name === tool);
+  return t ? `${t.label}: ${t.hint}` : '';
 }
 
 export function Toolbar() {
@@ -58,17 +132,37 @@ export function Toolbar() {
   const setTool = useUiStore((s) => s.setTool);
   const snap = useUiStore((s) => s.snap);
   const setSnap = useUiStore((s) => s.setSnap);
+  const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
   const history = useHistory();
   const fileInput = useRef<HTMLInputElement>(null);
   const csvInput = useRef<HTMLInputElement>(null);
 
   return (
     <header className="toolbar">
+      <strong className="brand">BlastLab</strong>
       <div className="toolbar-group">
-        <strong className="brand">BlastLab</strong>
-        <button onClick={actions.newProject}>Nuevo</button>
-        <button onClick={() => fileInput.current?.click()}>Abrir…</button>
-        <button onClick={() => void actions.saveProject()}>Guardar</button>
+        <IconButton icon={FilePlus} label="Proyecto nuevo" onClick={actions.newProject} />
+        <IconButton
+          icon={FolderOpen}
+          label="Abrir proyecto"
+          onClick={() => fileInput.current?.click()}
+        />
+        <IconButton
+          icon={Save}
+          label="Guardar proyecto"
+          shortcut="Ctrl+S"
+          onClick={() => void actions.saveProject()}
+        />
+        <IconButton
+          icon={FileUp}
+          label="Importar taladros (CSV)"
+          onClick={() => csvInput.current?.click()}
+        />
+        <IconButton
+          icon={FileDown}
+          label="Exportar taladros (CSV)"
+          onClick={() => void actions.exportCsv()}
+        />
         <input
           ref={fileInput}
           type="file"
@@ -80,12 +174,6 @@ export function Toolbar() {
             e.target.value = '';
           }}
         />
-        <button onClick={() => csvInput.current?.click()} title="Importar taladros desde CSV">
-          Importar CSV…
-        </button>
-        <button onClick={() => void actions.exportCsv()} title="Exportar taladros a CSV">
-          Exportar CSV
-        </button>
         <input
           ref={csvInput}
           type="file"
@@ -99,105 +187,104 @@ export function Toolbar() {
         />
       </div>
       <div className="toolbar-group">
-        <button
-          onClick={actions.undo}
+        <IconButton
+          icon={Undo2}
+          label={history.undoLabel ? `Deshacer: ${history.undoLabel}` : 'Deshacer'}
+          shortcut="Ctrl+Z"
           disabled={!history.canUndo}
-          title={
-            history.undoLabel ? `Deshacer: ${history.undoLabel} (Ctrl+Z)` : 'Deshacer (Ctrl+Z)'
-          }
-        >
-          ↶ Deshacer
-        </button>
-        <button
-          onClick={actions.redo}
+          onClick={actions.undo}
+        />
+        <IconButton
+          icon={Redo2}
+          label={history.redoLabel ? `Rehacer: ${history.redoLabel}` : 'Rehacer'}
+          shortcut="Ctrl+Shift+Z"
           disabled={!history.canRedo}
-          title={
-            history.redoLabel
-              ? `Rehacer: ${history.redoLabel} (Ctrl+Shift+Z)`
-              : 'Rehacer (Ctrl+Shift+Z)'
-          }
-        >
-          ↷ Rehacer
-        </button>
+          onClick={actions.redo}
+        />
       </div>
-      <div className="toolbar-group" role="radiogroup" aria-label="Herramienta">
-        {TOOLS.map((t) => (
-          <button
-            key={t.name}
-            role="radio"
-            aria-checked={tool === t.name}
-            className={tool === t.name ? 'active' : ''}
-            title={`${t.label} (${t.key}) — ${t.hint}`}
-            onClick={() => {
-              setTool(t.name);
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="toolbar-group snap">
-        <span className="muted">Snap:</span>
-        <label>
-          <input
-            type="checkbox"
-            checked={snap.holes}
-            onChange={(e) => {
-              setSnap({ holes: e.target.checked });
-            }}
-          />{' '}
-          taladros
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={snap.pattern}
-            onChange={(e) => {
-              setSnap({ pattern: e.target.checked });
-            }}
-          />{' '}
-          malla
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={snap.grid}
-            onChange={(e) => {
-              setSnap({ grid: e.target.checked });
-            }}
-          />{' '}
-          grilla
-        </label>
-        <input
-          className="grid-size"
-          type="number"
-          min={0.01}
-          step={0.5}
-          value={snap.gridSize}
-          disabled={!snap.grid}
-          title="Paso de la grilla de snapping [m]"
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            if (v > 0) setSnap({ gridSize: v });
+      {TOOLS.map((group, g) => (
+        <div key={g} className="toolbar-group" role="radiogroup" aria-label="Herramientas">
+          {group.map((t) => (
+            <IconButton
+              key={t.name}
+              icon={t.icon}
+              label={t.label}
+              shortcut={t.key}
+              hint={t.hint}
+              active={tool === t.name}
+              onClick={() => {
+                setTool(t.name);
+              }}
+            />
+          ))}
+        </div>
+      ))}
+      <div
+        className="toolbar-group snap"
+        title="Snapping: a qué se ajusta el cursor al dibujar y mover"
+      >
+        <Magnet size={16} aria-hidden className="muted" />
+        <IconButton
+          icon={CircleDot}
+          label="Ajustar a taladros"
+          active={snap.holes}
+          onClick={() => {
+            setSnap({ holes: !snap.holes });
           }}
         />
-        <span className="muted">m</span>
+        <IconButton
+          icon={Shapes}
+          label="Ajustar a nodos de malla"
+          active={snap.pattern}
+          onClick={() => {
+            setSnap({ pattern: !snap.pattern });
+          }}
+        />
+        <IconButton
+          icon={Grid3x3}
+          label="Ajustar a grilla"
+          active={snap.grid}
+          onClick={() => {
+            setSnap({ grid: !snap.grid });
+          }}
+        />
+        {snap.grid && (
+          <input
+            className="grid-size"
+            type="number"
+            min={0.01}
+            step={0.5}
+            value={snap.gridSize}
+            title="Paso de la grilla [m]"
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              if (v > 0) setSnap({ gridSize: v });
+            }}
+          />
+        )}
       </div>
       <div className="toolbar-group">
-        <button
+        <IconButton
+          icon={Maximize2}
+          label="Encuadrar todo"
+          shortcut="F"
           onClick={() => {
             actions.zoomToFit();
           }}
-          title="Encuadrar todo (F)"
-        >
-          Encuadrar
-        </button>
-        <button
+        />
+        <IconButton
+          icon={Gauge}
+          label="Prueba de rendimiento (5.000 taladros)"
           onClick={() => void actions.generatePerfFixture()}
-          title="Genera una malla de 5.000 taladros para medir rendimiento"
-        >
-          Prueba 5.000
-        </button>
+        />
+        <IconButton
+          icon={Keyboard}
+          label="Atajos de teclado"
+          shortcut="?"
+          onClick={() => {
+            setShortcutsOpen(true);
+          }}
+        />
       </div>
     </header>
   );

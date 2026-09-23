@@ -50,7 +50,7 @@ Aplicación web de diseño y simulación de voladuras mineras. Prioridades: **fl
 3. Tiempos (retardos, amarres, tiempos de detonación, animación, isócronas, coincidencias, ventana entre filas) ✅
 4. Importación CSV de taladros ✅
 5. Contornos de energía y distribución de explosivo ✅
-6. Fragmentación (Kuz-Ram, Swebrec/KCO, P50/P80)
-7. Vibración (PPV), flyrock (Lundborg) y sobrepresión
+6. Fragmentación (Kuz-Ram, Swebrec/KCO, P50/P80) ✅
+7. Vibración (PPV), flyrock (Lundborg) y sobrepresión ✅
 8. DXF y reporte PDF
 9. Vista 3D del banco con decks coloreados (al final)

@@ -10,6 +10,7 @@ export interface IndexedEntry<T> {
 /** Campos del proyecto modificables con `project/patch` (las voladuras tienen sus propias ops). */
 export type ProjectFields = Pick<
   Project,
+  | 'monitoringPoints'
   | 'name'
   | 'description'
   | 'currency'

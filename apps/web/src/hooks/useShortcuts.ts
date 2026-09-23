@@ -25,10 +25,13 @@ export function useShortcuts(): void {
         actions.selectAll();
       } else if (mod && key === 's') {
         void actions.saveProject();
+      } else if (e.key === '?') {
+        useUiStore.getState().setShortcutsOpen(!useUiStore.getState().shortcutsOpen);
       } else if (e.key === 'Delete') {
         actions.deleteSelection();
       } else if (e.key === 'Escape') {
-        session.selection.clear();
+        if (useUiStore.getState().shortcutsOpen) useUiStore.getState().setShortcutsOpen(false);
+        else session.selection.clear();
       } else if (!mod && !e.altKey && key === 'f') {
         actions.zoomToFit();
       } else if (!mod && !e.altKey && TOOL_KEYS[key]) {

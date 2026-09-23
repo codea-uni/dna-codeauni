@@ -78,6 +78,11 @@ export function bindVisualization(engine: Engine): () => void {
     if (changed('analysis') || changed('labelBy'))
       engine.setHoleLabels(analysis ? labels(analysis, s.labelBy) : null);
     if (changed('energy') || changed('energyOpacity')) engine.setEnergy(s.energy, s.energyOpacity);
+    if (changed('vibration') || changed('vibOpacity')) {
+      const v = s.vibration;
+      engine.setVibration(v && v.nx > 0 ? { ...v, colorLog: true } : null, s.vibOpacity);
+      engine.setFlyrockZone(v ? v.flyrock.zone : null);
+    }
     if (changed('analysis')) {
       const iso = analysis?.isochrones;
       const t = analysis?.timing;

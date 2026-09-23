@@ -46,9 +46,7 @@ export function PropertiesPanel() {
         <h2>Propiedades</h2>
         <p className="muted">Sin selección.</p>
         <p className="hint">
-          Atajos: V seleccionar · L lazo · A agregar · B perímetro · H desplazar · F encuadrar ·
-          Supr borrar · Ctrl+A todo · Ctrl+Z / Ctrl+Shift+Z · Espacio + arrastre o botón
-          medio/derecho para desplazar.
+          Selecciona taladros para editarlos · <kbd>?</kbd> atajos
         </p>
       </section>
     );

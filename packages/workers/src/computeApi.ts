@@ -1,5 +1,9 @@
 import {
   analyzeBlast,
+  computeCharges,
+  computeVibration,
+  fragmentation,
+  kuzRamInputsFromBlast,
   computeEnergyGrid,
   exportHolesCsv,
   guessHoleMapping,
@@ -12,6 +16,11 @@ import {
   type AnalysisOptions,
   type Bench,
   type EnergyOptions,
+  type FragmentationOptions,
+  type FragmentationResult,
+  type KuzRamInputs,
+  type VibrationOptions,
+  type VibrationResult,
   type EnergyResult,
   type HoleCsvDefaults,
   type HoleCsvImport,
@@ -57,6 +66,41 @@ export const computeApi = {
       result.rgba.buffer,
       result.contours.segments.buffer,
       result.contours.levels.buffer,
+    ] as ArrayBuffer[]);
+  },
+
+  /** Entradas de Kuz-Ram derivadas de la voladura (malla, carga media, factor de carga, roca). */
+  fragmentationInputs(project: Project, blastId: BlastId, patternId?: string): KuzRamInputs | null {
+    const blast = project.blasts.find((b) => b.id === blastId);
+    if (!blast) return null;
+    const rock = project.rockMasses.find((r) => r.id === blast.rockMassId) ?? {
+      density: 2650,
+      ucs: 150e6,
+      youngModulus: 50e9,
+    };
+    const charge = computeCharges(blast, project.library, rock.density);
+    return kuzRamInputsFromBlast(blast, project.library, charge, rock, patternId);
+  },
+
+  /** Kuz-Ram + Swebrec (KCO). */
+  fragmentation(inputs: KuzRamInputs, options: FragmentationOptions): FragmentationResult {
+    return fragmentation(inputs, options);
+  },
+
+  /** Vibración (PPV o sobrepresión) en grilla, puntos de control y zona de flyrock. */
+  computeVibration(
+    project: Project,
+    blastId: BlastId,
+    options: VibrationOptions,
+  ): VibrationResult | null {
+    const blast = project.blasts.find((b) => b.id === blastId);
+    if (!blast) return null;
+    const r = computeVibration(project, blast, options);
+    return transfer(r, [
+      r.values.buffer,
+      r.rgba.buffer,
+      r.contours.segments.buffer,
+      r.contours.levels.buffer,
     ] as ArrayBuffer[]);
   },
 

@@ -183,6 +183,7 @@ export function computeEnergyGrid(
   interface Item {
     hole: Hole;
     table: ProfileTable;
+    key: string;
     ux: number;
     uy: number;
     uz: number;
@@ -215,7 +216,7 @@ export function computeEnergyGrid(
     }
     const h = azimuthToUnit(hole.azimuth);
     const si = Math.sin(hole.inclination);
-    items.push({ hole, table, ux: h.x * si, uy: h.y * si, uz: -Math.cos(hole.inclination) });
+    items.push({ hole, table, key, ux: h.x * si, uy: h.y * si, uz: -Math.cos(hole.inclination) });
     // Donde el eje corta el plano (o la boca) ± radio de influencia.
     const sPlane = (hole.collar.z - options.elevation) / Math.cos(hole.inclination);
     const cx = hole.collar.x + h.x * si * sPlane;
@@ -266,9 +267,24 @@ export function computeEnergyGrid(
   const nx = Math.max(2, Math.ceil((maxX - minX) / cell));
   const ny = Math.max(2, Math.ceil((maxY - minY) / cell));
   const sum = new Float64Array(nx * ny);
+  // Taladros verticales: s es constante en el plano → perfil radial 1D indexado por ρ²
+  // (sin raíces por celda), compartido por los taladros con igual carga y cota de boca.
+  const RADIAL_N = 4096;
+  const radialCache = new Map<string, Float32Array>();
+  const radialFor = (table: ProfileTable, s: number, key: string): Float32Array => {
+    const k = `${key}|${s.toFixed(4)}`;
+    let r = radialCache.get(k);
+    if (!r) {
+      r = new Float32Array(RADIAL_N + 1);
+      const du = (cutoff * cutoff) / RADIAL_N;
+      for (let n = 0; n <= RADIAL_N; n++) r[n] = sampleProfile(table, Math.sqrt(n * du), s);
+      radialCache.set(k, r);
+    }
+    return r;
+  };
 
   for (const it of items) {
-    const { hole, table, ux, uy, uz } = it;
+    const { hole, table, key, ux, uy, uz } = it;
     // Rango de celdas: proyección del tramo de eje relevante ± radio.
     const sPlane = (hole.collar.z - options.elevation) / -uz;
     const cx = hole.collar.x + ux * sPlane;
@@ -285,18 +301,36 @@ export function computeEnergyGrid(
     // Taladro vertical: la zona de influencia es un disco; se recorre solo su ancho en cada fila.
     const vertical = ux === 0 && uy === 0;
     const r2 = cutoff * cutoff;
-    for (let j = j0; j <= j1; j++) {
-      const py = minY + (j + 0.5) * cell - hole.collar.y;
-      let ia = i0;
-      let ib = i1;
-      if (vertical) {
+    if (vertical) {
+      const radial = radialFor(table, dz * uz, key);
+      const invDu = RADIAL_N / r2;
+      for (let j = j0; j <= j1; j++) {
+        const py = minY + (j + 0.5) * cell - hole.collar.y;
         const rem = r2 - py * py;
         if (rem <= 0) continue;
         const half = Math.sqrt(rem);
-        ia = Math.max(i0, Math.floor((hole.collar.x - half - minX) / cell));
-        ib = Math.min(i1, Math.ceil((hole.collar.x + half - minX) / cell));
+        const ia = Math.max(i0, Math.floor((hole.collar.x - half - minX) / cell));
+        const ib = Math.min(i1, Math.ceil((hole.collar.x + half - minX) / cell));
+        const py2 = py * py;
+        const row = j * nx;
+        for (let i = ia; i <= ib; i++) {
+          const px = minX + (i + 0.5) * cell - hole.collar.x;
+          const f = (px * px + py2) * invDu;
+          if (f >= RADIAL_N) continue;
+          const n = f | 0;
+          const a = radial[n] ?? 0;
+          const v = a + ((radial[n + 1] ?? 0) - a) * (f - n);
+          if (v <= 0) continue;
+          const k = row + i;
+          sum[k] = isPpv ? Math.max(sum[k] ?? 0, v) : (sum[k] ?? 0) + v;
+        }
       }
-      for (let i = ia; i <= ib; i++) {
+      continue;
+    }
+    // Taladro inclinado: recorrido general en coordenadas del eje (ρ, s).
+    for (let j = j0; j <= j1; j++) {
+      const py = minY + (j + 0.5) * cell - hole.collar.y;
+      for (let i = i0; i <= i1; i++) {
         const px = minX + (i + 0.5) * cell - hole.collar.x;
         // s = proyección sobre el eje; ρ = distancia al eje.
         const s = px * ux + py * uy + dz * uz;

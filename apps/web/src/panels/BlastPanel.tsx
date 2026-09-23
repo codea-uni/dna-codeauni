@@ -1,6 +1,8 @@
 import { commands, type BoundaryId } from '@blastlab/core';
 import { boundaryColorCss } from '@blastlab/engine';
+import { Mountain, Pentagon } from 'lucide-react';
 import { TextCell } from '../components/CellInput';
+import { IconButton } from '../components/IconButton';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
 import { session } from '../session';
@@ -101,21 +103,25 @@ export function BlastPanel() {
           </ul>
         )}
         <div className="row">
-          <button
+          <IconButton
+            icon={Pentagon}
+            label="Dibujar perímetro"
+            shortcut="B"
+            showLabel
             onClick={() => {
               setTool('boundary');
             }}
-          >
-            Dibujar perímetro (B)
-          </button>
-          <button
+          />
+          <IconButton
+            icon={Mountain}
+            label="Cara libre"
+            shortcut="C"
+            showLabel
             disabled={blast.boundaries.length === 0}
             onClick={() => {
               setTool('freeFace');
             }}
-          >
-            Cara libre (C)
-          </button>
+          />
         </div>
         <p className="hint">
           Cara libre: con la herramienta C, haz clic junto a la arista del talud. Las marcas indican

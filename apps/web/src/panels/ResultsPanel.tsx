@@ -1,4 +1,5 @@
 import type { BlastAnalysis } from '@blastlab/core';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { lazy, Suspense, useMemo } from 'react';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
@@ -135,9 +136,11 @@ export function ResultsPanel() {
           </button>
         )}
         {hist && (
-          <Suspense fallback={<div className="chart muted">Cargando gráfico…</div>}>
-            <Histogram starts={hist.starts} holes={hist.holes} kg={hist.kg} binMs={windowMs} />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<div className="chart muted">Cargando gráfico…</div>}>
+              <Histogram starts={hist.starts} holes={hist.holes} kg={hist.kg} binMs={windowMs} />
+            </Suspense>
+          </ErrorBoundary>
         )}
         {t.interRowDelays.length > 0 && (
           <>

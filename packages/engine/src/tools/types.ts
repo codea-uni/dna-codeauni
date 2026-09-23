@@ -12,7 +12,7 @@ import type {
 } from '@blastlab/core';
 
 export type ToolName =
-  'select' | 'lasso' | 'add' | 'boundary' | 'freeFace' | 'pan' | 'tie' | 'initiate';
+  'select' | 'lasso' | 'add' | 'boundary' | 'freeFace' | 'pan' | 'tie' | 'initiate' | 'monitor';
 
 /** Evento de puntero ya traducido a coordenadas de proyecto [m]. */
 export interface ToolPointer {

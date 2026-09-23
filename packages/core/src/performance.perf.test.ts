@@ -19,6 +19,7 @@ import { generatePatternHoles } from './patterns/pattern';
 import { applyChargeRule } from './charging/charge';
 import { computeEnergyGrid, DEFAULT_ENERGY_OPTIONS } from './energy/energy';
 import { computeTiming } from './timing/timing';
+import { computeVibration, DEFAULT_VIBRATION_OPTIONS } from './vibration/vibration';
 import { rowTieUp, withDownholeDetonator } from './timing/tieUp';
 
 function best(runs: number, fn: () => void): number {
@@ -113,5 +114,36 @@ describe('rendimiento con 5.000 taladros', () => {
       computeEnergyGrid(blast, lib, { ...DEFAULT_ENERGY_OPTIONS, elevation: 7.5 }),
     );
     expect(ms).toBeLessThan(300);
+  });
+
+  it('vibración (grilla + puntos de control) en < 800 ms', () => {
+    const project = createEmptyProject();
+    const lib = project.library;
+    const anfo = lib.explosives[0];
+    const stem = lib.stemmingMaterials[0];
+    const det = lib.detonators[0];
+    if (!anfo || !stem || !det) throw new Error('librería incompleta');
+    const holes = generatePatternHoles(pattern, DEFAULT_BENCH, { startNumber: 1 }).map((h, i) => {
+      const loaded = {
+        ...h,
+        ...applyChargeRule(
+          h,
+          {
+            stemmingLength: 4,
+            stemmingMaterialId: stem.id,
+            explosiveId: anfo.id,
+            primerOffsetFromToe: 0.5,
+          },
+          lib,
+        ),
+      };
+      // Retardos variados → varias clases de carga por retardo.
+      return { ...loaded, initiators: withDownholeDetonator(loaded, det.id, (i % 37) * 0.003) };
+    });
+    const blast = { ...createBlast('V', newId<'RockMass'>()), patterns: [pattern], holes };
+    const ms = best(2, () =>
+      computeVibration({ ...project, blasts: [blast] }, blast, DEFAULT_VIBRATION_OPTIONS),
+    );
+    expect(ms).toBeLessThan(800);
   });
 });

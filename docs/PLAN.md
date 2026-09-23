@@ -642,6 +642,11 @@ Todas las fases comparten estos criterios de "hecho":
 
 **Fase 7: Vibración.**
 
+> Implementado: PPV con la carga por retardo real (ventana de coincidencia sobre los tiempos),
+> sobrepresión en Pa/dB, puntos de control (herramienta M) y zona de exclusión por Lundborg. En la
+> grilla, las fuentes se agrupan en clases de carga por retardo (razón ≤ 1.1, redondeo conservador);
+> los puntos de control se calculan exactos contra todos los taladros.
+
 - PPV por distancia escalada (raíz cuadrada y raíz cúbica) sobre grilla y en puntos de control, con constantes de sitio editables.
 - Sobrepresión.
 - Flyrock con Lundborg, dibujado como zona de exclusión.
