@@ -4,6 +4,7 @@ import {
   snapPoint,
   type Blast,
   type BlastId,
+  type BoundaryId,
   type ChangeSet,
   type ConnectionId,
   type SurfaceConnectorId,
@@ -33,6 +34,7 @@ import { RenderLoop, type FrameStats } from './loop/RenderLoop';
 import { HolePicker } from './picking/HolePicker';
 import { AddHoleTool } from './tools/AddHoleTool';
 import { BoundaryTool } from './tools/BoundaryTool';
+import { FreeFaceTool } from './tools/FreeFaceTool';
 import { InitiateTool } from './tools/InitiateTool';
 import { TieTool } from './tools/TieTool';
 import { PanTool } from './tools/PanTool';
@@ -55,6 +57,8 @@ export interface EngineEvents extends Record<string, unknown> {
   sequenceTime: number | null;
   /** La animación llegó al final. */
   sequenceEnded: null;
+  /** Cambió el perímetro activo (por herramienta o al dibujar uno nuevo). */
+  activeBoundary: BoundaryId | null;
 }
 
 export type EngineLayer = 'labels' | 'traces' | 'connections' | 'isochrones';
@@ -98,6 +102,9 @@ export class Engine {
   private readonly holes = new HolesLayer();
   private readonly labels = new LabelsLayer();
   private readonly boundaries = new BoundaryLayer();
+  private readonly boundaryLabels = new LabelsLayer();
+  private activeBoundaryId: BoundaryId | null = null;
+  private lastVertexMpp = 0;
   private readonly initiation = new InitiationLayer();
   private readonly isochrones = new IsochronesLayer();
   private isochroneData: IsochroneData | null = null;
@@ -129,6 +136,7 @@ export class Engine {
     lasso: new SelectTool('lasso'),
     add: new AddHoleTool(),
     boundary: new BoundaryTool(),
+    freeFace: new FreeFaceTool(),
     pan: new PanTool(),
     tie: new TieTool(),
     initiate: new InitiateTool(),
@@ -184,6 +192,7 @@ export class Engine {
       this.initiation.root,
       this.holes.root,
       this.labels.mesh,
+      this.boundaryLabels.mesh,
       this.overlay.root,
     );
 
@@ -313,7 +322,8 @@ export class Engine {
       for (const h of blast.holes) {
         if (!selectionOnly || this.selection.has(h.id)) add(h.collar.x, h.collar.y);
       }
-      if (!selectionOnly) for (const p of blast.boundary ?? []) add(p.x, p.y);
+      if (!selectionOnly)
+        for (const b of blast.boundaries) for (const p of b.polygon) add(p.x, p.y);
     }
     if (!Number.isFinite(bounds.minX)) {
       if (selectionOnly) return;
@@ -326,6 +336,15 @@ export class Engine {
     bounds.maxX += pad;
     bounds.maxY += pad;
     this.setView(fitBounds(bounds, this.width, this.height, 0.05));
+  }
+
+  /** Resalta un perímetro (el que usará la generación de mallas). */
+  setActiveBoundary(id: BoundaryId | null): void {
+    if (id === this.activeBoundaryId) return;
+    this.activeBoundaryId = id;
+    this.rebuildBoundaries();
+    this.events.emit('activeBoundary', id);
+    this.loop.invalidate();
   }
 
   setLayerVisible(layer: EngineLayer, visible: boolean): void {
@@ -423,6 +442,7 @@ export class Engine {
     this.holes.dispose();
     this.labels.dispose();
     this.boundaries.dispose();
+    this.boundaryLabels.dispose();
     this.initiation.dispose();
     this.isochrones.dispose();
     this.overlay.dispose();
@@ -434,6 +454,7 @@ export class Engine {
   private onDocumentChange(cs: ChangeSet): void {
     if (cs.reset) {
       this.activeBlastId = undefined;
+      this.activeBoundaryId = null;
       this.origin = { ...this.document.project.coordinateSystem.origin };
       this.rebuildAll();
       this.zoomToFit();
@@ -456,12 +477,45 @@ export class Engine {
       this.labels.flush();
       this.picker.markDirty();
     }
-    if (cs.blasts.length > 0) this.boundaries.rebuild(this.document.project.blasts, this.origin);
+    if (cs.blasts.length > 0) this.rebuildBoundaries();
     // Las conexiones siguen a los taladros: se reconstruyen si cambian taladros, iniciación o librería.
     if (cs.blasts.length > 0 || cs.project || added.length + removed.length + updated.length > 0)
       this.rebuildInitiation();
     if (cs.patterns) this.updateTypicalSpacing();
     this.applyView();
+  }
+
+  private rebuildBoundaries(): void {
+    const blasts = this.document.project.blasts;
+    if (
+      this.activeBoundaryId &&
+      !blasts.some((b) => b.boundaries.some((x) => x.id === this.activeBoundaryId))
+    ) {
+      this.activeBoundaryId = null;
+      this.events.emit('activeBoundary', null);
+    }
+    this.boundaries.rebuild(
+      blasts,
+      this.origin,
+      this.activeBoundaryId,
+      4 * this.view.metersPerPixel,
+    );
+    this.boundaryLabels.clear();
+    for (const blast of blasts) {
+      for (const b of blast.boundaries) {
+        if (b.polygon.length === 0) continue;
+        // Nombre junto al vértice más al Norte-Oeste (esquina superior izquierda en planta).
+        let anchor = b.polygon[0] ?? { x: 0, y: 0 };
+        for (const p of b.polygon) if (p.y - p.x > anchor.y - anchor.x) anchor = p;
+        this.boundaryLabels.upsert(
+          b.id,
+          anchor.x - this.origin.x,
+          anchor.y - this.origin.y,
+          b.name.replace('Perímetro ', 'P'),
+        );
+      }
+    }
+    this.boundaryLabels.flush();
   }
 
   private rebuildInitiation(): void {
@@ -573,7 +627,7 @@ export class Engine {
     this.holes.flush();
     this.labels.flush();
     this.picker.markDirty();
-    this.boundaries.rebuild(this.document.project.blasts, this.origin);
+    this.rebuildBoundaries();
     this.rebuildInitiation();
     this.isochrones.set(this.isochroneData, this.origin);
     this.holes.refreshColors();
@@ -667,6 +721,12 @@ export class Engine {
     const buffer = this.renderer.getDrawingBufferSize(new Vector2());
     this.holes.setViewport(buffer.x, buffer.y, radiusCss * this.pixelRatio);
     this.labels.setViewport(buffer.x, buffer.y, this.pixelRatio, radiusCss * this.pixelRatio);
+    this.boundaryLabels.setViewport(buffer.x, buffer.y, this.pixelRatio, 4 * this.pixelRatio);
+    // Los marcadores de vértice del perímetro activo tienen tamaño fijo en pantalla.
+    if (this.activeBoundaryId && Math.abs(this.lastVertexMpp - mpp) > mpp * 0.05) {
+      this.lastVertexMpp = mpp;
+      this.rebuildBoundaries();
+    }
     this.labels.mesh.visible = this.layerVisible.labels && spacingPx >= LABEL_MIN_SPACING_PX;
     this.holes.traceObject.visible = this.layerVisible.traces && spacingPx >= 8;
     this.initiation.root.visible = this.layerVisible.connections;
@@ -703,7 +763,9 @@ export class Engine {
   private updateHover(p: ToolPointer): void {
     const tool = this.tool.name;
     this.setHover(
-      tool === 'add' || tool === 'boundary' || tool === 'pan' ? null : this.pickHole(p.x, p.y),
+      tool === 'add' || tool === 'boundary' || tool === 'freeFace' || tool === 'pan'
+        ? null
+        : this.pickHole(p.x, p.y),
     );
   }
 
@@ -804,6 +866,9 @@ export class Engine {
         return connectors.find((c) => c.id === this.tieConnectorId)?.id ?? connectors[0]?.id;
       },
       pickConnection: (x, y) => this.pickConnection(x, y),
+      setActiveBoundary: (id) => {
+        this.setActiveBoundary(id);
+      },
       showPolyline: (points) => {
         this.overlay.setPolyline(points ? toRender(points) : null);
       },

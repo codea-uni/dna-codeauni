@@ -1,4 +1,11 @@
-import { degToRad, mmToM, mToMm, radToDeg, type PatternKind } from '@blastlab/core';
+import {
+  degToRad,
+  freeFaceAlignment,
+  mmToM,
+  mToMm,
+  radToDeg,
+  type PatternKind,
+} from '@blastlab/core';
 import { useState } from 'react';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
@@ -24,13 +31,24 @@ export function PatternPanel() {
     holesPerRow: 12,
     rowAzimuth: Math.PI / 2,
     rowAdvance: 'right',
-    clipToBoundary: false,
+    boundaryId: null,
+    frontOffset: 3,
   });
+  const activeBoundaryId = useUiStore((s) => s.activeBoundaryId);
   const update = (patch: Partial<actions.PatternForm>) => {
     setForm((f) => ({ ...f, ...patch }));
   };
-  const hasBoundary = Boolean(blast?.boundary);
-  const clip = form.clipToBoundary && hasBoundary;
+  const boundaries = blast?.boundaries ?? [];
+  // "auto" = el perímetro activo; se resuelve al generar.
+  const [boundaryChoice, setBoundaryChoice] = useState<string>('active');
+  const selectedBoundary =
+    boundaryChoice === 'none'
+      ? undefined
+      : boundaries.find(
+          (b) => b.id === (boundaryChoice === 'active' ? activeBoundaryId : boundaryChoice),
+        );
+  const clip = selectedBoundary !== undefined;
+  const alignment = selectedBoundary ? freeFaceAlignment(selectedBoundary) : null;
 
   return (
     <>
@@ -141,18 +159,58 @@ export function PatternPanel() {
             <option value="left">A la izquierda</option>
           </select>
         </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={clip}
-            disabled={!hasBoundary}
+        <label className="field">
+          <span className="field-label">Perímetro</span>
+          <select
+            value={boundaryChoice}
             onChange={(e) => {
-              update({ clipToBoundary: e.target.checked });
+              setBoundaryChoice(e.target.value);
             }}
-          />
-          Rellenar y recortar al perímetro
+          >
+            <option value="active">
+              Activo
+              {activeBoundaryId
+                ? ` (${boundaries.find((b) => b.id === activeBoundaryId)?.name ?? '—'})`
+                : ' (ninguno)'}
+            </option>
+            <option value="none">Ninguno (centrada en la vista)</option>
+            {boundaries.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </label>
-        {!hasBoundary && <p className="hint">Dibuja un perímetro para habilitar el recorte.</p>}
+        {boundaries.length === 0 && (
+          <p className="hint">Dibuja un perímetro (B) para rellenarlo con la malla.</p>
+        )}
+        {clip && (
+          <>
+            <NumberField
+              label="1ª fila desde el borde"
+              unit="m"
+              decimals={2}
+              min={0}
+              value={form.frontOffset}
+              onCommit={(v) => {
+                update({ frontOffset: v });
+              }}
+            />
+            <button
+              disabled={!alignment}
+              title={
+                alignment
+                  ? 'Filas paralelas a la cara libre, avanzando hacia el interior'
+                  : 'El perímetro no tiene cara libre (herramienta C)'
+              }
+              onClick={() => {
+                if (alignment) update(alignment);
+              }}
+            >
+              Alinear filas a la cara libre
+            </button>
+          </>
+        )}
         <NumberField
           label="Filas"
           integer
@@ -181,7 +239,9 @@ export function PatternPanel() {
         <button
           className="primary"
           disabled={busy !== null}
-          onClick={() => void actions.generatePattern({ ...form, clipToBoundary: clip })}
+          onClick={() =>
+            void actions.generatePattern({ ...form, boundaryId: selectedBoundary?.id ?? null })
+          }
         >
           Generar malla
         </button>

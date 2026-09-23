@@ -1,3 +1,4 @@
+import { uuidv7 } from '../model/ids';
 import { SCHEMA_VERSION } from '../model/schema';
 import type { Project, ProjectFile } from '../model/types';
 import { projectFileSchema } from './projectSchema';
@@ -24,13 +25,31 @@ export function serializeProject(project: Project, options: SerializeOptions): s
 
 export type ParseResult = { ok: true; file: ProjectFile } | { ok: false; error: string };
 
-/**
- * Migraciones de esquema: cada entrada lleva un JSON de la versión `n` a la `n + 1`.
- * Vacío mientras exista solo la versión 1.
- */
-const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<string, unknown>> = {};
+type Json = Record<string, unknown>;
 
-function migrate(data: Record<string, unknown>): Record<string, unknown> {
+const isObject = (v: unknown): v is Json =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Migraciones de esquema: cada entrada lleva un JSON de la versión `n` a la `n + 1`. */
+export const MIGRATIONS: Record<number, (data: Json) => Json> = {
+  /** v1 → v2: `blast.boundary` (un polígono) pasa a `blast.boundaries[]` con caras libres. */
+  1: (data) => {
+    const project = data.project;
+    if (!isObject(project) || !Array.isArray(project.blasts)) return data;
+    const blasts = (project.blasts as unknown[]).map((b) => {
+      if (!isObject(b)) return b;
+      const { boundary, ...rest } = b;
+      const boundaries =
+        Array.isArray(boundary) && boundary.length >= 3
+          ? [{ id: uuidv7(), name: 'Perímetro 1', polygon: boundary, freeFaceEdges: [] }]
+          : [];
+      return { ...rest, boundaries };
+    });
+    return { ...data, project: { ...project, blasts } };
+  },
+};
+
+function migrate(data: Json): Json {
   let current = data;
   let version = typeof current.schemaVersion === 'number' ? current.schemaVersion : NaN;
   while (version < SCHEMA_VERSION) {

@@ -3,7 +3,9 @@ import { lengthToFloor } from '../geometry/hole';
 import { newId } from '../model/ids';
 import type {
   Blast,
+  BlastBoundary,
   BlastId,
+  BoundaryId,
   ChargeRule,
   ConnectionId,
   Deck,
@@ -160,8 +162,72 @@ export function addPattern(blastId: BlastId, pattern: Pattern, holes: readonly H
   ];
 }
 
-export function setBlastBoundary(blastId: BlastId, boundary: Polygon2 | undefined): Op[] {
-  return [{ type: 'blast/patch', blastId, patch: { boundary } }];
+// ------------------------------------------------------------------ Perímetros
+
+function patchBoundaries(
+  doc: DocumentReader,
+  blastId: BlastId,
+  fn: (list: BlastBoundary[]) => BlastBoundary[],
+): Op[] {
+  const blast = doc.getBlast(blastId);
+  if (!blast) return [];
+  return [{ type: 'blast/patch', blastId, patch: { boundaries: fn(blast.boundaries) } }];
+}
+
+/** Agrega un perímetro nuevo (no reemplaza los existentes). */
+export function addBoundary(doc: DocumentReader, blastId: BlastId, boundary: BlastBoundary): Op[] {
+  return patchBoundaries(doc, blastId, (list) => [...list, boundary]);
+}
+
+export function removeBoundary(doc: DocumentReader, blastId: BlastId, id: BoundaryId): Op[] {
+  return patchBoundaries(doc, blastId, (list) => list.filter((b) => b.id !== id));
+}
+
+export function renameBoundary(
+  doc: DocumentReader,
+  blastId: BlastId,
+  id: BoundaryId,
+  name: string,
+): Op[] {
+  return patchBoundaries(doc, blastId, (list) =>
+    list.map((b) => (b.id === id ? { ...b, name } : b)),
+  );
+}
+
+/** Marca o desmarca una arista como cara libre. */
+export function toggleFreeFaceEdge(
+  doc: DocumentReader,
+  blastId: BlastId,
+  id: BoundaryId,
+  edge: number,
+): Op[] {
+  return patchBoundaries(doc, blastId, (list) =>
+    list.map((b) => {
+      if (b.id !== id) return b;
+      const has = b.freeFaceEdges.includes(edge);
+      const freeFaceEdges = has
+        ? b.freeFaceEdges.filter((e) => e !== edge)
+        : [...b.freeFaceEdges, edge].sort((x, y) => x - y);
+      return { ...b, freeFaceEdges };
+    }),
+  );
+}
+
+/** Nombre libre "Perímetro N" para un perímetro nuevo. */
+export function nextBoundaryName(blast: Pick<Blast, 'boundaries'>): string {
+  const used = new Set(blast.boundaries.map((b) => b.name));
+  for (let n = blast.boundaries.length + 1; ; n++)
+    if (!used.has(`Perímetro ${n}`)) return `Perímetro ${n}`;
+}
+
+/** Crea un perímetro a partir de un polígono. */
+export function makeBoundary(blast: Pick<Blast, 'boundaries'>, polygon: Polygon2): BlastBoundary {
+  return {
+    id: newId<'Boundary'>(),
+    name: nextBoundaryName(blast),
+    polygon: [...polygon],
+    freeFaceEdges: [],
+  };
 }
 
 // ------------------------------------------------------------------ Carguío

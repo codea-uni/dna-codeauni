@@ -1,5 +1,6 @@
 import {
   DEFAULT_HOLE_TEMPLATE,
+  type BoundaryId,
   type HoleId,
   type HoleTemplate,
   type SurfaceConnectorId,
@@ -19,6 +20,9 @@ interface UiState {
   /** Conector de la herramienta Amarre. */
   tieConnectorId: SurfaceConnectorId | undefined;
   leftTab: 'design' | 'charge' | 'timing' | 'library';
+  /** Perímetro activo (resaltado; destino por defecto al generar mallas). */
+  activeBoundaryId: BoundaryId | null;
+  setActiveBoundary: (id: BoundaryId | null) => void;
   frameStats: FrameStats | null;
   pointer: Vec2 | null;
   hover: HoleId | null;
@@ -42,6 +46,10 @@ export const useUiStore = create<UiState>()((set) => ({
   holeTemplate: DEFAULT_HOLE_TEMPLATE,
   tieConnectorId: undefined,
   leftTab: 'design',
+  activeBoundaryId: null,
+  setActiveBoundary: (activeBoundaryId) => {
+    set({ activeBoundaryId });
+  },
   frameStats: null,
   pointer: null,
   hover: null,

@@ -25,6 +25,12 @@ const TOOLS: { name: ToolName; label: string; key: string; hint: string }[] = [
     hint: 'Clic: vértice · Doble clic / Enter: cerrar · Retroceso: deshacer vértice',
   },
   {
+    name: 'freeFace',
+    label: 'Cara libre',
+    key: 'C',
+    hint: 'Clic junto a una arista del perímetro: marca/desmarca cara libre (talud) · Clic dentro: activa el perímetro',
+  },
+  {
     name: 'tie',
     label: 'Amarrar',
     key: 'T',

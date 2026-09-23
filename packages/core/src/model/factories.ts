@@ -71,6 +71,7 @@ export function createBlast(
     status: 'design',
     bench: { ...bench },
     rockMassId,
+    boundaries: [],
     freeFaces: [],
     patterns: [],
     holes: [],

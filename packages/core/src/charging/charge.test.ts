@@ -115,8 +115,9 @@ describe('cubicación por área de influencia', () => {
       { x: -3, y: 12 },
     ];
     const points = [];
-    for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) points.push({ x: i * 6, y: j * 5 });
-    const { areas } = influenceAreas(points, boundary);
+    // Todos los taladros dentro del pentágono (y ≤ 10).
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) points.push({ x: i * 6, y: j * 5 });
+    const { areas } = influenceAreas(points, [boundary]);
     const total = areas.reduce((a, b) => a + b, 0);
     // Área del pentágono: 36·15 + ½·36·13 = 540 + 234 = 774 m²
     expect(total).toBeCloseTo(774, 6);
@@ -141,11 +142,18 @@ describe('cubicación por área de influencia', () => {
       {
         ...blast,
         holes,
-        boundary: [
-          { x: -2.5, y: -2.5 },
-          { x: 12.5, y: -2.5 },
-          { x: 12.5, y: 12.5 },
-          { x: -2.5, y: 12.5 },
+        boundaries: [
+          {
+            id: newId<'Boundary'>(),
+            name: 'P1',
+            freeFaceEdges: [],
+            polygon: [
+              { x: -2.5, y: -2.5 },
+              { x: 12.5, y: -2.5 },
+              { x: 12.5, y: 12.5 },
+              { x: -2.5, y: 12.5 },
+            ],
+          },
         ],
       },
       lib,
@@ -171,5 +179,22 @@ describe('cubicación por área de influencia', () => {
     const row = influenceAreas([0, 5, 10, 15].map((x) => ({ x, y: 0 })));
     // d3-delaunay perturba levemente los puntos colineales: tolerancia de 1e-4 m².
     expect(row.areas.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 4);
+  });
+
+  it('dos perímetros: cada taladro se recorta con el perímetro que lo contiene', () => {
+    // Dos bloques de 2 × 2 taladros (B = S = 5 m) separados 40 m, cada uno con su perímetro de 10 × 10.
+    const square = (x0: number) => [
+      { x: x0 - 2.5, y: -2.5 },
+      { x: x0 + 7.5, y: -2.5 },
+      { x: x0 + 7.5, y: 7.5 },
+      { x: x0 - 2.5, y: 7.5 },
+    ];
+    const points = [];
+    for (const x0 of [0, 40])
+      for (let i = 0; i < 2; i++)
+        for (let j = 0; j < 2; j++) points.push({ x: x0 + i * 5, y: j * 5 });
+    const { areas, autoBoundary } = influenceAreas(points, [square(0), square(40)]);
+    expect(autoBoundary).toBeNull();
+    for (const a of areas) expect(a).toBeCloseTo(25, 6);
   });
 });

@@ -8,7 +8,16 @@ import {
 import type { Hole } from '../model/types';
 import { degToRad } from '../units/units';
 import type { ChangeSet } from './changeset';
-import { addHoles, deleteHoles, editHoles, moveHoles, setBlastBoundary } from './commands';
+import {
+  addHoles,
+  deleteHoles,
+  editHoles,
+  moveHoles,
+  addBoundary,
+  makeBoundary,
+  removeBoundary,
+  toggleFreeFaceEdge,
+} from './commands';
 import { DocumentStore } from './DocumentStore';
 import { createEditorSession } from './session';
 
@@ -93,19 +102,29 @@ describe('DocumentStore', () => {
     expect(store.canRedo).toBe(false);
   });
 
-  it('perímetro: fijar y quitar (undefined elimina la clave)', () => {
+  it('perímetros: se acumulan, cara libre alterna y todo se deshace', () => {
     const { store, blastId } = setup(0);
-    const boundary = [
+    const polygon = [
       { x: 0, y: 0 },
       { x: 1, y: 0 },
       { x: 0, y: 1 },
     ];
-    store.dispatch(setBlastBoundary(blastId, boundary), 'Perímetro');
-    expect(store.getBlast(blastId)?.boundary).toEqual(boundary);
-    store.dispatch(setBlastBoundary(blastId, undefined), 'Quitar perímetro');
-    expect(store.getBlast(blastId)).not.toHaveProperty('boundary');
+    const blast = () => store.getBlast(blastId);
+    const b1 = makeBoundary(blast() ?? { boundaries: [] }, polygon);
+    store.dispatch(addBoundary(store, blastId, b1), 'Perímetro');
+    const b2 = makeBoundary(blast() ?? { boundaries: [] }, polygon);
+    store.dispatch(addBoundary(store, blastId, b2), 'Perímetro');
+    expect(blast()?.boundaries.map((b) => b.name)).toEqual(['Perímetro 1', 'Perímetro 2']);
+    store.dispatch(toggleFreeFaceEdge(store, blastId, b2.id, 2), 'Cara libre');
+    store.dispatch(toggleFreeFaceEdge(store, blastId, b2.id, 0), 'Cara libre');
+    expect(blast()?.boundaries[1]?.freeFaceEdges).toEqual([0, 2]);
+    store.dispatch(toggleFreeFaceEdge(store, blastId, b2.id, 2), 'Cara libre');
+    expect(blast()?.boundaries[1]?.freeFaceEdges).toEqual([0]);
+    store.dispatch(removeBoundary(store, blastId, b1.id), 'Borrar');
+    expect(blast()?.boundaries.map((b) => b.id)).toEqual([b2.id]);
     store.undo();
-    expect(store.getBlast(blastId)?.boundary).toEqual(boundary);
+    store.undo();
+    expect(blast()?.boundaries).toHaveLength(2);
   });
 
   it('una operación inválida no deja el documento a medias', () => {

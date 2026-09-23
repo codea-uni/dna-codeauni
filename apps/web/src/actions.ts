@@ -7,6 +7,7 @@ import {
   newId,
   nextHoleNumber,
   rowTieUp,
+  type BoundaryId,
   type DetonatorId,
   type NodeRef,
   type Pattern,
@@ -115,8 +116,10 @@ export interface PatternForm {
   holesPerRow: number;
   rowAzimuth: number; // rad
   rowAdvance: Pattern['rowAdvance'];
-  /** Recortar al perímetro de la voladura (calcula origen, filas y columnas automáticamente). */
-  clipToBoundary: boolean;
+  /** Perímetro a rellenar y recortar (calcula origen, filas y columnas); null = centrada en la vista. */
+  boundaryId: BoundaryId | null;
+  /** Distancia de la primera fila al borde del perímetro en el sentido de avance [m]. */
+  frontOffset: number;
 }
 
 /** Genera una malla en el worker y la agrega como un solo paso de undo. */
@@ -132,9 +135,11 @@ export async function generatePattern(form: PatternForm): Promise<void> {
     rowAzimuth: form.rowAzimuth,
     rowAdvance: form.rowAdvance,
   };
-  const boundary = form.clipToBoundary ? blast.boundary : undefined;
+  const boundary = form.boundaryId
+    ? blast.boundaries.find((b) => b.id === form.boundaryId)
+    : undefined;
   const layout = boundary
-    ? fitPatternToPolygon(geometry, boundary)
+    ? fitPatternToPolygon(geometry, boundary.polygon, form.frontOffset)
     : {
         rows: form.rows,
         holesPerRow: form.holesPerRow,
@@ -150,7 +155,11 @@ export async function generatePattern(form: PatternForm): Promise<void> {
     ...layout,
     holeTemplate,
   };
-  if (boundary) pattern.clipBoundary = boundary;
+  if (boundary) {
+    pattern.clipBoundary = boundary.polygon;
+    pattern.boundaryId = boundary.id;
+    pattern.name = `${pattern.name} (${boundary.name})`;
+  }
 
   await withBusy('Generando malla…', async () => {
     const t0 = performance.now();
@@ -181,7 +190,8 @@ export async function generatePerfFixture(): Promise<void> {
     holesPerRow: 100,
     rowAzimuth: Math.PI / 2,
     rowAdvance: 'right',
-    clipToBoundary: false,
+    boundaryId: null,
+    frontOffset: 0,
   });
   getEngine()?.zoomToFit();
 }

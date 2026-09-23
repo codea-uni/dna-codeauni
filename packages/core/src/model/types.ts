@@ -37,6 +37,7 @@ export type InitiationPointId = Id<'InitiationPoint'>;
 export type VibrationLawId = Id<'VibrationLaw'>;
 export type FreeFaceId = Id<'FreeFace'>;
 export type InHoleInitiatorId = Id<'InHoleInitiator'>;
+export type BoundaryId = Id<'Boundary'>;
 
 /** Punto en coordenadas de proyecto [m], float64. */
 export interface Vec3 {
@@ -95,13 +96,26 @@ export interface Blast {
   status: BlastStatus;
   bench: Bench;
   rockMassId: RockMassId;
-  /** Perímetro de la voladura en planta (opcional; se usa en cubicación y generación). */
-  boundary?: Polygon2;
+  /** Perímetros de la voladura en planta (cubicación, generación de mallas y caras libres). */
+  boundaries: BlastBoundary[];
   freeFaces: FreeFace[];
   patterns: Pattern[];
   holes: Hole[];
   initiation: InitiationPlan;
   notes?: string;
+}
+
+/**
+ * Perímetro de voladura. Las aristas marcadas como cara libre (talud) indican hacia dónde se
+ * desplaza el material: hacia afuera del polígono, a través de esa arista.
+ */
+export interface BlastBoundary {
+  id: BoundaryId;
+  name: string;
+  /** Polígono cerrado en planta (el último vértice no repite el primero) [m]. */
+  polygon: Polygon2;
+  /** Índices de aristas de cara libre; la arista i va del vértice i al i+1 (la última cierra con el 0). */
+  freeFaceEdges: number[];
 }
 
 export interface Bench {
@@ -156,6 +170,8 @@ export interface Pattern {
   holesPerRow: number;
   /** Si existe, recorta el patrón a este polígono. */
   clipBoundary?: Polygon2;
+  /** Perímetro con el que se generó (si se recortó a uno). */
+  boundaryId?: BoundaryId;
   holeTemplate: HoleTemplate;
 }
 

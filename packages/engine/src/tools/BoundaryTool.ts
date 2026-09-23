@@ -66,7 +66,12 @@ export class BoundaryTool implements Tool {
   private finish(ctx: ToolContext): void {
     const blast = ctx.activeBlast();
     if (blast && this.points.length >= 3) {
-      ctx.document.dispatch(commands.setBlastBoundary(blast.id, this.points), 'Dibujar perímetro');
+      const boundary = commands.makeBoundary(blast, this.points);
+      ctx.document.dispatch(
+        commands.addBoundary(ctx.document, blast.id, boundary),
+        `Dibujar ${boundary.name}`,
+      );
+      ctx.setActiveBoundary(boundary.id);
     }
     this.cancel(ctx);
   }

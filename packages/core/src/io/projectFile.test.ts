@@ -45,7 +45,21 @@ function sampleProject(): Project {
   }
   return {
     ...project,
-    blasts: [{ ...blast, patterns: [pattern], holes, boundary: pattern.clipBoundary ?? [] }],
+    blasts: [
+      {
+        ...blast,
+        patterns: [pattern],
+        holes,
+        boundaries: [
+          {
+            id: newId<'Boundary'>(),
+            name: 'P1',
+            polygon: pattern.clipBoundary ?? [],
+            freeFaceEdges: [0],
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -57,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(1);
+    expect(parsed.file.schemaVersion).toBe(2);
   });
 
   it('rechaza JSON inválido, proyectos mal formados y esquemas futuros', () => {
@@ -76,5 +90,28 @@ describe('archivo de proyecto', () => {
     const f = parseProjectFile(JSON.stringify(future));
     expect(f.ok).toBe(false);
     if (!f.ok) expect(f.error).toContain('v99');
+  });
+
+  it('migra v1 → v2: el perímetro único pasa a la lista de perímetros', () => {
+    const project = sampleProject();
+    const v2 = JSON.parse(serializeProject(project, { appVersion: 'x' })) as {
+      schemaVersion: number;
+      project: { blasts: Record<string, unknown>[] };
+    };
+    // Reconstruye un archivo v1: `boundary` en vez de `boundaries`.
+    const blast = v2.project.blasts[0] ?? {};
+    const polygon = (blast.boundaries as { polygon: unknown }[])[0]?.polygon;
+    delete blast.boundaries;
+    blast.boundary = polygon;
+    const v1 = { ...v2, schemaVersion: 1 };
+    const r = parseProjectFile(JSON.stringify(v1));
+    if (!r.ok) throw new Error(r.error);
+    const migrated = r.file.project.blasts[0]?.boundaries;
+    expect(migrated).toHaveLength(1);
+    expect(migrated?.[0]).toMatchObject({ name: 'Perímetro 1', polygon, freeFaceEdges: [] });
+    // v1 sin perímetro → lista vacía
+    delete blast.boundary;
+    const r2 = parseProjectFile(JSON.stringify({ ...v2, schemaVersion: 1 }));
+    expect(r2.ok && r2.file.project.blasts[0]?.boundaries).toEqual([]);
   });
 });

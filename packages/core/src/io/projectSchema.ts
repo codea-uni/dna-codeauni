@@ -47,6 +47,7 @@ const pattern: z.ZodType<M.Pattern> = z.object({
   rows: z.int().nonnegative(),
   holesPerRow: z.int().nonnegative(),
   clipBoundary: polygon2.exactOptional(),
+  boundaryId: id<'Boundary'>().exactOptional(),
   holeTemplate,
 });
 
@@ -144,7 +145,14 @@ const blast: z.ZodType<M.Blast> = z.object({
   status: z.enum(['design', 'drilled', 'loaded', 'fired']),
   bench,
   rockMassId: id<'RockMass'>(),
-  boundary: polygon2.exactOptional(),
+  boundaries: z.array(
+    z.object({
+      id: id<'Boundary'>(),
+      name: z.string(),
+      polygon: polygon2,
+      freeFaceEdges: z.array(z.int().nonnegative()),
+    }),
+  ),
   freeFaces: z.array(freeFace),
   patterns: z.array(pattern),
   holes: z.array(hole),
@@ -276,7 +284,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
   format: z.literal('blastlab-project'),
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   savedAt: z.string(),
   appVersion: z.string(),
   project: projectSchema,

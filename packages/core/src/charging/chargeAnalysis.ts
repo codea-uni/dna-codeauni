@@ -31,8 +31,8 @@ export interface ChargeResult {
   /** Costo total de productos (explosivos, taco, primas, detonadores). */
   cost: number;
   loadedHoles: number;
-  /** Límite usado para la cubicación (perímetro o contorno automático). */
-  boundary: Vec2[];
+  /** Contorno automático usado para taladros fuera de todo perímetro (null si no hizo falta). */
+  autoBoundary: Vec2[] | null;
 }
 
 export function computeCharges(
@@ -67,7 +67,7 @@ export function computeCharges(
   });
   const influence = influenceAreas(
     holes.map((h) => h.collar),
-    blast.boundary,
+    blast.boundaries.map((b) => b.polygon),
   );
   let area = 0;
   for (let i = 0; i < n; i++) {
@@ -98,6 +98,6 @@ export function computeCharges(
     powderFactorMass: tonnage > 0 ? kg / tonnage : 0,
     cost,
     loadedHoles,
-    boundary: influence.boundary,
+    autoBoundary: influence.autoBoundary,
   };
 }

@@ -110,6 +110,8 @@ export function generatePatternHoles(
 export function fitPatternToPolygon(
   p: Pick<Pattern, 'kind' | 'burden' | 'spacing' | 'rowAzimuth' | 'rowAdvance'>,
   polygon: readonly Vec2[],
+  /** Distancia de la primera fila al borde del polígono en el sentido de avance [m]. */
+  frontOffset = 0,
 ): { origin: Vec2; rows: number; holesPerRow: number } {
   const { u, v } = patternAxes(p);
   let minS = Infinity;
@@ -127,10 +129,11 @@ export function fitPatternToPolygon(
   if (!Number.isFinite(minS)) return { origin: { x: 0, y: 0 }, rows: 0, holesPerRow: 0 };
   // Media fila extra de margen para que el tresbolillo no deje huecos en los bordes.
   const s0 = minS - (p.kind === 'staggered' ? p.spacing / 2 : 0);
-  const rows = Math.floor((maxB - minB) / p.burden) + 1;
+  const b0 = minB + Math.max(0, frontOffset);
+  const rows = Math.max(0, Math.floor((maxB - b0) / p.burden) + 1);
   const holesPerRow = Math.floor((maxS - s0) / p.spacing) + 1;
   return {
-    origin: { x: s0 * u.x + minB * v.x, y: s0 * u.y + minB * v.y },
+    origin: { x: s0 * u.x + b0 * v.x, y: s0 * u.y + b0 * v.y },
     rows,
     holesPerRow,
   };

@@ -7,6 +7,7 @@ export {
   type SnapSettings,
 } from './Engine';
 export { connectorColorCss, turboCss } from './layers/colormap';
+export { boundaryColorCss } from './layers/BoundaryLayer';
 export type { IsochroneData } from './layers/IsochronesLayer';
 export { fitBounds, panBy, screenToWorld, zoomAt, type PlanViewState } from './cameras/planView';
 export type { ToolName } from './tools/types';

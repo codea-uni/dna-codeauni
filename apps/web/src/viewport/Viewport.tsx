@@ -30,6 +30,8 @@ export function Viewport() {
       if (state.holeTemplate !== prev.holeTemplate) engine.setHoleTemplate(state.holeTemplate);
       if (state.tieConnectorId !== prev.tieConnectorId)
         engine.setTieConnector(state.tieConnectorId);
+      if (state.activeBoundaryId !== prev.activeBoundaryId)
+        engine.setActiveBoundary(state.activeBoundaryId);
     });
     const offs = [
       engine.on('frameStats', (stats) => {
@@ -37,6 +39,10 @@ export function Viewport() {
       }),
       engine.on('pointer', (p) => {
         useUiStore.getState().setPointer(p);
+      }),
+      engine.on('activeBoundary', (id) => {
+        if (useUiStore.getState().activeBoundaryId !== id)
+          useUiStore.getState().setActiveBoundary(id);
       }),
       engine.on('hover', (id) => {
         useUiStore.getState().setHover(id);

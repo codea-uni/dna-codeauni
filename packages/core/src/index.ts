@@ -10,6 +10,7 @@ export * from './geometry/vec';
 export * from './geometry/hole';
 export * from './geometry/polygon';
 export * from './geometry/snap';
+export * from './geometry/boundary';
 export { PointIndex } from './geometry/spatialIndex';
 
 // Patrones
@@ -49,6 +50,7 @@ export type { HoleEdit } from './document/commands';
 
 // IO
 export * from './io/projectFile';
+export * from './io/csv';
 
 /** Verificación de extremo a extremo del cableado core → workers. */
 export function ping(message: string): string {

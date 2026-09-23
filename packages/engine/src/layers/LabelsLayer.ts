@@ -9,7 +9,6 @@ import {
   ShaderMaterial,
   Vector2,
 } from 'three';
-import type { HoleId } from '@blastlab/core';
 import { COLORS } from './colors';
 
 /** Caracteres por etiqueta; las más largas se truncan con "~". */
@@ -70,11 +69,11 @@ export class LabelsLayer {
   readonly mesh: Mesh<InstancedBufferGeometry, ShaderMaterial>;
   private capacity = INITIAL_CAPACITY;
   private count = 0;
-  private readonly ids: HoleId[] = [];
-  private readonly slotOf = new Map<HoleId, number>();
+  private readonly ids: string[] = [];
+  private readonly slotOf = new Map<string, number>();
   /** Ancla base por slot (x, y) en coordenadas de render. */
   private base = new Float32Array(INITIAL_CAPACITY * 2);
-  private previewIds: HoleId[] = [];
+  private previewIds: string[] = [];
   private readonly texture: CanvasTexture;
 
   constructor() {
@@ -147,7 +146,7 @@ export class LabelsLayer {
     this.flush();
   }
 
-  upsert(id: HoleId, x: number, y: number, text: string): void {
+  upsert(id: string, x: number, y: number, text: string): void {
     let slot = this.slotOf.get(id);
     if (slot === undefined) {
       if (this.count === this.capacity) this.grow();
@@ -165,7 +164,7 @@ export class LabelsLayer {
     this.writeAnchor(slot, 0, 0);
   }
 
-  remove(id: HoleId): void {
+  remove(id: string): void {
     const slot = this.slotOf.get(id);
     if (slot === undefined) return;
     const last = this.count - 1;
@@ -184,7 +183,7 @@ export class LabelsLayer {
     this.count = last;
   }
 
-  setPreviewOffset(ids: readonly HoleId[], dx: number, dy: number): void {
+  setPreviewOffset(ids: readonly string[], dx: number, dy: number): void {
     this.previewIds = ids.slice();
     for (const id of ids) {
       const slot = this.slotOf.get(id);
