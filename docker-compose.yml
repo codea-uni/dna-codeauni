@@ -1,0 +1,18 @@
+services:
+  web:
+    build: .
+    container_name: dna-codeauni
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.dna.rule=Host(`${DOMAIN:-dna.codeadevelopment.com}`)"
+      - "traefik.http.routers.dna.entrypoints=websecure"
+      - "traefik.http.routers.dna.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.dna.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
