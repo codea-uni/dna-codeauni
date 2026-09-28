@@ -15,7 +15,7 @@ export function scalarValues(
       ? analysis.timing.fireTime
       : mode === 'kg'
         ? analysis.charge.perHole
-        : analysis.charge.powderFactorPerHole;
+        : analysis.charge.loadingFactorPerHole;
   ids.forEach((id, i) => {
     const v = source[i] ?? NaN;
     if (Number.isFinite(v) && (mode === 'time' || v > 0)) values.set(id, v);

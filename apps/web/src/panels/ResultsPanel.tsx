@@ -91,21 +91,9 @@ export function ResultsPanel() {
             />
             <Row label="Área" value={`${fmt(area.show(c.area))} ${area.unit}`} />
             <Row label="Volumen cubicado" value={`${fmt(volume.show(c.volume))} ${volume.unit}`} />
-            {c.nominalVolume > 0 && (
-              <>
-                <Row
-                  label="Volumen nominal (B·S·H)"
-                  value={`${fmt(volume.show(c.nominalVolume))} ${volume.unit}`}
-                />
-                <Row
-                  label="Factor de carga nominal"
-                  value={`${fmt(c.nominalLoadingFactor, 3)} kg/m³`}
-                />
-              </>
-            )}
-            <Row label="Tonelaje" value={`${fmt(c.tonnage / 1000)} t`} />
-            <Row label="Factor de carga" value={`${fmt(c.powderFactorVolume, 3)} kg/m³`} />
-            <Row label="" value={`${fmt(c.powderFactorMass * 1000, 3)} kg/t`} />
+            <Row label="Tonelaje cubicado" value={`${fmt(c.tonnage / 1000)} t`} />
+            <Row label="Factor de carga real" value={`${fmt(c.loadingFactor, 3)} kg/m³`} />
+            <Row label="Factor de potencia real" value={`${fmt(c.powderFactor * 1000, 3)} kg/t`} />
             <Row label="Energía" value={`${fmt(c.totalEnergy / 1e6)} MJ`} />
             <Row
               label="Costo de productos"
@@ -113,6 +101,8 @@ export function ResultsPanel() {
             />
           </tbody>
         </table>
+        {c.nominal.volume > 0 && <DesignFactors charge={c} />}
+        {c.byGroup.some((g) => g.groupId !== null) && <GroupTable charge={c} />}
       </section>
       <section className="panel">
         <h2>Tiempos</h2>
@@ -197,6 +187,80 @@ const SEVERITY = {
 } as const;
 
 /** Revisión del diseño: cada alerta selecciona y encuadra sus taladros. */
+/**
+ * Indicadores de diseño con el volumen nominal B·S·H (P-06; nombres de `02 §0` y D-10): factor de
+ * carga, de potencia y de energía, y rendimiento m³/m (FC-13 a FC-16).
+ */
+function DesignFactors({ charge: c }: { charge: BlastAnalysis['charge'] }) {
+  const { len, volume } = useUnits();
+  const project = session.document.project;
+  const blast = project.blasts[0];
+  const rho = project.rockMasses.find((r) => r.id === blast?.rockMassId)?.density ?? 0;
+  const n = c.nominal;
+  const tonnes = n.volume * rho;
+  return (
+    <>
+      <h3>Diseño (volumen nominal B·S·H)</h3>
+      <table className="kv">
+        <tbody>
+          <Row label="Volumen nominal" value={`${fmt(volume.show(n.volume))} ${volume.unit}`} />
+          <Row label="Tonelaje nominal" value={`${fmt(tonnes / 1000)} t`} />
+          <Row label="loading_factor" value={`${fmt(n.explosive / n.volume, 3)} kg/m³`} />
+          <Row
+            label="powder_factor"
+            value={tonnes > 0 ? `${fmt((n.explosive / tonnes) * 1000, 3)} kg/t` : '—'}
+          />
+          <Row
+            label="energy_factor"
+            value={tonnes > 0 ? `${fmt(n.energy / 1e6 / (tonnes / 1000), 3)} MJ/t` : '—'}
+          />
+          <Row
+            label="Rendimiento"
+            value={
+              n.drilledLength > 0
+                ? `${fmt(volume.show(n.volume) / len.show(n.drilledLength), 2)} ${volume.unit}/${len.unit}`
+                : '—'
+            }
+          />
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+/** Carga por grupo (RM-18): taladros, kg y factor de carga de diseño. */
+function GroupTable({ charge: c }: { charge: BlastAnalysis['charge'] }) {
+  const blast = session.document.project.blasts[0];
+  const name = new Map(blast?.groups.map((g) => [g.id, g.name]));
+  return (
+    <>
+      <h3>Por grupo</h3>
+      <table className="grid-table compact">
+        <thead>
+          <tr>
+            <th>Grupo</th>
+            <th>Taladros</th>
+            <th>kg</th>
+            <th>kg/m³ (diseño)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {c.byGroup.map((g) => (
+            <tr key={g.groupId ?? 'none'}>
+              <td>{g.groupId ? (name.get(g.groupId) ?? '—') : 'Sin grupo'}</td>
+              <td className="num">{g.holes}</td>
+              <td className="num">{fmt(g.explosive)}</td>
+              <td className="num">
+                {g.nominalVolume > 0 ? fmt(g.explosive / g.nominalVolume, 3) : '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 function ChecksSection({ checks }: { checks: DesignCheck[] }) {
   return (
     <section className="panel">

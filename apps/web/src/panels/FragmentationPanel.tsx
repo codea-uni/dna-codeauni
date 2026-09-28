@@ -19,7 +19,7 @@ type NumKey = {
 /** Campos de entrada: [clave, etiqueta, unidad, factor SI → UI, decimales]. */
 const FIELDS: [NumKey, string, string, number, number][] = [
   ['rockFactor', 'Factor de roca A', '', 1, 2],
-  ['powderFactor', 'Factor de carga', 'kg/m³', 1, 3],
+  ['loadingFactor', 'Factor de carga', 'kg/m³', 1, 3],
   ['chargePerHole', 'Carga por taladro', 'kg', 1, 1],
   ['rws', 'RWS (ANFO = 100)', '%', 100, 0],
   ['burden', 'Burden', 'm', 1, 2],

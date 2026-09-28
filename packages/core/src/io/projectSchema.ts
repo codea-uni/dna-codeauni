@@ -60,6 +60,8 @@ const deck: z.ZodType<M.Deck> = z.discriminatedUnion('kind', [
     kind: z.literal('explosive'),
     explosiveId: id<'Explosive'>(),
     densityOverride: pos.exactOptional(),
+    swell: nonNeg.exactOptional(),
+    effectiveDiameter: pos.exactOptional(),
   }),
   z.object({ ...deckBase, kind: z.literal('stemming'), materialId: id<'StemmingMaterial'>() }),
   z.object({ ...deckBase, kind: z.literal('air') }),

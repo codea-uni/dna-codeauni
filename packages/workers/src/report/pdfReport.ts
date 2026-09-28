@@ -171,7 +171,7 @@ export async function buildReport(
     ['Tonelaje', `${fmtNumber(charge.tonnage / 1000)} t`],
     [
       'Factor de carga',
-      `${fmtNumber(charge.powderFactorVolume, 3)} kg/m³ · ${fmtNumber(charge.powderFactorMass * 1000, 3)} kg/t`,
+      `${fmtNumber(charge.loadingFactor, 3)} kg/m³ · ${fmtNumber(charge.powderFactor * 1000, 3)} kg/t`,
     ],
     ['Energía', `${fmtNumber(charge.totalEnergy / 1e6)} MJ`],
     ['Costo de productos', `${fmtNumber(charge.cost)} ${project.currency}`],

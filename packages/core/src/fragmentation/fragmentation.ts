@@ -27,7 +27,7 @@ export interface KuzRamInputs {
   /** Factor de roca A (adimensional). */
   rockFactor: number;
   /** Factor de carga [kg/m³]. */
-  powderFactor: number;
+  loadingFactor: number;
   /** Explosivo por taladro [kg]. */
   chargePerHole: number;
   /** Potencia relativa en peso vs ANFO (ANFO = 1). */
@@ -64,7 +64,7 @@ export interface KuzRamResult {
 export function kuzRam(i: KuzRamInputs): KuzRamResult {
   const x50cm =
     i.rockFactor *
-    Math.pow(i.powderFactor, -0.8) *
+    Math.pow(i.loadingFactor, -0.8) *
     Math.pow(i.chargePerHole, 1 / 6) *
     Math.pow(115 / (i.rws * 100), 19 / 30);
   const dMm = i.diameter * 1000;
@@ -189,7 +189,7 @@ export function fragmentation(
 export function kuzRamInputsFromBlast(
   blast: Blast,
   library: ProductLibrary,
-  charge: Pick<ChargeResult, 'perHole' | 'powderFactorVolume' | 'holeIds'>,
+  charge: Pick<ChargeResult, 'perHole' | 'loadingFactor' | 'holeIds'>,
   rock: Pick<RockMass, 'density' | 'ucs' | 'youngModulus' | 'blastability' | 'rockFactor'>,
   patternId?: string,
 ): KuzRamInputs | null {
@@ -227,11 +227,11 @@ export function kuzRamInputsFromBlast(
   }
   const n = loaded.length;
   const spacingGuess = Math.sqrt(
-    charge.powderFactorVolume > 0 ? kg / n / charge.powderFactorVolume / blast.bench.height : 25,
+    charge.loadingFactor > 0 ? kg / n / charge.loadingFactor / blast.bench.height : 25,
   );
   return {
     rockFactor: rockFactor(rock),
-    powderFactor: charge.powderFactorVolume,
+    loadingFactor: charge.loadingFactor,
     chargePerHole: kg / n,
     rws: massForRws > 0 ? rwsMass / massForRws : 1,
     burden: pattern?.burden ?? spacingGuess,

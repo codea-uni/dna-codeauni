@@ -35,8 +35,8 @@ describe('proyectos de ejemplo', () => {
       const n = outwardNormal(blast.boundaries[0]?.polygon ?? [], 3);
       expect(n?.y).toBeCloseTo(1);
       expect(a.charge.totalExplosive).toBeGreaterThan(0);
-      expect(a.charge.powderFactorVolume).toBeGreaterThan(0.2);
-      expect(a.charge.powderFactorVolume).toBeLessThan(1.5);
+      expect(a.charge.loadingFactor).toBeGreaterThan(0.2);
+      expect(a.charge.loadingFactor).toBeLessThan(1.5);
       expect(a.timing.initiated).toBeGreaterThan(0);
       const rock = p.rockMasses[0];
       if (!rock) throw new Error('sin roca');

@@ -164,11 +164,11 @@ describe('cubicación por área de influencia', () => {
     expect(r.tonnage).toBeCloseTo(3375 * 2650, 0);
     // 9 · (314.159 + 0.45) = 2831.48 kg → 0.8389 kg/m³, 0.3166 kg/t
     expect(r.totalExplosive + r.totalPrimers).toBeCloseTo(2831.48, 1);
-    expect(r.powderFactorVolume).toBeCloseTo(0.83896, 4);
-    expect(r.powderFactorMass * 1000).toBeCloseTo(0.31659, 4);
-    expect(r.powderFactorPerHole[4]).toBeCloseTo((314.159 + 0.45) / 375, 4);
+    expect(r.loadingFactor).toBeCloseTo(0.83896, 4);
+    expect(r.powderFactor * 1000).toBeCloseTo(0.31659, 4);
+    expect(r.loadingFactorPerHole[4]).toBeCloseTo((314.159 + 0.45) / 375, 4);
     // Sin malla asociada no hay volumen nominal
-    expect(r.nominalVolume).toBe(0);
+    expect(r.nominal.volume).toBe(0);
 
     // Con la malla B = S = 5 m: nominal 9 · 5 · 5 · 15 = 3375 m³, igual al cubicado en este caso
     const pattern = {
@@ -193,8 +193,8 @@ describe('cubicación por área de influencia', () => {
       lib,
       2650,
     );
-    expect(withPattern.nominalVolume).toBeCloseTo(3375, 9);
-    expect(withPattern.nominalLoadingFactor).toBeCloseTo(0.83896, 4);
+    expect(withPattern.nominal.volume).toBeCloseTo(3375, 9);
+    expect(withPattern.nominal.explosive / withPattern.nominal.volume).toBeCloseTo(0.83896, 4);
   });
 
   it('sin perímetro: contorno automático a media distancia entre vecinos', () => {

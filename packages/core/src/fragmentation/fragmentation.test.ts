@@ -14,7 +14,7 @@ import {
 // A = 7, K = 0.6 kg/m³, Q = 200 kg, ANFO (RWS 100), B = 5, S = 6, d = 200 mm, W = 0.2, L = 12.5, H = 15.
 const inputs: KuzRamInputs = {
   rockFactor: 7,
-  powderFactor: 0.6,
+  loadingFactor: 0.6,
   chargePerHole: 200,
   rws: 1,
   burden: 5,
@@ -146,7 +146,7 @@ describe('entradas desde la voladura', () => {
     expect(inputs.columnChargeLength).toBeCloseTo(0.525, 9);
     // RWS ponderado por largo: (2 · 0.96 + 248 · 1) / 250 = 0.99968
     expect(inputs.rws).toBeCloseTo(0.99968, 5);
-    expect(inputs.powderFactor).toBeCloseTo(charge.powderFactorVolume, 12);
+    expect(inputs.loadingFactor).toBeCloseTo(charge.loadingFactor, 12);
     expect(inputs.rockFactor).toBeCloseTo(5.775, 6);
   });
 });

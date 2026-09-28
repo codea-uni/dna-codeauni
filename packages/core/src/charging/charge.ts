@@ -2,6 +2,7 @@ import type {
   ChargeRule,
   Deck,
   Explosive,
+  ExplosiveDeck,
   Hole,
   InHoleInitiator,
   Kilograms,
@@ -35,18 +36,38 @@ export function holeArea(diameter: Meters): number {
 }
 
 /**
- * Carga lineal [kg/m]. A granel: ρ·A del taladro (el explosivo llena la sección).
- * Encartuchado: masa del cartucho / largo del cartucho (cartuchos en contacto).
+ * Densidad lineal de carga DCL [kg/m] (FC-10): (π/4)·Ø²·ρ con π/4 exacto (`02 §0`).
+ * - A granel: ρ·A del taladro (el explosivo llena la sección).
+ * - Con diámetro efectivo (cartuchos aplastados, CR-03): ρ·A del diámetro efectivo.
+ * - Encartuchado sin diámetro efectivo: masa del cartucho / largo del cartucho.
  */
 export function linearChargeDensity(
   explosive: Explosive,
   diameter: Meters,
   densityOverride?: number,
+  effectiveDiameter?: Meters,
 ): number {
+  const density = densityOverride ?? explosive.density;
+  if (effectiveDiameter !== undefined) return density * holeArea(effectiveDiameter);
   if (explosive.form === 'packaged' && explosive.cartridge) {
     return explosive.cartridge.mass / explosive.cartridge.length;
   }
-  return (densityOverride ?? explosive.density) * holeArea(diameter);
+  return density * holeArea(diameter);
+}
+
+/** Masa de un tramo de explosivo [kg]: DCL·(largo − esponjamiento) (FC-11, FC-12). */
+export function explosiveDeckMass(
+  deck: Pick<ExplosiveDeck, 'length' | 'densityOverride' | 'swell' | 'effectiveDiameter'>,
+  explosive: Explosive,
+  diameter: Meters,
+): Kilograms {
+  const dcl = linearChargeDensity(
+    explosive,
+    diameter,
+    deck.densityOverride,
+    deck.effectiveDiameter,
+  );
+  return dcl * Math.max(0, deck.length - (deck.swell ?? 0));
 }
 
 export interface HoleCharge {
@@ -100,7 +121,7 @@ export function holeCharge(hole: Hole, lib: ProductIndex): HoleCharge {
     if (deck.kind === 'explosive') {
       const product = lib.explosives.get(deck.explosiveId);
       if (product) {
-        mass = linearChargeDensity(product, hole.diameter, deck.densityOverride) * deck.length;
+        mass = explosiveDeckMass(deck, product, hole.diameter);
         energy += mass * product.energy;
         cost += mass * (product.costPerKg ?? 0);
       }

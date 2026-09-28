@@ -341,6 +341,13 @@ export interface ExplosiveDeck extends DeckBase {
   explosiveId: ExplosiveId;
   /** Densidad en taladro si difiere de la nominal (p.ej. densidad de copa) [kg/m³]. */
   densityOverride?: KgPerM3;
+  /**
+   * Esponjamiento [m] (emulsión gasificada, `03 §2`): la carga se coloca en `length − swell` y sube
+   * al gasificar hasta `length`. Masa = DCL·(length − swell); densidad media = masa/(A·length).
+   */
+  swell?: Meters;
+  /** Diámetro efectivo de la carga [m] (cartuchos aplastados por la columna: CR-03, +10 %). */
+  effectiveDiameter?: Meters;
 }
 export interface StemmingDeck extends DeckBase {
   kind: 'stemming';
