@@ -1,8 +1,13 @@
-import { commands, type VibrationMetric } from '@cronos/core';
+import {
+  commands,
+  type MonitoringPointId,
+  type PpvLimit,
+  type VibrationMetric,
+} from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { MapPin, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { TextCell } from '../components/CellInput';
+import { NumberCell, TextCell } from '../components/CellInput';
 import { NumberField } from '../components/NumberField';
 import { useProject } from '../hooks/useDocument';
 import { session } from '../session';
@@ -110,6 +115,16 @@ export function VibrationPanel() {
                   </td>
                   <td className="num">{fmt(v.mic)} kg</td>
                 </tr>
+                {v.micExtended && (
+                  <tr>
+                    <td title="Ventana ampliada por la dispersión de los detonadores pirotécnicos (w + 2σ, P-10)">
+                      Con ventana ampliada ({fmt(v.micExtended.window * 1000, 0)} ms)
+                    </td>
+                    <td className={`num${v.micExtended.mic > v.mic ? ' warn' : ''}`}>
+                      {fmt(v.micExtended.mic)} kg
+                    </td>
+                  </tr>
+                )}
                 {v.notInitiated > 0 && (
                   <tr className="warn">
                     <td>Sin tiempo (carga individual)</td>
@@ -170,6 +185,8 @@ export function VibrationPanel() {
                 <th>Punto</th>
                 <th>R [{len.unit}]</th>
                 <th>mm/s</th>
+                <th title="Límite aplicable (del punto o de la tabla)">Lím.</th>
+                <th title="Carga por retardo admisible para el límite (H-603)">kg adm.</th>
                 <th>dB</th>
                 <th />
               </tr>
@@ -178,7 +195,7 @@ export function VibrationPanel() {
               {(project.monitoringPoints ?? []).map((p) => {
                 const rec = v?.receivers.find((x) => x.id === p.id);
                 return (
-                  <tr key={p.id}>
+                  <tr key={p.id} className={rec?.exceeds ? 'warn' : undefined}>
                     <td>
                       <TextCell
                         value={p.name}
@@ -191,7 +208,22 @@ export function VibrationPanel() {
                       />
                     </td>
                     <td className="num">{rec ? fmt(len.show(rec.distance)) : '—'}</td>
-                    <td className="num">{rec ? fmt(rec.ppv * 1000, 1) : '—'}</td>
+                    <td
+                      className="num"
+                      title={
+                        rec?.centroid
+                          ? `Con el centroide de la ventana (informativo, P-07): ${fmt(rec.centroid.ppv * 1000, 1)} mm/s`
+                          : undefined
+                      }
+                    >
+                      {rec ? fmt(rec.ppv * 1000, 1) : '—'}
+                    </td>
+                    <td className="num" title={rec?.limit?.source}>
+                      {rec?.limit ? fmt(rec.limit.ppvMax * 1000, 0) : '—'}
+                    </td>
+                    <td className="num">
+                      {rec?.admissibleCharge != null ? fmt(rec.admissibleCharge) : '—'}
+                    </td>
                     <td className="num">{rec ? fmt(rec.airblastDb, 0) : '—'}</td>
                     <td>
                       <button
@@ -216,7 +248,9 @@ export function VibrationPanel() {
         {!s.vibEnabled && (project.monitoringPoints ?? []).length > 0 && (
           <p className="hint">Activa "Calcular y mostrar" para ver los valores.</p>
         )}
+        {(project.monitoringPoints ?? []).length > 0 && <PointSettings />}
       </section>
+      <PpvLimitsTable />
 
       <section className="panel">
         <h2>Constantes de sitio</h2>
@@ -353,5 +387,203 @@ export function VibrationPanel() {
         </div>
       </section>
     </>
+  );
+}
+
+/** Estructura, límite propio y K/β propios de cada punto (H-602). Vacío o 0 = el del sitio. */
+function PointSettings() {
+  const project = useProject();
+  const update = (id: MonitoringPointId, patch: commands.MonitoringPointPatch, label: string) => {
+    session.document.dispatch(commands.updateMonitoringPoint(session.document, id, patch), label);
+  };
+  return (
+    <>
+      <h3>Configuración por punto</h3>
+      <table className="grid-table compact">
+        <thead>
+          <tr>
+            <th>Punto</th>
+            <th title="Tipo de estructura: elige las filas de la tabla de límites">Estructura</th>
+            <th title="Límite propio [mm/s]; 0 = de la tabla">Lím. propio</th>
+            <th title="K propio [mm/s]; 0 = el del sitio">K</th>
+            <th title="β propio; 0 = el del sitio">β</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(project.monitoringPoints ?? []).map((p) => (
+            <tr key={p.id}>
+              <td className="muted">{p.name}</td>
+              <td>
+                <TextCell
+                  value={p.structure ?? ''}
+                  onCommit={(v) => {
+                    update(p.id, { structure: v.trim() || undefined }, 'Estructura del punto');
+                  }}
+                />
+              </td>
+              <td>
+                <NumberCell
+                  value={(p.ppvLimit ?? 0) * 1000}
+                  decimals={1}
+                  min={0}
+                  onCommit={(v) => {
+                    update(p.id, { ppvLimit: v > 0 ? v / 1000 : undefined }, 'Límite del punto');
+                  }}
+                />
+              </td>
+              <td>
+                <NumberCell
+                  value={(p.k ?? 0) * 1000}
+                  decimals={0}
+                  min={0}
+                  onCommit={(v) => {
+                    update(p.id, { k: v > 0 ? v / 1000 : undefined }, 'K del punto');
+                  }}
+                />
+              </td>
+              <td>
+                <NumberCell
+                  value={p.beta ?? 0}
+                  decimals={2}
+                  min={0}
+                  onCommit={(v) => {
+                    update(p.id, { beta: v > 0 ? v : undefined }, 'β del punto');
+                  }}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+/**
+ * Tabla de límites de PPV del sitio (RM-21, P-12): por tipo de estructura y distancia, con su
+ * fuente (EIA de la operación; USBM RI 8507/OSM o DIN 4150). Los valores iniciales son de curso y
+ * están rotulados «por contrastar».
+ */
+function PpvLimitsTable() {
+  const project = useProject();
+  const limits = project.ppvLimits ?? [];
+  const set = (next: PpvLimit[], label: string) => {
+    session.document.dispatch({ type: 'project/patch', patch: { ppvLimits: next } }, label);
+  };
+  const patch = (i: number, p: Partial<PpvLimit>) => {
+    set(
+      limits.map((l, k) => (k === i ? { ...l, ...p } : l)),
+      'Editar límite de PPV',
+    );
+  };
+  return (
+    <section className="panel">
+      <h2>Límites de PPV</h2>
+      <p className="hint">
+        Valores por tipo de estructura y distancia, con su fuente. Perú no tiene una norma nacional
+        de PPV para voladura: usa los del instrumento ambiental (EIA) de la operación (P-12).
+      </p>
+      <table className="grid-table compact">
+        <thead>
+          <tr>
+            <th>Estructura</th>
+            <th>Desde [m]</th>
+            <th>Hasta [m]</th>
+            <th>mm/s</th>
+            <th>Fuente</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {limits.map((l, i) => (
+            <tr key={i}>
+              <td>
+                <TextCell
+                  value={l.structure ?? ''}
+                  title="Vacío = todas"
+                  onCommit={(v) => {
+                    const next = { ...l };
+                    if (v.trim()) next.structure = v.trim();
+                    else delete next.structure;
+                    set(
+                      limits.map((x, k) => (k === i ? next : x)),
+                      'Editar límite de PPV',
+                    );
+                  }}
+                />
+              </td>
+              <td>
+                <NumberCell
+                  value={l.from}
+                  decimals={0}
+                  min={0}
+                  onCommit={(v) => {
+                    patch(i, { from: v });
+                  }}
+                />
+              </td>
+              <td>
+                <NumberCell
+                  value={l.to ?? 0}
+                  decimals={0}
+                  min={0}
+                  onCommit={(v) => {
+                    const next = { ...l };
+                    if (v > 0) next.to = v;
+                    else delete next.to;
+                    set(
+                      limits.map((x, k) => (k === i ? next : x)),
+                      'Editar límite de PPV',
+                    );
+                  }}
+                />
+              </td>
+              <td>
+                <NumberCell
+                  value={l.ppvMax * 1000}
+                  decimals={1}
+                  min={0.1}
+                  onCommit={(v) => {
+                    patch(i, { ppvMax: v / 1000 });
+                  }}
+                />
+              </td>
+              <td>
+                <TextCell
+                  value={l.source}
+                  onCommit={(v) => {
+                    if (v.trim()) patch(i, { source: v.trim() });
+                  }}
+                />
+              </td>
+              <td>
+                <button
+                  className="icon danger"
+                  title="Quitar fila"
+                  onClick={() => {
+                    set(
+                      limits.filter((_, k) => k !== i),
+                      'Quitar límite de PPV',
+                    );
+                  }}
+                >
+                  ×
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button
+        onClick={() => {
+          set(
+            [...limits, { from: 0, ppvMax: 0.01, source: 'Por definir (EIA de la operación)' }],
+            'Agregar límite de PPV',
+          );
+        }}
+      >
+        + Límite
+      </button>
+    </section>
   );
 }

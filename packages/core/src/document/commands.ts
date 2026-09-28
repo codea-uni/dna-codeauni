@@ -402,16 +402,43 @@ export function removeMonitoringPoint(doc: DocumentReader, id: MonitoringPointId
   return [{ type: 'project/patch', patch: { monitoringPoints: list.filter((p) => p.id !== id) } }];
 }
 
+/** Campos editables de un punto; `undefined` en un campo opcional lo borra (vuelve al del sitio). */
+export type MonitoringPointPatch = {
+  [K in Exclude<keyof MonitoringPoint, 'id'>]?: MonitoringPoint[K] | undefined;
+};
+
 export function updateMonitoringPoint(
   doc: DocumentReader,
   id: MonitoringPointId,
-  patch: Partial<Pick<MonitoringPoint, 'name' | 'position'>>,
+  patch: MonitoringPointPatch,
 ): Op[] {
   const list = doc.project.monitoringPoints ?? [];
+  const apply = (p: MonitoringPoint): MonitoringPoint => {
+    const next = { ...p };
+    if (patch.name !== undefined) next.name = patch.name;
+    if (patch.position !== undefined) next.position = patch.position;
+    if ('ppvLimit' in patch) {
+      if (patch.ppvLimit === undefined) delete next.ppvLimit;
+      else next.ppvLimit = patch.ppvLimit;
+    }
+    if ('k' in patch) {
+      if (patch.k === undefined) delete next.k;
+      else next.k = patch.k;
+    }
+    if ('beta' in patch) {
+      if (patch.beta === undefined) delete next.beta;
+      else next.beta = patch.beta;
+    }
+    if ('structure' in patch) {
+      if (patch.structure === undefined) delete next.structure;
+      else next.structure = patch.structure;
+    }
+    return next;
+  };
   return [
     {
       type: 'project/patch',
-      patch: { monitoringPoints: list.map((p) => (p.id === id ? { ...p, ...patch } : p)) },
+      patch: { monitoringPoints: list.map((p) => (p.id === id ? apply(p) : p)) },
     },
   ];
 }
