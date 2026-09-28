@@ -92,7 +92,13 @@ export function computeCharges(
   holes.forEach((h, i) => {
     const p = h.patternId ? patterns.get(h.patternId) : undefined;
     if (!p) return;
-    nominal += nominalVolume(p.burden, p.spacing, blast.bench.height, h.inclination);
+    nominal += nominalVolume(
+      p.burden,
+      p.spacing,
+      blast.bench.height,
+      h.inclination,
+      blast.calcParams.subdrillConvention,
+    );
     nominalKg += perHole[i] ?? 0;
   });
   const tonnage = volume * rockDensity;

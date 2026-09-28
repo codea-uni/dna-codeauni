@@ -1,7 +1,7 @@
 import { azimuthToUnit } from '../geometry/vec';
 import { pointInPolygon } from '../geometry/polygon';
 import { createHole } from '../model/factories';
-import type { Bench, Hole, Pattern, Vec2 } from '../model/types';
+import type { Bench, Hole, Pattern, SubdrillConvention, Vec2 } from '../model/types';
 
 export interface PatternAxes {
   /** Dirección de la fila (a lo largo del espaciamiento). */
@@ -65,6 +65,8 @@ export function nearestPatternNode(
 export interface GeneratePatternOptions {
   /** Número de la primera etiqueta; las siguientes son consecutivas. */
   startNumber: number;
+  /** Convención de sobreperforación de la voladura (P-05). */
+  subdrillConvention?: SubdrillConvention;
 }
 
 /**
@@ -96,6 +98,7 @@ export function generatePatternHoles(
           patternId: pattern.id,
           row,
           col,
+          ...(options.subdrillConvention ? { subdrillConvention: options.subdrillConvention } : {}),
         }),
       );
     }

@@ -1,4 +1,4 @@
-import { commands, type BoundaryId } from '@cronos/core';
+import { commands, type BoundaryId, type SubdrillConvention } from '@cronos/core';
 import { boundaryColorCss } from '@cronos/engine';
 import { Mountain, Pentagon } from 'lucide-react';
 import { TextCell } from '../components/CellInput';
@@ -57,7 +57,34 @@ export function BlastPanel() {
             setBench({ height: v }, 'Altura de banco');
           }}
         />
-        <p className="hint">El banco se aplica a los taladros nuevos (boca en piso + altura).</p>
+        <label className="field">
+          <span className="field-label">Sobreperforación en inclinados</span>
+          <select
+            value={blast.calcParams.subdrillConvention}
+            onChange={(e) => {
+              session.document.dispatch(
+                {
+                  type: 'blast/patch',
+                  blastId: blast.id,
+                  patch: {
+                    calcParams: {
+                      ...blast.calcParams,
+                      subdrillConvention: e.target.value as SubdrillConvention,
+                    },
+                  },
+                },
+                'Convención de sobreperforación',
+              );
+            }}
+          >
+            <option value="vertical">Vertical bajo el piso: L = (H + J)/cos α</option>
+            <option value="lopezJimeno">López Jimeno: L = H/cos α + (1 − α/100)·J</option>
+          </select>
+        </label>
+        <p className="hint">
+          El banco y la convención (P-05) se aplican a los taladros nuevos o editados. La geométrica
+          es la exacta; López Jimeno reduce J con la inclinación (criterio empírico).
+        </p>
       </section>
 
       <section className="panel">

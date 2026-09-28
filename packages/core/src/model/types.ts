@@ -148,8 +148,18 @@ export interface CalcParams {
   micWindow: Seconds;
   /** γ de la presión de detonación PD = ρ·VOD²/(γ + 1) (DF-02: 3). */
   detonationGamma: Ratio;
-  /** Tiempo mínimo de alivio Δ del burden efectivo [s] (DF-21: 0). */
-  reliefTime: Seconds;
+  /**
+   * Tiempo de alivio por metro de burden [s/m] (P-02): un taladro previo cuenta como cara libre si
+   * detonó al menos reliefRate·B antes. Defecto 3 ms/m (roca dura; 5–6 ms/m en roca blanda); 0 es
+   * el caso límite optimista.
+   */
+  reliefRate: number;
+  /**
+   * Sobreperforación de taladros inclinados (P-05): `vertical` = J bajo el piso medido en vertical,
+   * L = (H + J)/cos α (geometría exacta, defecto); `lopezJimeno` = L = H/cos α + (1 − α°/100)·J y
+   * volumen B·S·H/cos α (criterio empírico con el que se construyó CR-03).
+   */
+  subdrillConvention: SubdrillConvention;
   /** Umbrales de la revisión del diseño. */
   checks: {
     /** Taco mínimo como fracción del burden (DF-09: 0,7). */
@@ -168,8 +178,16 @@ export interface CalcParams {
     minStiffness: Ratio;
     /** Altura de banco en diámetros (CK-04: 50–70). */
     benchDiameterRatio: { min: Ratio; max: Ratio };
+    /** Taco mínimo en diámetros (P-04: ~20·Ø). */
+    minStemmingDiameters: Ratio;
+    /** Profundidad escalada de enterramiento [m/kg^(1/3)]: severa por debajo, sin proyección por encima (DF-20). */
+    sdob: { severe: number; safe: number };
+    /** Factor de roca A de Kuz-Ram fuera de este rango: aviso (P-08: 0,8–22). */
+    rockFactorRange: { min: Ratio; max: Ratio };
   };
 }
+
+export type SubdrillConvention = 'vertical' | 'lopezJimeno';
 
 export type HoleGroupKind = 'presplit' | 'buffer' | 'production' | 'other';
 

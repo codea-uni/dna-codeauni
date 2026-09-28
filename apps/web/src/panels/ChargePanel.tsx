@@ -75,6 +75,15 @@ export function ChargePanel() {
       explosiveId: form.explosiveId,
       primerOffsetFromToe: form.primerOffsetFromToe,
     };
+    // P-04: sin taco es un diseño muy riesgoso (proyecciones, sobrepresión), pero existen casos
+    // especiales (alivios, pruebas): se pide confirmación explícita.
+    if (
+      form.stemmingLength <= 0 &&
+      !window.confirm(
+        'Sin taco: alto riesgo de proyección de rocas y sobrepresión, y pérdida de energía. ¿Aplicar igual?',
+      )
+    )
+      return;
     if (form.airDeckLength > 0) rule.airDeckLength = form.airDeckLength;
     if (form.primerId) rule.primerId = form.primerId as NonNullable<ChargeRule['primerId']>;
     if (form.detonatorId)

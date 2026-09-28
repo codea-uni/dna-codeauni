@@ -90,6 +90,7 @@ export function CsvImportDialog({
           existingLabels: replace ? [] : blast.holes.map((h) => h.label),
           groups: blast.groups,
           groupFromPrefix,
+          subdrillConvention: blast.calcParams.subdrillConvention,
           ...(epsg === undefined ? {} : { epsg }),
         },
       );

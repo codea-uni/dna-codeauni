@@ -1,4 +1,4 @@
-import type { Bench, Hole, Meters, Radians, Vec3 } from '../model/types';
+import type { Bench, Hole, Meters, Radians, SubdrillConvention, Vec3 } from '../model/types';
 
 /** Posición del fondo del taladro [m] a partir de boca, longitud, inclinación y azimut. */
 export function holeToe(hole: Pick<Hole, 'collar' | 'length' | 'inclination' | 'azimuth'>): Vec3 {
@@ -11,7 +11,9 @@ export function holeToe(hole: Pick<Hole, 'collar' | 'length' | 'inclination' | '
 }
 
 /**
- * Longitud necesaria para que el fondo quede `subdrill` metros (en vertical) bajo el piso.
+ * Longitud del taladro desde la boca hasta piso + sobreperforación (P-05, FC-01):
+ * - `vertical` (defecto): J medida en vertical bajo el piso, L = (H + J)/cos α (geometría exacta).
+ * - `lopezJimeno`: L = H/cos α + (1 − α°/100)·J (López Jimeno; criterio empírico de CR-03).
  * Devuelve 0 si la boca está bajo la cota objetivo.
  */
 export function lengthToFloor(
@@ -19,8 +21,14 @@ export function lengthToFloor(
   floorElevation: Meters,
   subdrill: Meters,
   inclination: Radians,
+  convention: SubdrillConvention = 'vertical',
 ): Meters {
-  const vertical = collarZ - (floorElevation - subdrill);
+  const toFloor = collarZ - floorElevation;
+  if (convention === 'lopezJimeno') {
+    const degrees = (inclination * 180) / Math.PI;
+    return Math.max(0, toFloor / Math.cos(inclination) + (1 - degrees / 100) * subdrill);
+  }
+  const vertical = toFloor + subdrill;
   if (vertical <= 0) return 0;
   return vertical / Math.cos(inclination);
 }

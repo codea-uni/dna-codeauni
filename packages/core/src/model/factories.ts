@@ -12,6 +12,7 @@ import type {
   PatternId,
   Project,
   RockMass,
+  SubdrillConvention,
   SiteModels,
   Vec2,
 } from './types';
@@ -30,13 +31,16 @@ export const DEFAULT_HOLE_TEMPLATE: HoleTemplate = {
 };
 
 /**
- * Parámetros de cálculo por defecto (`docs/reglas.md`): ventana de MIC de 8 ms (DF-12), γ = 3
- * (DF-02), alivio Δ = 0 (DF-21), taco mínimo 0,7·B (DF-09). Duplicado y vecindad son ⚙.
+ * Parámetros de cálculo por defecto (`docs/reglas.md`, `docs/preguntas.md`): ventana de MIC de
+ * 8 ms (DF-12, P-10), γ = 3 (DF-02), alivio 3 ms/m de burden (P-02), sobreperforación vertical
+ * (P-05), taco mínimo 0,7·B y 20·Ø (DF-09, P-04), SDOB 0,4/1,2 (DF-20), A 0,8–22 (P-08).
+ * Duplicado y vecindad son ⚙.
  */
 export const DEFAULT_CALC_PARAMS: CalcParams = {
   micWindow: 0.008,
   detonationGamma: 3,
-  reliefTime: 0,
+  reliefRate: 0.003,
+  subdrillConvention: 'vertical',
   checks: {
     minStemmingRatio: 0.7,
     duplicateDistance: 0.5,
@@ -47,6 +51,9 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
     subdrillBurdenRatio: { min: 0.2, max: 0.5 },
     minStiffness: 2,
     benchDiameterRatio: { min: 50, max: 70 },
+    minStemmingDiameters: 20,
+    sdob: { severe: 0.4, safe: 1.2 },
+    rockFactorRange: { min: 0.8, max: 22 },
   },
 };
 
@@ -153,6 +160,8 @@ export interface CreateHoleParams {
   patternId?: PatternId;
   row?: number;
   col?: number;
+  /** Convención de sobreperforación de la voladura (P-05). */
+  subdrillConvention?: SubdrillConvention;
 }
 
 /** Taladro de diseño con boca sobre la superficie del banco y fondo a piso + sobreperforación. */
@@ -164,7 +173,13 @@ export function createHole(params: CreateHoleParams): Hole {
     label: params.label,
     collar: { x: position.x, y: position.y, z: collarZ },
     diameter: template.diameter,
-    length: lengthToFloor(collarZ, bench.floorElevation, template.subdrill, template.inclination),
+    length: lengthToFloor(
+      collarZ,
+      bench.floorElevation,
+      template.subdrill,
+      template.inclination,
+      params.subdrillConvention,
+    ),
     inclination: template.inclination,
     azimuth: template.azimuth,
     subdrill: template.subdrill,

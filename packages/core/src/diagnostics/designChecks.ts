@@ -120,8 +120,12 @@ export function designChecks(
     const burden = (h.patternId ? burdenOf.get(h.patternId) : undefined) ?? defaultBurden;
     if (stemming <= 0) noStemming.push(h.id);
     else {
-      if (burden !== undefined && stemming < options.minStemmingRatio * burden)
-        shortStemming.push(h.id);
+      // P-04: 0,7·B; sin burden conocido (taladro suelto), ~20·Ø como respaldo.
+      const minStemming =
+        burden !== undefined
+          ? options.minStemmingRatio * burden
+          : options.minStemmingDiameters * h.diameter;
+      if (stemming < minStemming) shortStemming.push(h.id);
       if (burden !== undefined && stemming > options.maxStemmingRatio * burden)
         longStemming.push(h.id);
       if (outside(stemming / h.diameter, options.stemmingDiameterRatio))
@@ -147,14 +151,15 @@ export function designChecks(
     id: 'noStemming',
     severity: 'error',
     title: 'Sin taco',
-    detail: 'Explosivo hasta la boca: alto riesgo de proyecciones y sobrepresión.',
+    detail:
+      'Explosivo hasta la boca: alto riesgo de proyecciones y sobrepresión (P-04). Confirma que es intencional (alivio o prueba).',
     holes: noStemming,
   });
   add({
     id: 'shortStemming',
     severity: 'warning',
     title: 'Taco corto',
-    detail: `Taco menor que ${options.minStemmingRatio} × burden (riesgo de proyecciones).`,
+    detail: `Taco menor que ${String(options.minStemmingRatio)} × burden (sin malla: ${String(options.minStemmingDiameters)} × Ø); riesgo de proyecciones (P-04).`,
     holes: shortStemming,
   });
   add({

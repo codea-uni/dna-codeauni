@@ -1,4 +1,4 @@
-import type { KgPerM3, Meters, Radians, Ratio } from '../model/types';
+import type { KgPerM3, Meters, Radians, Ratio, SubdrillConvention } from '../model/types';
 
 /**
  * Burden teórico y reglas de malla (`docs/theory/02 §1`; fichas F03, F04 y F09 de R1). Son una
@@ -67,14 +67,20 @@ export function equilateralSpacing(burden: Meters): Meters {
   return (2 * burden) / Math.sqrt(3);
 }
 
-/** Volumen de influencia nominal B·S·H; inclinado, B·S·H/cos α (FC-02, CR-03). */
+/**
+ * Volumen de influencia nominal B·S·H (FC-02). H es vertical: el volumen roto no depende de la
+ * inclinación (P-06). Con la convención de López Jimeno (P-05) se usa B·S·H/cos α, la fórmula con
+ * la que se construyó CR-03.
+ */
 export function nominalVolume(
   burden: Meters,
   spacing: Meters,
   benchHeight: Meters,
   inclination: Radians = 0,
+  convention: SubdrillConvention = 'vertical',
 ): number {
-  return (burden * spacing * benchHeight) / Math.cos(inclination);
+  const v = burden * spacing * benchHeight;
+  return convention === 'lopezJimeno' ? v / Math.cos(inclination) : v;
 }
 
 /** Taco y sobreperforación por defecto: T = 0,7·B (DF-09) y J = 0,3·B (DF-06); parámetros. */

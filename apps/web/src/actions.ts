@@ -200,6 +200,15 @@ export async function generatePattern(form: PatternForm): Promise<void> {
   // P-03: sin cara libre se genera igual, con advertencia (la regla no está en R3).
   const hasFreeFace =
     blast.freeFaces.length > 0 || blast.boundaries.some((b) => b.freeFaceEdges.length > 0);
+  // P-03: sin cara libre no se bloquea (cortes, rampas, primera voladura), pero el ingeniero la
+  // acepta explícitamente.
+  if (
+    !hasFreeFace &&
+    !window.confirm(
+      `${t('pattern.noFreeFace')}\n\n¿Generar igual? (corte, rampa o primera voladura del banco: malla más cerrada, más carga o fila de alivio)`,
+    )
+  )
+    return;
 
   await withBusy('Generando malla…', async () => {
     const t0 = performance.now();
@@ -207,6 +216,7 @@ export async function generatePattern(form: PatternForm): Promise<void> {
       pattern,
       blast.bench,
       nextHoleNumber(blast.holes),
+      blast.calcParams.subdrillConvention,
     );
     const t1 = performance.now();
     document.dispatch(
@@ -375,6 +385,7 @@ export async function openGeoJson(file: File): Promise<void> {
       startNumber: nextHoleNumber(blast.holes),
       existingLabels: blast.holes.map((h) => h.label),
       groups: blast.groups,
+      subdrillConvention: blast.calcParams.subdrillConvention,
       ...(epsg === undefined ? {} : { epsg }),
     });
     const ops: Op[] = [

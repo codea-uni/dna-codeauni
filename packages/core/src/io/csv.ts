@@ -1,7 +1,14 @@
 import { holeToe, lengthToFloor } from '../geometry/hole';
 import { unitToAzimuth } from '../geometry/vec';
 import { newId } from '../model/ids';
-import type { Bench, Hole, HoleGroup, HoleGroupKind, Meters } from '../model/types';
+import type {
+  Bench,
+  Hole,
+  HoleGroup,
+  HoleGroupKind,
+  Meters,
+  SubdrillConvention,
+} from '../model/types';
 
 // ------------------------------------------------------------------ Parseo genérico
 
@@ -316,6 +323,8 @@ export interface HoleCsvDefaults {
   epsg?: number;
   /** Sin columna Grupo: el grupo es el prefijo de letras del ID (CR-04: A, B, C, BF). */
   groupFromPrefix?: boolean;
+  /** Convención de sobreperforación de la voladura (P-05). */
+  subdrillConvention?: SubdrillConvention;
 }
 
 /** Aviso de importación (no impide importar): `docs/theory/03 §5`. */
@@ -418,7 +427,13 @@ export function importHolesFromCsv(
         : 0;
       length = Number.isFinite(lenRaw)
         ? lenRaw * lenK
-        : lengthToFloor(z, defaults.bench.floorElevation, subdrill, inclination);
+        : lengthToFloor(
+            z,
+            defaults.bench.floorElevation,
+            subdrill,
+            inclination,
+            defaults.subdrillConvention,
+          );
     }
     if (!(length >= 0) || inclination >= Math.PI / 2) {
       errors.push({ line, message: 'Geometría inválida (longitud negativa o taladro horizontal)' });

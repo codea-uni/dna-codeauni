@@ -82,6 +82,25 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
       },
     };
   },
+  /**
+   * v3 → v4 (respuestas del ingeniero, `docs/preguntas.md`): `reliefTime` pasa a `reliefRate`
+   * (P-02) y se agregan la convención de sobreperforación (P-05) y los umbrales nuevos. Se completan
+   * con los valores por defecto los campos que falten.
+   */
+  3: (data) => {
+    const project = data.project;
+    if (!isObject(project) || !Array.isArray(project.blasts)) return data;
+    const d = DEFAULT_CALC_PARAMS;
+    const blasts = (project.blasts as unknown[]).map((b) => {
+      if (!isObject(b)) return b;
+      const cp = isObject(b.calcParams) ? b.calcParams : {};
+      const checks = isObject(cp.checks) ? cp.checks : {};
+      const calcParams: Json = { ...d, ...cp, checks: { ...d.checks, ...checks } };
+      delete calcParams.reliefTime;
+      return { ...b, calcParams };
+    });
+    return { ...data, project: { ...project, blasts } };
+  },
 };
 
 function migrate(data: Json): Json {

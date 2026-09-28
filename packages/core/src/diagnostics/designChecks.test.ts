@@ -79,6 +79,17 @@ describe('diagnóstico de diseño', () => {
     ]);
   });
 
+  it('P-04: sin malla, el taco mínimo es 20·Ø (Ø 0,2 m → 4 m)', () => {
+    const b = { ...blastOf([loaded(0, 3.9), loaded(6, 4)]), patterns: [] };
+    const holes = b.holes.map((h) => {
+      const copy = { ...h };
+      delete copy.patternId;
+      return copy;
+    });
+    const checks = designChecks({ ...b, holes }, null);
+    expect(checks.find((c) => c.id === 'shortStemming')?.holes).toEqual([holes[0]?.id]);
+  });
+
   it('verificaciones de 02 §6: rigidez, sobreperforación, taco largo y cara libre', () => {
     // B = 8 m: H/B = 15/8 = 1,875 ≤ 2 (CR-01, rigidez pobre); J = 1,5 m → J/B = 0,19 < 0,2;
     // taco 12 m > 1,3·B = 10,4 m; sin cara libre → voladura confinada.

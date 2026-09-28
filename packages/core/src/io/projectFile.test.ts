@@ -71,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(3);
+    expect(parsed.file.schemaVersion).toBe(4);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -154,5 +154,28 @@ describe('archivo de proyecto', () => {
     expect(w).not.toHaveProperty('waterResistant');
     expect(w).not.toHaveProperty('minDiameter');
     expect(d?.waterResistance).toBe('none');
+  });
+
+  it('migra v3 → v4: reliefTime → reliefRate y umbrales nuevos con sus valores por defecto', () => {
+    const v4 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
+      project: { blasts: { calcParams: Record<string, unknown> }[] };
+    };
+    const blast = v4.project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    // Un v3 intermedio: reliefTime, sin convención de sobreperforación ni umbrales nuevos.
+    blast.calcParams = {
+      micWindow: 0.01,
+      detonationGamma: 3,
+      reliefTime: 0,
+      checks: { minStemmingRatio: 0.8, duplicateDistance: 0.5, neighborFactor: 1.5 },
+    };
+    const r = parseProjectFile(JSON.stringify({ ...v4, schemaVersion: 3 }));
+    if (!r.ok) throw new Error(r.error);
+    const cp = r.file.project.blasts[0]?.calcParams;
+    expect(cp).toEqual({
+      ...DEFAULT_CALC_PARAMS,
+      micWindow: 0.01,
+      checks: { ...DEFAULT_CALC_PARAMS.checks, minStemmingRatio: 0.8 },
+    });
   });
 });

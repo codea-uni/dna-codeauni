@@ -118,7 +118,11 @@ export interface HoleEdit {
  * Aplica una edición a cada taladro. Si cambian cota de boca, inclinación o sobreperforación
  * y no se indica longitud, la longitud se recalcula para llegar a piso + sobreperforación.
  */
-export function applyHoleEdit(hole: Hole, edit: HoleEdit, blast: Pick<Blast, 'bench'>): Hole {
+export function applyHoleEdit(
+  hole: Hole,
+  edit: HoleEdit,
+  blast: Pick<Blast, 'bench' | 'calcParams'>,
+): Hole {
   const next: Hole = {
     ...hole,
     collar: { x: edit.x ?? hole.collar.x, y: edit.y ?? hole.collar.y, z: edit.z ?? hole.collar.z },
@@ -140,6 +144,7 @@ export function applyHoleEdit(hole: Hole, edit: HoleEdit, blast: Pick<Blast, 'be
       blast.bench.floorElevation,
       next.subdrill,
       next.inclination,
+      blast.calcParams.subdrillConvention,
     );
   }
   return next;

@@ -5,6 +5,7 @@ import { lazy, Suspense } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUnits } from '../hooks/useUnits';
+import { useActiveBlast } from '../hooks/useDocument';
 
 const SizeCurve = lazy(() => import('../charts/SizeCurve'));
 const fmt = (v: number, d = 1) =>
@@ -34,6 +35,7 @@ const FIELDS: [NumKey, string, string, number, number][] = [
 /** Fragmentación: Kuz-Ram (x50, n) y Swebrec (KCO), P20/P50/P80, sobretamaño y finos. */
 export function FragmentationPanel() {
   const { len, dia } = useUnits();
+  const blast = useActiveBlast();
   const s = useAnalysisStore();
   const inputs = s.fragInputs;
   const r = s.frag;
@@ -149,6 +151,16 @@ export function FragmentationPanel() {
             );
           })
         )}
+        {inputs &&
+          blast &&
+          (inputs.rockFactor < blast.calcParams.checks.rockFactorRange.min ||
+            inputs.rockFactor > blast.calcParams.checks.rockFactorRange.max) && (
+            <p className="warn">
+              Factor de roca A = {inputs.rockFactor.toFixed(2)} fuera de{' '}
+              {blast.calcParams.checks.rockFactorRange.min}–
+              {blast.calcParams.checks.rockFactorRange.max} (típico 6–13 en roca media, P-08).
+            </p>
+          )}
         <h3>Curva</h3>
         <NumberField
           label="Tamaño máximo (Swebrec)"

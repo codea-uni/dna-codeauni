@@ -26,6 +26,7 @@ import {
   serializeProject,
   type AnalysisOptions,
   type Bench,
+  type SubdrillConvention,
   type Blast,
   type DxfExportOptions,
   type DxfImport,
@@ -83,8 +84,13 @@ export const computeApi = {
   },
 
   /** Genera los taladros de un patrón (O(filas × columnas)). */
-  generatePattern(pattern: Pattern, bench: Bench, startNumber: number): Hole[] {
-    return generatePatternHoles(pattern, bench, { startNumber });
+  generatePattern(
+    pattern: Pattern,
+    bench: Bench,
+    startNumber: number,
+    subdrillConvention: SubdrillConvention = 'vertical',
+  ): Hole[] {
+    return generatePatternHoles(pattern, bench, { startNumber, subdrillConvention });
   },
 
   /** Carguío, cubicación, tiempos e isócronas de una voladura. */

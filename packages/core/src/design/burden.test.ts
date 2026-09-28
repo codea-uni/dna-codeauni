@@ -2,6 +2,7 @@
  * Casos de referencia de `docs/theory/04`: valores tal como en la fuente, con su tolerancia.
  */
 import { describe, expect, it } from 'vitest';
+import { lengthToFloor } from '../geometry/hole';
 import { degToRad } from '../units/units';
 import {
   andersenBurden,
@@ -59,9 +60,19 @@ describe('CR-02 «MEQ73 11 pulg» (Ø 11", H = 15 m, J = 1 m, S = 8,5 m)', () =>
 });
 
 describe('CR-03 pequeño diámetro (Ø 89 mm, H = 10 m, inclinado 20°)', () => {
+  it('longitud con López Jimeno: L = H/cos20° + (1 − 20/100)·J, J = 12·Ø → 11,5 m (±2 %)', () => {
+    // docs/theory/04 CR-03: 11,5 m con J redondeado a 1,1; sin redondeo 11,496 m. P-05: la
+    // geométrica (J vertical) da 11,78 m; cada caso se valida con su convención.
+    const J = 12 * 0.089;
+    within(lengthToFloor(10, 0, J, degToRad(20), 'lopezJimeno'), 11.5, 11.5 * 0.02);
+    within(lengthToFloor(10, 0, J, degToRad(20)), 11.7783, 1e-4);
+  });
+
   it('B = 35·Ø = 3,115 m (Ash con Kb = 35) y V_R = B·S·H/cos20° = 125,4 m³ con B 3,1 y S 3,8', () => {
     within(ashBurden(0.089, 35), 3.115, 1e-9);
-    within(nominalVolume(3.1, 3.8, 10, degToRad(20)), 125.4, 0.05);
+    within(nominalVolume(3.1, 3.8, 10, degToRad(20), 'lopezJimeno'), 125.4, 0.05);
+    // Convención por defecto (P-06): H vertical, sin dividir por cos α
+    within(nominalVolume(3.1, 3.8, 10, degToRad(20)), 117.8, 1e-9);
   });
 });
 
