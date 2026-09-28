@@ -22,6 +22,8 @@ import type {
   ProductLibrary,
   Radians,
   RockMass,
+  Scenario,
+  ScenarioId,
   Seconds,
   SiteModels,
   SurfaceConnectorId,
@@ -440,5 +442,60 @@ export function updateMonitoringPoint(
       type: 'project/patch',
       patch: { monitoringPoints: list.map((p) => (p.id === id ? apply(p) : p)) },
     },
+  ];
+}
+
+// ------------------------------------------------------------------ Escenarios (H-701, R-23)
+
+/** Guarda una copia de la voladura como escenario. */
+export function saveScenario(
+  doc: DocumentReader,
+  blastId: BlastId,
+  name: string,
+  now = new Date(),
+): Op[] {
+  const blast = doc.project.blasts.find((b) => b.id === blastId);
+  if (!blast) return [];
+  const scenario: Scenario = {
+    id: newId<'Scenario'>(),
+    name,
+    savedAt: now.toISOString(),
+    blast: structuredClone(blast),
+  };
+  return [
+    { type: 'project/patch', patch: { scenarios: [...(doc.project.scenarios ?? []), scenario] } },
+  ];
+}
+
+export function removeScenario(doc: DocumentReader, id: ScenarioId): Op[] {
+  return [
+    {
+      type: 'project/patch',
+      patch: { scenarios: (doc.project.scenarios ?? []).filter((s) => s.id !== id) },
+    },
+  ];
+}
+
+/**
+ * Reemplaza el contenido de la voladura por el del escenario (malla, taladros, amarre y
+ * parámetros), conservando su id. Un solo paso de deshacer.
+ */
+export function loadScenario(doc: DocumentReader, blastId: BlastId, id: ScenarioId): Op[] {
+  const blast = doc.project.blasts.find((b) => b.id === blastId);
+  const scenario = doc.project.scenarios?.find((s) => s.id === id);
+  if (!blast || !scenario) return [];
+  const snapshot = structuredClone(scenario.blast);
+  const { holes, patterns } = snapshot;
+  // El resto de los campos de la voladura (banco, amarre, grupos, parámetros…), sin id propio.
+  const fields: Partial<Blast> = { ...snapshot };
+  delete fields.id;
+  delete fields.holes;
+  delete fields.patterns;
+  return [
+    { type: 'holes/remove', blastId, ids: blast.holes.map((h) => h.id) },
+    { type: 'patterns/remove', blastId, ids: blast.patterns.map((p) => p.id) },
+    { type: 'patterns/insert', blastId, entries: patterns.map((item) => ({ item })) },
+    { type: 'holes/insert', blastId, entries: holes.map((item) => ({ item })) },
+    { type: 'blast/patch', blastId, patch: fields },
   ];
 }

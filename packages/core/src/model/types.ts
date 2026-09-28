@@ -40,6 +40,7 @@ export type InHoleInitiatorId = Id<'InHoleInitiator'>;
 export type BoundaryId = Id<'Boundary'>;
 export type MonitoringPointId = Id<'MonitoringPoint'>;
 export type HoleGroupId = Id<'HoleGroup'>;
+export type ScenarioId = Id<'Scenario'>;
 
 /** Punto en coordenadas de proyecto [m], float64. */
 export interface Vec3 {
@@ -82,6 +83,8 @@ export interface Project {
   monitoringPoints?: MonitoringPoint[];
   /** Límites de PPV por distancia (RM-21: tabla configurable con fuente, no constantes). */
   ppvLimits?: PpvLimit[];
+  /** Escenarios: variantes completas del diseño guardadas para comparar (R-23, `03 §1`). */
+  scenarios?: Scenario[];
   /** Preferencias de visualización; nunca afectan cálculos. */
   displayUnits: DisplayUnits;
 }
@@ -98,6 +101,18 @@ export interface MonitoringPoint {
   beta?: number;
   /** Tipo de estructura (vivienda, planta, línea…): elige las filas de `Project.ppvLimits` (P-12). */
   structure?: string;
+}
+
+/**
+ * Escenario (`docs/theory/03 §1`, principio 3): una variante completa del diseño (malla, cargas,
+ * amarre, retardos y parámetros) guardada como copia de la voladura para compararla con otras.
+ */
+export interface Scenario {
+  id: ScenarioId;
+  name: string;
+  /** ISO 8601. */
+  savedAt: string;
+  blast: Blast;
 }
 
 /**

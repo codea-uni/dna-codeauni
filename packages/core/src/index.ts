@@ -69,6 +69,7 @@ export * from './charging/pressures';
 export * from './diagnostics/chargeChecks';
 export * from './timing/effectiveBurden';
 export * from './timing/timingChecks';
+export * from './analysis/compareScenarios';
 
 /** Verificación de extremo a extremo del cableado core → workers. */
 export function ping(message: string): string {

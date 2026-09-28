@@ -310,6 +310,13 @@ const displayUnits: z.ZodType<M.DisplayUnits> = z.object({
   pressure: z.enum(['dB', 'kPa', 'psi']),
 });
 
+const scenario: z.ZodType<M.Scenario> = z.object({
+  id: id<'Scenario'>(),
+  name: z.string(),
+  savedAt: z.string(),
+  blast,
+});
+
 export const projectSchema: z.ZodType<M.Project> = z.object({
   id: id<'Project'>(),
   name: z.string(),
@@ -346,6 +353,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
       }),
     )
     .exactOptional(),
+  scenarios: z.array(scenario).exactOptional(),
   ppvLimits: z
     .array(
       z.object({
