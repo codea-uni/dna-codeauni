@@ -158,6 +158,8 @@ export function Toolbar() {
   const fileInput = useRef<HTMLInputElement>(null);
   const csvInput = useRef<HTMLInputElement>(null);
   const dxfInput = useRef<HTMLInputElement>(null);
+  const geoJsonInput = useRef<HTMLInputElement>(null);
+  const boundariesInput = useRef<HTMLInputElement>(null);
 
   return (
     <header className="toolbar">
@@ -207,6 +209,20 @@ export function Toolbar() {
                 if (actions.requireCrs()) dxfInput.current?.click();
               },
             },
+            {
+              icon: MapIcon,
+              label: tr('toolbar.importGeoJson'),
+              onSelect: () => {
+                if (actions.requireCrs()) geoJsonInput.current?.click();
+              },
+            },
+            {
+              icon: Pentagon,
+              label: tr('toolbar.importBoundariesCsv'),
+              onSelect: () => {
+                if (actions.requireCrs()) boundariesInput.current?.click();
+              },
+            },
           ]}
         />
         <MenuButton
@@ -222,6 +238,11 @@ export function Toolbar() {
               icon: DraftingCompass,
               label: tr('toolbar.exportDxf'),
               onSelect: () => void actions.exportDxf(),
+            },
+            {
+              icon: MapIcon,
+              label: tr('toolbar.exportGeoJson'),
+              onSelect: () => void actions.exportGeoJson(),
             },
             {
               icon: FileText,
@@ -249,6 +270,28 @@ export function Toolbar() {
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) void actions.openDxf(file);
+            e.target.value = '';
+          }}
+        />
+        <input
+          ref={geoJsonInput}
+          type="file"
+          accept=".geojson,.json,application/geo+json"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void actions.openGeoJson(file);
+            e.target.value = '';
+          }}
+        />
+        <input
+          ref={boundariesInput}
+          type="file"
+          accept=".csv,.txt,.tsv,text/csv"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void actions.openBoundariesCsv(file);
             e.target.value = '';
           }}
         />

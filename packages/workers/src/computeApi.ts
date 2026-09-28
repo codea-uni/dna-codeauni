@@ -12,6 +12,10 @@ import {
   exportHolesCsv,
   guessHoleMapping,
   importHolesFromCsv,
+  importGeoJson,
+  exportGeoJson,
+  importBoundariesFromCsv,
+  type GeoJsonImport,
   decodeText,
   positionalHoleMapping,
   type TextEncodingName,
@@ -22,6 +26,7 @@ import {
   serializeProject,
   type AnalysisOptions,
   type Bench,
+  type Blast,
   type DxfExportOptions,
   type DxfImport,
   type DxfImportDefaults,
@@ -160,6 +165,20 @@ export const computeApi = {
     defaults: DxfImportDefaults,
   ): DxfImport {
     return importDxf(text, roles, defaults);
+  },
+
+  /** Taladros, perímetros y caras libres desde GeoJSON (en el CRS del proyecto). */
+  geojsonImport(text: string, defaults: HoleCsvDefaults): GeoJsonImport {
+    return importGeoJson(text, defaults);
+  },
+
+  geojsonExport(blast: Blast, epsg?: number): string {
+    return exportGeoJson(blast, epsg);
+  },
+
+  /** Perímetros desde CSV (ID opcional, Este, Norte). */
+  boundariesCsvImport(bytes: Uint8Array): ReturnType<typeof importBoundariesFromCsv> {
+    return importBoundariesFromCsv(parseCsv(decodeText(bytes).text));
   },
 
   /** Proyecto de ejemplo completamente configurado. */

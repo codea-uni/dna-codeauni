@@ -7,7 +7,10 @@ import {
   newId,
   nextHoleNumber,
   rowTieUp,
+  type Blast,
   type BoundaryId,
+  type Op,
+  type Polygon2,
   type DetonatorId,
   type HoleId,
   type NodeRef,
@@ -333,6 +336,103 @@ export async function openCsv(file: File): Promise<void> {
       return;
     }
     useUiStore.getState().setCsvPreview({ fileName: file.name, bytes, ...preview });
+  });
+}
+
+/** Ops para agregar perímetros importados (con nombres libres) a los de la voladura. */
+export function boundaryOps(
+  blast: Blast,
+  imported: readonly { polygon: Polygon2; freeFaceEdges: number[] }[],
+): Op[] {
+  if (imported.length === 0) return [];
+  let boundaries = blast.boundaries;
+  for (const b of imported)
+    boundaries = [
+      ...boundaries,
+      { ...commands.makeBoundary({ boundaries }, b.polygon), freeFaceEdges: b.freeFaceEdges },
+    ];
+  return [{ type: 'blast/patch', blastId: blast.id, patch: { boundaries } }];
+}
+
+/** GeoJSON: taladros (puntos), perímetros (polígonos) y caras libres (líneas), en un comando. */
+export async function openGeoJson(file: File): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  await withBusy('Leyendo GeoJSON…', async () => {
+    const { epsg } = document.project.coordinateSystem;
+    const r = await getCompute().api.geojsonImport(await file.text(), {
+      diameter: useUiStore.getState().holeTemplate.diameter,
+      subdrill: useUiStore.getState().holeTemplate.subdrill,
+      bench: blast.bench,
+      startNumber: nextHoleNumber(blast.holes),
+      existingLabels: blast.holes.map((h) => h.label),
+      groups: blast.groups,
+      ...(epsg === undefined ? {} : { epsg }),
+    });
+    const ops: Op[] = [
+      ...(r.groups.length > 0
+        ? [
+            {
+              type: 'blast/patch' as const,
+              blastId: blast.id,
+              patch: { groups: [...blast.groups, ...r.groups] },
+            },
+          ]
+        : []),
+      ...commands.addHoles(blast.id, r.holes),
+      ...boundaryOps(blast, r.boundaries),
+    ];
+    if (r.holes.length === 0 && r.boundaries.length === 0) {
+      notify(r.errors[0] ?? 'El GeoJSON no trae taladros ni perímetros', 'error');
+      return;
+    }
+    document.dispatch(
+      ops,
+      `Importar GeoJSON (${String(r.holes.length)} taladros, ${String(r.boundaries.length)} perímetros)`,
+    );
+    getEngine()?.zoomToFit();
+    const notes = [...r.warnings.map((w) => w.message), ...r.errors];
+    notify(
+      `GeoJSON: ${String(r.holes.length)} taladros · ${String(r.boundaries.length)} perímetros${notes.length ? ` · ${notes.join(' ')}` : ''}`,
+      notes.length ? 'error' : 'info',
+    );
+  });
+}
+
+/** Perímetros desde CSV (ID opcional, Este, Norte). */
+export async function openBoundariesCsv(file: File): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  await withBusy('Leyendo perímetros…', async () => {
+    const r = await getCompute().api.boundariesCsvImport(new Uint8Array(await file.arrayBuffer()));
+    if (r.boundaries.length === 0) {
+      notify(r.errors[0] ?? 'El CSV no trae perímetros', 'error');
+      return;
+    }
+    document.dispatch(
+      boundaryOps(blast, r.boundaries),
+      `Importar perímetros (${String(r.boundaries.length)})`,
+    );
+    getEngine()?.zoomToFit();
+    notify(
+      `${String(r.boundaries.length)} perímetros importados${r.errors.length ? ` · ${r.errors.join(' · ')}` : ''}`,
+      r.errors.length ? 'error' : 'info',
+    );
+  });
+}
+
+export async function exportGeoJson(): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  await withBusy('Exportando GeoJSON…', async () => {
+    const text = await getCompute().api.geojsonExport(
+      blast,
+      document.project.coordinateSystem.epsg,
+    );
+    download(text, `${baseName()}.geojson`, 'application/geo+json');
+    notify(
+      `${String(blast.holes.length)} taladros y ${String(blast.boundaries.length)} perímetros exportados`,
+    );
   });
 }
 

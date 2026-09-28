@@ -9,6 +9,7 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { boundaryOps } from '../actions';
 
 export interface DxfPreview {
   fileName: string;
@@ -71,17 +72,7 @@ export function DxfImportDialog({
           : []),
         ...commands.addHoles(blast.id, r.holes),
       ];
-      // Perímetros: se agregan (con nombres libres) sobre la lista actual.
-      let boundaries = blast.boundaries;
-      for (const b of r.boundaries) {
-        const nb = {
-          ...commands.makeBoundary({ boundaries }, b.polygon),
-          freeFaceEdges: b.freeFaceEdges,
-        };
-        boundaries = [...boundaries, nb];
-      }
-      if (r.boundaries.length)
-        ops.push({ type: 'blast/patch', blastId: blast.id, patch: { boundaries } });
+      ops.push(...boundaryOps(blast, r.boundaries));
       if (r.surfaces.length) {
         const surfaces = r.surfaces.map((s, i) => ({
           ...s,

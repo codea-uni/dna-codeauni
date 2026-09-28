@@ -43,6 +43,9 @@ export const es = {
     '¿Reemplazar el proyecto actual por la versión del {date}? Podrás volver a él desde esta lista.',
   'versions.restored': 'Recuperado «{name}» del {date}',
   'versions.unavailable': 'El autoguardado no está disponible en este navegador.',
+  'toolbar.importGeoJson': 'Taladros, perímetros y caras libres desde GeoJSON…',
+  'toolbar.importBoundariesCsv': 'Perímetros desde CSV…',
+  'toolbar.exportGeoJson': 'Plano a GeoJSON',
 };
 
 export type MessageKey = keyof typeof es;

@@ -41,4 +41,7 @@ export const en = {
     'Replace the current project with the version from {date}? You can come back to it from this list.',
   'versions.restored': 'Recovered “{name}” from {date}',
   'versions.unavailable': 'Autosave is not available in this browser.',
+  'toolbar.importGeoJson': 'Holes, boundaries and free faces from GeoJSON…',
+  'toolbar.importBoundariesCsv': 'Boundaries from CSV…',
+  'toolbar.exportGeoJson': 'Plan to GeoJSON',
 } satisfies Messages;
