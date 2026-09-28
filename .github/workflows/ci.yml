@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      # core con cobertura (≥ 85 % de líneas, NF-12); el resto de proyectos sin cobertura
+      - run: pnpm test:coverage
+      - run: pnpm exec vitest run --project engine --project workers --project web
+      # ponytail: los umbrales de tiempo dependen de la máquina; en CI solo informan
+      - run: pnpm test:perf
+        continue-on-error: true
