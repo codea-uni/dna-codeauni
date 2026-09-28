@@ -192,6 +192,12 @@ describe('CR-02, variantes con decks («SD corregido» por tramo)', () => {
     rel((r.nominal.explosive / (r.nominal.volume * 2690)) * 1000, PF, 0.003);
     expect(Math.abs((scaledDepthOfBurial(hole, idx)?.sdob ?? NaN) - SD)).toBeLessThanOrEqual(0.01);
   });
+  it('P-14: con aire bajo el taco, la SDOB desde el collar (1,33) es solo informativa', () => {
+    const [, dIn, , decks] = variants[0] ?? ['', 0, 0, [], [0, 0, 0, 0]];
+    const sd = scaledDepthOfBurial(baseHole(dIn * 0.0254, 16, decks, 1), idx);
+    expect(sd?.sdob).toBeCloseTo(1.14, 2);
+    expect(sd?.sdobFromCollar).toBeCloseTo(1.33, 2);
+  });
 });
 
 describe('CR-03 pequeño diámetro: inclinado 20°, encartuchado + granel (±2 %)', () => {

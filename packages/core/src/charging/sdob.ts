@@ -4,8 +4,10 @@ import { deckIntervals, explosiveDeckMass, type indexLibrary } from './charge';
 export interface ScaledDepthOfBurial {
   /** Profundidad escalada de enterramiento SD = D / W^(1/3) [m/kg^(1/3)]. */
   sdob: number;
-  /** Distancia del collar al centro de masa de la carga de referencia [m]. */
+  /** Material confinante sobre la carga + la mitad de la carga de referencia [m] (sin aire). */
   depth: Meters;
+  /** SDOB midiendo desde el collar, con el aire (informativa, P-14: sobrestima la seguridad). */
+  sdobFromCollar: number;
   /** Masa de la carga de referencia W [kg]. */
   mass: Kilograms;
   /** Largo de la carga de referencia [m] (10·Ø, o el deck entero si es más corto). */
@@ -24,8 +26,9 @@ export interface ScaledDepthOfBurial {
  * de referencia son sus primeros 10 diámetros: W = q·10·Ø y D = material sobre la carga + 5·Ø.
  * Si el deck mide menos de 10·Ø, se toma su masa real y su centro.
  * Las cámaras de aire (y el tramo vacío en la boca) sobre la carga **no confinan** y no se cuentan
- * en D: así se reproduce el «SD corregido» de CR-02 «Actual» (aire de 1,3 m bajo el taco → 1,14);
- * midiendo desde el collar daría 1,33 (P-14, por confirmar). Es el criterio conservador.
+ * en D (P-14, confirmado): el gas atraviesa el aire y descarga contra el taco. Así se reproduce el
+ * «SD corregido» de CR-02 «Actual» (aire de 1,3 m bajo el taco → 1,14). La SDOB desde el collar
+ * (1,33 en ese caso) se devuelve solo como dato informativo.
  * ponytail: D se mide a lo largo del eje; en inclinados la profundidad vertical sería menor.
  *
  * Devuelve null si el taladro no tiene explosivo.
@@ -53,7 +56,15 @@ export function scaledDepthOfBurial(
       if (d && d.kind !== 'air') cover += d.length;
     }
     const depth = cover + length / 2;
-    return { sdob: depth / Math.cbrt(w), depth, mass: w, length, deckIndex: i };
+    const fromCollar = Math.max(0, iv.top) + length / 2;
+    return {
+      sdob: depth / Math.cbrt(w),
+      depth,
+      sdobFromCollar: fromCollar / Math.cbrt(w),
+      mass: w,
+      length,
+      deckIndex: i,
+    };
   }
   return null;
 }

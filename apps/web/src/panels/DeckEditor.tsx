@@ -182,10 +182,12 @@ export function DeckEditor({ hole }: { hole: Hole }) {
       {sdob && (
         <p
           className="muted"
-          title="Profundidad escalada de enterramiento (Chiappetta, P-01): carga superior, primeros 10·Ø; el aire sobre la carga no confina (P-14)"
+          title="Profundidad escalada de enterramiento (Chiappetta, P-01): carga superior, primeros 10·Ø; D solo con material confinante, sin aire (P-14)"
         >
           SDOB {sdob.sdob.toFixed(2)} m/kg^⅓ (D {len.show(sdob.depth).toFixed(2)} {len.unit}, W{' '}
           {sdob.mass.toFixed(1)} kg)
+          {Math.abs(sdob.sdobFromCollar - sdob.sdob) > 0.005 &&
+            ` · desde el collar ${sdob.sdobFromCollar.toFixed(2)} (informativa: el aire no confina)`}
           {pressure &&
             ` · ρ en taladro ${(pressure.density / 1000).toFixed(3)} g/cc · PD ${(pressure.pd / 1e9).toFixed(2)} GPa · PB ${(pressure.pd / 2e9).toFixed(2)} GPa`}
         </p>
