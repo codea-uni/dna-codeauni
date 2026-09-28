@@ -62,6 +62,9 @@ describe('leyes de atenuación', () => {
     const kg = Float64Array.from([100, 200, 300, 400, 50, 10]);
     // 0 y 5 ms juntos (300); 20↔25 (Δ5 ms) → 700; 25↔33 (Δ8 ms, no cuenta) → el de 33 ms queda solo (10)
     expect([...chargePerDelay(t, kg, 0.008)]).toEqual([300, 300, 700, 700, 50, 10]);
+    // Simultáneos: [0, 8) suma los dos de 0 ms (200); el de 8 ms queda fuera y solo (100)
+    const tie = Float64Array.from([0.008, 0, 0]);
+    expect([...chargePerDelay(tie, new Float64Array(3).fill(100), 0.008)]).toEqual([100, 200, 200]);
   });
 
   it('zona de exclusión: envolvente expandida con esquinas redondeadas', () => {

@@ -62,8 +62,11 @@ export function lundborgRange(params: FlyrockParams, diameter: number): number {
 }
 
 /**
- * Carga por retardo de cada taladro: suma de las cargas de los taladros que detonan a menos de
- * `window` de él (ventana deslizante centrada en su tiempo). Taladros sin tiempo cuentan solos.
+ * Carga por retardo de cada taladro (`docs/theory/02 §4`): la mayor carga de las ventanas
+ * semiabiertas [t, t + w) que lo contienen. Así, el máximo por taladro de PPV(R_i, Q_i) es el
+ * máximo por ventana del PPV con la distancia al taladro más cercano del grupo (P-07), y el
+ * máximo de Q_i es la MIC. Dos taladros separados exactamente w no se agrupan (CR-05, amarre 4).
+ * Taladros sin tiempo cuentan solos.
  */
 export function chargePerDelay(
   fireTime: Float64Array,
@@ -78,16 +81,32 @@ export function chargePerDelay(
     else out[i] = charge[i] ?? 0;
   }
   order.sort((a, b) => (fireTime[a] ?? 0) - (fireTime[b] ?? 0));
+  const m = order.length;
+  const t = (k: number) => fireTime[order[k] ?? 0] ?? 0;
+  // Tolerancia de 1 ns: sumas de retardos en s no son exactas (0.017 + 0.017 ≠ 0.034).
   const w = window - 1e-9;
-  let lo = 0;
-  let hi = 0;
-  let sum = 0;
-  for (let k = 0; k < order.length; k++) {
-    const t = fireTime[order[k] ?? 0] ?? 0;
-    while (hi < order.length && (fireTime[order[hi] ?? 0] ?? 0) - t < w)
-      sum += charge[order[hi++] ?? 0] ?? 0;
-    while (lo < k && t - (fireTime[order[lo] ?? 0] ?? 0) >= w) sum -= charge[order[lo++] ?? 0] ?? 0;
-    out[order[k] ?? 0] = sum;
+
+  // Carga de la ventana que empieza en t(k): taladros con t ∈ [t(k), t(k) + w).
+  const start = new Float64Array(m);
+  for (let k = 0, first = 0, hi = 0, sum = 0; k < m; k++) {
+    if (k > 0 && t(k) > t(k - 1)) {
+      for (; first < k; first++) sum -= charge[order[first] ?? 0] ?? 0;
+    }
+    for (hi = Math.max(hi, k); hi < m && t(hi) - t(k) < w; hi++) sum += charge[order[hi] ?? 0] ?? 0;
+    start[k] = sum;
+  }
+
+  // Q_i = máximo de las ventanas que empiezan en (t_i − w, t_i] (cola monótona; ambos
+  // extremos avanzan con i). Los empates de tiempo entran por el extremo derecho.
+  const deque: number[] = [];
+  for (let i = 0, lo = 0, hi = 0; i < m; i++) {
+    for (; hi < m && t(hi) <= t(i); hi++) {
+      while (deque.length > 0 && (start[deque[deque.length - 1] ?? 0] ?? 0) <= (start[hi] ?? 0))
+        deque.pop();
+      deque.push(hi);
+    }
+    for (; t(i) - t(lo) >= w; lo++) if (deque[0] === lo) deque.shift();
+    out[order[i] ?? 0] = start[deque[0] ?? i] ?? 0;
   }
   return out;
 }
