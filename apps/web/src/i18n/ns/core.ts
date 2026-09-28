@@ -122,19 +122,19 @@ export const es = {
   // Proyectos de ejemplo (packages/core/src/examples/examples.ts)
   'example.production.name': 'Producción estándar',
   'example.production.description':
-    '≈250 taladros Ø 229 mm · ANFO pesado de fondo + ANFO · salida en V desde la cara libre',
+    '≈250 taladros Ø 229 mm · producción y buffer · salida en V · 2 escenarios para comparar (en fila y en escalón)',
   'example.wet.name': 'Frente con agua',
   'example.wet.description':
-    'Filas del fondo con agua cargadas con emulsión · resto con ANFO · amarre línea a línea',
+    'Filas del fondo con agua estática cargadas con emulsión · resto con ANFO · amarre línea a línea',
   'example.electronic.name': 'Cerca de infraestructura',
   'example.electronic.description':
-    'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m',
+    'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m con límite propio',
   'example.inclined.name': 'Taladros inclinados',
   'example.inclined.description':
     'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
   'example.problems.name': 'Problemas típicos',
   'example.problems.description':
-    'Taco corto, sin carga, sin detonador, fila sin amarre, retardos que coinciden, duplicados',
+    'Taco corto, sin carga, sin detonador, sin booster, ANFO en agua, columna abierta, fila sin amarre, retardos que coinciden, duplicados',
 
   // Engine (packages/engine/src/text.ts)
   'engine.undo.addHole': 'Agregar taladro',
@@ -267,18 +267,18 @@ export const en = {
 
   'example.production.name': 'Standard production',
   'example.production.description':
-    '≈250 holes Ø 229 mm · heavy ANFO bottom charge + ANFO · V firing pattern from the free face',
+    '≈250 holes Ø 229 mm · production and buffer · V firing · 2 scenarios to compare (row by row and echelon)',
   'example.wet.name': 'Wet face',
   'example.wet.description':
-    'Wet back rows loaded with emulsion · rest with ANFO · row-by-row tie-up',
+    'Back rows with static water charged with emulsion · rest with ANFO · row-by-row tie-up',
   'example.electronic.name': 'Near infrastructure',
   'example.electronic.description':
-    'Hole-by-hole electronic detonators (no coincidences) · air deck · plant at 180 m',
+    'Hole-by-hole electronics (no overlaps) · air deck · plant at 180 m with its own limit',
   'example.inclined.name': 'Angled holes',
   'example.inclined.description': 'Angled 15° toward the free face · ideal for the 3D view (key 3)',
   'example.problems.name': 'Typical problems',
   'example.problems.description':
-    'Short stemming, unloaded, no detonator, row without tie-up, coinciding delays, duplicates',
+    'Short stemming, uncharged, no detonator, no booster, ANFO in water, open column, untied row, overlapping delays, duplicates',
 
   'engine.undo.addHole': 'Add hole',
   'engine.undo.addNamed': 'Add {name}',

@@ -115,6 +115,10 @@ describe('proyectos de ejemplo', () => {
     ]) {
       expect(ids).toContain(expected);
     }
+    // Revisión de la carga (G4): agua, columna abierta y booster
+    const all = analyze(build('problems')).a.checks.map((c) => c.id);
+    for (const expected of ['waterIncompatible', 'openColumn', 'noBooster'])
+      expect(all).toContain(expected);
     // Los ejemplos "buenos" no tienen errores ni advertencias (las notas informativas, reglas R0,
     // pueden aparecer).
     for (const id of ['production', 'wet', 'electronic', 'inclined']) {
@@ -123,5 +127,23 @@ describe('proyectos de ejemplo', () => {
         id,
       ).toEqual([]);
     }
+  });
+
+  it('los ejemplos usan grupos, agua, límites y escenarios (G1–G7)', () => {
+    const production = build('production');
+    const blast = production.blasts[0];
+    expect(blast?.groups.map((g) => [g.name, g.kind])).toEqual([
+      ['Producción', 'production'],
+      ['Buffer', 'buffer'],
+    ]);
+    expect(blast?.holes.every((h) => h.groupId !== undefined)).toBe(true);
+    expect(production.scenarios?.map((s) => s.name)).toEqual([
+      'Salida en fila (línea a línea)',
+      'En escalón',
+    ]);
+    expect(production.ppvLimits?.some((l) => l.structure === 'vivienda')).toBe(true);
+    const wet = build('wet').blasts[0];
+    expect(wet?.holes.some((h) => h.water === 'static')).toBe(true);
+    expect(build('electronic').monitoringPoints?.[0]?.ppvLimit).toBeCloseTo(0.025, 12);
   });
 });

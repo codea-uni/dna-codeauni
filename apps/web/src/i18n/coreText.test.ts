@@ -19,6 +19,8 @@ describe('textos del núcleo traducidos (G8)', () => {
     useLocale.getState().setLocale('es');
     expect(checks.length).toBeGreaterThan(5);
     for (const c of checks) expect(checkText(c)).toEqual({ title: c.title, detail: c.detail });
+    for (const e of EXAMPLES)
+      expect(exampleText(e.id, e), e.id).toEqual({ name: e.name, description: e.description });
   });
 
   it('en inglés, cada observación tiene su traducción, sin marcadores sin reemplazar', () => {

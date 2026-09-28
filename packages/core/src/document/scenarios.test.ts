@@ -16,8 +16,9 @@ describe('escenarios (H-701, R-23)', () => {
     const blast = doc.project.blasts[0];
     if (!blast) throw new Error('sin voladura');
     doc.dispatch(saveScenario(doc, blast.id, 'Base'), 'Guardar escenario');
-    const scenario = doc.project.scenarios?.[0];
-    expect(scenario?.name).toBe('Base');
+    // El ejemplo ya trae dos escenarios (en fila y en escalón); el guardado va al final.
+    const scenario = doc.project.scenarios?.find((sc) => sc.name === 'Base');
+    expect(doc.project.scenarios).toHaveLength(3);
     // Variante: sin la mitad de los taladros y otra ventana de MIC
     const half = blast.holes.slice(0, Math.floor(blast.holes.length / 2)).map((h) => h.id);
     doc.dispatch(
@@ -42,7 +43,10 @@ describe('escenarios (H-701, R-23)', () => {
     doc.undo();
     expect(doc.project.blasts[0]?.holes.length).toBe(blast.holes.length - half.length);
     doc.dispatch(removeScenario(doc, scenario?.id ?? ('' as never)), 'Borrar');
-    expect(doc.project.scenarios).toEqual([]);
+    expect(doc.project.scenarios?.map((sc) => sc.name)).toEqual([
+      'Salida en fila (línea a línea)',
+      'En escalón',
+    ]);
   });
 
   it('comparación lado a lado: la ventana de MIC más ancha agrupa más carga', () => {

@@ -647,6 +647,22 @@ const EXAMPLE_VIEWS: Record<string, () => void> = {
   },
 };
 
+/** Compara el diseño actual con los escenarios guardados (en el worker) y muestra la tabla. */
+export async function compareScenarios(): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  const designs = [
+    { name: t('scenarios.current'), blast },
+    ...(document.project.scenarios ?? []).map((s) => ({
+      name: s.name,
+      blast: { ...s.blast, id: blast.id },
+    })),
+  ];
+  useUiStore
+    .getState()
+    .setScenarioKpis(await getCompute().api.compareScenarios(document.project, designs));
+}
+
 /** Abre un proyecto de ejemplo completamente configurado (se genera en el worker). */
 export async function loadExample(id: string, name: string): Promise<void> {
   if (document.canUndo && !window.confirm(t('actions.discardForExample', { name }))) return;

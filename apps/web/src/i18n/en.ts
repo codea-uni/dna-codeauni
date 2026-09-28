@@ -120,4 +120,30 @@ export const en = {
   'toolbar.exportPng': 'Plan to PNG image',
   'toolbar.copyTsv': 'Copy hole table (spreadsheet)',
   'scenarios.copy': 'Copy table',
+  'toolbar.demo': 'Demo (automatic tour for video)',
+  'demo.pause': 'Pause',
+  'demo.resume': 'Resume',
+  'demo.next': 'Next',
+  'demo.exit': 'Exit (Esc)',
+  'demo.intro':
+    'Cronos: blast design and simulation in the browser. Example: production bench with ≈250 holes, UTM coordinates and the free face to the north.',
+  'demo.design':
+    'Design: staggered pattern generated inside the boundary and aligned to the free face. Production and buffer groups, and theoretical burden by Ash, Konya–Walter and Andersen.',
+  'demo.charge':
+    'Deck charging: bottom charge, column and stemming, with booster. Kilograms per hole, loading factor and scaled depth of burial (SDOB) of the selected hole.',
+  'demo.view3d': '3D view of the bench: each deck of the column in the colour of its material.',
+  'demo.timing':
+    'Timing: V tie-up from the free face, with surface and downhole delays. Isochrones and firing time of each hole.',
+  'demo.sequence': 'Simulation of the firing sequence, hole by hole, in slow motion.',
+  'demo.burden':
+    'Effective burden: distance from each hole to the free face at the moment it fires, counting the relief from holes already fired.',
+  'demo.vibration':
+    'Vibration: PPV by scaled distance at the monitoring points, with limits per structure type and the admissible charge per delay.',
+  'demo.scenarios':
+    'Scenarios: the same design fired in V, row by row and in echelon, compared side by side (charge per delay, PPV and factors).',
+  'demo.review':
+    'Design review: warnings on stemming, subdrill, confinement, water, booster, timing and free face, following the engineer’s rules.',
+  'demo.language': 'The whole interface is available in Spanish and English.',
+  'demo.end':
+    'Every calculation is verified against the mining engineer’s reference cases. PDF report, DXF, GeoJSON and CSV available.',
 } satisfies Messages;

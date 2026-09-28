@@ -17,6 +17,7 @@ import {
 } from './analysis/runner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { StatusBar } from './components/StatusBar';
+import { DemoOverlay } from './demo/DemoOverlay';
 import { Toolbar } from './components/Toolbar';
 import { useShortcuts } from './hooks/useShortcuts';
 import { BlastPanel } from './panels/BlastPanel';
@@ -139,6 +140,7 @@ export function App() {
       </main>
       <RightSidebar />
       <StatusBar />
+      <DemoOverlay />
       {shortcutsOpen && (
         <ShortcutsDialog
           onClose={() => {

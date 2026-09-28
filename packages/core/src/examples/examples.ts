@@ -1,14 +1,18 @@
 import { newId } from '../model/ids';
 import { createEmptyProject } from '../model/factories';
+import { makeGroup } from '../io/csv';
 import { freeFaceAlignment, outwardNormal } from '../geometry/boundary';
 import { unitToAzimuth } from '../geometry/vec';
 import { fitPatternToPolygon, generatePatternHoles } from '../patterns/pattern';
 import { electronicTimes, rowTieUp, withDownholeDetonator } from '../timing/tieUp';
 import { degToRad } from '../units/units';
 import type {
+  Blast,
   BlastBoundary,
   Deck,
   Hole,
+  HoleGroupKind,
+  HoleWater,
   InHoleInitiator,
   Pattern,
   PatternKind,
@@ -107,12 +111,30 @@ export interface ExampleSpec {
   frontOffset: number;
   /** Plan de carga por fila (0 = junto a la cara libre). */
   charge: (row: number, rows: number) => ChargePlan;
-  timing:
-    | { mode: 'v' | 'line'; interHole: string; interRow: string }
-    | { mode: 'electronic'; interHoleMs: number; interRowMs: number };
-  monitoring: { name: string; dx: number; dy: number }[];
+  timing: ExampleTiming;
+  monitoring: {
+    name: string;
+    dx: number;
+    dy: number;
+    /** Tipo de estructura (elige las filas de la tabla de límites, P-12). */
+    structure?: string;
+    /** Límite propio del punto [mm/s]. */
+    ppvLimitMmS?: number;
+  }[];
   rock: { name: string; density: number; ucsMPa: number; eGPa: number };
+  /** Grupo de cada fila (RM-18): precorte, buffer, producción… */
+  groups?: (row: number, rows: number) => { name: string; kind: HoleGroupKind };
+  /** Estado de agua de cada fila (P-09). */
+  water?: (row: number, rows: number) => HoleWater | undefined;
+  /** Variantes guardadas como escenarios para compararlas (R-23): otro amarre. */
+  scenarios?: { name: string; timing: ExampleTiming }[];
+  /** Filas extra de la tabla de límites de PPV, por tipo de estructura (P-12). */
+  ppvLimits?: { structure: string; ppvMaxMmS: number; source: string }[];
 }
+
+export type ExampleTiming =
+  | { mode: 'v' | 'line' | 'echelon'; interHole: string; interRow: string }
+  | { mode: 'electronic'; interHoleMs: number; interRowMs: number };
 
 /** Construye un proyecto completo (malla, carga, iniciación y puntos de control) a partir de la receta. */
 export function buildExample(spec: ExampleSpec): Project {
@@ -122,7 +144,6 @@ export function buildExample(spec: ExampleSpec): Project {
   const rock = project.rockMasses[0];
   if (!base || !rock) throw new Error('Proyecto base incompleto');
   const o = spec.origin;
-  const top = spec.floorElevation + spec.benchHeight;
   const polygon = spec.perimeter.map((p) => ({ x: o.x + p.x, y: o.y + p.y }));
   const boundary: BlastBoundary = {
     id: newId<'Boundary'>(),
@@ -166,59 +187,50 @@ export function buildExample(spec: ExampleSpec): Project {
     },
   };
   const rows = layout.rows;
-  let holes = generatePatternHoles(pattern, bench, { startNumber: 1 }).map((h) => ({
-    ...h,
-    ...buildCharge(h, spec.charge(h.row ?? 0, rows), lib),
-  }));
-
-  // Iniciación.
-  let blast = {
-    ...base,
-    name: spec.blastName,
-    bench,
-    boundaries: [boundary],
-    patterns: [pattern],
-    holes,
+  // Grupos por fila (RM-18) y estado de agua (P-09).
+  const groups = new Map<string, ReturnType<typeof makeGroup>>();
+  const groupOf = (row: number) => {
+    const g = spec.groups?.(row, rows);
+    if (!g) return undefined;
+    let group = groups.get(g.name);
+    if (!group) {
+      group = { ...makeGroup(g.name, groups.size), kind: g.kind };
+      groups.set(g.name, group);
+    }
+    return group.id;
   };
-  const firstRow = holes.filter((h) => h.row === 0);
-  const cols = firstRow.map((h) => h.col ?? 0);
-  const centerCol = cols.length ? Math.round((Math.min(...cols) + Math.max(...cols)) / 2) : 0;
-  const t = spec.timing;
-  if (t.mode === 'electronic') {
-    const det = product(lib.detonators, 'Electrónico');
-    const allCols = holes.map((h) => h.col ?? 0);
-    const minCol = allCols.length ? Math.min(...allCols) : 0;
-    const maxCol = allCols.length ? Math.max(...allCols) : 0;
-    // Taladro a taladro: la fila siguiente empieza un intervalo después del último de la anterior,
-    // así ningún par queda dentro de la ventana de coincidencia.
-    const interRowMs = Math.max(
-      t.interRowMs,
-      (maxCol - minCol + 1) * t.interHoleMs + t.interHoleMs,
-    );
-    const times = electronicTimes(blast, {
-      patternId: pattern.id,
-      startRow: 0,
-      startCol: minCol,
-      interHole: t.interHoleMs / 1000,
-      interRow: interRowMs / 1000,
-      offset: 0.01,
-      detonatorId: det.id,
-    });
-    holes = holes.map((h) => ({
-      ...h,
-      initiators: withDownholeDetonator(h, det.id, times.get(h.id) ?? 0),
-    }));
-    blast = { ...blast, holes, initiation: { ...blast.initiation, system: 'electronic' } };
-  } else {
-    const plan = rowTieUp(blast, {
-      patternId: pattern.id,
-      startRow: 0,
-      startCol: t.mode === 'v' ? centerCol : cols.length ? Math.min(...cols) : 0,
-      interHoleConnectorId: product(lib.surfaceConnectors, t.interHole).id,
-      interRowConnectorId: product(lib.surfaceConnectors, t.interRow).id,
-    });
-    blast = { ...blast, initiation: { ...blast.initiation, ...plan } };
-  }
+  const holes = generatePatternHoles(pattern, bench, { startNumber: 1 }).map((h) => {
+    const row = h.row ?? 0;
+    const hole: Hole = { ...h, ...buildCharge(h, spec.charge(row, rows), lib) };
+    const groupId = groupOf(row);
+    if (groupId) hole.groupId = groupId;
+    const water = spec.water?.(row, rows);
+    if (water) hole.water = water;
+    return hole;
+  });
+
+  const blast = applyTiming(
+    {
+      ...base,
+      name: spec.blastName,
+      bench,
+      boundaries: [boundary],
+      groups: [...groups.values()],
+      patterns: [pattern],
+      holes,
+    },
+    pattern,
+    spec.timing,
+    lib,
+  );
+  const now = new Date().toISOString();
+  const scenarios = (spec.scenarios ?? []).map((sc) => ({
+    id: newId<'Scenario'>(),
+    name: sc.name,
+    savedAt: now,
+    blast: applyTiming(blast, pattern, sc.timing, lib),
+  }));
+  const top = spec.floorElevation + spec.benchHeight;
 
   return {
     ...project,
@@ -236,9 +248,78 @@ export function buildExample(spec: ExampleSpec): Project {
       id: newId<'MonitoringPoint'>(),
       name: m.name,
       position: { x: o.x + m.dx, y: o.y + m.dy, z: top },
+      ...(m.structure ? { structure: m.structure } : {}),
+      ...(m.ppvLimitMmS ? { ppvLimit: m.ppvLimitMmS / 1000 } : {}),
     })),
+    ppvLimits: [
+      ...(project.ppvLimits ?? []),
+      ...(spec.ppvLimits ?? []).map((l) => ({
+        structure: l.structure,
+        from: 0,
+        ppvMax: l.ppvMaxMmS / 1000,
+        source: l.source,
+      })),
+    ],
     blasts: [blast],
+    ...(scenarios.length ? { scenarios } : {}),
   };
+}
+
+/** Amarre o tiempos electrónicos de la receta sobre la voladura (reemplaza la iniciación). */
+function applyTiming(blast: Blast, pattern: Pattern, t: ExampleTiming, lib: ProductLibrary): Blast {
+  let holes = blast.holes;
+  const firstRow = holes.filter((h) => h.row === 0);
+  const cols = firstRow.map((h) => h.col ?? 0);
+  const centerCol = cols.length ? Math.round((Math.min(...cols) + Math.max(...cols)) / 2) : 0;
+  const clean = {
+    ...blast,
+    initiation: { system: 'nonel' as const, nodes: [], connections: [], initiationPoints: [] },
+  };
+  if (t.mode === 'electronic') {
+    const det = product(lib.detonators, 'Electrónico');
+    const allCols = holes.map((h) => h.col ?? 0);
+    const minCol = allCols.length ? Math.min(...allCols) : 0;
+    const maxCol = allCols.length ? Math.max(...allCols) : 0;
+    // Taladro a taladro: la fila siguiente empieza un intervalo después del último de la anterior,
+    // así ningún par queda dentro de la ventana de coincidencia.
+    const interRowMs = Math.max(
+      t.interRowMs,
+      (maxCol - minCol + 1) * t.interHoleMs + t.interHoleMs,
+    );
+    const times = electronicTimes(clean, {
+      patternId: pattern.id,
+      startRow: 0,
+      startCol: minCol,
+      interHole: t.interHoleMs / 1000,
+      interRow: interRowMs / 1000,
+      offset: 0.01,
+      detonatorId: det.id,
+    });
+    holes = holes.map((h) => ({
+      ...h,
+      initiators: withDownholeDetonator(h, det.id, times.get(h.id) ?? 0),
+    }));
+    return { ...clean, holes, initiation: { ...clean.initiation, system: 'electronic' } };
+  }
+  const det = product(lib.detonators, 'Nonel fondo 500');
+  // Si la receta cambia de electrónico a nonel, los taladros vuelven al detonador de fondo.
+  holes = holes.map((h) =>
+    h.initiators.some((i) => i.detonatorId === det.id)
+      ? h
+      : { ...h, initiators: withDownholeDetonator(h, det.id, det.nominalDelay) },
+  );
+  const plan = rowTieUp(
+    { ...clean, holes },
+    {
+      patternId: pattern.id,
+      startRow: 0,
+      startCol: t.mode === 'v' ? centerCol : cols.length ? Math.min(...cols) : 0,
+      interHoleConnectorId: product(lib.surfaceConnectors, t.interHole).id,
+      interRowConnectorId: product(lib.surfaceConnectors, t.interRow).id,
+      mode: t.mode === 'echelon' ? 'echelon' : 'rows',
+    },
+  );
+  return { ...clean, holes, initiation: { ...clean.initiation, ...plan } };
 }
 
 // ------------------------------------------------------------------ Proyectos de ejemplo
@@ -283,17 +364,46 @@ export const EXAMPLE_SPECS = {
     freeFaceEdges: [NORTH],
     pattern: { kind: 'staggered', burden: 6, spacing: 7, diameterMm: 229, subdrill: 1.5 },
     frontOffset: 3,
-    charge: () => ({
-      bottom: { explosive: 'ANFO pesado', length: 3 },
-      column: 'ANFO',
-      stemming: 4.5,
-      primer: 'Booster 450',
-      detonator: 'Nonel fondo 500',
-    }),
+    // Las dos filas del fondo (junto a la pared final) son buffer: sin carga de fondo y más taco.
+    charge: (row, rows) =>
+      row >= rows - 2
+        ? { column: 'ANFO', stemming: 5, primer: 'Booster 450', detonator: 'Nonel fondo 500' }
+        : {
+            bottom: { explosive: 'ANFO pesado', length: 3 },
+            column: 'ANFO',
+            stemming: 4.5,
+            primer: 'Booster 450',
+            detonator: 'Nonel fondo 500',
+          },
+    groups: (row, rows) =>
+      row >= rows - 2
+        ? { name: 'Buffer', kind: 'buffer' }
+        : { name: 'Producción', kind: 'production' },
     timing: { mode: 'v', interHole: 'Nonel superficie 17', interRow: 'Nonel superficie 42' },
+    scenarios: [
+      {
+        name: 'Salida en fila (línea a línea)',
+        timing: { mode: 'line', interHole: 'Nonel superficie 17', interRow: 'Nonel superficie 42' },
+      },
+      {
+        name: 'En escalón',
+        timing: {
+          mode: 'echelon',
+          interHole: 'Nonel superficie 25',
+          interRow: 'Nonel superficie 42',
+        },
+      },
+    ],
     monitoring: [
-      { name: 'Campamento', dx: 75, dy: -620 },
-      { name: 'Línea eléctrica', dx: 480, dy: 40 },
+      { name: 'Campamento', dx: 75, dy: -620, structure: 'vivienda' },
+      { name: 'Línea eléctrica', dx: 480, dy: 40, structure: 'línea eléctrica' },
+    ],
+    ppvLimits: [
+      {
+        structure: 'vivienda',
+        ppvMaxMmS: 10,
+        source: 'Valor de demostración, no es norma: reemplazar por el del EIA de la operación',
+      },
     ],
     rock: ROCK,
   } satisfies ExampleSpec,
@@ -317,8 +427,14 @@ export const EXAMPLE_SPECS = {
             detonator: 'Nonel fondo 500',
           }
         : { column: 'ANFO', stemming: 4, primer: 'Booster 450', detonator: 'Nonel fondo 500' },
+    // P-09: agua estática en las filas del fondo → emulsión (el ANFO no es apto).
+    water: (row, rows) => (row >= rows - 3 ? 'static' : 'dry'),
+    groups: (row, rows) =>
+      row >= rows - 3
+        ? { name: 'Con agua (emulsión)', kind: 'production' }
+        : { name: 'Seco (ANFO)', kind: 'production' },
     timing: { mode: 'line', interHole: 'Nonel superficie 25', interRow: 'Nonel superficie 65' },
-    monitoring: [{ name: 'Chancador', dx: -350, dy: 30 }],
+    monitoring: [{ name: 'Chancador', dx: -350, dy: 30, structure: 'planta' }],
     rock: ROCK,
   } satisfies ExampleSpec,
   electronic: {
@@ -340,9 +456,11 @@ export const EXAMPLE_SPECS = {
       detonator: 'Electrónico',
     }),
     timing: { mode: 'electronic', interHoleMs: 9, interRowMs: 160 },
+    groups: () => ({ name: 'Producción controlada', kind: 'production' }),
     monitoring: [
-      { name: 'Planta', dx: 40, dy: -180 },
-      { name: 'Taller', dx: -150, dy: 60 },
+      // Límite propio del punto (valor de demostración, no es norma).
+      { name: 'Planta', dx: 40, dy: -180, structure: 'planta', ppvLimitMmS: 25 },
+      { name: 'Taller', dx: -150, dy: 60, structure: 'planta' },
     ],
     rock: { ...ROCK, name: 'Andesita' },
   } satisfies ExampleSpec,
@@ -371,6 +489,10 @@ export const EXAMPLE_SPECS = {
       primer: 'Booster 450',
       detonator: 'Nonel fondo 500',
     }),
+    groups: (row) =>
+      row === 0
+        ? { name: 'Primera fila', kind: 'production' }
+        : { name: 'Producción', kind: 'production' },
     timing: { mode: 'v', interHole: 'Nonel superficie 25', interRow: 'Nonel superficie 65' },
     monitoring: [{ name: 'Mirador', dx: 45, dy: 300 }],
     rock: ROCK,
@@ -382,21 +504,21 @@ export const EXAMPLES: ExampleInfo[] = [
     id: 'production',
     name: 'Producción estándar',
     description:
-      '≈250 taladros Ø 229 mm · ANFO pesado de fondo + ANFO · salida en V desde la cara libre',
+      '≈250 taladros Ø 229 mm · producción y buffer · salida en V · 2 escenarios para comparar (en fila y en escalón)',
     build: () => buildExample(EXAMPLE_SPECS.production),
   },
   {
     id: 'wet',
     name: 'Frente con agua',
     description:
-      'Filas del fondo con agua cargadas con emulsión · resto con ANFO · amarre línea a línea',
+      'Filas del fondo con agua estática cargadas con emulsión · resto con ANFO · amarre línea a línea',
     build: () => buildExample(EXAMPLE_SPECS.wet),
   },
   {
     id: 'electronic',
     name: 'Cerca de infraestructura',
     description:
-      'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m',
+      'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m con límite propio',
     build: () => buildExample(EXAMPLE_SPECS.electronic),
   },
   {
@@ -409,7 +531,7 @@ export const EXAMPLES: ExampleInfo[] = [
     id: 'problems',
     name: 'Problemas típicos',
     description:
-      'Taco corto, sin carga, sin detonador, fila sin amarre, retardos que coinciden, duplicados',
+      'Taco corto, sin carga, sin detonador, sin booster, ANFO en agua, columna abierta, fila sin amarre, retardos que coinciden, duplicados',
     build: buildProblems,
   },
 ];
@@ -458,7 +580,26 @@ function buildProblems(): Project {
       holes[i] = { ...h, decks };
     } else if (i % 29 === 7)
       holes[i] = { ...h, decks: [], initiators: [] }; // sin carga
-    else if (i === 3) holes[i] = { ...h, initiators: [] }; // cargado sin detonador
+    else if (i === 3)
+      holes[i] = { ...h, initiators: [] }; // cargado sin detonador
+    else if (i === 12)
+      holes[i] = { ...h, water: 'dynamic' }; // ANFO con agua dinámica (P-09)
+    else if (i === 14)
+      // Columna abierta: el taco no llega a la boca (1 m sin asignar).
+      holes[i] = {
+        ...h,
+        decks: h.decks.map((d) => (d.kind === 'stemming' ? { ...d, length: d.length - 1 } : d)),
+      };
+    else if (i === 16)
+      // Detonador sin booster: el ANFO no se inicia bien (RM-05).
+      holes[i] = {
+        ...h,
+        initiators: h.initiators.map((init) => {
+          const copy = { ...init };
+          delete copy.primerId;
+          return copy;
+        }),
+      };
   });
   // Duplicado: un taladro a 0.2 m de otro.
   const dupOf = holes[10];

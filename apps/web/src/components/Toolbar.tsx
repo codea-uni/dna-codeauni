@@ -8,6 +8,7 @@ import {
   FileDown,
   FileText,
   FilePlus,
+  Clapperboard,
   Image as ImageIcon,
   ClipboardCopy,
   History as HistoryIcon,
@@ -151,6 +152,7 @@ export function toolHint(tool: ToolName): string {
 
 export function Toolbar() {
   const tr = useT();
+  const demoOn = useUiStore((s) => s.demoStep !== null);
   const tool = useUiStore((s) => s.tool);
   const setTool = useUiStore((s) => s.setTool);
   const snap = useUiStore((s) => s.snap);
@@ -180,6 +182,14 @@ export function Toolbar() {
           label={tr('toolbar.saveProject')}
           shortcut="Ctrl+S"
           onClick={() => void actions.saveProject()}
+        />
+        <IconButton
+          icon={Clapperboard}
+          label={tr('toolbar.demo')}
+          active={demoOn}
+          onClick={() => {
+            useUiStore.getState().setDemo({ demoStep: 0, demoPaused: false });
+          }}
         />
         <IconButton
           icon={HistoryIcon}

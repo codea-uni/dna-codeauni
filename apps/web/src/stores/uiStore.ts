@@ -1,5 +1,6 @@
 import {
   DEFAULT_HOLE_TEMPLATE,
+  type ScenarioKpis,
   type BoundaryId,
   type HoleId,
   type HoleTemplate,
@@ -43,6 +44,13 @@ interface UiState {
   csvPreview: CsvPreview | null;
   shortcutsOpen: boolean;
   settingsOpen: boolean;
+  /** Comparación de escenarios mostrada en la pestaña Escenarios (también la usa la demo). */
+  scenarioKpis: ScenarioKpis[] | null;
+  setScenarioKpis: (kpis: ScenarioKpis[] | null) => void;
+  /** Paso actual del modo demostración (null = apagado). */
+  demoStep: number | null;
+  demoPaused: boolean;
+  setDemo: (patch: { demoStep?: number | null; demoPaused?: boolean }) => void;
   versionsOpen: boolean;
   setVersionsOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
@@ -88,6 +96,15 @@ export const useUiStore = create<UiState>()((set) => ({
   csvPreview: null,
   shortcutsOpen: false,
   settingsOpen: false,
+  scenarioKpis: null,
+  setScenarioKpis: (scenarioKpis) => {
+    set({ scenarioKpis });
+  },
+  demoStep: null,
+  demoPaused: false,
+  setDemo: (patch) => {
+    set(patch);
+  },
   versionsOpen: false,
   setVersionsOpen: (versionsOpen) => {
     set({ versionsOpen });

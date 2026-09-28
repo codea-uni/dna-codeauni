@@ -904,3 +904,40 @@ kbd {
 .overlay-3d .gradient {
   margin: 0.2rem 0;
 }
+
+/* Modo demostración: subtítulo grande y legible para grabar video. */
+.demo-caption {
+  position: fixed;
+  left: 50%;
+  bottom: 44px;
+  transform: translateX(-50%);
+  width: min(880px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 1rem;
+  background: rgba(13, 17, 23, 0.92);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+}
+
+.demo-caption p {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.demo-step {
+  color: var(--accent);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.demo-controls {
+  display: flex;
+  gap: 0.3rem;
+}

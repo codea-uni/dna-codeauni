@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { IconButton } from '../components/IconButton';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { formatNumber, useLocale, useT, type MessageKey } from '../i18n';
-import { getCompute, session } from '../session';
+import { session } from '../session';
+import { useUiStore } from '../stores/uiStore';
+import * as actions from '../actions';
 
 const fmt = (v: number | null, d = 0) => (v === null ? '—' : formatNumber(v, d));
 
@@ -39,7 +41,8 @@ export function ScenariosPanel() {
   const locale = useLocale((s) => s.locale);
   const project = useProject();
   const blast = useActiveBlast();
-  const [kpis, setKpis] = useState<ScenarioKpis[] | null>(null);
+  const kpis = useUiStore((s) => s.scenarioKpis);
+  const setKpis = useUiStore((s) => s.setScenarioKpis);
   const [busy, setBusy] = useState(false);
   if (!blast) return null;
   const scenarios = project.scenarios ?? [];
@@ -60,11 +63,7 @@ export function ScenariosPanel() {
   const compare = async () => {
     setBusy(true);
     try {
-      const designs = [
-        { name: t('scenarios.current'), blast },
-        ...scenarios.map((s) => ({ name: s.name, blast: { ...s.blast, id: blast.id } })),
-      ];
-      setKpis(await getCompute().api.compareScenarios(session.document.project, designs));
+      await actions.compareScenarios();
     } finally {
       setBusy(false);
     }

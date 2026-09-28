@@ -122,6 +122,33 @@ export const es = {
   'toolbar.exportPng': 'Plano a imagen PNG',
   'toolbar.copyTsv': 'Copiar tabla de taladros (hoja de cálculo)',
   'scenarios.copy': 'Copiar tabla',
+  'toolbar.demo': 'Demostración (recorrido automático para video)',
+  'demo.pause': 'Pausar',
+  'demo.resume': 'Continuar',
+  'demo.next': 'Siguiente',
+  'demo.exit': 'Salir (Esc)',
+  'demo.intro':
+    'Cronos: diseño y simulación de voladuras en el navegador. Ejemplo: banco de producción de ≈250 taladros, con coordenadas UTM y la cara libre al norte.',
+  'demo.design':
+    'Diseño: malla en tresbolillo generada dentro del perímetro y alineada a la cara libre. Grupos de producción y buffer, y burden teórico por Ash, Konya–Walter y Andersen.',
+  'demo.charge':
+    'Carga por tramos: explosivo de fondo, columna y taco, con booster. Kilos por taladro, factor de carga y profundidad escalada de enterramiento (SDOB) del taladro seleccionado.',
+  'demo.view3d': 'Vista 3D del banco: cada tramo de la columna con el color de su material.',
+  'demo.timing':
+    'Tiempos: amarre en V desde la cara libre, con retardos de superficie y de fondo. Isócronas y tiempo de cada taladro.',
+  'demo.sequence':
+    'Simulación de la secuencia de detonación, taladro por taladro, en cámara lenta.',
+  'demo.burden':
+    'Burden efectivo: distancia de cada taladro a la cara libre en el momento en que sale, contando el alivio de los que ya salieron.',
+  'demo.vibration':
+    'Vibración: PPV por distancia escalada en los puntos de monitoreo, con límites por tipo de estructura y la carga admisible por retardo.',
+  'demo.scenarios':
+    'Escenarios: el mismo diseño con salida en V, en fila y en escalón, comparados lado a lado (carga por retardo, PPV y factores).',
+  'demo.review':
+    'Revisión del diseño: avisos de taco, sobreperforación, confinamiento, agua, booster, tiempos y cara libre, con las reglas del ingeniero.',
+  'demo.language': 'Toda la interfaz está disponible en español e inglés.',
+  'demo.end':
+    'Cada cálculo se verifica con los casos de referencia del ingeniero de minas. Informe PDF, DXF, GeoJSON y CSV disponibles.',
 };
 
 export type MessageKey = keyof typeof es;
