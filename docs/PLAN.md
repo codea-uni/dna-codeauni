@@ -1,677 +1,250 @@
-# BlastLab: plan de implementación
+# Cronos: plan de desarrollo
 
-## 1. Objetivos y principios
+Cronos (antes BlastLab) es una aplicación web para diseñar y simular voladuras. Este plan adapta el proyecto a la guía del ingeniero de minas en `docs/theory/`, que es el **norte**: si este plan y la guía se contradicen, gana la guía o se registra la diferencia en `docs/preguntas.md`.
 
-- **Fluidez ante todo.** Pan, zoom y edición a 60 fps con 5.000 taladros y ≥ 30 fps con 20.000.
-  - El render es a demanda: se redibuja solo cuando algo lo invalida, salvo durante las animaciones.
-- **Toda la simulación en el navegador.** Los cálculos pesados van en Web Workers; en esta fase no hay backend.
-- **Un único modelo de dominio.** Vive en `packages/core`, usa unidades SI, es serializable a JSON y tiene esquema versionado.
-- **Cobertura progresiva de herramientas de simulación.** Cada módulo lee del modelo y nunca duplica datos.
+| Documento                                              | Para qué                                                                        |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `docs/theory/01 - Guia del desarrollador.md`           | Alcance, requisitos (R-xx), hitos (G0–G9), backlog (H-xxx), indicadores (I1–I7) |
+| `docs/theory/02 - Especificacion de calculo.md`        | Fórmulas, unidades y verificaciones                                             |
+| `docs/theory/03 - Modelo de datos e importacion.md`    | Entidades, catálogos, formatos, trampas de importación                          |
+| `docs/theory/04 - Casos de referencia.md`              | CR-01…CR-07: valores esperados de los tests                                     |
+| `docs/theory/05 - Reglas mineras y su verificacion.md` | RM-01…RM-23 con fuentes                                                         |
+| `docs/theory/references/R1…R4`                         | Glosario, fichas F01–F30, benchmark I-Blast y JKSimBlast, subterráneo           |
+| `docs/reglas.md`                                       | Registro vivo de reglas con estado R0–R4                                        |
+| `docs/preguntas.md`                                    | Dudas para el ingeniero, cada una con su valor por defecto                      |
+| `docs/decisiones/`                                     | Notas de decisión D-01…                                                         |
+| `docs/ARCHITECTURE.md`                                 | Arquitectura, flujo de datos, vocabulario minero ↔ código                       |
 
-## 2. Estructura del monorepo
+## 1. Principios (guía §1.5)
+
+1. **Correcto antes que vistoso.** Cada cálculo cita su fuente y se verifica con un caso de referencia.
+2. **Explicable.** Al usuario se le muestra qué modelo se usó, con qué parámetros y por qué.
+3. **Simple de usar.** El flujo guía paso a paso.
+4. **Modular y bilingüe** (español e inglés).
+5. **Sin copiar.** No se copian interfaz, textos ni constantes propietarias de JKSimBlast, I-Blast, SHOTPlus ni BlastLogic.
+
+A estos se suman los de la arquitectura existente: fluidez (60 fps con 5.000 taladros), cálculo pesado en workers, un único modelo de dominio y ningún backend por ahora (D-08).
+
+## 2. Estado heredado
+
+BlastLab construyó en orden sus fases 0–9. Todo se reutiliza (D-07), pero ninguna fórmula cuenta como verificada hasta reproducir su caso de referencia.
+
+| Fase BlastLab     | Qué hay                                                                                    | Hito de la guía          |
+| ----------------- | ------------------------------------------------------------------------------------------ | ------------------------ |
+| 0 Bootstrap       | Monorepo, engine, workers, DocumentStore con undo/redo                                     | G0                       |
+| 1 Editor de malla | Patrones cuadrado/rectangular/tresbolillo, recorte a polígono, selección, snapping         | G3                       |
+| 2 Carguío         | Librería, decks, kg/taladro, factores, cubicación Voronoi                                  | G4                       |
+| 3 Tiempos         | Dijkstra, electrónicos, plantilla en fila y en V, isócronas, animación, ventana 8 ms       | G5, G6                   |
+| 4 CSV             | Importación con mapeo de columnas, exportación                                             | G2                       |
+| 5 Energía         | Holmberg–Persson en planta, densidad de carga, contornos                                   | F2                       |
+| 6 Fragmentación   | Kuz-Ram, Swebrec, curva, P50/P80                                                           | F2                       |
+| 7 Vibración       | PPV por distancia escalada, sobrepresión, Lundborg, puntos de control                      | G6, F2                   |
+| 8 DXF y PDF       | DXF R12 de entrada y salida, informe PDF vectorial                                         | G2, G7                   |
+| 9 Vista 3D        | Banco, decks coloreados, topografía                                                        | G3 (vista 3D conmutable) |
+| Extras            | Revisión del diseño (`core/src/diagnostics`), ejemplos configurados (`core/src/scenarios`) | G3–G6                    |
+
+**Brechas más importantes (encontradas al contrastar con `docs/theory/`):**
+
+- Ningún caso de referencia (CR-01…CR-06) está en los tests.
+- **Bug:** `chargePerDelay` (`packages/core/src/vibration/vibration.ts`) usa una ventana centrada (t − w, t + w). En CR-05, amarre 3, da un MIC de 300 kg en vez de 200, y ese valor alimenta el PPV. La versión de `timing/timing.ts` es correcta.
+- **Bug:** `parseNumber` (`packages/core/src/io/csv.ts`) convierte `272,345.578` en 272.345578, justo la trampa de `03 §5`.
+- No existen grupos de taladros, escenarios de diseño, estado de agua, límites de PPV, K/β por punto, SDOB, PD/PB, modelos de burden, burden efectivo, autoguardado, i18n ni GeoJSON.
+- Faltan README, CI y cobertura.
+
+## 3. Trazabilidad de requisitos (indicador I2)
+
+Cadena: fuente → caso → prueba → pantalla. Estados: ✅ hecho y verificado con CR · 🟡 parcial o sin CR · ❌ falta. Hoy ningún requisito llega a ✅ porque no hay tests con CR.
+
+| R    | Requisito                                  | Hito | Estado                                                             | Código actual                          | CR        | Pantalla          |
+| ---- | ------------------------------------------ | ---- | ------------------------------------------------------------------ | -------------------------------------- | --------- | ----------------- |
+| R-01 | Importar polígonos (CSV, DXF, GeoJSON)     | G2   | 🟡 solo DXF                                                        | `core/src/io/dxf.ts`                   | —         | `DxfImportDialog` |
+| R-02 | Importar taladros con detección de trampas | G2   | 🟡 separador sí; codificación, N/E, duplicados y miles con coma no | `core/src/io/csv.ts`                   | CR-04     | `CsvImportDialog` |
+| R-03 | Importar topografía                        | G2   | 🟡 DXF 3DFACE                                                      | `core/src/io/dxf.ts`                   | —         | `DxfImportDialog` |
+| R-04 | Cara libre y burden desde ella             | G3   | 🟡 bordes de perímetro, no línea libre                             | `engine/src/tools/FreeFaceTool.ts`     | CR-01     | `PatternPanel`    |
+| R-05 | Mallas cuadrada, tres bolillos, triangular | G3   | 🟡 sin opción equilátera explícita                                 | `core/src/patterns/pattern.ts`         | CR-01     | `PatternPanel`    |
+| R-06 | Malla en polígono cualquiera               | G3   | 🟡 hecho, sin CR                                                   | `fitPatternToPolygon`                  | CR-04     | `PatternPanel`    |
+| R-07 | Grupos (precorte, buffer, producción)      | G3   | ❌                                                                 | —                                      | CR-04     | —                 |
+| R-08 | Taladros inclinados, sobreperforación      | G3   | 🟡 fórmula distinta (ver `preguntas.md` P-05)                      | `core/src/geometry/hole.ts`            | CR-03     | `PropertiesPanel` |
+| R-09 | Burden efectivo según secuencia            | G5   | ❌                                                                 | —                                      | CR-05     | —                 |
+| R-10 | Catálogo base e importación                | G4   | 🟡 librería sin fuente ni versión; sin importación                 | `core/src/model/library.ts`            | —         | `LibraryPanel`    |
+| R-11 | Catálogo de accesorios                     | G4   | 🟡 sin fuente, longitud ni velocidad de mecha                      | `core/src/model/types.ts`              | —         | `LibraryPanel`    |
+| R-12 | Carga por decks con taco de catálogo       | G4   | 🟡 ofrece agua (RM-01)                                             | `core/src/charging/charge.ts`          | CR-01..03 | `DeckEditor`      |
+| R-13 | Cadena de iniciación posicionada           | G4   | 🟡 sin editor de varios boosters ni aviso                          | `InHoleInitiator`                      | —         | `DeckEditor`      |
+| R-14 | Kg, FC, tonelaje, metros, área             | G4   | 🟡 sin factor de energía ni agregados por grupo                    | `core/src/charging/chargeAnalysis.ts`  | CR-01..03 | `ResultsPanel`    |
+| R-15 | Advertencia de confinamiento               | G4   | ❌ (solo taco < 0,7·B)                                             | `core/src/diagnostics/designChecks.ts` | CR-02     | `ResultsPanel`    |
+| R-16 | Amarre y retardos por separado             | G5   | 🟡                                                                 | `core/src/timing/`                     | CR-05     | `TimingPanel`     |
+| R-17 | Tiempo por taladro y reproductor           | G5   | 🟡 hecho, sin CR                                                   | `core/src/timing/timing.ts`            | CR-05     | `ViewPanel`       |
+| R-18 | Taladro de inicio y amarre generado        | G5   | 🟡 fila y V; falta escalón y ciclos                                | `core/src/timing/tieUp.ts`             | CR-05     | `TimingPanel`     |
+| R-19 | Carga máxima por retardo                   | G6   | 🟡 bug de ventana en vibración                                     | `timing.ts`, `vibration.ts`            | CR-05     | `ResultsPanel`    |
+| R-20 | PPV con K y β configurables                | G6   | 🟡 K/β global, no por punto                                        | `core/src/vibration/vibration.ts`      | CR-06     | `VibrationPanel`  |
+| R-21 | Puntos de monitoreo con límites            | G6   | 🟡 sin límites                                                     | `MonitoringPoint`                      | CR-06     | `VibrationPanel`  |
+| R-22 | Reporte PDF                                | G7   | 🟡 sin sección de supuestos                                        | `workers/src/report/pdfReport.ts`      | CR-04     | menú              |
+| R-23 | Escenarios comparables                     | G7   | ❌                                                                 | —                                      | —         | —                 |
+| R-24 | Autoguardado y deshacer/rehacer            | G7   | 🟡 undo sí; autoguardado no                                        | `core/src/document/DocumentStore.ts`   | —         | —                 |
+| R-25 | Usuarios con rol                           | —    | ⏸ diferido (D-08)                                                  | —                                      | —         | —                 |
+| R-26 | Español e inglés                           | G8   | ❌                                                                 | —                                      | —         | —                 |
+| R-27 | SI y UTM consistentes                      | G1   | 🟡 SI sí; CRS opcional                                             | `core/src/model/types.ts`              | —         | —                 |
+
+## 4. Hoja de ruta
+
+Se conservan los IDs de la guía (G, H, R, RM, CR). **Un hito a la vez; no se avanza sin aprobación.** Cada hito se cierra con su criterio de salida, los CR aplicables en verde y su reporte en `docs/hitos/Gx.md`.
+
+### Tramo 0: base y correcciones críticas (cierra G0)
+
+- [x] Documentación: este plan, `reglas.md`, `preguntas.md`, `decisiones/`, `comprension.md`, README.
+- [ ] **Bug MIC:** una sola ventana semiabierta [t, t + w) en `core`. `chargePerDelay` debe reutilizar la lógica de `timing/timing.ts` en vez de la ventana centrada. Test CR-05, amarres 1–4 (100/200/200/100 kg).
+- [ ] **Bug CSV:** `parseNumber` con miles con coma (`272,345.578` → 272345.578). `detectDelimiter` no debe contar comas de miles como columnas.
+- [ ] CI (GitHub Actions): `pnpm typecheck`, `lint` y `test`, más cobertura.
+- [ ] Cobertura v8 en Vitest; meta ≥ 85 % en `core` (NF-12).
+- [ ] Renombrar a Cronos: `@blastlab/*` → `@cronos/*`, textos de la UI y `format: 'blastlab-project'`. El formato viejo se sigue leyendo (migración y test).
+- [ ] Infraestructura i18n (D-11): `apps/web/src/i18n/es.ts`, `en.ts` y `t()`. Todo texto nuevo pasa por `t()`; los existentes se migran por panel cuando se tocan.
+- [ ] H-002: `docs/comprension.md` respondido por el desarrollador y aprobado por el ingeniero.
+- **Salida:** 6/6 respuestas aprobadas; un tercero clona, corre `pnpm install && pnpm test` y pasa; CI en verde.
+
+### G1: modelo de datos y unidades (E1)
+
+- [ ] Migración de esquema v2 → v3, con test, que agrega:
+  - `HoleGroup { id, name, kind: presplit|buffer|production|other, color, defaults }` y `Hole.groupId`;
+  - `Hole.water: dry|static|dynamic` (opcional; filtra productos, RM-02);
+  - `MonitoringPoint` con `ppvLimit?`, `k?` y `beta?` (sobrescriben los del sitio);
+  - tabla de límites de PPV `{ from, to, ppvMax, source }` (fuente obligatoria);
+  - `calcParams` persistidos por voladura: ventana MIC, γ, K/β del sitio, tiempo mínimo de alivio Δ y umbrales de los chequeos;
+  - en `RockMass`: `tensileStrength`, `vp`, `rqd`;
+  - en `Explosive`: `source` (URL o cita), `version`, `densityMin/Max`, `waterResistance: none|limited|high`, `gassing { initialDensity, finalDensity }`, `needsBooster`, `criticalDiameter` (renombra `minDiameter`);
+  - en `StemmingMaterial`: `kind`, `angularity`, `gradingMm`.
+- [ ] H-101: CRS (EPSG) obligatorio antes de importar.
+- [ ] Pantalla de ajustes del proyecto: CRS, unidades de visualización (`displayUnits` ya está en el modelo) e idioma.
+- [ ] H-104: conmutador m/ft y mm/in que no altera los datos.
+- [ ] H-102: autoguardado en IndexedDB con las últimas N versiones recuperables. Hoy cerrar el navegador pierde el trabajo.
+- [ ] Renombrar `core/src/scenarios` a `examples`, para reservar "escenario" a las variantes de diseño (G7).
+- **Salida:** ida y vuelta JSON sin pérdidas con el esquema v3; migración v2 → v3 testeada; sin unidades mezcladas.
+
+### G2: importación (E2; R-01 a R-03)
+
+- [ ] H-201: trampas de `03 §5`:
+  - codificación (`TextDecoder` UTF-8 `fatal`, con respaldo windows-1252);
+  - archivo sin encabezado (primera fila numérica);
+  - separador editable;
+  - IDs duplicados (error con la lista);
+  - Norte/Este intercambiados (aviso y botón para intercambiar);
+  - Z vacía o cero;
+  - atípicos (aviso);
+  - columna de grupo.
+- [ ] Vista previa en el mapa: la importación entra como un solo comando y el diálogo ofrece «Aceptar / Deshacer».
+- [ ] H-202: GeoJSON de entrada y salida (polígonos, líneas, puntos) con `JSON.parse` y zod, sin dependencias nuevas; polígonos por CSV.
+- [ ] Fixture sintético de CR-04: 180 filas sin encabezado (A 32, B 32, C 32, BF 84) con las trampas de `03 §5`.
+- **Salida:** CR-04 sintético cae en su posición; cada trampa se detecta o se rechaza con un mensaje claro.
+
+### G3: diseño de malla (E3; R-04 a R-08)
+
+- [ ] H-301: cara libre dibujada como polilínea. `Blast.freeFaces` ya existe; hoy solo se marcan bordes del perímetro. Una sola cara libre → advertencia (RM-06). Si generar malla sin cara libre se bloquea o no, se decide en P-03.
+- [ ] H-302: opción «triangular equilátera» (S = 2B/√3); la no equilátera ya se logra con tresbolillo y S ≠ 1,1547·B.
+- [ ] H-303: grupos de taladros (creación, asignación con lazo o polígono, carga y retardo por grupo, color).
+- [ ] H-305: nuevo `core/src/design/burden.ts` con:
+  - Ash (Kb), Konya–Walter (Kd, Ks tomados de la fuente) y Andersen;
+  - S sugerido, (H + 7B)/8 o 1,4·B;
+  - rigidez H/B con el semáforo de Konya;
+  - T = 0,7·B y J = 0,3·B como **parámetros**;
+  - marca de burden fuera de ±10 %.
+- [ ] H-304: longitud de taladro inclinado según la resolución de P-05; CR-03.
+- [ ] Volumen nominal B·S·H (/cos α) junto al cubicado por Voronoi (P-06).
+- [ ] Chequeos de `02 §6`: rigidez, J/B, H/Ø, taco 0,7–1,3·B y 15–25·Ø, burden ±10 %. Umbrales en `calcParams`, siempre advertencias.
+- **Salida:** CR-01 pasos 1–7 y geometría de CR-03 dentro de tolerancia; conteo y área de CR-04.
+
+### G4: explosivos y carga (E4; R-10 a R-15)
+
+- [ ] H-401: catálogo base con `source` y `version` en cada producto; los valores sin ficha quedan marcados R0 en `reglas.md`. Importación y exportación del catálogo por CSV (columnas de `03 §3`).
+- [ ] H-402:
+  - quitar «agua» de los decks en superficie (RM-01; el tipo sigue en el modelo para subterráneo de carbón);
+  - cierre de tramos en ambos sentidos (suma ≠ L → error; R3);
+  - ρ media por tramo con esponjamiento (CR-02 paso 7);
+  - diámetro efectivo de cartucho (+10 % en CR-03).
+- [ ] H-403: editor de la cadena de iniciación con varios boosters y detonadores posicionados; aviso de tramo de granel sin booster (`needsBooster`).
+- [ ] H-404: nuevo `core/src/charging/sdob.ts` (profundidad escalada de enterramiento, Chiappetta), con nombre y campo **distintos** de la distancia escalada de vibración (RM-08). Advertencia con rangos configurables. Con decks se toma la carga más cercana a la superficie (P-01).
+- [ ] Presión de detonación y de taladro con γ configurable; VOD(D) con diámetro crítico (advertencia).
+- [ ] H-405:
+  - factor de energía;
+  - m³ por metro perforado;
+  - agregados por taladro, fila, grupo y voladura;
+  - nombres de indicadores según D-10.
+- [ ] Revisar la severidad de los chequeos existentes: por debajo de R3 no hay errores (P-04).
+- **Salida:** CR-01 pasos 8–12, CR-02 pasos 1–14 y sus tres variantes con decks, y CR-03 dentro de tolerancia. CR-04 calculado a mano (valores escritos por el desarrollador y revisados por el ingeniero).
+
+### G5: amarre, tiempos y simulación (E5; R-09, R-16 a R-18)
+
+- [ ] H-504: plantilla en escalón (echelon); herramienta «conectar filas»; detección de ciclos (error) y de taladros sin conectar.
+- [ ] H-502: tiempos relativos al primero; CR-05, amarres 1–3, al milisegundo (tolerancia 1e-9 s).
+- [ ] H-503: nuevo `core/src/timing/effectiveBurden.ts` (en worker). Es la distancia a la superficie libre más cercana al detonar: caras libres más los taladros ya detonados como puntos, con Δ configurable. Avisos de B_ef > 2·B y de orden invertido. CR-05, amarres 1 y 5.
+- [ ] H-505: tabla configurable de ms/m entre filas y entre taladros, con aviso fuera de rango.
+- [ ] Mostrar el burden efectivo en la planta (color por taladro).
+- **Salida:** CR-05, amarres 1–5, reproducido.
+
+### G6: carga por retardo y PPV (E6; R-19 a R-21)
+
+- [ ] H-601: MIC con una sola implementación (arreglada en el Tramo 0) y ventana en `calcParams`; gráfico de carga por ventana (ya existe).
+- [ ] H-602:
+  - PPV por punto con K/β propios;
+  - distancia al taladro más cercano del grupo de la ventana (por defecto) o al centroide;
+  - reportar el PPV máximo y la ventana que lo causa;
+  - tabla de límites con fuente y marca de excedencia.
+- [ ] H-603: MIC admisible para un PPV dado, invirtiendo la ley.
+- **Salida:** CR-06 (9,4462 y 4,9375 mm/s) con ±1 %; CR-05 para el MIC.
+
+### G7: reporte y escenarios (E7; R-22 a R-24)
+
+- [ ] H-701: escenario = voladura variante (`variantOf`). Comando para duplicar y vista de comparación lado a lado: tiempos, MIC, PPV, FC.
+- [ ] H-702: el PDF agrega «Modelos, parámetros y supuestos», los chequeos y el estado de las reglas usadas; reproduce CR-04.
+- [ ] Copiar tablas como TSV; exportar el plano a PNG.
+- [ ] H-703: comprobar ≥ 50 pasos de undo en malla, carga y amarre.
+- **Salida:** dos escenarios con distintos retardos comparados; el reporte coincide con CR-04.
+
+### G8: idiomas (E8; R-26)
+
+- [ ] H-802: diccionario `en.ts` completo. El tipado impide claves faltantes.
+- Usuarios y roles (H-801, R-25) pasan a la fase con backend (D-08).
+- **Salida:** toda la interfaz cambia de idioma sin textos sin traducir.
+
+### G9: cierre de la Fase 1
+
+- Indicadores I1–I5 en verde en todos los hitos.
+- I6: un ingeniero reproduce CR-04 de punta a punta sin ayuda (línea base).
+- I7 si hay demo de JKSimBlast o I-Blast.
+- Luego **Evaluación 1**: el ingeniero usa el producto; se resuelven los hallazgos críticos.
+
+### Después de la Fase 1
+
+| Fase                          | Contenido                                                                                                                                                                                                                                                                                                                              | Punto de partida                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **F2 Análisis avanzado**      | Regularizar lo ya hecho con fuente y CR: Kuz-Ram (variantes, P-08; CR-07 publicado), Swebrec (Ouchterlony 2005), Holmberg–Persson y criterio de daño ¼·VPPc, sobrepresión y Lundborg. Nuevo: precorte y buffer (CR-01), semáforo de proyección por SDOB, desplazamiento del material (buscar fuente, RM-20), Monte Carlo de dispersión | `02 §5`, `R1` F23–F27, `R3` F12–F15                                                  |
+| **Evaluación 2**              | Ingenieros externos                                                                                                                                                                                                                                                                                                                    | —                                                                                    |
+| **F3 Subterráneo**            | Frentes (método sueco, Langefors–Holmberg) y anillos (abanicos). El modelo se amplía con perfil de excavación, roles de taladro (arranque, alivio, ayuda, contorno, zapatera) y planos de anillo                                                                                                                                       | `R4 §4`; verificar cada fórmula `[GENERAL]` con Holmberg (1982) antes de programarla |
+| **F4 Datos de campo**         | As-drilled (`Hole.actual` ya existe), sismógrafos (CSV ISO-8859-1 con `;`) y ajuste de K/β con r², diseño frente a realidad                                                                                                                                                                                                            | `R2` F07, F10; `03 §1` principio 2                                                   |
+| **F5 Distribución + backend** | Usuarios y roles, comentarios del revisor, auditoría, historial en servidor, manual de usuario, empaquetado                                                                                                                                                                                                                            | D-08                                                                                 |
+
+## 5. Ciclo de trabajo por hito (guía §8.1)
+
+1. Ubicar o escribir el **caso de referencia** con su fuente y anotar las reglas en `reglas.md` con su estado.
+2. Escribir la **prueba** con el valor de la fuente, antes que el código.
+3. Implementar.
+4. Contestar por escrito dos preguntas de comprensión sobre lo construido.
+5. Llenar el reporte en `docs/hitos/Gx.md` y mostrar una demo al ingeniero.
 
 ```
-/
-├─ package.json               # scripts raíz: dev, build, test, lint, typecheck, format
-├─ pnpm-workspace.yaml        # packages/*, apps/*
-├─ tsconfig.base.json         # strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes
-├─ eslint.config.js           # flat config, typescript-eslint strict-type-checked
-├─ .prettierrc  .editorconfig  .nvmrc  .gitignore
-├─ vitest.config.ts           # projects: core, engine, workers, web
-├─ CLAUDE.md
-├─ docs/
-│  ├─ PLAN.md
-│  ├─ ARCHITECTURE.md
-│  └─ adr/                    # Architecture Decision Records (0001-...)
-├─ packages/
-│  ├─ core/
-│  │  └─ src/
-│  │     ├─ model/            # tipos del dominio (este documento, §4)
-│  │     ├─ units/            # alias de unidades y conversiones SI ↔ presentación
-│  │     ├─ geometry/         # vectores, trayectoria de taladro, polígonos, índice espacial
-│  │     ├─ document/         # DocumentStore, comandos, ChangeSet, undo/redo
-│  │     ├─ patterns/         # generadores de malla (cuadrada, rectangular, tresbolillo)
-│  │     ├─ charging/         # decks, kg/taladro, factor de carga, cubicación
-│  │     ├─ timing/           # red de iniciación, tiempos, isócronas, coincidencias
-│  │     ├─ energy/           # distribución de energía sobre grilla
-│  │     ├─ fragmentation/    # Kuz-Ram, Swebrec/KCO
-│  │     ├─ vibration/        # PPV, sobrepresión, flyrock (Lundborg)
-│  │     ├─ cost/             # costos
-│  │     ├─ io/               # JSON (+migraciones), CSV, DXF
-│  │     ├─ pack/             # empaquetado a typed arrays para engine/workers
-│  │     └─ index.ts
-│  ├─ engine/
-│  │  └─ src/
-│  │     ├─ Engine.ts         # API pública (fachada)
-│  │     ├─ loop/             # rAF propio, render on demand, métricas FPS
-│  │     ├─ cameras/          # ortográfica (planta) + perspectiva (3D), transición
-│  │     ├─ controls/         # pan/zoom/orbit propios
-│  │     ├─ layers/           # holes, decks, bench, surfaces, labels, contours, sequence
-│  │     ├─ picking/          # flatbush 2D, selección por caja/lazo
-│  │     └─ tools/            # select, move, add, delete, pattern (emiten comandos)
-│  └─ workers/
-│     └─ src/
-│        ├─ compute.worker.ts # expone la API de core con Comlink
-│        ├─ pool.ts           # pool, cancelación, latest-wins
-│        └─ client.ts         # API tipada para la app
-└─ apps/
-   └─ web/
-      └─ src/
-         ├─ main.tsx  App.tsx
-         ├─ viewport/          # <Viewport> monta el canvas y crea el Engine una vez
-         ├─ stores/            # Zustand: ui, selection-view, settings
-         ├─ panels/            # propiedades, tablas, librería de productos, resultados
-         ├─ charts/            # ECharts (lazy)
-         ├─ persistence/       # IndexedDB (proyectos) + OPFS (archivos grandes)
-         └─ i18n/              # es por defecto
+Hito: G_
+Reglas tocadas: R-xx (estado antes → después), con fuente
+Casos de referencia reproducidos: CR-xx (resultado vs. esperado, diferencia)
+Indicadores: I1 _ · I2 _ · I3 _ · I4 _ · I5 _
+Preguntas abiertas (críticas / no críticas): _ / _
+Qué no pude verificar y por qué: _
 ```
 
-## 3. Paquetes y dependencias
-
-| Paquete             | Responsabilidad                                                                                      | Depende de            | Externas principales                  |
-| ------------------- | ---------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------- |
-| `@blastlab/core`    | Modelo de dominio, DocumentStore (comandos/undo), todos los cálculos, IO (JSON/CSV/DXF), empaquetado | —                     | zod, flatbush, dxf-parser, dxf-writer |
-| `@blastlab/engine`  | Escena Three.js, cámaras, capas instanciadas, picking, herramientas de edición, loop de render       | core                  | three                                 |
-| `@blastlab/workers` | Workers y pool que ejecutan los cálculos de core fuera del hilo principal                            | core                  | comlink                               |
-| `@blastlab/web`     | UI React, paneles, tablas, gráficos, persistencia, orquestación                                      | core, engine, workers | react, zustand, echarts, idb          |
-
-Reglas:
-
-- **Grafo acíclico:** `core ← engine`, `core ← workers`, `{core, engine, workers} ← web`.
-- **`engine` no conoce a `workers`.** Los resultados (por ejemplo, contornos) llegan a través de la app.
-- **Paquetes internos consumidos desde el fuente.** Se exportan con `exports: "./src/index.ts"`; Vite los compila y `tsc -b` los chequea.
-
-## 4. Modelo de dominio (`packages/core/src/model`)
-
-Convenciones:
-
-- **Coordenadas de proyecto:** X = Este, Y = Norte, Z = Cota. Z hacia arriba, sistema dextrógiro.
-- **Unidades internas:** SI puro (m, kg, s, rad, Pa, J/kg, kg/m³, m/s). Las conversiones ocurren solo en presentación.
-- **Referencias por `Id`, nunca por anidamiento duplicado.** Los productos viven en la librería del proyecto, que es una _snapshot_ para reproducibilidad.
-- **Resultados de cálculo:** son derivados y nunca se persisten dentro de `Project`.
-
-```ts
-// ===================== Primitivas y unidades =====================
-/** Alias documentales de unidades SI (el compilador no los distingue; el nombre es el contrato). */
-export type Meters = number; // m
-export type Kilograms = number; // kg
-export type Seconds = number; // s
-export type Radians = number; // rad
-export type Pascals = number; // Pa
-export type KgPerM3 = number; // kg/m³
-export type MetersPerSecond = number; // m/s
-export type JoulesPerKg = number; // J/kg
-export type Ratio = number; // adimensional
-export type Money = number; // moneda del proyecto (Project.currency)
-
-/** Identificador estable con marca de tipo (UUID v7). */
-export type Id<B extends string> = string & { readonly __brand: B };
-export type ProjectId = Id<'Project'>;
-export type BlastId = Id<'Blast'>;
-export type PatternId = Id<'Pattern'>;
-export type HoleId = Id<'Hole'>;
-export type DeckId = Id<'Deck'>;
-export type ExplosiveId = Id<'Explosive'>;
-export type DetonatorId = Id<'Detonator'>;
-export type SurfaceConnectorId = Id<'SurfaceConnector'>;
-export type PrimerId = Id<'Primer'>;
-export type StemmingMaterialId = Id<'StemmingMaterial'>;
-export type RockMassId = Id<'RockMass'>;
-export type SurfaceId = Id<'Surface'>;
-export type SurfaceNodeId = Id<'SurfaceNode'>;
-export type ConnectionId = Id<'Connection'>;
-export type InitiationPointId = Id<'InitiationPoint'>;
-export type VibrationLawId = Id<'VibrationLaw'>;
-
-/** Punto en coordenadas de proyecto [m], float64. */
-export interface Vec3 {
-  x: Meters;
-  y: Meters;
-  z: Meters;
-}
-export interface Vec2 {
-  x: Meters;
-  y: Meters;
-}
-/** Polígono cerrado en planta (el último vértice no repite el primero). */
-export type Polygon2 = readonly Vec2[];
-
-// ===================== Archivo y proyecto =====================
-export const SCHEMA_VERSION = 1 as const;
-
-/** Envoltorio serializado (.blastlab.json). */
-export interface ProjectFile {
-  format: 'blastlab-project';
-  schemaVersion: typeof SCHEMA_VERSION; // migraciones en io/migrations
-  savedAt: string; // ISO 8601
-  appVersion: string;
-  project: Project;
-}
-
-export interface Project {
-  id: ProjectId;
-  name: string;
-  description?: string;
-  createdAt: string; // ISO 8601
-  updatedAt: string; // ISO 8601
-  currency: string; // ISO 4217, p.ej. "USD"
-  coordinateSystem: CoordinateSystem;
-  library: ProductLibrary;
-  rockMasses: RockMass[];
-  siteModels: SiteModels;
-  surfaces: Surface[];
-  blasts: Blast[];
-  /** Preferencias de visualización; nunca afectan cálculos. */
-  displayUnits: DisplayUnits;
-}
-
-export interface CoordinateSystem {
-  name?: string;
-  epsg?: number;
-  /** Origen local [m] restado antes de enviar geometría a la GPU (precisión float32). */
-  origin: Vec3;
-}
-
-// ===================== Voladura y banco =====================
-export type BlastStatus = 'design' | 'drilled' | 'loaded' | 'fired';
-
-export interface Blast {
-  id: BlastId;
-  name: string;
-  status: BlastStatus;
-  bench: Bench;
-  rockMassId: RockMassId;
-  /** Perímetro de la voladura en planta (opcional; se usa en cubicación y generación). */
-  boundary?: Polygon2;
-  freeFaces: FreeFace[];
-  patterns: Pattern[];
-  holes: Hole[];
-  initiation: InitiationPlan;
-  notes?: string;
-}
-
-export interface Bench {
-  /** Cota de piso/grade [m]. */
-  floorElevation: Meters;
-  /** Altura nominal de banco [m]. */
-  height: Meters;
-  /** Topografía de la superficie superior (opcional; si falta, plano en floorElevation + height). */
-  topSurfaceId?: SurfaceId;
-  /** Superficie de piso de diseño (opcional; si falta, plano en floorElevation). */
-  floorSurfaceId?: SurfaceId;
-  /** Ángulo de la cara del banco medido desde la horizontal [rad]. */
-  faceAngle: Radians;
-}
-
-export interface FreeFace {
-  id: Id<'FreeFace'>;
-  /** Línea de cresta de la cara libre [m]. */
-  crest: Vec3[];
-  /** Línea de pie (opcional) [m]. */
-  toe?: Vec3[];
-}
-
-/** Topografía como TIN. Los buffers grandes se guardan en OPFS y aquí solo la referencia. */
-export interface Surface {
-  id: SurfaceId;
-  name: string;
-  kind: 'topography' | 'floor' | 'other';
-  /** Vértices [x0,y0,z0, x1,...] en m (coordenadas de proyecto). */
-  vertices: number[];
-  /** Índices de triángulos. */
-  triangles: number[];
-}
-
-// ===================== Malla / patrón =====================
-export type PatternKind = 'square' | 'rectangular' | 'staggered';
-
-/** Parámetros con los que se generó un grupo de taladros. Tras generarlos, cada taladro es editable individualmente. */
-export interface Pattern {
-  id: PatternId;
-  name: string;
-  kind: PatternKind; // 'staggered' = tresbolillo
-  burden: Meters; // distancia entre filas
-  spacing: Meters; // distancia entre taladros de una fila
-  /** Origen del patrón (primer taladro de la primera fila) [m]. */
-  origin: Vec2;
-  /** Azimut de la dirección de las filas [rad], horario desde el Norte. */
-  rowAzimuth: Radians;
-  /** Sentido de avance de las filas respecto a rowAzimuth. */
-  rowAdvance: 'left' | 'right';
-  rows: number;
-  holesPerRow: number;
-  /** Si existe, recorta el patrón a este polígono. */
-  clipBoundary?: Polygon2;
-  holeTemplate: HoleTemplate;
-}
-
-export interface HoleTemplate {
-  diameter: Meters;
-  inclination: Radians;
-  azimuth: Radians;
-  subdrill: Meters;
-  /** Decks por defecto aplicados al generar (longitudes relativas se resuelven en charging). */
-  chargeRule?: ChargeRule;
-}
-
-/** Regla de carguío paramétrica (p.ej. "taco 3 m, resto explosivo X"). */
-export interface ChargeRule {
-  stemmingLength: Meters;
-  stemmingMaterialId: StemmingMaterialId;
-  explosiveId: ExplosiveId;
-  /** Aire/tapón opcional entre carga y taco. */
-  airDeckLength?: Meters;
-  primerId?: PrimerId;
-  detonatorId?: DetonatorId;
-  /** Distancia del primer al fondo [m]. */
-  primerOffsetFromToe: Meters;
-}
-
-// ===================== Taladro =====================
-export type HoleStatus = 'designed' | 'drilled' | 'loaded' | 'fired' | 'abandoned';
-
-export interface Hole {
-  id: HoleId;
-  /** Etiqueta visible, única dentro de la voladura (p.ej. "R3-12"). */
-  label: string;
-  patternId?: PatternId;
-  row?: number;
-  col?: number;
-  /** Boca del taladro [m]. */
-  collar: Vec3;
-  diameter: Meters;
-  /** Longitud total a lo largo del eje, boca → fondo [m]. Fuente de verdad de la geometría. */
-  length: Meters;
-  /** Ángulo desde la vertical [rad]; 0 = vertical. */
-  inclination: Radians;
-  /** Rumbo de la proyección horizontal del eje [rad], horario desde el Norte. Irrelevante si inclination = 0. */
-  azimuth: Radians;
-  /** Sobreperforación de diseño bajo el piso, medida en vertical [m]. Se valida contra length y Bench. */
-  subdrill: Meters;
-  /** Columna de carga ordenada de FONDO a BOCA. Suma de longitudes ≤ length (el resto superior se reporta como vacío). */
-  decks: Deck[];
-  /** Iniciadores dentro del taladro. */
-  initiators: InHoleInitiator[];
-  status: HoleStatus;
-  /** Geometría real (as-drilled) si difiere del diseño. */
-  actual?: Partial<Pick<Hole, 'collar' | 'length' | 'inclination' | 'azimuth' | 'diameter'>>;
-  tags?: string[];
-}
-
-// ===================== Decks =====================
-interface DeckBase {
-  id: DeckId;
-  /** Longitud del deck a lo largo del eje [m]. */
-  length: Meters;
-}
-export interface ExplosiveDeck extends DeckBase {
-  kind: 'explosive';
-  explosiveId: ExplosiveId;
-  /** Densidad en taladro si difiere de la nominal (p.ej. densidad de copa) [kg/m³]. */
-  densityOverride?: KgPerM3;
-}
-export interface StemmingDeck extends DeckBase {
-  kind: 'stemming';
-  materialId: StemmingMaterialId;
-}
-export interface AirDeck extends DeckBase {
-  kind: 'air';
-}
-export interface WaterDeck extends DeckBase {
-  kind: 'water';
-}
-/** Tapón/gas bag separador. */
-export interface PlugDeck extends DeckBase {
-  kind: 'plug';
-  name?: string;
-  cost?: Money;
-}
-export type Deck = ExplosiveDeck | StemmingDeck | AirDeck | WaterDeck | PlugDeck;
-
-export interface InHoleInitiator {
-  id: Id<'InHoleInitiator'>;
-  detonatorId: DetonatorId;
-  primerId?: PrimerId;
-  /** Posición a lo largo del eje medida desde la BOCA [m]. */
-  depth: Meters;
-  /** Retardo en taladro [s]. Nonel/eléctrico: nominal del producto (editable). Electrónico: tiempo programado. */
-  delay: Seconds;
-}
-
-// ===================== Productos =====================
-export interface ProductLibrary {
-  explosives: Explosive[];
-  detonators: Detonator[];
-  surfaceConnectors: SurfaceConnector[];
-  primers: Primer[];
-  stemmingMaterials: StemmingMaterial[];
-}
-
-export type ExplosiveFamily =
-  'anfo' | 'heavy-anfo' | 'emulsion' | 'watergel' | 'dynamite' | 'other';
-
-export interface Explosive {
-  id: ExplosiveId;
-  name: string;
-  manufacturer?: string;
-  family: ExplosiveFamily;
-  form: 'bulk' | 'packaged';
-  /** Densidad nominal [kg/m³]. */
-  density: KgPerM3;
-  /** Velocidad de detonación (confinada, nominal) [m/s]. */
-  vod: MetersPerSecond;
-  /** Energía absoluta por masa (AWS) [J/kg]. */
-  energy: JoulesPerKg;
-  /** Potencia relativa en masa vs ANFO (RWS), ANFO = 1.0. RBS se deriva: RWS·ρ/ρ_ANFO. */
-  rws: Ratio;
-  /** Volumen de gases [m³/kg] (opcional). */
-  gasVolume?: number;
-  waterResistant: boolean;
-  /** Diámetro crítico/mínimo recomendado [m]. */
-  minDiameter?: Meters;
-  cartridge?: { diameter: Meters; length: Meters; mass: Kilograms };
-  costPerKg?: Money;
-}
-
-export type DetonatorType = 'electronic' | 'nonel' | 'electric';
-
-export interface Detonator {
-  id: DetonatorId;
-  name: string;
-  manufacturer?: string;
-  type: DetonatorType;
-  /** Retardo nominal [s] (0 en electrónicos programables). */
-  nominalDelay: Seconds;
-  /** Dispersión (desviación estándar) del retardo [s]. */
-  delayScatter: Seconds;
-  /** Rango programable [s] (solo electrónicos). */
-  programmableRange?: { min: Seconds; max: Seconds; step: Seconds };
-  costPerUnit?: Money;
-}
-
-export interface SurfaceConnector {
-  id: SurfaceConnectorId;
-  name: string;
-  type: 'nonel-surface' | 'detonating-cord' | 'electronic-lead';
-  delay: Seconds;
-  delayScatter: Seconds;
-  costPerUnit?: Money;
-}
-
-export interface Primer {
-  id: PrimerId;
-  name: string;
-  mass: Kilograms;
-  /** Explosivo del booster (para energía), si se conoce. */
-  explosiveId?: ExplosiveId;
-  costPerUnit?: Money;
-}
-
-export interface StemmingMaterial {
-  id: StemmingMaterialId;
-  name: string;
-  density: KgPerM3;
-  costPerM3?: Money;
-}
-
-// ===================== Macizo rocoso y modelos de sitio =====================
-export interface RockMass {
-  id: RockMassId;
-  name: string;
-  /** Densidad in situ [kg/m³] (para kg/t y tonelaje). */
-  density: KgPerM3;
-  /** Resistencia a compresión uniaxial [Pa]. */
-  ucs: Pascals;
-  /** Módulo de Young [Pa]. */
-  youngModulus: Pascals;
-  /** Índice de volabilidad de Lilly/Cunningham (opcional, alternativa a rockFactor). */
-  blastability?: { rmd: number; jps: number; jpa: number; rdi: number; hf: number };
-  /** Factor de roca A de Kuz-Ram (si se fija, prevalece sobre blastability). */
-  rockFactor?: number;
-  /** Parámetro b de Swebrec (opcional; si falta se estima). */
-  swebrecB?: number;
-}
-
-export interface SiteModels {
-  vibrationLaws: VibrationLaw[];
-  airblast: AirblastLaw;
-  flyrock: FlyrockParams;
-}
-
-/** PPV = k · SD^(−beta). SD = R / W^(1/2) (raíz cuadrada) o R / W^(1/3) (raíz cúbica). R [m], W [kg] por retardo. */
-export interface VibrationLaw {
-  id: VibrationLawId;
-  name: string;
-  scaling: 'square-root' | 'cube-root';
-  /** Constante de sitio con PPV en m/s [m/s · (m/kg^n)^beta]. */
-  k: number;
-  beta: number;
-  /** Nivel de confianza asociado (p.ej. 0.5 = mediana, 0.95). */
-  confidence?: Ratio;
-}
-
-/** Sobrepresión: P = k · (R / W^(1/3))^(−beta) [Pa]. */
-export interface AirblastLaw {
-  k: number;
-  beta: number;
-}
-
-/** Lundborg: L_max = k · d^(2/3) con d en pulgadas en la forma empírica original; aquí la constante se ajusta a d [m], L [m]. */
-export interface FlyrockParams {
-  k: number;
-  safetyFactor: Ratio;
-}
-
-// ===================== Iniciación =====================
-export type InitiationSystem = 'nonel' | 'electronic' | 'electric' | 'mixed';
-
-/** Nodo de la red de superficie: un taladro o un punto auxiliar. */
-export type NodeRef = { kind: 'hole'; holeId: HoleId } | { kind: 'node'; nodeId: SurfaceNodeId };
-
-export interface SurfaceNode {
-  id: SurfaceNodeId;
-  position: Vec3;
-}
-
-/** Conexión dirigida de superficie from → to con retardo. */
-export interface SurfaceConnection {
-  id: ConnectionId;
-  from: NodeRef;
-  to: NodeRef;
-  connectorId: SurfaceConnectorId;
-  /** Sobrescribe el retardo del conector [s]. */
-  delayOverride?: Seconds;
-}
-
-export interface InitiationPoint {
-  id: InitiationPointId;
-  at: NodeRef;
-  /** Tiempo de inicio [s] (normalmente 0). */
-  time: Seconds;
-}
-
-/**
- * Semántica de tiempos:
- * - Taladros con detonador electrónico: t_fuego = t0 del punto de inicio asociado (o el primero) + delay programado.
- * - Nonel/eléctrico: t_superficie(hole) = camino más corto (Dijkstra) desde puntos de inicio por conexiones;
- *   t_fuego = t_superficie + delay en taladro (se toma el iniciador más temprano del taladro).
- */
-export interface InitiationPlan {
-  system: InitiationSystem;
-  nodes: SurfaceNode[];
-  connections: SurfaceConnection[];
-  initiationPoints: InitiationPoint[];
-}
-
-// ===================== Presentación =====================
-export interface DisplayUnits {
-  length: 'm' | 'ft';
-  diameter: 'mm' | 'in';
-  mass: 'kg' | 'lb';
-  time: 'ms' | 's';
-  angle: 'deg' | 'rad';
-  ppv: 'mm/s' | 'in/s';
-  pressure: 'dB' | 'kPa' | 'psi';
-}
-```
-
-**Resultados derivados** (en `core`; no se persisten, se calculan en workers). Se identifican por `docVersion` para poder cachearlos:
-
-```ts
-export interface ChargeResult {
-  perHole: Float64Array; // kg de explosivo por taladro (índice = orden en blast.holes)
-  totalExplosive: Kilograms;
-  volume: number; // m³ (cubicación)
-  tonnage: Kilograms;
-  powderFactorVolume: number; // kg/m³
-  powderFactorMass: Ratio; // kg/kg (se muestra como kg/t)
-}
-export interface TimingResult {
-  fireTime: Float64Array; // s por taladro (NaN = no iniciado)
-  coincidentGroups: HoleId[][]; // taladros dentro de la ventana de coincidencia
-  interRowDelays: { rowA: number; rowB: number; min: Seconds; max: Seconds }[];
-}
-export interface GridResult {
-  // energía, PPV, etc.
-  origin: Vec2;
-  cellSize: Meters;
-  nx: number;
-  ny: number;
-  values: Float32Array;
-}
-export interface FragmentationResult {
-  x50: Meters;
-  x80: Meters;
-  n: number; // Kuz-Ram
-  curve: { size: Meters; passing: Ratio }[];
-}
-```
-
-## 5. Comunicación React ↔ engine ↔ workers
-
-- **DocumentStore (core, TS puro)** es la fuente de verdad del proyecto.
-  - Toda mutación pasa por `store.dispatch(command)`, lo que produce un `ChangeSet { added, updated, removed }` por entidad y su inverso, que sirve para undo/redo.
-  - Los comandos de edición continua (por ejemplo, arrastrar) se agrupan en una sola transacción para undo con `beginTransaction`/`commit`.
-- **Engine.** Se suscribe al store directamente y aplica solo el ChangeSet: actualiza matrices o colores de las instancias afectadas y marca el frame como _dirty_.
-  - Sus herramientas (seleccionar, mover, agregar) traducen eventos de puntero en comandos. React no participa en ese camino caliente.
-- **React/Zustand**
-  - Zustand guarda el estado de UI (herramienta activa, vista, paneles, preferencias), el `docVersion` y la selección visible.
-  - Los paneles leen del DocumentStore con selectores memoizados por `docVersion`.
-  - La UI emite **comandos** al engine (`engine.setTool`, `setView`, `focus`, `setLayerVisible`) y al store (`dispatch`).
-  - La selección vive en un `SelectionStore` sin React que el engine y Zustand observan.
-- **Workers**
-  - La app llama a `workers.client.compute('timing', packed)`, donde `packed` es la voladura empaquetada con `core/pack` en typed arrays transferibles.
-  - Política _latest-wins_: cada job lleva el `docVersion` y los resultados obsoletos se descartan. Hay debounce durante los arrastres.
-  - Los resultados vuelven a la app, que actualiza Zustand (tablas, gráficos) y pasa al engine las capas visuales (contornos, isócronas, colores por tiempo).
-- **Persistencia.** IndexedDB guarda el índice de proyectos y el JSON; OPFS guarda los binarios grandes (superficies). El autosave se debouncea y serializa en un worker.
-
-## 6. Fases y criterios de "hecho"
-
-Todas las fases comparten estos criterios de "hecho":
-
-- `typecheck`, `lint` y `test` en verde
-- tests unitarios de core con valores de referencia (bibliografía o cálculo manual documentado), los suficientes para asegurar la precisión de los cálculos sin sobredimensionar la suite
-- sin `any`
-- presupuesto de rendimiento verificado con un fixture de 5.000 taladros
-- commit convencional
-
-**Fase 0: Bootstrap.**
-
-- El monorepo compila.
-- Escena ortográfica vacía con grilla, pan y zoom al cursor.
-- Un test de core en verde.
-- Ping por Comlink a un worker.
-- Primer commit.
-
-**Fase 1: Editor de malla en planta.**
-
-- Generar patrones cuadrados, rectangulares y en tresbolillo a partir de burden, espaciamiento, azimut, filas y columnas, con recorte opcional a un polígono.
-- Agregar, mover y borrar taladros, y editar sus propiedades desde un panel.
-- Selección simple, aditiva, por caja y por lazo.
-- Snapping a grilla, a taladros y a nodos del patrón.
-- Undo/redo ilimitado (Ctrl+Z / Ctrl+Shift+Z).
-- Etiquetas con LOD.
-- Criterios de hecho:
-  - 5.000 taladros: pan/zoom a 60 fps; arrastrar 500 seleccionados sin caer de 50 fps.
-  - Generar 5.000 taladros en menos de 50 ms.
-  - Guardar y abrir el JSON sin pérdidas (ida y vuelta testeado).
-
-> **Reordenamiento (2026-09-23):** la vista 3D pasa al final; primero van las herramientas técnicas.
-> Carguío y Tiempos se implementan juntos, y la importación CSV se adelanta para validar con datos reales.
-
-**Fase 2: Carguío.**
-
-- Librería de productos editable (explosivos, detonadores, conectores de superficie, primas, tacos) con valores por defecto de referencia.
-- Reglas de carga aplicables en lote y editor de decks por taladro, con diagrama de columna 2D (sustituye a la vista 3D para el diseño de decks).
-- Cálculo en worker de: kg/taladro, factor de carga en kg/m³ y kg/t, y cubicación por área de influencia (Voronoi recortado al perímetro, o al contorno de los taladros expandido si no hay perímetro).
-- Criterio de hecho: cálculos contra casos manuales documentados.
-
-**Fase 3: Tiempos.**
-
-- Retardos en taladro y en superficie, con edición gráfica de conexiones y generador de amarres por filas (línea a línea o en V desde una columna).
-- Asignación de tiempos electrónicos.
-- Tiempos de detonación calculados con Dijkstra.
-- Animación de la secuencia.
-- Isócronas (sobre la triangulación de las bocas).
-- Detección de coincidencias con ventana configurable (por defecto 8 ms), máxima carga por retardo.
-- Ventana de tiempos entre filas.
-- Criterios de hecho:
-  - Casos de prueba de redes (en V, línea por línea, electrónicos).
-  - 5.000 taladros resueltos en menos de 20 ms dentro del worker.
-
-**Fase 4: Importación CSV.**
-
-- CSV de taladros, con mapeo de columnas y selección de unidades.
-- Criterio de hecho: ida y vuelta CSV sin pérdida de geometría.
-
-**Fase 5: Energía.**
-
-> Implementado con dos métricas en un plano horizontal: PPV de campo cercano (Holmberg–Persson,
-> integrado por taladro y tomando el máximo entre taladros, porque detonan en tiempos distintos) y
-> densidad de carga (núcleo gaussiano). Las secciones verticales quedan para una fase posterior.
-
-- Distribución de energía y explosivo sobre una grilla, a una cota o sección.
-- Contornos (marching squares en worker) mostrados como capa del engine.
-- Criterio de hecho: el cálculo no bloquea la UI y se actualiza en menos de 300 ms tras una edición.
-
-**Fase 6: Fragmentación.**
-
-- Kuz-Ram (factor A de Cunningham) y Swebrec/KCO.
-- Curva granulométrica en ECharts; P50 y P80.
-- Criterio de hecho: se reproducen ejemplos publicados (Cunningham 2005; Ouchterlony 2005) con error menor al 1 %.
-
-**Fase 7: Vibración.**
-
-> Implementado: PPV con la carga por retardo real (ventana de coincidencia sobre los tiempos),
-> sobrepresión en Pa/dB, puntos de control (herramienta M) y zona de exclusión por Lundborg. En la
-> grilla, las fuentes se agrupan en clases de carga por retardo (razón ≤ 1.1, redondeo conservador);
-> los puntos de control se calculan exactos contra todos los taladros.
-
-- PPV por distancia escalada (raíz cuadrada y raíz cúbica) sobre grilla y en puntos de control, con constantes de sitio editables.
-- Sobrepresión.
-- Flyrock con Lundborg, dibujado como zona de exclusión.
-- Criterio de hecho: tests con valores tabulados.
-
-**Fase 8: DXF y reportes.**
-
-> Implementado. La escritura DXF usa un generador R12 propio (dxf-writer no admite Z en líneas,
-> puntos ni textos, y se perdía la cota); la lectura usa dxf-parser con roles por capa (taladros por
-> líneas o puntos/círculos, etiquetas, perímetros, caras libres, topografía 3DFACE). El informe PDF
-> es vectorial y se genera en el worker con pdf-lib.
-
-- DXF de entrada y salida con dxf-parser y dxf-writer (collars, trazas, polígonos).
-- Reporte PDF generado en worker.
-- Criterio de hecho: ida y vuelta DXF sin pérdida de geometría, y PDF con plano, tablas y gráficos.
-
-**Fase 9: Vista 3D.**
-
-> Implementado: tecla 3 alterna planta/3D; cámara orbital (arrastre orbita, Shift/derecho desplaza,
-> rueda acerca); cilindros instanciados por tramo coloreados por material, banco translúcido, caras
-> de talud según el ángulo de cara, topografía importada y leyenda. La edición sigue en planta.
-
-- Cambiar entre planta y 3D sobre la misma escena, con transición de cámara y órbita.
-- Banco plano o con topografía.
-- Taladros como cilindros instanciados y decks coloreados por material (una sola InstancedMesh con `instanceColor`).
-- Criterio de hecho: 5.000 taladros × 4 decks a ≥ 45 fps en órbita.
-
-Cada fase posterior (costos, secciones, simulación Monte Carlo de dispersión de retardos, etc.) se agrega como módulo de core + panel, siempre leyendo del mismo modelo.
+**Definición de hecho** (guía §13 más las reglas técnicas):
+
+- Criterios de aceptación con prueba automática.
+- Reglas en `reglas.md` con fuente y estado.
+- CR aplicables dentro de tolerancia.
+- Documentación actualizada.
+- Código explicable.
+- `typecheck`, `lint` y `test` en verde; sin `any`.
+- Si toca engine o workers: fixture de 5.000 taladros a 60 fps.
+- Commit convencional.

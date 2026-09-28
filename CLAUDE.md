@@ -1,6 +1,21 @@
-# BlastLab: reglas del proyecto
+# Cronos: reglas del proyecto
 
-Aplicación web de diseño y simulación de voladuras mineras. Prioridades: **fluidez de la interfaz** y **cobertura progresiva de herramientas de simulación**. Ver `docs/PLAN.md` y `docs/ARCHITECTURE.md`.
+Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab»; los paquetes `@blastlab/*` se renombran en el Tramo 0, D-09). Prioridades: **cálculos correctos y verificables**, **fluidez de la interfaz** y **cobertura progresiva de herramientas de simulación**.
+
+**Norte:** `docs/theory/`, la guía del ingeniero de minas. Si algo aquí la contradice, gana la guía o la diferencia se anota en `docs/preguntas.md`. Hoja de ruta y estado en `docs/PLAN.md`; arquitectura y vocabulario en `docs/ARCHITECTURE.md`.
+
+## Dónde buscar
+
+| Necesito                                                                | Documento                                                                                                                            |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Requisito, historia o criterio de aceptación (R-xx, H-xxx)              | `docs/theory/01 - Guia del desarrollador.md` §5 y §12                                                                                |
+| Fórmula, unidades o verificación                                        | `docs/theory/02 - Especificacion de calculo.md`; fichas F01–F30 de `docs/theory/references/R1 - Primer minero a desarrollador.md` §3 |
+| Valor esperado de un test (CR-xx)                                       | `docs/theory/04 - Casos de referencia.md`                                                                                            |
+| Entidad, catálogo o trampa de importación                               | `docs/theory/03 - Modelo de datos e importacion.md`                                                                                  |
+| Estado de una regla (RM, FC, CK, DF, CT)                                | `docs/reglas.md` (semilla: `docs/theory/05`)                                                                                         |
+| Término minero ES/EN                                                    | `R1` §2 (glosario) y la tabla de vocabulario de `docs/ARCHITECTURE.md`                                                               |
+| Cómo lo hacen JKSimBlast o I-Blast (al diseñar una pantalla o un flujo) | `docs/theory/references/R3` (flujo en 12 pasos en §3) y `R2`; referencia de funciones, **no** para copiar                            |
+| Subterráneo (frentes, anillos)                                          | `docs/theory/references/R4`                                                                                                          |
 
 ## Stack
 
@@ -38,19 +53,35 @@ Aplicación web de diseño y simulación de voladuras mineras. Prioridades: **fl
 - **pnpm** exclusivamente, nunca npm ni yarn.
 - **Comandos:** `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm lint` y `pnpm format`.
 - **Commits:** Conventional Commits (`feat(core): …`, `fix(engine): …`, `chore: …`, `docs: …`, `test: …`, `perf: …`).
-- **Tests obligatorios en core.** Toda función de cálculo nueva o modificada lleva tests en Vitest (`*.test.ts` junto al fuente), con valores de referencia documentados (bibliografía o cálculo manual en un comentario). Tests suficientes para asegurar la precisión, sin sobredimensionar: priorizar los cálculos de ingeniería sobre la UI.
+- **Tests obligatorios en core.** Toda función de cálculo nueva o modificada lleva tests en Vitest (`*.test.ts` junto al fuente), con valores de referencia documentados (caso CR-xx o fuente citada en un comentario; ver «Reglas de dominio»). Tests suficientes para asegurar la precisión, sin sobredimensionar: priorizar los cálculos de ingeniería sobre la UI.
 - **Nombres:** código e identificadores en inglés; UI y documentación en español.
 - **Rendimiento:** un cambio que toque engine o workers se valida con el fixture de 5.000 taladros (60 fps en pan/zoom).
+- **i18n:** todo texto nuevo de la UI pasa por `t()` (D-11), una vez creada la infraestructura en el Tramo 0.
 
-## Orden de módulos del MVP (uno a la vez; no avanzar sin aprobación)
+## Reglas de dominio (guía §9–§11, no negociables)
 
-0. Bootstrap del monorepo ✅
-1. Editor de malla y taladros en planta (patrón, edición, selección múltiple, snapping, undo/redo) ✅
-2. Carguío (librería de productos, decks, diagrama de columna, kg/taladro, factor de carga, cubicación) ✅
-3. Tiempos (retardos, amarres, tiempos de detonación, animación, isócronas, coincidencias, ventana entre filas) ✅
-4. Importación CSV de taladros ✅
-5. Contornos de energía y distribución de explosivo ✅
-6. Fragmentación (Kuz-Ram, Swebrec/KCO, P50/P80) ✅
-7. Vibración (PPV), flyrock (Lundborg) y sobrepresión ✅
-8. DXF y reporte PDF ✅
-9. Vista 3D del banco con decks coloreados ✅
+1. **Ninguna fórmula, constante o rango minero sin fuente humana verificable.** Se registra en `docs/reglas.md` con su estado (R0–R4) antes de programarla. La IA no es fuente.
+2. **El valor esperado de un test sale de un caso de referencia (CR-xx) o de la fuente citada**, nunca de la misma fórmula del código (prueba circular). El test cita el caso y el paso en un comentario.
+3. **Por debajo de R3, una regla es a lo sumo una advertencia configurable**, nunca un bloqueo. Una constante en R0 es un parámetro del usuario, no un valor fijo.
+4. **Constantes exactas** (π/4, no 0,507 ni 0,7854). El motor no redondea; solo la presentación.
+5. **Nombres honestos y separados.** La profundidad escalada de enterramiento (SDOB, raíz cúbica) y la distancia escalada de vibración (raíz cuadrada) son dos modelos con dos nombres (RM-08). No se llama «energía» ni «daño» a un valor normalizado.
+6. **Terminología del glosario** (`R1` §2) en la UI, y los identificadores de la tabla de `docs/ARCHITECTURE.md` en el código.
+7. **Sin copiar** interfaz, textos ni constantes propietarias de JKSimBlast, I-Blast, SHOTPlus ni BlastLogic.
+8. **Dudas de dominio:** se avanza con el valor por defecto de `docs/theory/01 §17` como parámetro y se anota en `docs/preguntas.md`.
+
+## Hitos (uno a la vez; no avanzar sin aprobación)
+
+Detalle, tareas y criterios de salida en `docs/PLAN.md §4`. Cada hito sigue el ciclo de `docs/PLAN.md §5` y se cierra con su reporte en `docs/hitos/Gx.md`.
+
+- **Tramo 0 / G0:** base y correcciones críticas (docs ✅, bugs de MIC y CSV, CI, cobertura, renombre, i18n) ⏳
+- **G1:** modelo de datos y unidades (esquema v3, CRS, autoguardado)
+- **G2:** importación (trampas de CSV, GeoJSON, fixture CR-04)
+- **G3:** diseño de malla (cara libre, grupos, modelos de burden)
+- **G4:** explosivos y carga (catálogo con fuente, SDOB, PD/PB, CR-01..03)
+- **G5:** amarre y tiempos (escalón, ciclos, burden efectivo, CR-05)
+- **G6:** MIC y PPV (límites, K/β por punto, CR-06)
+- **G7:** reporte y escenarios
+- **G8:** idiomas (usuarios y roles diferidos, D-08)
+- **G9:** cierre de la Fase 1; luego F2 análisis avanzado, F3 subterráneo, F4 datos de campo, F5 distribución + backend
+
+El prototipo BlastLab ya implementó las fases 0–9 (malla, carguío, tiempos, CSV, energía, fragmentación, vibración, DXF/PDF, 3D). Se reutilizan y se regularizan hito a hito (D-07).
