@@ -17,6 +17,7 @@ import {
 } from '@cronos/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
 import { useAnalysisStore } from './stores/analysisStore';
+import { t } from './i18n';
 import { useUiStore } from './stores/uiStore';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
@@ -285,6 +286,17 @@ export function clearConnections(onlySelection: boolean): void {
 // ------------------------------------------------------------------ CSV
 
 /** Lee el archivo y pide la vista previa al worker; abre el diálogo de importación. */
+/**
+ * H-101: sin CRS (EPSG) declarado no se importa. Abre los ajustes del proyecto si falta.
+ * Devuelve true si se puede importar.
+ */
+export function requireCrs(): boolean {
+  if (document.project.coordinateSystem.epsg !== undefined) return true;
+  notify(t('import.needsCrs'), 'error');
+  useUiStore.getState().setSettingsOpen(true);
+  return false;
+}
+
 export async function openCsv(file: File): Promise<void> {
   await withBusy('Leyendo CSV…', async () => {
     const text = await file.text();

@@ -25,6 +25,7 @@ import {
   Redo2,
   Ruler,
   Save,
+  Settings,
   Shapes,
   Sheet,
   Undo2,
@@ -173,6 +174,13 @@ export function Toolbar() {
           shortcut="Ctrl+S"
           onClick={() => void actions.saveProject()}
         />
+        <IconButton
+          icon={Settings}
+          label={tr('toolbar.settings')}
+          onClick={() => {
+            useUiStore.getState().setSettingsOpen(true);
+          }}
+        />
         <MenuButton
           icon={FileUp}
           label={tr('toolbar.import')}
@@ -180,12 +188,16 @@ export function Toolbar() {
             {
               icon: Sheet,
               label: tr('toolbar.importCsv'),
-              onSelect: () => csvInput.current?.click(),
+              onSelect: () => {
+                if (actions.requireCrs()) csvInput.current?.click();
+              },
             },
             {
               icon: DraftingCompass,
               label: tr('toolbar.importDxf'),
-              onSelect: () => dxfInput.current?.click(),
+              onSelect: () => {
+                if (actions.requireCrs()) dxfInput.current?.click();
+              },
             },
           ]}
         />

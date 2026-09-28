@@ -17,6 +17,21 @@ export const es = {
   'toolbar.undoNamed': 'Deshacer: {label}',
   'toolbar.redo': 'Rehacer',
   'toolbar.redoNamed': 'Rehacer: {label}',
+  'toolbar.settings': 'Ajustes del proyecto',
+  'settings.title': 'Ajustes del proyecto',
+  'settings.close': 'Cerrar',
+  'settings.name': 'Nombre',
+  'settings.crs': 'Sistema de coordenadas',
+  'settings.epsg': 'Código EPSG',
+  'settings.epsgHint': 'Obligatorio para importar (H-101). Perú: UTM WGS 84 zonas 17S, 18S y 19S.',
+  'settings.crsName': 'Nombre del CRS',
+  'settings.units': 'Unidades de visualización',
+  'settings.unitsHint': 'Solo cambian lo que se muestra; los datos se guardan en SI.',
+  'settings.length': 'Longitud',
+  'settings.diameter': 'Diámetro',
+  'settings.language': 'Idioma',
+  'import.needsCrs':
+    'Define el sistema de coordenadas (código EPSG) del proyecto antes de importar.',
 };
 
 export type MessageKey = keyof typeof es;

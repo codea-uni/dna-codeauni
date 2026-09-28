@@ -19,6 +19,7 @@ import { RightSidebar } from './panels/RightSidebar';
 import { TimingPanel } from './panels/TimingPanel';
 import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { DxfImportDialog } from './dialogs/DxfImportDialog';
+import { ProjectSettingsDialog } from './dialogs/ProjectSettingsDialog';
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
 import { FragmentationPanel } from './panels/FragmentationPanel';
 import { VibrationPanel } from './panels/VibrationPanel';
@@ -43,6 +44,8 @@ export function App() {
   const csvPreview = useUiStore((s) => s.csvPreview);
   const setCsvPreview = useUiStore((s) => s.setCsvPreview);
   const shortcutsOpen = useUiStore((s) => s.shortcutsOpen);
+  const settingsOpen = useUiStore((s) => s.settingsOpen);
+  const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
   const dxfPreview = useUiStore((s) => s.dxfPreview);
   const setDxfPreview = useUiStore((s) => s.setDxfPreview);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
@@ -101,6 +104,13 @@ export function App() {
         <ShortcutsDialog
           onClose={() => {
             setShortcutsOpen(false);
+          }}
+        />
+      )}
+      {settingsOpen && (
+        <ProjectSettingsDialog
+          onClose={() => {
+            setSettingsOpen(false);
           }}
         />
       )}

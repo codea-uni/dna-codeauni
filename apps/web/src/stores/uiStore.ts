@@ -34,6 +34,8 @@ interface UiState {
   /** Vista previa del CSV a importar (abre el diálogo). */
   csvPreview: CsvPreview | null;
   shortcutsOpen: boolean;
+  settingsOpen: boolean;
+  setSettingsOpen: (open: boolean) => void;
   viewMode: ViewMode;
   /** Pestaña del panel derecho. */
   rightTab: 'selection' | 'view' | 'results';
@@ -75,6 +77,10 @@ export const useUiStore = create<UiState>()((set) => ({
   activeBoundaryId: null,
   csvPreview: null,
   shortcutsOpen: false,
+  settingsOpen: false,
+  setSettingsOpen: (settingsOpen) => {
+    set({ settingsOpen });
+  },
   viewMode: 'plan',
   rightTab: 'view',
   setRightTab: (rightTab) => {
