@@ -23,7 +23,7 @@ export class MonitorTool implements Tool {
       if (hit)
         ctx.document.dispatch(
           commands.removeMonitoringPoint(ctx.document, hit.id),
-          `Borrar ${hit.name}`,
+          ctx.text('undo.deleteNamed', { name: hit.name }),
         );
       return;
     }
@@ -32,7 +32,7 @@ export class MonitorTool implements Tool {
     const s = ctx.snap(p.x, p.y);
     const z = blast ? blast.bench.floorElevation + blast.bench.height : 0;
     const { ops, point } = commands.addMonitoringPoint(ctx.document, { x: s.x, y: s.y, z });
-    ctx.document.dispatch(ops, `Agregar ${point.name}`);
+    ctx.document.dispatch(ops, ctx.text('undo.addNamed', { name: point.name }));
   }
 
   cancel(ctx: ToolContext): boolean {

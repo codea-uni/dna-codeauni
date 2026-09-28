@@ -69,7 +69,7 @@ export class BoundaryTool implements Tool {
       const boundary = commands.makeBoundary(blast, this.points);
       ctx.document.dispatch(
         commands.addBoundary(ctx.document, blast.id, boundary),
-        `Dibujar ${boundary.name}`,
+        ctx.text('undo.drawNamed', { name: boundary.name }),
       );
       ctx.setActiveBoundary(boundary.id);
     }

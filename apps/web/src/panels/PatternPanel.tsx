@@ -14,11 +14,7 @@ import { useActiveBlast } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
 
-const KINDS: { value: PatternKind; label: string }[] = [
-  { value: 'square', label: 'Cuadrada' },
-  { value: 'rectangular', label: 'Rectangular' },
-  { value: 'staggered', label: 'Tresbolillo' },
-];
+const KINDS: PatternKind[] = ['square', 'rectangular', 'staggered'];
 
 export function PatternPanel() {
   const { len, dia } = useUnits();
@@ -57,10 +53,10 @@ export function PatternPanel() {
   return (
     <>
       <section className="panel">
-        <h2>Plantilla de taladro</h2>
-        <p className="hint">Se usa al generar mallas y con la herramienta Agregar.</p>
+        <h2>{t('pattern.template')}</h2>
+        <p className="hint">{t('pattern.templateHint')}</p>
         <NumberField
-          label="Diámetro"
+          label={t('props.diameter')}
           unit={dia.unit}
           decimals={dia.unit === 'in' ? 3 : 1}
           min={1}
@@ -70,7 +66,7 @@ export function PatternPanel() {
           }}
         />
         <NumberField
-          label="Inclinación"
+          label={t('props.inclination')}
           unit="°"
           decimals={2}
           min={0}
@@ -81,7 +77,7 @@ export function PatternPanel() {
           }}
         />
         <NumberField
-          label="Azimut"
+          label={t('props.azimuth')}
           unit="°"
           decimals={2}
           min={0}
@@ -92,7 +88,7 @@ export function PatternPanel() {
           }}
         />
         <NumberField
-          label="Sobreperforación"
+          label={t('props.subdrill')}
           unit={len.unit}
           decimals={2}
           value={len.show(template.subdrill)}
@@ -118,9 +114,9 @@ export function PatternPanel() {
         }}
       />
       <section className="panel">
-        <h2>Generar malla</h2>
+        <h2>{t('pattern.generate')}</h2>
         <label className="field">
-          <span className="field-label">Tipo</span>
+          <span className="field-label">{t('pattern.type')}</span>
           <select
             value={form.kind}
             onChange={(e) => {
@@ -128,8 +124,8 @@ export function PatternPanel() {
             }}
           >
             {KINDS.map((k) => (
-              <option key={k.value} value={k.value}>
-                {k.label}
+              <option key={k} value={k}>
+                {t(`pattern.kind.${k}`)}
               </option>
             ))}
           </select>
@@ -146,7 +142,7 @@ export function PatternPanel() {
           }}
         />
         <NumberField
-          label="Espaciamiento"
+          label={t('pattern.spacing')}
           unit={len.unit}
           decimals={2}
           min={0.1}
@@ -167,7 +163,7 @@ export function PatternPanel() {
           </button>
         )}
         <NumberField
-          label="Azimut de filas"
+          label={t('pattern.rowAzimuth')}
           unit="°"
           decimals={2}
           min={0}
@@ -178,19 +174,19 @@ export function PatternPanel() {
           }}
         />
         <label className="field">
-          <span className="field-label">Avance de filas</span>
+          <span className="field-label">{t('pattern.rowAdvance')}</span>
           <select
             value={form.rowAdvance}
             onChange={(e) => {
               update({ rowAdvance: e.target.value as 'left' | 'right' });
             }}
           >
-            <option value="right">A la derecha</option>
-            <option value="left">A la izquierda</option>
+            <option value="right">{t('pattern.right')}</option>
+            <option value="left">{t('pattern.left')}</option>
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Perímetro</span>
+          <span className="field-label">{t('pattern.boundary')}</span>
           <select
             value={boundaryChoice}
             onChange={(e) => {
@@ -198,12 +194,12 @@ export function PatternPanel() {
             }}
           >
             <option value="active">
-              Activo
+              {t('pattern.active')}
               {activeBoundaryId
                 ? ` (${boundaries.find((b) => b.id === activeBoundaryId)?.name ?? '—'})`
-                : ' (ninguno)'}
+                : ` (${t('pattern.none')})`}
             </option>
-            <option value="none">Ninguno (centrada en la vista)</option>
+            <option value="none">{t('pattern.noneCentered')}</option>
             {boundaries.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -211,13 +207,11 @@ export function PatternPanel() {
             ))}
           </select>
         </label>
-        {boundaries.length === 0 && (
-          <p className="hint">Dibuja un perímetro (B) para rellenarlo con la malla.</p>
-        )}
+        {boundaries.length === 0 && <p className="hint">{t('pattern.drawBoundaryHint')}</p>}
         {clip && (
           <>
             <NumberField
-              label="1ª fila desde el borde"
+              label={t('pattern.frontOffset')}
               unit={len.unit}
               decimals={2}
               min={0}
@@ -229,21 +223,17 @@ export function PatternPanel() {
             />
             <button
               disabled={!alignment}
-              title={
-                alignment
-                  ? 'Filas paralelas a la cara libre, avanzando hacia el interior'
-                  : 'El perímetro no tiene cara libre (herramienta C)'
-              }
+              title={alignment ? t('pattern.alignTitle') : t('pattern.alignNoFace')}
               onClick={() => {
                 if (alignment) update(alignment);
               }}
             >
-              Alinear filas a la cara libre
+              {t('pattern.align')}
             </button>
           </>
         )}
         <NumberField
-          label="Filas"
+          label={t('pattern.rows')}
           integer
           min={1}
           max={1000}
@@ -255,7 +245,7 @@ export function PatternPanel() {
           }}
         />
         <NumberField
-          label="Taladros por fila"
+          label={t('pattern.holesPerRow')}
           integer
           min={1}
           max={1000}
@@ -266,7 +256,7 @@ export function PatternPanel() {
             update({ holesPerRow: v });
           }}
         />
-        {!clip && <p className="hint">La malla se centra en la vista actual.</p>}
+        {!clip && <p className="hint">{t('pattern.centeredHint')}</p>}
         <button
           className="primary"
           disabled={busy !== null}
@@ -274,7 +264,7 @@ export function PatternPanel() {
             void actions.generatePattern({ ...form, boundaryId: selectedBoundary?.id ?? null })
           }
         >
-          Generar malla
+          {t('pattern.generate')}
         </button>
       </section>
     </>

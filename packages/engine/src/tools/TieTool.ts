@@ -20,7 +20,7 @@ export class TieTool implements Tool {
       if (conn)
         ctx.document.dispatch(
           commands.removeConnections(ctx.document, blast.id, [conn]),
-          'Borrar conexión',
+          ctx.text('undo.deleteConnection'),
         );
       return;
     }
@@ -33,7 +33,7 @@ export class TieTool implements Tool {
     if (this.from && this.from !== hit && connector) {
       ctx.document.dispatch(
         commands.addConnection(ctx.document, blast.id, this.from, hit, connector),
-        'Conectar taladros',
+        ctx.text('undo.connectHoles'),
       );
     }
     this.from = hit;

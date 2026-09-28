@@ -3,15 +3,15 @@ import { turboCss } from '@cronos/engine';
 import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
+import { useFormat, useT } from '../i18n';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUnits } from '../hooks/useUnits';
 
-const fmt = (v: number, d = 0) =>
-  v.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
-
 /** Energía: PPV de campo cercano (Holmberg–Persson) o densidad de carga en un plano horizontal. */
 export function EnergyPanel() {
+  const t = useT();
+  const fmt = useFormat();
   const { len } = useUnits();
   const project = useProject();
   const blast = useActiveBlast();
@@ -27,13 +27,13 @@ export function EnergyPanel() {
   const setNearField = (patch: Partial<typeof nf>) => {
     session.document.dispatch(
       commands.setSiteModels({ ...project.siteModels, nearField: { ...nf, ...patch } }),
-      'Constantes de campo cercano',
+      t('energy.undoNearField'),
     );
   };
   const commitLevels = () => {
     const levels = levelsText
       .split(/[;\s]+/)
-      .map((t) => Number(t.replace(',', '.')))
+      .map((x) => Number(x.replace(',', '.')))
       .filter((v) => Number.isFinite(v) && v > 0);
     s.set({ energyLevels: levels });
     setLevelsText(levels.join('; '));
@@ -42,7 +42,7 @@ export function EnergyPanel() {
   return (
     <>
       <section className="panel">
-        <h2>Energía</h2>
+        <h2>{t('energy.title')}</h2>
         <label className="check">
           <input
             type="checkbox"
@@ -51,10 +51,10 @@ export function EnergyPanel() {
               s.set({ energyEnabled: ev.target.checked });
             }}
           />
-          Calcular y mostrar
+          {t('energy.enabled')}
         </label>
         <label className="field">
-          <span className="field-label">Métrica</span>
+          <span className="field-label">{t('energy.metric')}</span>
           <select
             value={s.energyMetric}
             onChange={(ev) => {
@@ -62,12 +62,12 @@ export function EnergyPanel() {
               setLevelsText('');
             }}
           >
-            <option value="nearFieldPpv">PPV campo cercano (Holmberg–Persson)</option>
-            <option value="chargeDensity">Densidad de carga</option>
+            <option value="nearFieldPpv">{t('energy.metric.ppv')}</option>
+            <option value="chargeDensity">{t('energy.metric.density')}</option>
           </select>
         </label>
         <NumberField
-          label="Cota del plano"
+          label={t('energy.elevation')}
           unit={len.unit}
           decimals={2}
           value={len.show(s.energyElevation ?? midBench)}
@@ -82,10 +82,10 @@ export function EnergyPanel() {
             s.set({ energyElevation: null });
           }}
         >
-          Usar mitad del banco ({fmt(len.show(midBench), 1)} {len.unit})
+          {t('energy.midBench', { v: fmt(len.show(midBench), 1), unit: len.unit })}
         </button>
         <NumberField
-          label="Tamaño de celda"
+          label={t('energy.cellSize')}
           unit={len.unit}
           decimals={2}
           min={0}
@@ -96,7 +96,7 @@ export function EnergyPanel() {
           }}
         />
         <NumberField
-          label="Radio de influencia"
+          label={t('energy.cutoff')}
           unit={len.unit}
           decimals={1}
           min={0}
@@ -106,15 +106,11 @@ export function EnergyPanel() {
             s.set({ energyCutoff: v });
           }}
         />
-        <p className="hint">
-          0 = automático (celda según tamaño de la voladura; radio 4 × espaciamiento o 4σ).
-        </p>
+        <p className="hint">{t('energy.autoHint')}</p>
         {isPpv ? (
           <>
-            <h3>Constantes de sitio (Holmberg–Persson)</h3>
-            <p className="hint">
-              v = K · [Σ q·dx / d^(β/α)]^α · típicos: K = 700 mm/s, α = 0,7, β = 1,5.
-            </p>
+            <h3>{t('energy.siteConstants')}</h3>
+            <p className="hint">{t('energy.formulaHint')}</p>
             <NumberField
               label="K"
               unit="mm/s"
@@ -146,7 +142,7 @@ export function EnergyPanel() {
           </>
         ) : (
           <NumberField
-            label="σ del núcleo"
+            label={t('energy.sigma')}
             unit={len.unit}
             decimals={2}
             min={0.1}
@@ -158,10 +154,10 @@ export function EnergyPanel() {
           />
         )}
         <label className="field">
-          <span className="field-label">Contornos [{unit}]</span>
+          <span className="field-label">{t('energy.contours', { unit })}</span>
           <input
             value={levelsText}
-            placeholder="automáticos"
+            placeholder={t('energy.autoPlaceholder')}
             onChange={(ev) => {
               setLevelsText(ev.target.value);
             }}
@@ -172,7 +168,7 @@ export function EnergyPanel() {
           />
         </label>
         <label className="field">
-          <span className="field-label">Opacidad</span>
+          <span className="field-label">{t('energy.opacity')}</span>
           <input
             type="range"
             min={0.1}
@@ -189,13 +185,17 @@ export function EnergyPanel() {
       {s.energyEnabled && (
         <section className="panel">
           <h2>
-            Resultado{' '}
+            {t('energy.result')}{' '}
             <span className="muted small">
-              {s.energyComputing ? '· calculando…' : e ? `· ${fmt(e.elapsedMs)} ms` : ''}
+              {s.energyComputing
+                ? t('results.computingSuffix')
+                : e
+                  ? `· ${fmt(e.elapsedMs)} ms`
+                  : ''}
             </span>
           </h2>
           {!e || e.nx === 0 ? (
-            <p className="hint">Sin taladros cargados (pestaña Carguío).</p>
+            <p className="hint">{t('energy.noLoaded')}</p>
           ) : (
             <>
               <div className="legend">
@@ -209,7 +209,7 @@ export function EnergyPanel() {
                   <span>
                     {fmt(e.colorMin * toUi, isPpv ? 0 : 2)} {unit}
                   </span>
-                  <span>{e.colorLog ? 'escala log' : ''}</span>
+                  <span>{e.colorLog ? t('energy.logScale') : ''}</span>
                   <span>
                     {fmt(e.colorMax * toUi, isPpv ? 0 : 2)} {unit}
                   </span>
@@ -218,20 +218,25 @@ export function EnergyPanel() {
               <table className="kv">
                 <tbody>
                   <tr>
-                    <td>Máximo</td>
+                    <td>{t('energy.max')}</td>
                     <td className="num">
                       {fmt(e.max * toUi, isPpv ? 0 : 2)} {unit}
                     </td>
                   </tr>
                   <tr>
-                    <td>Grilla</td>
+                    <td>{t('energy.grid')}</td>
                     <td className="num">
-                      {e.nx} × {e.ny} · celda {fmt(len.show(e.cellSize), 2)} {len.unit}
+                      {t('energy.gridValue', {
+                        nx: e.nx,
+                        ny: e.ny,
+                        cell: fmt(len.show(e.cellSize), 2),
+                        unit: len.unit,
+                      })}
                     </td>
                   </tr>
                 </tbody>
               </table>
-              <h3>Área sobre cada nivel</h3>
+              <h3>{t('energy.areaAbove')}</h3>
               <table className="grid-table compact">
                 <thead>
                   <tr>
@@ -256,7 +261,7 @@ export function EnergyPanel() {
                     s.setLayer('energy', ev.target.checked);
                   }}
                 />
-                Mostrar en el plano
+                {t('energy.showOnMap')}
               </label>
             </>
           )}

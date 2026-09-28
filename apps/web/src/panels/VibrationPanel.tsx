@@ -10,17 +10,18 @@ import { useState } from 'react';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { NumberField } from '../components/NumberField';
 import { useProject } from '../hooks/useDocument';
+import { useFormat, useT, type MessageKey } from '../i18n';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
 
-const fmt = (v: number, d = 0) =>
-  v.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
 const dB = (pa: number) => (pa > 0 ? 20 * Math.log10(pa / 20e-6) : 0);
 
 /** Vibración (PPV), sobrepresión y flyrock (Lundborg). */
 export function VibrationPanel() {
+  const t = useT();
+  const fmt = useFormat();
   const { len } = useUnits();
   const project = useProject();
   const s = useAnalysisStore();
@@ -41,13 +42,13 @@ export function VibrationPanel() {
     if (!law) return;
     setSite(
       { vibrationLaws: site.vibrationLaws.map((l) => (l.id === law.id ? { ...l, ...patch } : l)) },
-      'Ley de vibración',
+      t('vib.undoLaw'),
     );
   };
   const commitLevels = () => {
     const levels = levelsText
       .split(/[;\s]+/)
-      .map((t) => Number(t.replace(',', '.')))
+      .map((x) => Number(x.replace(',', '.')))
       .filter((x) => Number.isFinite(x) && x > 0)
       .sort((a, b) => a - b);
     s.set({ vibLevels: levels });
@@ -57,7 +58,7 @@ export function VibrationPanel() {
   return (
     <>
       <section className="panel">
-        <h2>Vibración y sobrepresión</h2>
+        <h2>{t('vib.title')}</h2>
         <label className="check">
           <input
             type="checkbox"
@@ -66,13 +67,13 @@ export function VibrationPanel() {
               s.set({ vibEnabled: e.target.checked });
             }}
           />
-          Calcular y mostrar
+          {t('vib.enabled')}
         </label>
-        <div className="segmented" role="radiogroup" aria-label="Métrica">
+        <div className="segmented" role="radiogroup" aria-label={t('vib.metric')}>
           {(
             [
               ['ppv', 'PPV'],
-              ['airblast', 'Sobrepresión'],
+              ['airblast', t('vib.airblast')],
             ] as [VibrationMetric, string][]
           ).map(([m, label]) => (
             <button
@@ -110,15 +111,13 @@ export function VibrationPanel() {
             <table className="kv">
               <tbody>
                 <tr>
-                  <td title="Máxima carga por retardo (ventana de coincidencia)">
-                    Carga máx. por retardo
-                  </td>
+                  <td title={t('vib.micTitle')}>{t('vib.mic')}</td>
                   <td className="num">{fmt(v.mic)} kg</td>
                 </tr>
                 {v.micExtended && (
                   <tr>
-                    <td title="Ventana ampliada por la dispersión de los detonadores pirotécnicos (w + 2σ, P-10)">
-                      Con ventana ampliada ({fmt(v.micExtended.window * 1000, 0)} ms)
+                    <td title={t('vib.extendedTitle')}>
+                      {t('vib.extended', { ms: fmt(v.micExtended.window * 1000, 0) })}
                     </td>
                     <td className={`num${v.micExtended.mic > v.mic ? ' warn' : ''}`}>
                       {fmt(v.micExtended.mic)} kg
@@ -127,12 +126,12 @@ export function VibrationPanel() {
                 )}
                 {v.notInitiated > 0 && (
                   <tr className="warn">
-                    <td>Sin tiempo (carga individual)</td>
+                    <td>{t('vib.notInitiated')}</td>
                     <td className="num">{v.notInitiated}</td>
                   </tr>
                 )}
                 <tr>
-                  <td>Alcance flyrock (Lundborg)</td>
+                  <td>{t('vib.flyrockRange')}</td>
                   <td className="num">
                     {fmt(len.show(v.flyrock.range))} {len.unit}
                   </td>
@@ -143,7 +142,7 @@ export function VibrationPanel() {
               <thead>
                 <tr>
                   <th>{unit}</th>
-                  <th>distancia con la MIC</th>
+                  <th>{t('vib.distanceMic')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,15 +158,15 @@ export function VibrationPanel() {
             </table>
           </>
         )}
-        {s.vibComputing && <p className="muted small">calculando…</p>}
+        {s.vibComputing && <p className="muted small">{t('vib.computing')}</p>}
       </section>
 
       <section className="panel">
         <h2 className="row-title">
-          Puntos de control
+          {t('vib.points')}
           <button
             className={`icon-btn${tool === 'monitor' ? ' active' : ''}`}
-            title="Agregar puntos de control (M)"
+            title={t('vib.addPoints')}
             onClick={() => {
               setTool('monitor');
             }}
@@ -177,16 +176,16 @@ export function VibrationPanel() {
           </button>
         </h2>
         {(project.monitoringPoints ?? []).length === 0 ? (
-          <p className="hint">Herramienta M: clic en el plano para agregar.</p>
+          <p className="hint">{t('vib.noPoints')}</p>
         ) : (
           <table className="grid-table compact">
             <thead>
               <tr>
-                <th>Punto</th>
+                <th>{t('vib.point')}</th>
                 <th>R [{len.unit}]</th>
                 <th>mm/s</th>
-                <th title="Límite aplicable (del punto o de la tabla)">Lím.</th>
-                <th title="Carga por retardo admisible para el límite (H-603)">kg adm.</th>
+                <th title={t('vib.limitTitle')}>{t('vib.limit')}</th>
+                <th title={t('vib.admissibleTitle')}>{t('vib.admissible')}</th>
                 <th>dB</th>
                 <th />
               </tr>
@@ -202,7 +201,7 @@ export function VibrationPanel() {
                         onCommit={(name) => {
                           session.document.dispatch(
                             commands.updateMonitoringPoint(session.document, p.id, { name }),
-                            'Renombrar punto',
+                            t('vib.renamePoint'),
                           );
                         }}
                       />
@@ -212,7 +211,7 @@ export function VibrationPanel() {
                       className="num"
                       title={
                         rec?.centroid
-                          ? `Con el centroide de la ventana (informativo, P-07): ${fmt(rec.centroid.ppv * 1000, 1)} mm/s`
+                          ? t('vib.centroid', { v: fmt(rec.centroid.ppv * 1000, 1) })
                           : undefined
                       }
                     >
@@ -228,11 +227,11 @@ export function VibrationPanel() {
                     <td>
                       <button
                         className="icon danger"
-                        title="Borrar punto"
+                        title={t('vib.removePoint')}
                         onClick={() => {
                           session.document.dispatch(
                             commands.removeMonitoringPoint(session.document, p.id),
-                            `Borrar ${p.name}`,
+                            t('vib.removeNamed', { name: p.name }),
                           );
                         }}
                       >
@@ -246,19 +245,19 @@ export function VibrationPanel() {
           </table>
         )}
         {!s.vibEnabled && (project.monitoringPoints ?? []).length > 0 && (
-          <p className="hint">Activa "Calcular y mostrar" para ver los valores.</p>
+          <p className="hint">{t('vib.enableHint')}</p>
         )}
         {(project.monitoringPoints ?? []).length > 0 && <PointSettings />}
       </section>
       <PpvLimitsTable />
 
       <section className="panel">
-        <h2>Constantes de sitio</h2>
+        <h2>{t('vib.siteConstants')}</h2>
         {law && (
           <>
             {site.vibrationLaws.length > 1 && (
               <label className="field">
-                <span className="field-label">Ley</span>
+                <span className="field-label">{t('vib.law')}</span>
                 <select
                   value={law.id}
                   onChange={(e) => {
@@ -294,20 +293,20 @@ export function VibrationPanel() {
               }}
             />
             <label className="field">
-              <span className="field-label">Distancia escalada</span>
+              <span className="field-label">{t('vib.scaled')}</span>
               <select
                 value={law.scaling}
                 onChange={(e) => {
                   setLaw({ scaling: e.target.value as typeof law.scaling });
                 }}
               >
-                <option value="square-root">raíz cuadrada</option>
-                <option value="cube-root">raíz cúbica</option>
+                <option value="square-root">{t('vib.squareRoot')}</option>
+                <option value="cube-root">{t('vib.cubeRoot')}</option>
               </select>
             </label>
           </>
         )}
-        <h3>Sobrepresión · P = K · (R / W^⅓)^−β</h3>
+        <h3>{t('vib.airblast')} · P = K · (R / W^⅓)^−β</h3>
         <NumberField
           label="K"
           unit="kPa"
@@ -315,7 +314,7 @@ export function VibrationPanel() {
           min={1}
           value={site.airblast.k / 1000}
           onCommit={(x) => {
-            setSite({ airblast: { ...site.airblast, k: x * 1000 } }, 'Sobrepresión');
+            setSite({ airblast: { ...site.airblast, k: x * 1000 } }, t('vib.airblast'));
           }}
         />
         <NumberField
@@ -324,12 +323,12 @@ export function VibrationPanel() {
           min={0.01}
           value={site.airblast.beta}
           onCommit={(x) => {
-            setSite({ airblast: { ...site.airblast, beta: x } }, 'Sobrepresión');
+            setSite({ airblast: { ...site.airblast, beta: x } }, t('vib.airblast'));
           }}
         />
         <h3>Flyrock (Lundborg)</h3>
         <NumberField
-          label="Factor de seguridad"
+          label={t('vib.safetyFactor')}
           decimals={2}
           min={0.1}
           value={site.flyrock.safetyFactor}
@@ -337,9 +336,9 @@ export function VibrationPanel() {
             setSite({ flyrock: { ...site.flyrock, safetyFactor: x } }, 'Flyrock');
           }}
         />
-        <h3>Mapa</h3>
+        <h3>{t('vib.map')}</h3>
         <label className="field">
-          <span className="field-label">Contornos [{unit}]</span>
+          <span className="field-label">{t('energy.contours', { unit })}</span>
           <input
             value={levelsText}
             placeholder={isPpv ? '2; 5; 10; 25; 50; 100' : '115; 120; 125; 130; 134'}
@@ -353,7 +352,7 @@ export function VibrationPanel() {
           />
         </label>
         <NumberField
-          label="Radio del mapa"
+          label={t('vib.mapRadius')}
           unit={len.unit}
           decimals={0}
           min={0}
@@ -372,7 +371,7 @@ export function VibrationPanel() {
                 s.setLayer('vibration', e.target.checked);
               }}
             />
-            Mapa
+            {t('vib.map')}
           </label>
           <label className="check">
             <input
@@ -382,7 +381,7 @@ export function VibrationPanel() {
                 s.setLayer('flyrock', e.target.checked);
               }}
             />
-            Zona de flyrock
+            {t('vib.flyrockZone')}
           </label>
         </div>
       </section>
@@ -392,21 +391,29 @@ export function VibrationPanel() {
 
 /** Estructura, límite propio y K/β propios de cada punto (H-602). Vacío o 0 = el del sitio. */
 function PointSettings() {
+  const t = useT();
   const project = useProject();
-  const update = (id: MonitoringPointId, patch: commands.MonitoringPointPatch, label: string) => {
-    session.document.dispatch(commands.updateMonitoringPoint(session.document, id, patch), label);
+  const update = (
+    id: MonitoringPointId,
+    patch: commands.MonitoringPointPatch,
+    label: MessageKey,
+  ) => {
+    session.document.dispatch(
+      commands.updateMonitoringPoint(session.document, id, patch),
+      t(label),
+    );
   };
   return (
     <>
-      <h3>Configuración por punto</h3>
+      <h3>{t('vib.pointSettings')}</h3>
       <table className="grid-table compact">
         <thead>
           <tr>
-            <th>Punto</th>
-            <th title="Tipo de estructura: elige las filas de la tabla de límites">Estructura</th>
-            <th title="Límite propio [mm/s]; 0 = de la tabla">Lím. propio</th>
-            <th title="K propio [mm/s]; 0 = el del sitio">K</th>
-            <th title="β propio; 0 = el del sitio">β</th>
+            <th>{t('vib.point')}</th>
+            <th title={t('vib.structureTitle')}>{t('vib.structure')}</th>
+            <th title={t('vib.ownLimitTitle')}>{t('vib.ownLimit')}</th>
+            <th title={t('vib.ownKTitle')}>K</th>
+            <th title={t('vib.ownBetaTitle')}>β</th>
           </tr>
         </thead>
         <tbody>
@@ -417,7 +424,7 @@ function PointSettings() {
                 <TextCell
                   value={p.structure ?? ''}
                   onCommit={(v) => {
-                    update(p.id, { structure: v.trim() || undefined }, 'Estructura del punto');
+                    update(p.id, { structure: v.trim() || undefined }, 'vib.undoStructure');
                   }}
                 />
               </td>
@@ -427,7 +434,7 @@ function PointSettings() {
                   decimals={1}
                   min={0}
                   onCommit={(v) => {
-                    update(p.id, { ppvLimit: v > 0 ? v / 1000 : undefined }, 'Límite del punto');
+                    update(p.id, { ppvLimit: v > 0 ? v / 1000 : undefined }, 'vib.undoLimit');
                   }}
                 />
               </td>
@@ -437,7 +444,7 @@ function PointSettings() {
                   decimals={0}
                   min={0}
                   onCommit={(v) => {
-                    update(p.id, { k: v > 0 ? v / 1000 : undefined }, 'K del punto');
+                    update(p.id, { k: v > 0 ? v / 1000 : undefined }, 'vib.undoK');
                   }}
                 />
               </td>
@@ -447,7 +454,7 @@ function PointSettings() {
                   decimals={2}
                   min={0}
                   onCommit={(v) => {
-                    update(p.id, { beta: v > 0 ? v : undefined }, 'β del punto');
+                    update(p.id, { beta: v > 0 ? v : undefined }, 'vib.undoBeta');
                   }}
                 />
               </td>
@@ -465,6 +472,7 @@ function PointSettings() {
  * están rotulados «por contrastar».
  */
 function PpvLimitsTable() {
+  const t = useT();
   const project = useProject();
   const limits = project.ppvLimits ?? [];
   const set = (next: PpvLimit[], label: string) => {
@@ -473,24 +481,21 @@ function PpvLimitsTable() {
   const patch = (i: number, p: Partial<PpvLimit>) => {
     set(
       limits.map((l, k) => (k === i ? { ...l, ...p } : l)),
-      'Editar límite de PPV',
+      t('vib.editLimit'),
     );
   };
   return (
     <section className="panel">
-      <h2>Límites de PPV</h2>
-      <p className="hint">
-        Valores por tipo de estructura y distancia, con su fuente. Perú no tiene una norma nacional
-        de PPV para voladura: usa los del instrumento ambiental (EIA) de la operación (P-12).
-      </p>
+      <h2>{t('vib.limits')}</h2>
+      <p className="hint">{t('vib.limitsHint')}</p>
       <table className="grid-table compact">
         <thead>
           <tr>
-            <th>Estructura</th>
-            <th>Desde [m]</th>
-            <th>Hasta [m]</th>
+            <th>{t('vib.structure')}</th>
+            <th>{t('vib.from')}</th>
+            <th>{t('vib.to')}</th>
             <th>mm/s</th>
-            <th>Fuente</th>
+            <th>{t('vib.source')}</th>
             <th />
           </tr>
         </thead>
@@ -500,14 +505,14 @@ function PpvLimitsTable() {
               <td>
                 <TextCell
                   value={l.structure ?? ''}
-                  title="Vacío = todas"
+                  title={t('vib.allStructures')}
                   onCommit={(v) => {
                     const next = { ...l };
                     if (v.trim()) next.structure = v.trim();
                     else delete next.structure;
                     set(
                       limits.map((x, k) => (k === i ? next : x)),
-                      'Editar límite de PPV',
+                      t('vib.editLimit'),
                     );
                   }}
                 />
@@ -533,7 +538,7 @@ function PpvLimitsTable() {
                     else delete next.to;
                     set(
                       limits.map((x, k) => (k === i ? next : x)),
-                      'Editar límite de PPV',
+                      t('vib.editLimit'),
                     );
                   }}
                 />
@@ -559,11 +564,11 @@ function PpvLimitsTable() {
               <td>
                 <button
                   className="icon danger"
-                  title="Quitar fila"
+                  title={t('vib.removeRow')}
                   onClick={() => {
                     set(
                       limits.filter((_, k) => k !== i),
-                      'Quitar límite de PPV',
+                      t('vib.removeLimit'),
                     );
                   }}
                 >
@@ -577,12 +582,12 @@ function PpvLimitsTable() {
       <button
         onClick={() => {
           set(
-            [...limits, { from: 0, ppvMax: 0.01, source: 'Por definir (EIA de la operación)' }],
-            'Agregar límite de PPV',
+            [...limits, { from: 0, ppvMax: 0.01, source: t('vib.newSource') }],
+            t('vib.addLimit'),
           );
         }}
       >
-        + Límite
+        {t('vib.addLimitButton')}
       </button>
     </section>
   );

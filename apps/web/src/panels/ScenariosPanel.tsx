@@ -3,13 +3,10 @@ import { ClipboardCopy, GitCompare, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { IconButton } from '../components/IconButton';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
-import { useT, type MessageKey } from '../i18n';
+import { formatNumber, useLocale, useT, type MessageKey } from '../i18n';
 import { getCompute, session } from '../session';
 
-const fmt = (v: number | null, d = 0) =>
-  v === null || !Number.isFinite(v)
-    ? '—'
-    : v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (v: number | null, d = 0) => (v === null ? '—' : formatNumber(v, d));
 
 /** Filas de la comparación: etiqueta y valor presentado. */
 const ROWS: [MessageKey, (k: ScenarioKpis) => string][] = [
@@ -39,6 +36,7 @@ const ROWS: [MessageKey, (k: ScenarioKpis) => string][] = [
 /** Escenarios (H-701, R-23): guardar variantes del diseño y compararlas lado a lado. */
 export function ScenariosPanel() {
   const t = useT();
+  const locale = useLocale((s) => s.locale);
   const project = useProject();
   const blast = useActiveBlast();
   const [kpis, setKpis] = useState<ScenarioKpis[] | null>(null);
@@ -87,7 +85,9 @@ export function ScenariosPanel() {
             {scenarios.map((s) => (
               <tr key={s.id}>
                 <td>{s.name}</td>
-                <td className="muted">{new Date(s.savedAt).toLocaleString()}</td>
+                <td className="muted">
+                  {new Date(s.savedAt).toLocaleString(locale === 'en' ? 'en-US' : 'es-ES')}
+                </td>
                 <td className="num">{s.blast.holes.length}</td>
                 <td>
                   <IconButton

@@ -1,6 +1,7 @@
 import { ChartColumn, MousePointerClick, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { useT } from '../i18n';
 import { useSelectionIds } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { MapPanel } from './MapPanel';
@@ -11,17 +12,22 @@ import { ViewPanel } from './ViewPanel';
 const TABS = [
   {
     id: 'selection',
-    label: 'Selección',
+    label: 'sidebar.selection',
     icon: MousePointerClick,
-    title: 'Propiedades de los taladros seleccionados',
+    title: 'sidebar.selectionTitle',
   },
   {
     id: 'view',
-    label: 'Vista',
+    label: 'sidebar.view',
     icon: SlidersHorizontal,
-    title: 'Ajustes generales: colores, etiquetas, capas, secuencia y mapa',
+    title: 'sidebar.viewTitle',
   },
-  { id: 'results', label: 'Resultados', icon: ChartColumn, title: 'Carguío, cubicación y tiempos' },
+  {
+    id: 'results',
+    label: 'sidebar.results',
+    icon: ChartColumn,
+    title: 'sidebar.resultsTitle',
+  },
 ] as const;
 
 /**
@@ -29,6 +35,7 @@ const TABS = [
  * Al seleccionar taladros se muestra la pestaña Selección.
  */
 export function RightSidebar() {
+  const t = useT();
   const tab = useUiStore((s) => s.rightTab);
   const setTab = useUiStore((s) => s.setRightTab);
   const selection = useSelectionIds();
@@ -41,21 +48,21 @@ export function RightSidebar() {
   return (
     <aside className="sidebar right">
       <nav className="tabs" role="tablist">
-        {TABS.map((t) => (
+        {TABS.map((it) => (
           <button
-            key={t.id}
+            key={it.id}
             role="tab"
-            aria-selected={tab === t.id}
-            className={tab === t.id ? 'active' : ''}
-            title={t.title}
+            aria-selected={tab === it.id}
+            className={tab === it.id ? 'active' : ''}
+            title={t(it.title)}
             onClick={() => {
-              setTab(t.id);
+              setTab(it.id);
             }}
           >
-            <t.icon size={16} strokeWidth={1.8} aria-hidden />
+            <it.icon size={16} strokeWidth={1.8} aria-hidden />
             <span>
-              {t.label}
-              {t.id === 'selection' && selection.size > 0 && (
+              {t(it.label)}
+              {it.id === 'selection' && selection.size > 0 && (
                 <em className="badge">{selection.size}</em>
               )}
             </span>

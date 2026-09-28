@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
+import { useT } from '../i18n';
 
 export interface NumberFieldProps {
   label: string;
@@ -35,6 +36,7 @@ function NumberFieldInner({
   disabled,
   integer,
 }: NumberFieldProps) {
+  const tr = useT();
   const [draft, setDraft] = useState(format(value, decimals));
   const [invalid, setInvalid] = useState(false);
 
@@ -78,7 +80,7 @@ function NumberFieldInner({
           type="text"
           inputMode="decimal"
           value={draft}
-          placeholder={value === null ? 'varios' : ''}
+          placeholder={value === null ? tr('common.multiple') : ''}
           disabled={disabled}
           aria-invalid={invalid}
           onChange={(e) => {

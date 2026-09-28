@@ -6,6 +6,7 @@ import { IconButton } from '../components/IconButton';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';
+import { useT } from '../i18n';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { commands } from '@cronos/core';
@@ -41,6 +42,7 @@ function Select<T extends string>({
 }
 
 export function TimingPanel() {
+  const t = useT();
   const [tieMode, setTieMode] = useState<'rows' | 'echelon'>('rows');
   const project = useProject();
   const blast = useActiveBlast();
@@ -81,7 +83,7 @@ export function TimingPanel() {
     selection.size === 1 ? session.document.findHole([...selection][0] as never)?.hole : undefined;
   const takeFromSelection = () => {
     if (single?.row === undefined || single.col === undefined || !single.patternId) {
-      useUiStore.getState().notify('Selecciona un taladro que pertenezca a una malla', 'error');
+      useUiStore.getState().notify(t('timing.needPatternHole'), 'error');
       return;
     }
     setStart({ patternId: single.patternId, startRow: single.row, startCol: single.col });
@@ -98,16 +100,16 @@ export function TimingPanel() {
         downhole.detonatorId as DetonatorId,
         downhole.delayMs / 1000,
       ),
-      `Detonador en taladro (${ids.length})`,
+      t('timing.downholeUndo', { n: ids.length }),
     );
   };
 
   return (
     <>
       <section className="panel">
-        <h2>Detonador en el taladro</h2>
+        <h2>{t('timing.downhole')}</h2>
         <Select
-          label="Detonador"
+          label={t('timing.detonator')}
           value={downhole.detonatorId}
           options={nonelDetonators.map((d) => ({ id: d.id, name: d.name }))}
           onChange={(v) => {
@@ -118,7 +120,7 @@ export function TimingPanel() {
           }}
         />
         <NumberField
-          label="Retardo"
+          label={t('timing.delay')}
           unit="ms"
           decimals={1}
           min={0}
@@ -134,14 +136,14 @@ export function TimingPanel() {
               assignDownhole(false);
             }}
           >
-            A selección ({selection.size})
+            {t('timing.toSelection', { n: selection.size })}
           </button>
           <button
             onClick={() => {
               assignDownhole(true);
             }}
           >
-            A todos
+            {t('timing.toAll')}
           </button>
         </div>
       </section>
@@ -149,13 +151,13 @@ export function TimingPanel() {
       {blast && <SequenceParams blast={blast} />}
 
       <section className="panel">
-        <h2>Amarre automático</h2>
+        <h2>{t('timing.autoTie')}</h2>
         {patterns.length === 0 ? (
-          <p className="hint">Genera una malla primero: el amarre usa sus filas y columnas.</p>
+          <p className="hint">{t('timing.needPattern')}</p>
         ) : (
           <>
             <Select
-              label="Malla"
+              label={t('timing.pattern')}
               value={patternId}
               options={patterns.map((p) => ({ id: p.id, name: p.name }))}
               onChange={(v) => {
@@ -163,7 +165,7 @@ export function TimingPanel() {
               }}
             />
             <NumberField
-              label="Fila de inicio"
+              label={t('timing.startRow')}
               integer
               min={1}
               decimals={0}
@@ -173,7 +175,7 @@ export function TimingPanel() {
               }}
             />
             <NumberField
-              label="Columna de inicio"
+              label={t('timing.startCol')}
               integer
               min={1}
               decimals={0}
@@ -183,40 +185,36 @@ export function TimingPanel() {
               }}
             />
             <button disabled={!single} onClick={takeFromSelection}>
-              Usar taladro seleccionado como inicio
+              {t('timing.useSelected')}
             </button>
             <label className="field">
-              <span className="field-label">Tipo</span>
+              <span className="field-label">{t('timing.type')}</span>
               <select
                 value={tieMode}
                 onChange={(e) => {
                   setTieMode(e.target.value as 'rows' | 'echelon');
                 }}
               >
-                <option value="rows">Por filas (línea a línea o en V)</option>
-                <option value="echelon">En escalón (echelon)</option>
+                <option value="rows">{t('timing.mode.rows')}</option>
+                <option value="echelon">{t('timing.mode.echelon')}</option>
               </select>
             </label>
-            <p className="hint">
-              Por filas: columna en un extremo = línea a línea; central = salida en V. En escalón:
-              solo la fila de inicio se encadena y cada taladro sale desde el de adelante (isócronas
-              en diagonal).
-            </p>
-            <h3>Nonel (superficie)</h3>
+            <p className="hint">{t('timing.modeHint')}</p>
+            <h3>{t('timing.nonel')}</h3>
             <Select
-              label="Entre taladros"
+              label={t('timing.interHole')}
               value={tie.interHole}
               options={connectors}
               onChange={(v) => {
-                setTie((t) => ({ ...t, interHole: v }));
+                setTie((x) => ({ ...x, interHole: v }));
               }}
             />
             <Select
-              label="Entre filas"
+              label={t('timing.interRow')}
               value={tie.interRow}
               options={connectors}
               onChange={(v) => {
-                setTie((t) => ({ ...t, interRow: v }));
+                setTie((x) => ({ ...x, interRow: v }));
               }}
             />
             <button
@@ -234,15 +232,15 @@ export function TimingPanel() {
                 );
               }}
             >
-              Generar amarre
+              {t('timing.generate')}
             </button>
-            <h3>Electrónicos</h3>
+            <h3>{t('timing.electronic')}</h3>
             {electronicDetonators.length === 0 ? (
-              <p className="hint">Agrega un detonador electrónico en la librería.</p>
+              <p className="hint">{t('timing.needElectronic')}</p>
             ) : (
               <>
                 <NumberField
-                  label="Entre taladros"
+                  label={t('timing.interHole')}
                   unit="ms"
                   decimals={1}
                   min={0}
@@ -252,7 +250,7 @@ export function TimingPanel() {
                   }}
                 />
                 <NumberField
-                  label="Entre filas"
+                  label={t('timing.interRow')}
                   unit="ms"
                   decimals={1}
                   min={0}
@@ -262,7 +260,7 @@ export function TimingPanel() {
                   }}
                 />
                 <NumberField
-                  label="Tiempo inicial"
+                  label={t('timing.offset')}
                   unit="ms"
                   decimals={1}
                   min={0}
@@ -287,7 +285,7 @@ export function TimingPanel() {
                     );
                   }}
                 >
-                  Asignar tiempos electrónicos
+                  {t('timing.assignElectronic')}
                 </button>
               </>
             )}
@@ -296,9 +294,9 @@ export function TimingPanel() {
       </section>
 
       <section className="panel">
-        <h2>Amarre manual</h2>
+        <h2>{t('timing.manualTie')}</h2>
         <Select
-          label="Conector"
+          label={t('timing.connector')}
           value={tieConnectorId ?? ''}
           options={connectors}
           onChange={(v) => {
@@ -316,17 +314,17 @@ export function TimingPanel() {
         <div className="row">
           <IconButton
             icon={Cable}
-            label="Amarrar"
+            label={t('timing.tie')}
             shortcut="T"
             showLabel
-            hint="Clic en taladros encadena · Ctrl+clic borra una conexión"
+            hint={t('timing.tieHint')}
             onClick={() => {
               setTool('tie');
             }}
           />
           <IconButton
             icon={Zap}
-            label="Punto de inicio"
+            label={t('timing.initiation')}
             shortcut="I"
             showLabel
             onClick={() => {
@@ -341,7 +339,7 @@ export function TimingPanel() {
               actions.clearConnections(true);
             }}
           >
-            Borrar amarres selección
+            {t('timing.clearSelection')}
           </button>
           <button
             className="danger"
@@ -349,7 +347,7 @@ export function TimingPanel() {
               actions.clearConnections(false);
             }}
           >
-            Borrar todos
+            {t('timing.clearAll')}
           </button>
         </div>
       </section>
@@ -362,6 +360,7 @@ export function TimingPanel() {
  * retardos por metro (H-505, P-11). Se editan como comando (con deshacer).
  */
 function SequenceParams({ blast }: { blast: Blast }) {
+  const t = useT();
   const cp = blast.calcParams;
   const set = (patch: Partial<CalcParams>, label: string) => {
     session.document.dispatch(
@@ -377,29 +376,26 @@ function SequenceParams({ blast }: { blast: Blast }) {
   ) => {
     set(
       { delayGuide: { ...guide, [which]: { ...guide[which], [bound]: msPerM / 1000 } } },
-      'Guía de retardos',
+      t('timing.delayGuide'),
     );
   };
   return (
     <section className="panel">
-      <h2>Parámetros de la secuencia</h2>
+      <h2>{t('timing.sequenceParams')}</h2>
       <NumberField
-        label="Alivio del burden"
+        label={t('timing.relief')}
         unit="ms/m"
         decimals={1}
         min={0}
         value={cp.reliefRate * 1000}
         onCommit={(v) => {
-          set({ reliefRate: v / 1000 }, 'Alivio del burden');
+          set({ reliefRate: v / 1000 }, t('timing.relief'));
         }}
       />
-      <p className="hint">
-        Un taladro ya detonado cuenta como cara libre si salió al menos este tiempo por metro de
-        burden antes (P-02: 3 ms/m roca dura, 5–6 ms/m roca blanda; 0 = caso límite optimista).
-      </p>
+      <p className="hint">{t('timing.reliefHint')}</p>
       <div className="row">
         <NumberField
-          label="Entre taladros mín."
+          label={t('timing.interHoleMin')}
           unit="ms/m"
           decimals={1}
           min={0}
@@ -409,7 +405,7 @@ function SequenceParams({ blast }: { blast: Blast }) {
           }}
         />
         <NumberField
-          label="máx."
+          label={t('timing.max')}
           unit="ms/m"
           decimals={1}
           min={0}
@@ -421,7 +417,7 @@ function SequenceParams({ blast }: { blast: Blast }) {
       </div>
       <div className="row">
         <NumberField
-          label="Entre filas mín."
+          label={t('timing.interRowMin')}
           unit="ms/m"
           decimals={1}
           min={0}
@@ -431,7 +427,7 @@ function SequenceParams({ blast }: { blast: Blast }) {
           }}
         />
         <NumberField
-          label="máx."
+          label={t('timing.max')}
           unit="ms/m"
           decimals={1}
           min={0}
@@ -441,10 +437,7 @@ function SequenceParams({ blast }: { blast: Blast }) {
           }}
         />
       </div>
-      <p className="hint">
-        Guía de diseño (aviso informativo): entre taladros por metro de espaciamiento (P-11: 3–8
-        ms/m), entre filas por metro de burden (6–12 ms/m).
-      </p>
+      <p className="hint">{t('timing.guideHint')}</p>
     </section>
   );
 }

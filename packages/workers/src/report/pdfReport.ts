@@ -16,6 +16,7 @@ import {
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
 import { fitPlan, scaleBarLength } from './planLayout';
 import { fmtNumber, toWinAnsi } from './pdfText';
+import { REPORT_TEXT, type ReportLanguage } from './reportText';
 
 export interface ReportOptions {
   /** Fecha del informe (ISO). */
@@ -24,6 +25,8 @@ export interface ReportOptions {
   author?: string;
   /** Incluir la tabla de taladros (puede ocupar varias páginas). */
   holeTable: boolean;
+  /** Idioma de todos los textos y del formato de números (por omisión 'es'). */
+  language?: ReportLanguage;
 }
 
 const A4: [number, number] = [595.28, 841.89];
@@ -159,8 +162,12 @@ export async function buildReport(
   const frag = fragInputs ? fragmentation(fragInputs, { oversizeSize: 1, finesSize: 0.01 }) : null;
   const vib = computeVibration(project, blast, { ...DEFAULT_VIBRATION_OPTIONS, skipGrid: true });
 
+  const lang = options.language ?? 'es';
+  const T = REPORT_TEXT[lang];
+  const fmt = (v: number, decimals = 0) => fmtNumber(v, decimals, lang);
+
   const doc = await PDFDocument.create();
-  doc.setTitle(toWinAnsi(`Informe de voladura · ${blast.name}`));
+  doc.setTitle(toWinAnsi(T.docTitle(blast.name)));
   doc.setSubject(toWinAnsi(project.name));
   doc.setCreator(`Cronos ${options.appVersion}`);
   doc.setProducer('Cronos (pdf-lib)');
@@ -174,54 +181,49 @@ export async function buildReport(
 
   // ---------------------------------------------------------------- Página 1: resumen + plano
   let s = newSheet();
-  s.text('Informe de voladura', M, s.y - 18, 18, { bold: true });
+  s.text(T.title, M, s.y - 18, 18, { bold: true });
   s.text(`${project.name} · ${blast.name}`, M, s.y - 34, 10, { color: MUTED });
   s.text(date, A4[0] - M, s.y - 18, 9, { align: 'right', color: MUTED });
   s.y -= 46;
-  s.heading('Resumen');
+  s.heading(T.summary);
   const diameters = [...new Set(blast.holes.map((h) => Math.round(h.diameter * 1000)))].sort(
     (a, b) => a - b,
   );
   s.keyValues([
-    ['Taladros', `${blast.holes.length} (${charge.loadedHoles} cargados)`],
-    ['Metros perforados', `${fmtNumber(charge.drilledLength, 1)} m`],
-    ['Diámetro', diameters.length ? `${diameters.join(' / ')} mm` : '-'],
-    ['Altura de banco', `${fmtNumber(blast.bench.height, 1)} m`],
-    ['Explosivo', `${fmtNumber(charge.totalExplosive)} kg`],
-    ['Primas', `${fmtNumber(charge.totalPrimers, 1)} kg`],
-    ['Volumen cubicado', `${fmtNumber(charge.volume)} m³`],
-    ['Tonelaje cubicado', `${fmtNumber(charge.tonnage / 1000)} t`],
+    [T.holes, T.holesValue(blast.holes.length, charge.loadedHoles)],
+    [T.drilled, `${fmt(charge.drilledLength, 1)} m`],
+    [T.diameter, diameters.length ? `${diameters.join(' / ')} mm` : '-'],
+    [T.benchHeight, `${fmt(blast.bench.height, 1)} m`],
+    [T.explosive, `${fmt(charge.totalExplosive)} kg`],
+    [T.primers, `${fmt(charge.totalPrimers, 1)} kg`],
+    [T.volume, `${fmt(charge.volume)} m³`],
+    [T.tonnage, `${fmt(charge.tonnage / 1000)} t`],
     [
-      'Factor de carga real',
-      `${fmtNumber(charge.loadingFactor, 3)} kg/m³ · ${fmtNumber(charge.powderFactor * 1000, 3)} kg/t`,
+      T.loadingFactor,
+      `${fmt(charge.loadingFactor, 3)} kg/m³ · ${fmt(charge.powderFactor * 1000, 3)} kg/t`,
     ],
     [
-      'Factor de carga de diseño (B·S·H)',
+      T.designFactor,
       charge.nominal.volume > 0
-        ? `${fmtNumber(charge.nominal.explosive / charge.nominal.volume, 3)} kg/m³`
+        ? `${fmt(charge.nominal.explosive / charge.nominal.volume, 3)} kg/m³`
         : '-',
     ],
-    ['Energía', `${fmtNumber(charge.totalEnergy / 1e6)} MJ`],
-    ['Costo de productos', `${fmtNumber(charge.cost)} ${project.currency}`],
+    [T.energy, `${fmt(charge.totalEnergy / 1e6)} MJ`],
+    [T.cost, `${fmt(charge.cost)} ${project.currency}`],
+    [T.duration, hasTimes ? `${fmt((timing.lastTime - timing.firstTime) * 1000)} ms` : T.noTimes],
     [
-      'Duración de la secuencia',
-      hasTimes ? `${fmtNumber((timing.lastTime - timing.firstTime) * 1000)} ms` : 'sin tiempos',
+      T.maxPerDelay(fmt(blast.calcParams.micWindow * 1000)),
+      hasTimes ? `${fmt(timing.maxChargePerWindow)} kg` : '-',
     ],
-    [
-      `Máx. kg por retardo (${fmtNumber(blast.calcParams.micWindow * 1000)} ms)`,
-      hasTimes ? `${fmtNumber(timing.maxChargePerWindow)} kg` : '-',
-    ],
-    ['Grupos coincidentes', hasTimes ? String(timing.coincidentGroups.length) : '-'],
+    [T.coincident, hasTimes ? String(timing.coincidentGroups.length) : '-'],
     [
       'P50 / P80 (Swebrec)',
-      frag
-        ? `${fmtNumber(frag.p50.swebrec * 100, 1)} / ${fmtNumber(frag.p80.swebrec * 100, 1)} cm`
-        : '-',
+      frag ? `${fmt(frag.p50.swebrec * 100, 1)} / ${fmt(frag.p80.swebrec * 100, 1)} cm` : '-',
     ],
-    ['Alcance flyrock (Lundborg)', `${fmtNumber(vib.flyrock.range)} m`],
+    [T.flyrock, `${fmt(vib.flyrock.range)} m`],
   ]);
 
-  s.heading(hasTimes ? 'Plano (color: tiempo de disparo)' : 'Plano');
+  s.heading(hasTimes ? T.planByTime : T.plan);
   const box = { x: M, y: M + 40, w: A4[0] - 2 * M, h: s.y - M - 48 };
   s.page.drawRectangle({
     x: box.x,
@@ -338,18 +340,18 @@ export async function buildReport(
     thickness: 1.2,
     color: INK,
   });
-  s.text('N', nx, ny + 21, 8, { bold: true, align: 'center' });
+  s.text(T.north, nx, ny + 21, 8, { bold: true, align: 'center' });
   const bar = scaleBarLength(tf.scale);
   const bx = box.x + 12;
   const by = box.y + 12;
   s.page.drawRectangle({ x: bx, y: by, width: bar * tf.scale, height: 3, color: INK });
-  s.text(`${fmtNumber(bar)} m`, bx + bar * tf.scale + 4, by, 7);
+  s.text(`${fmt(bar)} m`, bx + bar * tf.scale + 4, by, 7);
   if (hasTimes) {
     const lx = box.x + box.w - 150;
     for (let k = 0; k < 50; k++)
       s.page.drawRectangle({ x: lx + k * 2.4, y: by, width: 2.5, height: 5, color: turbo(k / 49) });
-    s.text(`${fmtNumber(timing.firstTime * 1000)} ms`, lx, by - 9, 6.5, { color: MUTED });
-    s.text(`${fmtNumber(timing.lastTime * 1000)} ms`, lx + 120, by - 9, 6.5, {
+    s.text(`${fmt(timing.firstTime * 1000)} ms`, lx, by - 9, 6.5, { color: MUTED });
+    s.text(`${fmt(timing.lastTime * 1000)} ms`, lx + 120, by - 9, 6.5, {
       color: MUTED,
       align: 'right',
     });
@@ -358,7 +360,7 @@ export async function buildReport(
 
   // ---------------------------------------------------------------- Página 2: carguío, fragmentación, vibración
   s = newSheet();
-  s.heading('Carguío por producto');
+  s.heading(T.chargeByProduct);
   const lib = indexLibrary(project.library);
   const perProduct = new Map<string, { kg: number; holes: number }>();
   blast.holes.forEach((h) => {
@@ -379,26 +381,26 @@ export async function buildReport(
     }
   });
   s.table(
-    ['Explosivo', 'Taladros', 'kg'],
+    [T.explosive, T.holes, 'kg'],
     perProduct.size
-      ? [...perProduct].map(([name, v]) => [name, String(v.holes), fmtNumber(v.kg)])
-      : [['(sin carga)', '-', '-']],
+      ? [...perProduct].map(([name, v]) => [name, String(v.holes), fmt(v.kg)])
+      : [[T.noCharge, '-', '-']],
     [300, 100, 115],
   );
 
-  s.heading('Fragmentación (Kuz-Ram + Swebrec)');
+  s.heading(T.fragTitle);
   if (!frag || !fragInputs) {
-    s.text('Sin taladros cargados.', M, s.y - 10, 9, { color: MUTED });
+    s.text(T.noLoadedHoles, M, s.y - 10, 9, { color: MUTED });
     s.y -= 20;
   } else {
     s.keyValues([
-      ['Factor de roca A', fmtNumber(fragInputs.rockFactor, 2)],
-      ['Índice de uniformidad n', fmtNumber(frag.n, 2)],
+      [T.rockFactor, fmt(fragInputs.rockFactor, 2)],
+      [T.uniformity, fmt(frag.n, 2)],
       [
         'P20 / P50 / P80',
-        `${fmtNumber(frag.p20.swebrec * 100, 1)} / ${fmtNumber(frag.p50.swebrec * 100, 1)} / ${fmtNumber(frag.p80.swebrec * 100, 1)} cm`,
+        `${fmt(frag.p20.swebrec * 100, 1)} / ${fmt(frag.p50.swebrec * 100, 1)} / ${fmt(frag.p80.swebrec * 100, 1)} cm`,
       ],
-      ['Sobretamaño (> 100 cm)', `${fmtNumber(frag.oversize.swebrec * 100, 1)} %`],
+      [T.oversize, `${fmt(frag.oversize.swebrec * 100, 1)} %`],
     ]);
     // Curva (eje X log)
     const cb = { x: M + 30, y: s.y - 150, w: A4[0] - 2 * M - 40, h: 130 };
@@ -432,7 +434,7 @@ export async function buildReport(
         thickness: 0.3,
         color: LINE,
       });
-      s.text(`${fmtNumber(Math.pow(10, d), d < 0 ? 1 : 0)} cm`, x, cb.y - 9, 6.5, {
+      s.text(`${fmt(Math.pow(10, d), d < 0 ? 1 : 0)} cm`, x, cb.y - 9, 6.5, {
         align: 'center',
         color: MUTED,
       });
@@ -457,51 +459,49 @@ export async function buildReport(
     s.y = cb.y - 22;
   }
 
-  s.heading('Vibración y sobrepresión');
+  s.heading(T.vibTitle);
   const law = vib.law;
   s.keyValues(
     [
       [
-        'Ley de PPV',
-        law
-          ? `${law.name}: K = ${fmtNumber(law.k * 1000)} mm/s, beta = ${fmtNumber(law.beta, 2)}`
-          : '-',
+        T.ppvLaw,
+        law ? `${law.name}: K = ${fmt(law.k * 1000)} mm/s, beta = ${fmt(law.beta, 2)}` : '-',
       ],
-      ['Carga máx. por retardo', `${fmtNumber(vib.mic)} kg`],
+      [T.mic, `${fmt(vib.mic)} kg`],
       [
-        'Con ventana ampliada (pirotécnicos, P-10)',
+        T.micExtended,
         vib.micExtended
-          ? `${fmtNumber(vib.micExtended.mic)} kg (${fmtNumber(vib.micExtended.window * 1000)} ms)`
-          : '- (solo electrónicos)',
+          ? `${fmt(vib.micExtended.mic)} kg (${fmt(vib.micExtended.window * 1000)} ms)`
+          : T.electronicOnly,
       ],
     ],
     1,
   );
   s.table(
-    ['Punto de control', 'R [m]', 'PPV [mm/s]', 'Límite', 'kg adm.', 'dB'],
+    [T.monitoringPoint, 'R [m]', 'PPV [mm/s]', T.limit, T.admissible, 'dB'],
     vib.receivers.length
       ? vib.receivers.map((r) => [
-          `${r.name}${r.exceeds ? ' (EXCEDE)' : ''}`,
-          fmtNumber(r.distance),
-          fmtNumber(r.ppv * 1000, 1),
-          r.limit ? fmtNumber(r.limit.ppvMax * 1000, 1) : '-',
-          r.admissibleCharge === null ? '-' : fmtNumber(r.admissibleCharge),
-          fmtNumber(r.airblastDb),
+          `${r.name}${r.exceeds ? T.exceeds : ''}`,
+          fmt(r.distance),
+          fmt(r.ppv * 1000, 1),
+          r.limit ? fmt(r.limit.ppvMax * 1000, 1) : '-',
+          r.admissibleCharge === null ? '-' : fmt(r.admissibleCharge),
+          fmt(r.airblastDb),
         ])
-      : [['(sin puntos de control)', '-', '-', '-', '-', '-']],
+      : [[T.noMonitoringPoints, '-', '-', '-', '-', '-']],
     [175, 68, 68, 68, 68, 68],
   );
 
   if (hasTimes && timing.interRowDelays.length > 0) {
-    s.heading('Retardo entre filas');
+    s.heading(T.interRow);
     const rows = timing.interRowDelays.slice(0, Math.max(0, Math.floor((s.y - M) / 12) - 3));
     s.table(
-      ['Filas', 'mín [ms]', 'máx [ms]', 'media [ms]'],
+      [T.rows, T.minMs, T.maxMs, T.meanMs],
       rows.map((r) => [
         `${r.rowA + 1} -> ${r.rowB + 1}`,
-        fmtNumber(r.min * 1000),
-        fmtNumber(r.max * 1000),
-        fmtNumber(r.mean * 1000),
+        fmt(r.min * 1000),
+        fmt(r.max * 1000),
+        fmt(r.mean * 1000),
       ]),
       [200, 105, 105, 105],
     );
@@ -509,82 +509,76 @@ export async function buildReport(
 
   // ---------------------------------------------------------------- Revisión y supuestos (H-702)
   s = newSheet();
-  s.heading('Revisión del diseño');
+  s.heading(T.review);
   const checks = analysis.checks;
-  if (checks.length === 0) s.paragraph('Sin observaciones.');
+  if (checks.length === 0) s.paragraph(T.noObservations);
   else
     s.table(
-      ['Observación', 'Nivel', 'Taladros'],
+      [T.observation, T.level, T.holes],
       checks.map((c) => [
-        c.title,
-        c.severity === 'error' ? 'error' : c.severity === 'warning' ? 'advertencia' : 'nota',
+        T.checks[c.id] ?? c.title,
+        T.severity[c.severity],
         String(c.holes.length),
       ]),
       [360, 80, 75],
     );
-  s.heading('Modelos, parámetros y supuestos');
+  s.heading(T.assumptions);
   const cp = blast.calcParams;
   const generic = project.library.explosives.filter((e) => e.source?.includes('genérico'));
   const limits = project.ppvLimits ?? [];
   const notes = [
-    'Unidades SI internas; los resultados se recalculan desde el diseño y no se guardan como fuente de verdad.',
-    `Carga por tramo con π/4 exacto: DCL = (π/4)·Ø²·ρ; masa = DCL·(largo − esponjamiento) (docs/theory/02 §2).`,
-    `Volumen de diseño B·S·H con H vertical (P-06); volumen real por áreas de influencia recortadas al perímetro. Sobreperforación: ${cp.subdrillConvention === 'lopezJimeno' ? 'López Jimeno, L = H/cos α + (1 − α/100)·J' : 'vertical bajo el piso, L = (H + J)/cos α'} (P-05).`,
-    `Tiempos: Dijkstra sobre el amarre + retardo de fondo. Carga máxima por retardo con ventana semiabierta [t, t + ${fmtNumber(cp.micWindow * 1000)} ms) (P-10).`,
-    `Burden efectivo: distancia a la superficie libre más cercana al detonar; un taladro previo alivia si salió al menos ${fmtNumber(cp.reliefRate * 1000, 1)} ms por metro de burden antes y está delante (P-02, P-16).`,
-    `Profundidad escalada de enterramiento (Chiappetta): carga superior, primeros 10·Ø, D solo con material confinante (P-01, P-14); avisos < ${fmtNumber(cp.checks.sdob.severe, 2)} (severa) y < ${fmtNumber(cp.checks.sdob.safe, 2)} m/kg^(1/3), rangos de fuente secundaria.`,
-    `PPV = K·(R/√Q)^(−β) en campo lejano con la distancia al taladro más cercano de la ventana (P-07); K y β del sitio${law ? ` (${fmtNumber(law.k * 1000)} mm/s, ${fmtNumber(law.beta, 2)})` : ''} o del punto; son constantes de sitio, no universales.`,
-    `Límites de PPV: ${limits.length ? limits.map((l) => `${l.structure ?? 'todas'} ${fmtNumber(l.from)}–${l.to === undefined ? '∞' : fmtNumber(l.to)} m: ${fmtNumber(l.ppvMax * 1000, 1)} mm/s (${l.source})`).join('; ') : 'sin tabla'}.`,
-    'Sobrepresión P = k·(R/W^(1/3))^(−β) y alcance de proyecciones de Lundborg: modelos empíricos, informativos.',
-    'Fragmentación: Kuz-Ram (Cunningham 1987, n) con RWS y Swebrec; regresión hasta validar con un ejemplo publicado (P-08).',
+    T.notes.units,
+    T.notes.deckCharge,
+    T.notes.volume(cp.subdrillConvention === 'lopezJimeno'),
+    T.notes.timing(fmt(cp.micWindow * 1000)),
+    T.notes.burden(fmt(cp.reliefRate * 1000, 1)),
+    T.notes.sdob(fmt(cp.checks.sdob.severe, 2), fmt(cp.checks.sdob.safe, 2)),
+    T.notes.ppv(law ? ` (${fmt(law.k * 1000)} mm/s, ${fmt(law.beta, 2)})` : ''),
+    T.notes.limits(
+      limits
+        .map(
+          (l) =>
+            `${l.structure ?? T.allStructures} ${fmt(l.from)}–${l.to === undefined ? '∞' : fmt(l.to)} m: ${fmt(l.ppvMax * 1000, 1)} mm/s (${l.source})`,
+        )
+        .join('; '),
+    ),
+    T.notes.airblast,
+    T.notes.frag,
     generic.length
-      ? `Atención: ${String(generic.length)} explosivo(s) con valores genéricos sin ficha técnica (${generic.map((e) => e.name).join(', ')}); reemplazar por la ficha del fabricante.`
-      : 'Todos los explosivos citan su ficha técnica.',
-    'Las reglas por debajo del estado R3 (docs/reglas.md) solo avisan; no bloquean el diseño.',
+      ? T.notes.generic(generic.length, generic.map((e) => e.name).join(', '))
+      : T.notes.allCited,
+    T.notes.rules,
   ];
   for (const n of notes) {
     if (!s.paragraph(`· ${n}`)) {
       s = newSheet();
-      s.heading('Modelos, parámetros y supuestos (cont.)');
+      s.heading(`${T.assumptions} ${T.continued}`);
     }
   }
 
   // ---------------------------------------------------------------- Tabla de taladros
   if (options.holeTable && blast.holes.length > 0) {
-    const headers = [
-      'Taladro',
-      'Este',
-      'Norte',
-      'Cota',
-      'Largo',
-      'Ø mm',
-      'Incl °',
-      'Az °',
-      'kg',
-      't [ms]',
-    ];
+    const headers = T.holeTable;
     const widths = [60, 72, 80, 50, 45, 40, 40, 40, 45, 43];
     const rowsPerPage = Math.floor((A4[1] - 2 * M - 40) / 11);
     const rows = blast.holes.map((h, i) => {
       const t = timing.fireTime[i] ?? NaN;
       return [
         h.label,
-        fmtNumber(h.collar.x, 2),
-        fmtNumber(h.collar.y, 2),
-        fmtNumber(h.collar.z, 2),
-        fmtNumber(h.length, 2),
-        fmtNumber(h.diameter * 1000),
-        fmtNumber((h.inclination * 180) / Math.PI, 1),
-        fmtNumber((h.azimuth * 180) / Math.PI, 1),
-        fmtNumber(charge.perHole[i] ?? 0, 1),
-        Number.isFinite(t) ? fmtNumber(t * 1000) : '-',
+        fmt(h.collar.x, 2),
+        fmt(h.collar.y, 2),
+        fmt(h.collar.z, 2),
+        fmt(h.length, 2),
+        fmt(h.diameter * 1000),
+        fmt((h.inclination * 180) / Math.PI, 1),
+        fmt((h.azimuth * 180) / Math.PI, 1),
+        fmt(charge.perHole[i] ?? 0, 1),
+        Number.isFinite(t) ? fmt(t * 1000) : '-',
       ];
     });
     for (let start = 0; start < rows.length; start += rowsPerPage) {
       s = newSheet();
-      s.heading(
-        `Taladros (${start + 1}–${Math.min(rows.length, start + rowsPerPage)} de ${rows.length})`,
-      );
+      s.heading(T.holeRange(start + 1, Math.min(rows.length, start + rowsPerPage), rows.length));
       s.table(headers, rows.slice(start, start + rowsPerPage), widths, 7);
     }
   }

@@ -41,11 +41,15 @@ export function toWinAnsi(text: string): string {
   return out;
 }
 
-/** Número con formato es-ES (miles con punto, decimales con coma) sin depender de Intl. */
-export function fmtNumber(v: number, decimals = 0): string {
+/**
+ * Número sin depender de Intl: es-ES (miles con punto, decimales con coma) o en-US (miles con
+ * coma, decimales con punto).
+ */
+export function fmtNumber(v: number, decimals = 0, language: 'es' | 'en' = 'es'): string {
   if (!Number.isFinite(v)) return '-';
+  const [thousands, point] = language === 'en' ? [',', '.'] : ['.', ','];
   const neg = v < 0;
   const [int = '0', dec] = Math.abs(v).toFixed(decimals).split('.');
-  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `${neg ? '-' : ''}${grouped}${dec ? `,${dec}` : ''}`;
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, thousands);
+  return `${neg ? '-' : ''}${grouped}${dec ? `${point}${dec}` : ''}`;
 }

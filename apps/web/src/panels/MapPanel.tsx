@@ -1,21 +1,23 @@
+import { useT } from '../i18n';
 import { useUiStore } from '../stores/uiStore';
 
 const ITEMS = [
-  ['grid', 'Grilla'],
-  ['rulers', 'Reglas (coordenadas)'],
-  ['scaleBar', 'Barra de escala'],
-  ['compass', 'Brújula'],
+  ['grid', 'map.grid'],
+  ['rulers', 'map.rulers'],
+  ['scaleBar', 'map.scaleBar'],
+  ['compass', 'map.compass'],
 ] as const;
 
 /** Ajustes generales del mapa. */
 export function MapPanel() {
+  const t = useT();
   const decorations = useUiStore((s) => s.decorations);
   const setDecorations = useUiStore((s) => s.setDecorations);
   const radiusScale = useUiStore((s) => s.radiusScale);
   const setRadiusScale = useUiStore((s) => s.setRadiusScale);
   return (
     <section className="panel">
-      <h2>Mapa</h2>
+      <h2>{t('map.title')}</h2>
       <div className="checks">
         {ITEMS.map(([key, label]) => (
           <label key={key} className="check">
@@ -26,12 +28,12 @@ export function MapPanel() {
                 setDecorations({ [key]: e.target.checked });
               }}
             />
-            {label}
+            {t(label)}
           </label>
         ))}
       </div>
       <label className="field">
-        <span className="field-label">Radio de taladros en 3D</span>
+        <span className="field-label">{t('map.holeRadius3d')}</span>
         <span className="field-input">
           <input
             type="range"
@@ -47,7 +49,7 @@ export function MapPanel() {
         </span>
       </label>
       <p className="hint">
-        <kbd>R</kbd> mide distancia y azimut entre dos puntos (se ajusta a taladros y malla).
+        <kbd>R</kbd> {t('map.measureHint')}
       </p>
     </section>
   );

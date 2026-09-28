@@ -118,6 +118,12 @@ describe('texto del PDF', () => {
     expect(fmtNumber(12)).toBe('12');
     expect(fmtNumber(NaN)).toBe('-');
   });
+
+  it('números en formato en-US', () => {
+    expect(fmtNumber(1234567.891, 2, 'en')).toBe('1,234,567.89');
+    expect(fmtNumber(-0.5, 1, 'en')).toBe('-0.5');
+    expect(fmtNumber(12, 0, 'en')).toBe('12');
+  });
 });
 
 describe('plano del PDF', () => {
@@ -157,6 +163,20 @@ describe('informe PDF', () => {
     expect(doc.getTitle()).toContain('Voladura 1');
     expect(doc.getAuthor()).toBe('Ingeniería');
     expect(doc.getCreator()).toBe('Cronos 0.1.0');
+  });
+
+  it('en inglés: PDF válido con las mismas páginas que en español', async () => {
+    const p = project(10, 25);
+    const blast = p.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    const opts = { date: '2026-09-23T10:00:00Z', appVersion: '0.1.0', holeTable: true };
+    const esDoc = await PDFDocument.load(await buildReport(p, blast.id, opts));
+    const bytes = await buildReport(p, blast.id, { ...opts, language: 'en' });
+    expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-');
+    const enDoc = await PDFDocument.load(bytes);
+    expect(enDoc.getPageCount()).toBe(esDoc.getPageCount());
+    expect(enDoc.getTitle()).toBe('Blast report · Voladura 1');
+    expect(esDoc.getTitle()).toBe('Informe de voladura · Voladura 1');
   });
 
   it('sin tabla de taladros y sin carga no falla', async () => {

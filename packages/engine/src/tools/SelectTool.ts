@@ -110,7 +110,7 @@ export class SelectTool implements Tool {
           const n = s.ids.length;
           ctx.document.dispatch(
             commands.moveHoles(ctx.document, s.ids, s.dx, s.dy),
-            n === 1 ? 'Mover taladro' : `Mover ${n} taladros`,
+            n === 1 ? ctx.text('undo.moveHole') : ctx.text('undo.moveHoles', { n }),
           );
         }
         ctx.invalidate();

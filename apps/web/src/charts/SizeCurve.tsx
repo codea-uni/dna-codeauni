@@ -9,6 +9,7 @@ import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useEffect, useRef } from 'react';
 import type { FragmentationResult } from '@cronos/core';
+import { formatNumber, useLocale } from '../i18n';
 
 echarts.use([
   LineChart,
@@ -23,6 +24,7 @@ echarts.use([
 export default function SizeCurve({ result }: { result: FragmentationResult }) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
+  const locale = useLocale((s) => s.locale);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -51,7 +53,8 @@ export default function SizeCurve({ result }: { result: FragmentationResult }) {
         legend: { top: 0, textStyle: { color: '#c9d1d9', fontSize: 11 }, itemHeight: 8 },
         tooltip: {
           trigger: 'axis',
-          valueFormatter: (v: unknown) => (typeof v === 'number' ? `${v.toFixed(1)} %` : String(v)),
+          valueFormatter: (v: unknown) =>
+            typeof v === 'number' ? `${formatNumber(v, 1, locale)} %` : String(v),
         },
         xAxis: {
           type: 'log',
@@ -98,7 +101,7 @@ export default function SizeCurve({ result }: { result: FragmentationResult }) {
       },
       true,
     );
-  }, [result]);
+  }, [result, locale]);
 
   return <div ref={ref} className="chart tall" />;
 }

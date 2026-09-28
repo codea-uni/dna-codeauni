@@ -10,6 +10,8 @@ import { useState } from 'react';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { boundaryOps } from '../actions';
+import { useT, type MessageKey } from '../i18n';
+import { importErrorText } from '../i18n/coreText';
 
 export interface DxfPreview {
   fileName: string;
@@ -17,14 +19,14 @@ export interface DxfPreview {
   inspection: DxfInspection;
 }
 
-const ROLES: { value: DxfLayerRole; label: string }[] = [
-  { value: 'holeLines', label: 'Taladros (líneas boca → fondo)' },
-  { value: 'holePoints', label: 'Taladros (puntos / círculos)' },
-  { value: 'labels', label: 'Etiquetas de taladros' },
-  { value: 'boundaries', label: 'Perímetros (polilíneas cerradas)' },
-  { value: 'freeFaces', label: 'Caras libres (líneas)' },
-  { value: 'topography', label: 'Topografía (3DFACE)' },
-  { value: 'ignore', label: 'Ignorar' },
+const ROLES: { value: DxfLayerRole; label: MessageKey }[] = [
+  { value: 'holeLines', label: 'dxf.role.holeLines' },
+  { value: 'holePoints', label: 'dxf.role.holePoints' },
+  { value: 'labels', label: 'dxf.role.labels' },
+  { value: 'boundaries', label: 'dxf.role.boundaries' },
+  { value: 'freeFaces', label: 'dxf.role.freeFaces' },
+  { value: 'topography', label: 'dxf.role.topography' },
+  { value: 'ignore', label: 'dxf.role.ignore' },
 ];
 
 const describe = (counts: Record<string, number>) =>
@@ -41,6 +43,7 @@ export function DxfImportDialog({
   preview: DxfPreview;
   onClose: () => void;
 }) {
+  const tr = useT();
   const [roles, setRoles] = useState<Record<string, DxfLayerRole>>(() =>
     Object.fromEntries(preview.inspection.layers.map((l) => [l.name, l.suggested])),
   );
@@ -93,19 +96,21 @@ export function DxfImportDialog({
           });
       }
       if (ops.length === 0) {
-        useUiStore.getState().notify('El DXF no aportó elementos con los roles elegidos', 'error');
+        useUiStore.getState().notify(tr('dxf.nothing'), 'error');
         return;
       }
       document.dispatch(
         ops,
-        `Importar DXF (${r.holes.length} taladros, ${r.boundaries.length} perímetros)`,
+        tr('dxf.importUndo', { holes: r.holes.length, boundaries: r.boundaries.length }),
       );
       getEngine()?.zoomToFit();
-      useUiStore
-        .getState()
-        .notify(
-          `DXF: ${r.holes.length} taladros · ${r.boundaries.length} perímetros · ${r.surfaces.length} superficies`,
-        );
+      useUiStore.getState().notify(
+        tr('dxf.result', {
+          holes: r.holes.length,
+          boundaries: r.boundaries.length,
+          surfaces: r.surfaces.length,
+        }),
+      );
       if (r.warnings.length === 0) onClose();
     } catch (err) {
       useUiStore.getState().notify(err instanceof Error ? err.message : String(err), 'error');
@@ -115,23 +120,26 @@ export function DxfImportDialog({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Importar DXF">
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={tr('dxf.aria')}>
       <div className="modal">
         <header>
-          <h2>Importar DXF · {preview.fileName}</h2>
-          <button className="icon" onClick={onClose} aria-label="Cerrar">
+          <h2>{tr('dxf.title', { file: preview.fileName })}</h2>
+          <button className="icon" onClick={onClose} aria-label={tr('settings.close')}>
             <X size={16} />
           </button>
         </header>
         <p className="muted">
-          {preview.inspection.entityCount} entidades · {preview.inspection.layers.length} capas
+          {tr('dxf.summary', {
+            entities: preview.inspection.entityCount,
+            layers: preview.inspection.layers.length,
+          })}
         </p>
         <table className="grid-table layers">
           <thead>
             <tr>
-              <th>Capa</th>
-              <th>Contenido</th>
-              <th>Usar como</th>
+              <th>{tr('dxf.layer')}</th>
+              <th>{tr('dxf.content')}</th>
+              <th>{tr('dxf.useAs')}</th>
             </tr>
           </thead>
           <tbody>
@@ -149,7 +157,7 @@ export function DxfImportDialog({
                   >
                     {ROLES.map((r) => (
                       <option key={r.value} value={r.value}>
-                        {r.label}
+                        {tr(r.label)}
                       </option>
                     ))}
                   </select>
@@ -166,21 +174,21 @@ export function DxfImportDialog({
               setReplace(e.target.checked);
             }}
           />
-          Reemplazar los taladros existentes
+          {tr('csv.replace')}
         </label>
         {warnings.length > 0 && (
           <div className="errors">
             <ul>
               {warnings.map((w) => (
-                <li key={w}>{w}</li>
+                <li key={w}>{importErrorText({ message: w })}</li>
               ))}
             </ul>
           </div>
         )}
         <footer>
-          <button onClick={onClose}>Cancelar</button>
+          <button onClick={onClose}>{tr('common.cancel')}</button>
           <button className="primary-inline" disabled={busy || nothing} onClick={() => void run()}>
-            {busy ? 'Importando…' : 'Importar'}
+            {busy ? tr('csv.importing') : tr('toolbar.import')}
           </button>
         </footer>
       </div>

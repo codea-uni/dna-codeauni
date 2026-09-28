@@ -331,6 +331,8 @@ export interface HoleCsvDefaults {
 export interface ImportWarning {
   kind: 'noZ' | 'zeroZ' | 'swapXY' | 'outOfCrs' | 'outlier';
   message: string;
+  /** Valores que interpola `message`, para traducirlo en la interfaz (G8). */
+  params?: Record<string, string | number>;
   /** Etiquetas afectadas (vacío si afecta a todo el archivo). */
   labels: string[];
 }
@@ -493,12 +495,14 @@ export function importHolesFromCsv(
     warnings.push({
       kind: 'noZ',
       message: `${String(noZ.length)} taladros sin cota: se usó la superficie del banco.`,
+      params: { count: noZ.length },
       labels: noZ,
     });
   if (zeroZ.length > 0)
     warnings.push({
       kind: 'zeroZ',
       message: `${String(zeroZ.length)} taladros con cota 0: revisa si falta la cota.`,
+      params: { count: zeroZ.length },
       labels: zeroZ,
     });
   warnings.push(...checkHolePositions(holes, defaults.epsg));
@@ -570,30 +574,36 @@ export function checkHolePositions(
         kind: 'swapXY',
         message:
           'Este y Norte parecen intercambiados: los valores caen fuera del rango UTM del proyecto y dentro si se intercambian.',
+        params: { variant: 'utm' },
         labels: [],
       });
     else if (!ok)
       warnings.push({
         kind: 'outOfCrs',
         message: `Las coordenadas caen fuera del rango UTM del EPSG ${String(epsg)}: revisa si el archivo usa otro CRS o coordenadas locales.`,
+        params: { epsg: String(epsg) },
         labels: [],
       });
   } else if (mx >= 1_000_000 && mx < 10_000_000 && my >= 100_000 && my < 1_000_000) {
     warnings.push({
       kind: 'swapXY',
       message: 'Este y Norte parecen intercambiados: el Este tiene 7 cifras y el Norte 6.',
+      params: { variant: 'digits' },
       labels: [],
     });
   }
   const d = holes.map((h) => Math.hypot(h.collar.x - mx, h.collar.y - my));
   const limit = Math.max(10 * median(d), 1000);
   const outliers = holes.filter((_, i) => (d[i] ?? 0) > limit).map((h) => h.label);
-  if (outliers.length > 0)
+  if (outliers.length > 0) {
+    const list = `${outliers.slice(0, 5).join(', ')}${outliers.length > 5 ? '…' : ''}`;
     warnings.push({
       kind: 'outlier',
-      message: `${String(outliers.length)} taladros a más de ${limit.toFixed(0)} m del resto: ${outliers.slice(0, 5).join(', ')}${outliers.length > 5 ? '…' : ''}.`,
+      message: `${String(outliers.length)} taladros a más de ${limit.toFixed(0)} m del resto: ${list}.`,
+      params: { count: outliers.length, limit: limit.toFixed(0), list },
       labels: outliers,
     });
+  }
   return warnings;
 }
 

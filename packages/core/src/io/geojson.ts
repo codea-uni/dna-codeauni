@@ -125,6 +125,7 @@ export function importGeoJson(source: string, defaults: HoleCsvDefaults): GeoJso
     warnings.push({
       kind: 'outOfCrs',
       message: `El archivo declara EPSG ${String(fileEpsg)} y el proyecto usa EPSG ${String(defaults.epsg)}; Cronos no reproyecta.`,
+      params: { fileEpsg: String(fileEpsg), epsg: String(defaults.epsg) },
       labels: [],
     });
 

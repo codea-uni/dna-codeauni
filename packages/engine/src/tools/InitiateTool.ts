@@ -13,7 +13,7 @@ export class InitiateTool implements Tool {
     if (!blast || !hit) return;
     ctx.document.dispatch(
       commands.toggleInitiationPoint(ctx.document, blast.id, hit),
-      'Punto de inicio',
+      ctx.text('undo.initiationPoint'),
     );
   }
 }

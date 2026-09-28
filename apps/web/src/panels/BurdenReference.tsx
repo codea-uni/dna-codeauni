@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useUnits } from '../hooks/useUnits';
-import { useT } from '../i18n';
+import { useFormat, useT } from '../i18n';
 
 type Model = 'ash' | 'konya' | 'andersen';
 
@@ -36,6 +36,7 @@ export function BurdenReference({
   onSubdrill: (j: number) => void;
 }) {
   const t = useT();
+  const fmt = useFormat();
   const { len } = useUnits();
   const project = useProject();
   const blast = useActiveBlast();
@@ -61,7 +62,7 @@ export function BurdenReference({
   const ref = values[reference];
   const deviation = ref ? (burden - ref) / ref : 0;
   const ratio = stiffnessRatio(H, burden);
-  const show = (m: number) => `${len.show(m).toFixed(2)} ${len.unit}`;
+  const show = (m: number) => `${fmt(len.show(m), 2)} ${len.unit}`;
 
   return (
     <section className="panel">
@@ -77,7 +78,7 @@ export function BurdenReference({
         >
           {explosives.map((e) => (
             <option key={e.id} value={e.id}>
-              {e.name} · {e.density} kg/m³
+              {e.name} · {fmt(e.density)} kg/m³
             </option>
           ))}
         </select>
@@ -129,12 +130,12 @@ export function BurdenReference({
       </table>
       {ref !== null && Math.abs(deviation) > 0.1 && (
         <p className="warn">
-          {t('burden.outOfRange', { b: show(burden), pct: (deviation * 100).toFixed(0) })}
+          {t('burden.outOfRange', { b: show(burden), pct: fmt(deviation * 100) })}
         </p>
       )}
       <p className="muted">
         {t('burden.stiffness', {
-          r: ratio.toFixed(2),
+          r: fmt(ratio, 2),
           rating: t(`burden.rating.${stiffnessRating(ratio)}`),
         })}
       </p>

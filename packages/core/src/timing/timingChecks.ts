@@ -116,6 +116,7 @@ export function timingChecks(
       severity: 'warning',
       title: 'Cara libre no despejada',
       detail: `Burden efectivo ≥ ${String(options.maxEffectiveBurdenRatio)} × nominal al detonar: la cara hacia la que sale todavía no se abrió (RM-07, CR-05).`,
+      params: { value: options.maxEffectiveBurdenRatio },
       holes: unrelieved,
     },
     {
@@ -131,6 +132,7 @@ export function timingChecks(
       severity: 'info',
       title: 'Alivio muy cercano',
       detail: `Burden efectivo < ${String(options.minEffectiveBurdenRatio)} × nominal: el alivio viene de un taladro muy próximo.`,
+      params: { value: options.minEffectiveBurdenRatio },
       holes: closeRelief,
     },
     {
@@ -138,6 +140,12 @@ export function timingChecks(
       severity: 'info',
       title: 'Retardo fuera de la guía por metro',
       detail: `Entre taladros ${ms(guide.interHole.min)}–${ms(guide.interHole.max)} ms/m de espaciamiento y entre filas ${ms(guide.interRow.min)}–${ms(guide.interRow.max)} ms/m de burden (guía de diseño, P-11; configurable).`,
+      params: {
+        holeMin: ms(guide.interHole.min),
+        holeMax: ms(guide.interHole.max),
+        rowMin: ms(guide.interRow.min),
+        rowMax: ms(guide.interRow.max),
+      },
       holes: [...offGuide],
     },
   ];

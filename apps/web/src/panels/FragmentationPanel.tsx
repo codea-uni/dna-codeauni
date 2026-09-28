@@ -6,34 +6,36 @@ import { NumberField } from '../components/NumberField';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUnits } from '../hooks/useUnits';
 import { useActiveBlast } from '../hooks/useDocument';
+import { useFormat, useT, type MessageKey } from '../i18n';
 
 const SizeCurve = lazy(() => import('../charts/SizeCurve'));
-const fmt = (v: number, d = 1) =>
-  v.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
-const cm = (m: number) => fmt(m * 100, 1);
 
 type NumKey = {
   [K in keyof KuzRamInputs]: KuzRamInputs[K] extends number ? K : never;
 }[keyof KuzRamInputs];
 
 /** Campos de entrada: [clave, etiqueta, unidad, factor SI → UI, decimales]. */
-const FIELDS: [NumKey, string, string, number, number][] = [
-  ['rockFactor', 'Factor de roca A', '', 1, 2],
-  ['loadingFactor', 'Factor de carga', 'kg/m³', 1, 3],
-  ['chargePerHole', 'Carga por taladro', 'kg', 1, 1],
-  ['rws', 'RWS (ANFO = 100)', '%', 100, 0],
-  ['burden', 'Burden', 'm', 1, 2],
-  ['spacing', 'Espaciamiento', 'm', 1, 2],
-  ['diameter', 'Diámetro', 'mm', 1000, 0],
-  ['drillDeviation', 'Desviación perforación', 'm', 1, 2],
-  ['chargeLength', 'Largo de carga', 'm', 1, 2],
-  ['bottomChargeLength', 'Carga de fondo', 'm', 1, 2],
-  ['columnChargeLength', 'Carga de columna', 'm', 1, 2],
-  ['benchHeight', 'Altura de banco', 'm', 1, 2],
+const FIELDS: [NumKey, MessageKey, string, number, number][] = [
+  ['rockFactor', 'frag.field.rockFactor', '', 1, 2],
+  ['loadingFactor', 'frag.field.loadingFactor', 'kg/m³', 1, 3],
+  ['chargePerHole', 'frag.field.chargePerHole', 'kg', 1, 1],
+  ['rws', 'frag.field.rws', '%', 100, 0],
+  ['burden', 'frag.field.burden', 'm', 1, 2],
+  ['spacing', 'frag.field.spacing', 'm', 1, 2],
+  ['diameter', 'frag.field.diameter', 'mm', 1000, 0],
+  ['drillDeviation', 'frag.field.drillDeviation', 'm', 1, 2],
+  ['chargeLength', 'frag.field.chargeLength', 'm', 1, 2],
+  ['bottomChargeLength', 'frag.field.bottomChargeLength', 'm', 1, 2],
+  ['columnChargeLength', 'frag.field.columnChargeLength', 'm', 1, 2],
+  ['benchHeight', 'frag.field.benchHeight', 'm', 1, 2],
 ];
 
 /** Fragmentación: Kuz-Ram (x50, n) y Swebrec (KCO), P20/P50/P80, sobretamaño y finos. */
 export function FragmentationPanel() {
+  const t = useT();
+  const format = useFormat();
+  const fmt = (v: number, d = 1) => format(v, d);
+  const cm = (m: number) => fmt(m * 100, 1);
   const { len, dia } = useUnits();
   const blast = useActiveBlast();
   const s = useAnalysisStore();
@@ -46,11 +48,9 @@ export function FragmentationPanel() {
   return (
     <>
       <section className="panel">
-        <h2>Fragmentación</h2>
+        <h2>{t('frag.title')}</h2>
         {!r ? (
-          <p className="hint">
-            Carga los taladros (pestaña Carguío) para estimar la fragmentación.
-          </p>
+          <p className="hint">{t('frag.needCharge')}</p>
         ) : (
           <>
             <div className="kpis">
@@ -64,12 +64,12 @@ export function FragmentationPanel() {
                 <strong>{cm(r.p80.swebrec)}</strong>
                 <small>cm</small>
               </div>
-              <div className="kpi" title={`Fracción mayor a ${cm(r.oversize.size)} cm`}>
+              <div className="kpi" title={t('frag.oversizeTitle', { size: cm(r.oversize.size) })}>
                 <span>&gt; {cm(r.oversize.size)} cm</span>
                 <strong>{fmt(r.oversize.swebrec * 100)}</strong>
                 <small>%</small>
               </div>
-              <div className="kpi" title={`Fracción menor a ${cm(r.fines.size)} cm`}>
+              <div className="kpi" title={t('frag.finesTitle', { size: cm(r.fines.size) })}>
                 <span>&lt; {cm(r.fines.size)} cm</span>
                 <strong>{fmt(r.fines.swebrec * 100)}</strong>
                 <small>%</small>
@@ -113,10 +113,10 @@ export function FragmentationPanel() {
 
       <section className="panel">
         <h2 className="row-title">
-          Parámetros
+          {t('frag.params')}
           <button
             className={`icon-btn${s.fragAuto ? ' active' : ''}`}
-            title="Tomar de la voladura (se actualiza con cada cambio)"
+            title={t('frag.auto')}
             aria-pressed={s.fragAuto}
             onClick={() => {
               s.set({ fragAuto: true });
@@ -126,7 +126,7 @@ export function FragmentationPanel() {
           </button>
         </h2>
         {!inputs ? (
-          <p className="hint">Sin taladros cargados.</p>
+          <p className="hint">{t('frag.noLoaded')}</p>
         ) : (
           FIELDS.map(([key, label, unit, k, d]) => {
             // Longitudes y diámetro en las unidades del proyecto (H-104); el resto con su factor.
@@ -139,7 +139,7 @@ export function FragmentationPanel() {
             return (
               <NumberField
                 key={key}
-                label={label}
+                label={t(label)}
                 unit={conv.unit}
                 decimals={unit === 'mm' && dia.unit === 'in' ? 2 : d}
                 min={0}
@@ -156,14 +156,16 @@ export function FragmentationPanel() {
           (inputs.rockFactor < blast.calcParams.checks.rockFactorRange.min ||
             inputs.rockFactor > blast.calcParams.checks.rockFactorRange.max) && (
             <p className="warn">
-              Factor de roca A = {inputs.rockFactor.toFixed(2)} fuera de{' '}
-              {blast.calcParams.checks.rockFactorRange.min}–
-              {blast.calcParams.checks.rockFactorRange.max} (típico 6–13 en roca media, P-08).
+              {t('frag.rockFactorOut', {
+                a: inputs.rockFactor.toFixed(2),
+                min: blast.calcParams.checks.rockFactorRange.min,
+                max: blast.calcParams.checks.rockFactorRange.max,
+              })}
             </p>
           )}
-        <h3>Curva</h3>
+        <h3>{t('frag.curve')}</h3>
         <NumberField
-          label="Tamaño máximo (Swebrec)"
+          label={t('frag.xmax')}
           unit="cm"
           decimals={0}
           min={1}
@@ -173,7 +175,7 @@ export function FragmentationPanel() {
           }}
         />
         <NumberField
-          label="Sobretamaño sobre"
+          label={t('frag.oversize')}
           unit="cm"
           decimals={0}
           min={1}
@@ -183,7 +185,7 @@ export function FragmentationPanel() {
           }}
         />
         <NumberField
-          label="Finos bajo"
+          label={t('frag.fines')}
           unit="cm"
           decimals={1}
           min={0.1}

@@ -1,6 +1,7 @@
 import { Engine } from '@cronos/engine';
 import { useEffect, useRef } from 'react';
 import { bindVisualization } from '../analysis/visualize';
+import { t, useLocale } from '../i18n';
 import { session, setEngine } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { Legend3D } from './Legend3D';
@@ -24,6 +25,12 @@ export function Viewport() {
     engine.setHoleTemplate(ui.holeTemplate);
     engine.setTieConnector(ui.tieConnectorId);
     engine.setDecorations(ui.decorations);
+    // `t` lee el idioma al llamarse; volver a pasarlo al cambiar refresca los textos fijos del mapa.
+    const applyText = () => {
+      engine.setText((key, vars) => t(`engine.${key}`, vars));
+    };
+    applyText();
+    const unsubscribeLocale = useLocale.subscribe(applyText);
     const unbindVisualization = bindVisualization(engine);
 
     const unsubscribeUi = useUiStore.subscribe((state, prev) => {
@@ -60,6 +67,7 @@ export function Viewport() {
 
     return () => {
       unsubscribeUi();
+      unsubscribeLocale();
       unbindVisualization();
       for (const off of offs) off();
       setEngine(null);

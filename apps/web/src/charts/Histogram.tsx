@@ -3,6 +3,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useEffect, useRef } from 'react';
+import { formatNumber, t, useLocale } from '../i18n';
 
 echarts.use([BarChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
@@ -18,6 +19,7 @@ export interface HistogramProps {
 export default function Histogram({ starts, holes, kg, binMs }: HistogramProps) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
+  const locale = useLocale((s) => s.locale);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -43,17 +45,19 @@ export default function Histogram({ starts, holes, kg, binMs }: HistogramProps) 
         tooltip: {
           trigger: 'axis',
           valueFormatter: (v: unknown) =>
-            typeof v === 'number' ? v.toFixed(v % 1 === 0 ? 0 : 1) : String(v),
+            typeof v === 'number' ? formatNumber(v, v % 1 === 0 ? 0 : 1, locale) : String(v),
         },
         xAxis: {
           type: 'category',
-          data: starts.map((s) => `${s.toFixed(0)}–${(s + binMs).toFixed(0)} ms`),
+          data: starts.map(
+            (s) => `${formatNumber(s, 0, locale)}–${formatNumber(s + binMs, 0, locale)} ms`,
+          ),
           axisLabel: { formatter: (v: string) => v.split('–')[0] ?? v, color: '#8b949e' },
         },
         yAxis: [
           {
             type: 'value',
-            name: 'taladros',
+            name: t('chart.holesAxis'),
             minInterval: 1,
             axisLabel: { color: '#8b949e' },
             splitLine: { lineStyle: { color: '#21262d' } },
@@ -67,7 +71,7 @@ export default function Histogram({ starts, holes, kg, binMs }: HistogramProps) 
         ],
         series: [
           {
-            name: 'Taladros',
+            name: t('chart.holes'),
             type: 'bar',
             data: holes,
             itemStyle: { color: '#58a6ff' },
@@ -85,7 +89,7 @@ export default function Histogram({ starts, holes, kg, binMs }: HistogramProps) 
       },
       true,
     );
-  }, [starts, holes, kg, binMs]);
+  }, [starts, holes, kg, binMs, locale]);
 
   return <div ref={ref} className="chart" />;
 }

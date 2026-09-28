@@ -33,7 +33,7 @@ export class FreeFaceTool implements Tool {
     if (hit) {
       ctx.document.dispatch(
         commands.toggleFreeFaceEdge(ctx.document, blast.id, hit.boundaryId, hit.edge),
-        'Cara libre',
+        ctx.text('undo.freeFace'),
       );
       ctx.setActiveBoundary(hit.boundaryId);
       return;

@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { t } from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -23,14 +24,14 @@ export class ErrorBoundary extends Component<Props, { failed: boolean }> {
       return (
         this.props.fallback ?? (
           <p className="hint warn">
-            No se pudo mostrar este bloque.{' '}
+            {t('app.blockFailed')}{' '}
             <button
               className="icon"
               onClick={() => {
                 this.setState({ failed: false });
               }}
             >
-              Reintentar
+              {t('app.retry')}
             </button>
           </p>
         )

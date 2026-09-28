@@ -23,3 +23,4 @@ export {
 } from './scene3d/Scene3D';
 export { DEFAULT_DECORATIONS, type DecorationSettings } from './overlay/MapDecorations';
 export { formatDistance } from './cameras/mapScale';
+export { ENGINE_TEXT, type EngineText, type EngineTextKey } from './text';

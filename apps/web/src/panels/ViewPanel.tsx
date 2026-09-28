@@ -2,6 +2,7 @@ import { turboCss } from '@cronos/engine';
 import { colorRange, sequenceTimes } from '../analysis/visualize';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
+import { useT } from '../i18n';
 import { getEngine, session } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
 
@@ -22,6 +23,7 @@ function formatValue(v: number, mode: ColorBy): string {
 
 /** Opciones de visualización del diseño y animación de la secuencia. */
 export function ViewPanel() {
+  const t = useT();
   const s = useAnalysisStore();
   const blast = useActiveBlast();
   const { analysis } = s;
@@ -46,26 +48,26 @@ export function ViewPanel() {
 
   return (
     <section className="panel">
-      <h2>Visualización</h2>
+      <h2>{t('view.title')}</h2>
       <label className="field">
-        <span className="field-label">Color de taladros</span>
+        <span className="field-label">{t('view.colorBy')}</span>
         <select
           value={s.colorBy}
           onChange={(e) => {
             s.set({ colorBy: e.target.value as ColorBy });
           }}
         >
-          <option value="none">Estado</option>
-          <option value="time">Tiempo de disparo</option>
-          <option value="kg">kg por taladro</option>
-          <option value="powderFactor">Factor de carga</option>
-          <option value="effectiveBurden">Burden efectivo</option>
-          <option value="group">Grupo</option>
+          <option value="none">{t('view.color.none')}</option>
+          <option value="time">{t('view.color.time')}</option>
+          <option value="kg">{t('view.color.kg')}</option>
+          <option value="powderFactor">{t('view.color.powderFactor')}</option>
+          <option value="effectiveBurden">{t('view.color.effectiveBurden')}</option>
+          <option value="group">{t('view.color.group')}</option>
         </select>
       </label>
       {s.colorBy === 'group' && blast && (
         <div className="legend-row">
-          {blast.groups.length === 0 && <span className="muted">Sin grupos (pestaña Diseño)</span>}
+          {blast.groups.length === 0 && <span className="muted">{t('view.noGroups')}</span>}
           {blast.groups.map((g) => (
             <span key={g.id} className="legend-chip">
               <i style={{ background: g.color, height: 10, width: 10 }} /> {g.name}
@@ -88,25 +90,25 @@ export function ViewPanel() {
         </div>
       )}
       <label className="field">
-        <span className="field-label">Etiquetas</span>
+        <span className="field-label">{t('view.labels')}</span>
         <select
           value={s.labelBy}
           onChange={(e) => {
             s.set({ labelBy: e.target.value as LabelBy });
           }}
         >
-          <option value="label">Nombre</option>
-          <option value="time">Tiempo [ms]</option>
+          <option value="label">{t('view.label.name')}</option>
+          <option value="time">{t('view.label.time')}</option>
           <option value="kg">kg</option>
         </select>
       </label>
       <div className="checks">
         {(
           [
-            ['connections', 'Amarres'],
-            ['isochrones', 'Isócronas'],
-            ['labels', 'Etiquetas'],
-            ['traces', 'Trazas'],
+            ['connections', 'view.layer.connections'],
+            ['isochrones', 'view.layer.isochrones'],
+            ['labels', 'view.labels'],
+            ['traces', 'view.layer.traces'],
           ] as const
         ).map(([layer, label]) => (
           <label key={layer} className="check">
@@ -117,19 +119,19 @@ export function ViewPanel() {
                 s.setLayer(layer, e.target.checked);
               }}
             />
-            {label}
+            {t(label)}
           </label>
         ))}
       </div>
       <label className="field">
-        <span className="field-label">Intervalo isócronas</span>
+        <span className="field-label">{t('view.isochroneInterval')}</span>
         <span className="field-input">
           <input
             type="number"
             min={0}
             step={5}
             value={s.isochroneIntervalMs}
-            title="0 = automático"
+            title={t('view.autoZero')}
             onChange={(e) => {
               s.set({ isochroneIntervalMs: Math.max(0, Number(e.target.value)) });
             }}
@@ -139,7 +141,7 @@ export function ViewPanel() {
       </label>
       {blast && (
         <NumberField
-          label="Ventana de MIC"
+          label={t('view.micWindow')}
           unit="ms"
           decimals={1}
           min={0.1}
@@ -151,22 +153,22 @@ export function ViewPanel() {
                 blastId: blast.id,
                 patch: { calcParams: { ...blast.calcParams, micWindow: ms / 1000 } },
               },
-              'Ventana de MIC',
+              t('view.micWindow'),
             );
           }}
         />
       )}
 
-      <h3>Secuencia</h3>
+      <h3>{t('view.sequence')}</h3>
       {!hasTimes ? (
-        <p className="hint">Sin tiempos: asigna detonadores y amarres (pestaña Tiempos).</p>
+        <p className="hint">{t('view.noTimes')}</p>
       ) : (
         <>
           <div className="row">
             {s.sequencePlaying ? (
-              <button onClick={pause}>⏸ Pausa</button>
+              <button onClick={pause}>⏸ {t('view.pause')}</button>
             ) : (
-              <button onClick={play}>▶ Reproducir</button>
+              <button onClick={play}>▶ {t('view.play')}</button>
             )}
             <button onClick={stop} disabled={s.sequenceTime === null}>
               ⏹

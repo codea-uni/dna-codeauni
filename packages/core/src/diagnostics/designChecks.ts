@@ -12,6 +12,8 @@ export interface DesignCheck {
   title: string;
   /** Detalle con la regla aplicada. */
   detail: string;
+  /** Valores que interpola `detail`, para traducirlo en la interfaz (G8). */
+  params?: Record<string, string | number>;
   holes: HoleId[];
 }
 
@@ -74,6 +76,7 @@ export function designChecks(
     severity: 'warning',
     title: 'Rigidez del burden baja',
     detail: `H/B ≤ ${String(options.minStiffness)} (tabla de Konya: mala distribución de energía, más proyección y vibración).`,
+    params: { value: options.minStiffness },
     holes: lowStiffness,
   });
   add({
@@ -81,6 +84,7 @@ export function designChecks(
     severity: 'warning',
     title: 'Sobreperforación fuera de rango',
     detail: `J/B fuera de ${fmtRange(options.subdrillBurdenRatio)} (rango de las fuentes; configurable).`,
+    params: { ...options.subdrillBurdenRatio },
     holes: subdrillRange,
   });
   add({
@@ -88,6 +92,7 @@ export function designChecks(
     severity: 'info',
     title: 'Diámetro poco usual para la altura de banco',
     detail: `H/Ø fuera de ${fmtRange(options.benchDiameterRatio)} (regla informativa, R0).`,
+    params: { ...options.benchDiameterRatio },
     holes: benchDiameter,
   });
 
@@ -160,6 +165,7 @@ export function designChecks(
     severity: 'warning',
     title: 'Taco corto',
     detail: `Taco menor que ${String(options.minStemmingRatio)} × burden (sin malla: ${String(options.minStemmingDiameters)} × Ø); riesgo de proyecciones (P-04).`,
+    params: { ratio: options.minStemmingRatio, diameters: options.minStemmingDiameters },
     holes: shortStemming,
   });
   add({
@@ -167,6 +173,7 @@ export function designChecks(
     severity: 'warning',
     title: 'Taco largo',
     detail: `Taco mayor que ${String(options.maxStemmingRatio)} × burden: roca sin fragmentar en el collar.`,
+    params: { ratio: options.maxStemmingRatio },
     holes: longStemming,
   });
   add({
@@ -174,6 +181,7 @@ export function designChecks(
     severity: 'info',
     title: 'Taco fuera del rango en diámetros',
     detail: `Taco fuera de ${fmtRange(options.stemmingDiameterRatio)} × Ø (regla de las fuentes; configurable).`,
+    params: { ...options.stemmingDiameterRatio },
     holes: stemmingDiameter,
   });
   add({
@@ -198,6 +206,7 @@ export function designChecks(
       severity: 'warning',
       title: 'Vecinos que disparan juntos',
       detail: `Taladros a menos de ${options.neighborFactor} × el espaciamiento que detonan dentro de ${fmtMs(options.coincidenceWindow)}: pierden alivio (mala fragmentación y más vibración).`,
+      params: { factor: options.neighborFactor, window: fmtMs(options.coincidenceWindow) },
       holes: neighborCoincidences(blast, timing, options),
     });
   }
@@ -231,6 +240,7 @@ export function designChecks(
     severity: 'error',
     title: 'Bocas duplicadas',
     detail: `Taladros a menos de ${cell} m entre sí.`,
+    params: { distance: cell },
     holes: [...dup],
   });
 

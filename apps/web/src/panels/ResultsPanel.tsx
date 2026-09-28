@@ -4,14 +4,13 @@ import * as actions from '../actions';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { lazy, Suspense, useMemo } from 'react';
 import { useActiveBlast } from '../hooks/useDocument';
+import { useFormat, useT } from '../i18n';
+import { checkText } from '../i18n/coreText';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUnits } from '../hooks/useUnits';
 
 const Histogram = lazy(() => import('../charts/Histogram'));
-
-const fmt = (v: number, d = 0) =>
-  v.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 function Row({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
@@ -43,6 +42,8 @@ function histogram(a: BlastAnalysis, binMs: number) {
 }
 
 export function ResultsPanel() {
+  const t = useT();
+  const fmt = useFormat();
   const { len, area, volume } = useUnits();
   const analysis = useAnalysisStore((s) => s.analysis);
   const computing = useAnalysisStore((s) => s.computing);
@@ -55,15 +56,15 @@ export function ResultsPanel() {
   if (!analysis)
     return (
       <section className="panel">
-        <h2>Resultados</h2>
-        <p className="muted">{computing ? 'Calculando…' : 'Sin datos'}</p>
+        <h2>{t('results.title')}</h2>
+        <p className="muted">{computing ? t('results.computing') : t('results.noData')}</p>
       </section>
     );
   const c = analysis.charge;
-  const t = analysis.timing;
+  const tm = analysis.timing;
   const total = c.holeIds.length;
   const selectCoincident = () => {
-    session.selection.set(t.coincidentGroups.flat());
+    session.selection.set(tm.coincidentGroups.flat());
   };
 
   return (
@@ -71,32 +72,38 @@ export function ResultsPanel() {
       <ChecksSection checks={analysis.checks} />
       <section className="panel">
         <h2>
-          Carguío y cubicación{' '}
+          {t('results.charge')}{' '}
           <span className="muted small">
-            {computing ? '· calculando…' : `· ${analysis.elapsedMs.toFixed(0)} ms`}
+            {computing ? t('results.computingSuffix') : `· ${analysis.elapsedMs.toFixed(0)} ms`}
           </span>
         </h2>
         <table className="kv">
           <tbody>
             <Row
-              label="Taladros cargados"
+              label={t('results.loadedHoles')}
               value={`${c.loadedHoles} / ${total}`}
               warn={c.loadedHoles < total}
             />
-            <Row label="Explosivo" value={`${fmt(c.totalExplosive)} kg`} />
-            <Row label="Primas" value={`${fmt(c.totalPrimers, 1)} kg`} />
+            <Row label={t('results.explosive')} value={`${fmt(c.totalExplosive)} kg`} />
+            <Row label={t('results.primers')} value={`${fmt(c.totalPrimers, 1)} kg`} />
             <Row
-              label="Metros perforados"
+              label={t('results.drilled')}
               value={`${fmt(len.show(c.drilledLength), 1)} ${len.unit}`}
             />
-            <Row label="Área" value={`${fmt(area.show(c.area))} ${area.unit}`} />
-            <Row label="Volumen cubicado" value={`${fmt(volume.show(c.volume))} ${volume.unit}`} />
-            <Row label="Tonelaje cubicado" value={`${fmt(c.tonnage / 1000)} t`} />
-            <Row label="Factor de carga real" value={`${fmt(c.loadingFactor, 3)} kg/m³`} />
-            <Row label="Factor de potencia real" value={`${fmt(c.powderFactor * 1000, 3)} kg/t`} />
-            <Row label="Energía" value={`${fmt(c.totalEnergy / 1e6)} MJ`} />
+            <Row label={t('results.area')} value={`${fmt(area.show(c.area))} ${area.unit}`} />
             <Row
-              label="Costo de productos"
+              label={t('results.volume')}
+              value={`${fmt(volume.show(c.volume))} ${volume.unit}`}
+            />
+            <Row label={t('results.tonnage')} value={`${fmt(c.tonnage / 1000)} t`} />
+            <Row label={t('results.loadingFactor')} value={`${fmt(c.loadingFactor, 3)} kg/m³`} />
+            <Row
+              label={t('results.powderFactor')}
+              value={`${fmt(c.powderFactor * 1000, 3)} kg/t`}
+            />
+            <Row label={t('results.energy')} value={`${fmt(c.totalEnergy / 1e6)} MJ`} />
+            <Row
+              label={t('results.cost')}
               value={`${fmt(c.cost)} ${session.document.project.currency}`}
             />
           </tbody>
@@ -105,63 +112,66 @@ export function ResultsPanel() {
         {c.byGroup.some((g) => g.groupId !== null) && <GroupTable charge={c} />}
       </section>
       <section className="panel">
-        <h2>Tiempos</h2>
+        <h2>{t('results.timing')}</h2>
         <table className="kv">
           <tbody>
             <Row
-              label="Taladros iniciados"
-              value={`${t.initiated} / ${total}`}
-              warn={t.notInitiated > 0}
+              label={t('results.initiated')}
+              value={`${tm.initiated} / ${total}`}
+              warn={tm.notInitiated > 0}
             />
-            {t.withoutDetonator > 0 && (
-              <Row label="Sin detonador en taladro" value={String(t.withoutDetonator)} warn />
+            {tm.withoutDetonator > 0 && (
+              <Row label={t('results.noDetonator')} value={String(tm.withoutDetonator)} warn />
             )}
-            {t.initiated > 0 && (
+            {tm.initiated > 0 && (
               <>
                 <Row
-                  label="Primer / último"
-                  value={`${fmt(t.firstTime * 1000)} / ${fmt(t.lastTime * 1000)} ms`}
-                />
-                <Row label="Duración" value={`${fmt((t.lastTime - t.firstTime) * 1000)} ms`} />
-                <Row
-                  label={`Máx. taladros en ${windowMs} ms`}
-                  value={String(t.maxHolesPerWindow)}
+                  label={t('results.firstLast')}
+                  value={`${fmt(tm.firstTime * 1000)} / ${fmt(tm.lastTime * 1000)} ms`}
                 />
                 <Row
-                  label={`Máx. kg en ${windowMs} ms`}
-                  value={`${fmt(t.maxChargePerWindow)} kg @ ${fmt(t.maxChargeWindowStart * 1000)} ms`}
+                  label={t('results.duration')}
+                  value={`${fmt((tm.lastTime - tm.firstTime) * 1000)} ms`}
                 />
-                <Row label="Grupos coincidentes" value={String(t.coincidentGroups.length)} />
+                <Row
+                  label={t('results.maxHoles', { ms: windowMs })}
+                  value={String(tm.maxHolesPerWindow)}
+                />
+                <Row
+                  label={t('results.maxKg', { ms: windowMs })}
+                  value={`${fmt(tm.maxChargePerWindow)} kg @ ${fmt(tm.maxChargeWindowStart * 1000)} ms`}
+                />
+                <Row label={t('results.coincident')} value={String(tm.coincidentGroups.length)} />
               </>
             )}
           </tbody>
         </table>
-        {t.coincidentGroups.length > 0 && (
+        {tm.coincidentGroups.length > 0 && (
           <button onClick={selectCoincident}>
-            Seleccionar taladros coincidentes ({t.coincidentGroups.flat().length})
+            {t('results.selectCoincident', { n: tm.coincidentGroups.flat().length })}
           </button>
         )}
         {hist && (
           <ErrorBoundary>
-            <Suspense fallback={<div className="chart muted">Cargando gráfico…</div>}>
+            <Suspense fallback={<div className="chart muted">{t('results.loadingChart')}</div>}>
               <Histogram starts={hist.starts} holes={hist.holes} kg={hist.kg} binMs={windowMs} />
             </Suspense>
           </ErrorBoundary>
         )}
-        {t.interRowDelays.length > 0 && (
+        {tm.interRowDelays.length > 0 && (
           <>
-            <h3>Retardo entre filas</h3>
+            <h3>{t('results.interRow')}</h3>
             <table className="grid-table compact">
               <thead>
                 <tr>
-                  <th>Filas</th>
-                  <th>mín</th>
-                  <th>máx</th>
-                  <th>media [ms]</th>
+                  <th>{t('results.rows')}</th>
+                  <th>{t('results.min')}</th>
+                  <th>{t('results.max')}</th>
+                  <th>{t('results.meanMs')}</th>
                 </tr>
               </thead>
               <tbody>
-                {t.interRowDelays.slice(0, 40).map((r) => (
+                {tm.interRowDelays.slice(0, 40).map((r) => (
                   <tr key={`${r.patternId ?? ''}-${r.rowA}`}>
                     <td>
                       {r.rowA + 1}→{r.rowB + 1}
@@ -181,9 +191,9 @@ export function ResultsPanel() {
 }
 
 const SEVERITY = {
-  error: { icon: CircleX, cls: 'sev-error', label: 'Error' },
-  warning: { icon: TriangleAlert, cls: 'sev-warning', label: 'Advertencia' },
-  info: { icon: Info, cls: 'sev-info', label: 'Aviso' },
+  error: { icon: CircleX, cls: 'sev-error', label: 'common.error' },
+  warning: { icon: TriangleAlert, cls: 'sev-warning', label: 'common.warning' },
+  info: { icon: Info, cls: 'sev-info', label: 'results.sevInfo' },
 } as const;
 
 /** Revisión del diseño: cada alerta selecciona y encuadra sus taladros. */
@@ -192,6 +202,8 @@ const SEVERITY = {
  * carga, de potencia y de energía, y rendimiento m³/m (FC-13 a FC-16).
  */
 function DesignFactors({ charge: c }: { charge: BlastAnalysis['charge'] }) {
+  const t = useT();
+  const fmt = useFormat();
   const { len, volume } = useUnits();
   const project = session.document.project;
   const blast = project.blasts[0];
@@ -200,11 +212,14 @@ function DesignFactors({ charge: c }: { charge: BlastAnalysis['charge'] }) {
   const tonnes = n.volume * rho;
   return (
     <>
-      <h3>Diseño (volumen nominal B·S·H)</h3>
+      <h3>{t('results.design')}</h3>
       <table className="kv">
         <tbody>
-          <Row label="Volumen nominal" value={`${fmt(volume.show(n.volume))} ${volume.unit}`} />
-          <Row label="Tonelaje nominal" value={`${fmt(tonnes / 1000)} t`} />
+          <Row
+            label={t('results.nominalVolume')}
+            value={`${fmt(volume.show(n.volume))} ${volume.unit}`}
+          />
+          <Row label={t('results.nominalTonnage')} value={`${fmt(tonnes / 1000)} t`} />
           <Row label="loading_factor" value={`${fmt(n.explosive / n.volume, 3)} kg/m³`} />
           <Row
             label="powder_factor"
@@ -215,7 +230,7 @@ function DesignFactors({ charge: c }: { charge: BlastAnalysis['charge'] }) {
             value={tonnes > 0 ? `${fmt(n.energy / 1e6 / (tonnes / 1000), 3)} MJ/t` : '—'}
           />
           <Row
-            label="Rendimiento"
+            label={t('results.yield')}
             value={
               n.drilledLength > 0
                 ? `${fmt(volume.show(n.volume) / len.show(n.drilledLength), 2)} ${volume.unit}/${len.unit}`
@@ -230,24 +245,26 @@ function DesignFactors({ charge: c }: { charge: BlastAnalysis['charge'] }) {
 
 /** Carga por grupo (RM-18): taladros, kg y factor de carga de diseño. */
 function GroupTable({ charge: c }: { charge: BlastAnalysis['charge'] }) {
+  const t = useT();
+  const fmt = useFormat();
   const blast = session.document.project.blasts[0];
   const name = new Map(blast?.groups.map((g) => [g.id, g.name]));
   return (
     <>
-      <h3>Por grupo</h3>
+      <h3>{t('results.byGroup')}</h3>
       <table className="grid-table compact">
         <thead>
           <tr>
-            <th>Grupo</th>
-            <th>Taladros</th>
+            <th>{t('results.group')}</th>
+            <th>{t('results.holes')}</th>
             <th>kg</th>
-            <th>kg/m³ (diseño)</th>
+            <th>{t('results.kgm3Design')}</th>
           </tr>
         </thead>
         <tbody>
           {c.byGroup.map((g) => (
             <tr key={g.groupId ?? 'none'}>
-              <td>{g.groupId ? (name.get(g.groupId) ?? '—') : 'Sin grupo'}</td>
+              <td>{g.groupId ? (name.get(g.groupId) ?? '—') : t('results.noGroup')}</td>
               <td className="num">{g.holes}</td>
               <td className="num">{fmt(g.explosive)}</td>
               <td className="num">
@@ -262,28 +279,30 @@ function GroupTable({ charge: c }: { charge: BlastAnalysis['charge'] }) {
 }
 
 function ChecksSection({ checks }: { checks: DesignCheck[] }) {
+  const t = useT();
   return (
     <section className="panel">
-      <h2>Revisión del diseño</h2>
+      <h2>{t('results.checks')}</h2>
       {checks.length === 0 ? (
         <p className="check-ok">
-          <CircleCheck size={15} aria-hidden /> Sin observaciones
+          <CircleCheck size={15} aria-hidden /> {t('results.noIssues')}
         </p>
       ) : (
         <ul className="checks-list">
           {checks.map((c) => {
             const sev = SEVERITY[c.severity];
+            const text = checkText(c);
             return (
               <li key={c.id}>
                 <button
                   className={sev.cls}
-                  title={`${sev.label}: ${c.detail}\nClic: seleccionar y encuadrar`}
+                  title={`${t(sev.label)}: ${text.detail}\n${t('results.checkClick')}`}
                   onClick={() => {
                     actions.focusHoles(c.holes);
                   }}
                 >
                   <sev.icon size={15} aria-hidden />
-                  <span>{c.title}</span>
+                  <span>{text.title}</span>
                   <em>{c.holes.length}</em>
                 </button>
               </li>

@@ -13,6 +13,7 @@ import { useProject, useSelectionIds } from '../hooks/useDocument';
 import { session } from '../session';
 import { DeckEditor } from './DeckEditor';
 import { useUnits } from '../hooks/useUnits';
+import { useFormat, useT } from '../i18n';
 import { useAnalysisStore } from '../stores/analysisStore';
 
 /** Valor común de una propiedad en la selección, o null si difiere. */
@@ -32,6 +33,8 @@ function map(v: number | null, f: (x: number) => number): number | null {
 }
 
 export function PropertiesPanel() {
+  const t = useT();
+  const fmt = useFormat();
   const analysis = useAnalysisStore((st) => st.analysis);
   const { len, dia } = useUnits();
   // Suscripciones: re-render cuando cambian el documento o la selección.
@@ -44,13 +47,15 @@ export function PropertiesPanel() {
   }
 
   if (holes.length === 0) {
+    const [before, after] = t('props.hint').split('{key}');
     return (
       <section className="panel">
-        <h2>Propiedades</h2>
-        <p className="muted">Sin selección.</p>
+        <h2>{t('props.title')}</h2>
+        <p className="muted">{t('props.noSelection')}</p>
         <p className="hint">
-          Haz clic en un taladro (<kbd>V</kbd>) o arrastra una caja para editarlo. Los ajustes
-          generales están en la pestaña Vista.
+          {before}
+          <kbd>V</kbd>
+          {after}
         </p>
       </section>
     );
@@ -65,7 +70,7 @@ export function PropertiesPanel() {
         holes.map((h) => h.id),
         change,
       ),
-      n === 1 ? label : `${label} (${n} taladros)`,
+      n === 1 ? label : t('props.multiLabel', { label, n }),
     );
   };
   const toe = single ? holeToe(single) : undefined;
@@ -83,22 +88,24 @@ export function PropertiesPanel() {
   return (
     <>
       <section className="panel">
-        <h2>Propiedades</h2>
+        <h2>{t('props.title')}</h2>
         <p className="muted">
-          {single ? `Taladro ${single.label}` : `${holes.length} taladros seleccionados`}
+          {single
+            ? t('props.hole', { label: single.label })
+            : t('props.selected', { n: holes.length })}
           {single?.row !== undefined &&
             single.col !== undefined &&
-            ` · fila ${single.row + 1}, col. ${single.col + 1}`}
+            ` · ${t('props.rowCol', { row: single.row + 1, col: single.col + 1 })}`}
         </p>
         {single && (
           <label className="field">
-            <span className="field-label">Etiqueta</span>
+            <span className="field-label">{t('props.label')}</span>
             <input
               key={single.id + single.label}
               defaultValue={single.label}
               onBlur={(e) => {
                 const label = e.target.value.trim();
-                if (label && label !== single.label) edit({ label }, 'Renombrar taladro');
+                if (label && label !== single.label) edit({ label }, t('props.rename'));
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') e.currentTarget.blur();
@@ -107,7 +114,7 @@ export function PropertiesPanel() {
           </label>
         )}
         <NumberField
-          label="Este (X)"
+          label={t('props.east')}
           unit={len.unit}
           value={map(
             common(holes, (h) => h.collar.x),
@@ -115,11 +122,11 @@ export function PropertiesPanel() {
           )}
           onCommit={(raw) => {
             const v = len.parse(raw);
-            edit({ x: v }, 'Editar X');
+            edit({ x: v }, t('props.editX'));
           }}
         />
         <NumberField
-          label="Norte (Y)"
+          label={t('props.north')}
           unit={len.unit}
           value={map(
             common(holes, (h) => h.collar.y),
@@ -127,11 +134,11 @@ export function PropertiesPanel() {
           )}
           onCommit={(raw) => {
             const v = len.parse(raw);
-            edit({ y: v }, 'Editar Y');
+            edit({ y: v }, t('props.editY'));
           }}
         />
         <NumberField
-          label="Cota boca (Z)"
+          label={t('props.collarZ')}
           unit={len.unit}
           value={map(
             common(holes, (h) => h.collar.z),
@@ -139,11 +146,11 @@ export function PropertiesPanel() {
           )}
           onCommit={(raw) => {
             const v = len.parse(raw);
-            edit({ z: v }, 'Editar cota');
+            edit({ z: v }, t('props.editZ'));
           }}
         />
         <NumberField
-          label="Diámetro"
+          label={t('props.diameter')}
           unit={dia.unit}
           decimals={dia.unit === 'in' ? 3 : 1}
           min={0.001}
@@ -152,11 +159,11 @@ export function PropertiesPanel() {
             dia.show,
           )}
           onCommit={(v) => {
-            edit({ diameter: dia.parse(v) }, 'Editar diámetro');
+            edit({ diameter: dia.parse(v) }, t('props.editDiameter'));
           }}
         />
         <NumberField
-          label="Longitud"
+          label={t('props.length')}
           unit={len.unit}
           decimals={2}
           min={0}
@@ -166,11 +173,11 @@ export function PropertiesPanel() {
           )}
           onCommit={(raw) => {
             const v = len.parse(raw);
-            edit({ length: v }, 'Editar longitud');
+            edit({ length: v }, t('props.editLength'));
           }}
         />
         <NumberField
-          label="Inclinación"
+          label={t('props.inclination')}
           unit="°"
           decimals={2}
           min={0}
@@ -180,11 +187,11 @@ export function PropertiesPanel() {
             radToDeg,
           )}
           onCommit={(v) => {
-            edit({ inclination: degToRad(v) }, 'Editar inclinación');
+            edit({ inclination: degToRad(v) }, t('props.editInclination'));
           }}
         />
         <NumberField
-          label="Azimut"
+          label={t('props.azimuth')}
           unit="°"
           decimals={2}
           min={0}
@@ -194,11 +201,11 @@ export function PropertiesPanel() {
             radToDeg,
           )}
           onCommit={(v) => {
-            edit({ azimuth: degToRad(v) }, 'Editar azimut');
+            edit({ azimuth: degToRad(v) }, t('props.editAzimuth'));
           }}
         />
         <NumberField
-          label="Sobreperforación"
+          label={t('props.subdrill')}
           unit={len.unit}
           decimals={2}
           value={map(
@@ -207,15 +214,12 @@ export function PropertiesPanel() {
           )}
           onCommit={(raw) => {
             const v = len.parse(raw);
-            edit({ subdrill: v }, 'Editar sobreperforación');
+            edit({ subdrill: v }, t('props.editSubdrill'));
           }}
         />
-        <p className="hint">
-          Cambiar cota, inclinación o sobreperforación recalcula la longitud hasta piso +
-          sobreperforación.
-        </p>
+        <p className="hint">{t('props.geometryHint')}</p>
         <label className="field">
-          <span className="field-label">Agua en el taladro</span>
+          <span className="field-label">{t('props.water')}</span>
           <select
             value={
               new Set(holes.map((h) => h.water ?? 'unknown')).size === 1
@@ -235,37 +239,36 @@ export function PropertiesPanel() {
               session.document.dispatch(
                 { type: 'holes/replace', blastId: blast.id, holes: next },
                 holes.length === 1
-                  ? 'Estado de agua'
-                  : `Estado de agua (${String(holes.length)} taladros)`,
+                  ? t('props.waterState')
+                  : t('props.multiLabel', { label: t('props.waterState'), n: holes.length }),
               );
             }}
           >
             <option value="mixed" disabled>
-              (varios)
+              {t('props.water.mixed')}
             </option>
-            <option value="unknown">Sin dato</option>
-            <option value="dry">Seco</option>
-            <option value="static">Agua estática</option>
-            <option value="dynamic">Agua dinámica</option>
+            <option value="unknown">{t('props.water.unknown')}</option>
+            <option value="dry">{t('props.water.dry')}</option>
+            <option value="static">{t('props.water.static')}</option>
+            <option value="dynamic">{t('props.water.dynamic')}</option>
           </select>
         </label>
-        <p className="hint">
-          P-09: con agua estática no ANFO; con agua dinámica solo emulsión. Se avisa en la revisión.
-        </p>
+        <p className="hint">{t('props.waterHint')}</p>
         {seq && Number.isFinite(seq.t) && (
           <p className="muted">
-            Sale a {(seq.t * 1000).toFixed(0)} ms del primero
+            {t('props.firesAt', { t: fmt(seq.t * 1000) })}
             {Number.isFinite(seq.eff)
-              ? ` · burden efectivo ${len.show(seq.eff).toFixed(2)} ${len.unit}`
+              ? ` · ${t('props.effectiveBurden', { b: `${fmt(len.show(seq.eff), 2)} ${len.unit}` })}`
               : seq.eff === Infinity
-                ? ' · sin cara libre al detonar'
+                ? ` · ${t('props.noFreeFace')}`
                 : ''}
-            {Number.isFinite(seq.nom) && ` (nominal ${len.show(seq.nom).toFixed(2)} ${len.unit})`}
+            {Number.isFinite(seq.nom) &&
+              ` ${t('props.nominal', { b: `${fmt(len.show(seq.nom), 2)} ${len.unit}` })}`}
           </p>
         )}
         {toe && (
           <p className="muted mono">
-            Fondo: E {toe.x.toFixed(2)} N {toe.y.toFixed(2)} Z {toe.z.toFixed(2)}
+            {t('props.toe', { x: fmt(toe.x, 2), y: fmt(toe.y, 2), z: fmt(toe.z, 2) })}
           </p>
         )}
         <div className="row">
@@ -274,10 +277,10 @@ export function PropertiesPanel() {
               actions.zoomToFit(true);
             }}
           >
-            Encuadrar
+            {t('props.fit')}
           </button>
           <button className="danger" onClick={actions.deleteSelection}>
-            Borrar
+            {t('props.delete')}
           </button>
         </div>
       </section>

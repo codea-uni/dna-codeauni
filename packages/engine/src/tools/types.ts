@@ -10,6 +10,7 @@ import type {
   SnapResult,
   Vec2,
 } from '@cronos/core';
+import type { EngineText } from '../text';
 
 export type ToolName =
   | 'select'
@@ -67,6 +68,8 @@ export interface ToolContext {
   previewMove(ids: readonly HoleId[], dx: number, dy: number): void;
   clearPreviewMove(): void;
   invalidate(): void;
+  /** Texto visible en el idioma de la app (nombres para deshacer). */
+  text: EngineText;
 }
 
 export interface Tool {

@@ -16,14 +16,11 @@ import {
 import { NumberCell } from '../components/CellInput';
 import { session } from '../session';
 import { useUnits } from '../hooks/useUnits';
+import { useFormat, useT } from '../i18n';
 
-const KIND_LABEL: Record<Deck['kind'], string> = {
-  explosive: 'Explosivo',
-  stemming: 'Taco',
-  air: 'Aire',
-  water: 'Agua',
-  plug: 'Tapón',
-};
+type T = ReturnType<typeof useT>;
+
+const KINDS: Deck['kind'][] = ['explosive', 'stemming', 'air', 'water', 'plug'];
 
 const KIND_COLOR: Record<Deck['kind'], string> = {
   explosive: '#ff7b39',
@@ -33,12 +30,16 @@ const KIND_COLOR: Record<Deck['kind'], string> = {
   plug: '#8b949e',
 };
 
-function deckName(deck: Deck, lib: ProductLibrary): string {
+function deckName(deck: Deck, lib: ProductLibrary, t: T): string {
   if (deck.kind === 'explosive')
-    return lib.explosives.find((e) => e.id === deck.explosiveId)?.name ?? '¿explosivo?';
+    return (
+      lib.explosives.find((e) => e.id === deck.explosiveId)?.name ?? t('deck.unknownExplosive')
+    );
   if (deck.kind === 'stemming')
-    return lib.stemmingMaterials.find((m) => m.id === deck.materialId)?.name ?? 'Taco';
-  return KIND_LABEL[deck.kind];
+    return (
+      lib.stemmingMaterials.find((m) => m.id === deck.materialId)?.name ?? t('deck.kind.stemming')
+    );
+  return t(`deck.kind.${deck.kind}`);
 }
 
 /** Diagrama de columna del taladro (boca arriba, fondo abajo) con cotas y kg por deck. */
@@ -51,6 +52,8 @@ function ColumnDiagram({
   lib: ProductLibrary;
   masses: number[];
 }) {
+  const t = useT();
+  const fmt = useFormat();
   const { len } = useUnits();
   const H = 300;
   const top = 12;
@@ -58,7 +61,7 @@ function ColumnDiagram({
   const y = (depth: number) => top + depth * scale;
   const intervals = deckIntervals(hole);
   return (
-    <svg className="column" viewBox={`0 0 260 ${H}`} role="img" aria-label="Columna de carga">
+    <svg className="column" viewBox={`0 0 260 ${H}`} role="img" aria-label={t('deck.title')}>
       <rect
         x={70}
         y={y(0)}
@@ -67,34 +70,34 @@ function ColumnDiagram({
         fill="#0d1117"
         stroke="#30363d"
       />
-      {intervals.map(({ deck, top: t, bottom: b }, i) => (
+      {intervals.map(({ deck, top, bottom: b }, i) => (
         <g key={deck.id}>
           <rect
             x={70}
-            y={y(Math.max(0, t))}
+            y={y(Math.max(0, top))}
             width={34}
-            height={Math.max(0, (b - Math.max(0, t)) * scale)}
+            height={Math.max(0, (b - Math.max(0, top)) * scale)}
             fill={KIND_COLOR[deck.kind]}
             opacity={0.9}
           />
-          <text x={112} y={y((Math.max(0, t) + b) / 2) + 4} className="col-label">
-            {deckName(deck, lib)} · {len.show(deck.length).toFixed(2)} {len.unit}
-            {(masses[i] ?? 0) > 0 ? ` · ${(masses[i] ?? 0).toFixed(1)} kg` : ''}
+          <text x={112} y={y((Math.max(0, top) + b) / 2) + 4} className="col-label">
+            {deckName(deck, lib, t)} · {fmt(len.show(deck.length), 2)} {len.unit}
+            {(masses[i] ?? 0) > 0 ? ` · ${fmt(masses[i] ?? 0, 1)} kg` : ''}
           </text>
-          <text x={62} y={y(Math.max(0, t)) + 4} className="col-depth" textAnchor="end">
-            {len.show(Math.max(0, t)).toFixed(1)}
+          <text x={62} y={y(Math.max(0, top)) + 4} className="col-depth" textAnchor="end">
+            {fmt(len.show(Math.max(0, top)), 1)}
           </text>
         </g>
       ))}
       <text x={62} y={y(hole.length) + 4} className="col-depth" textAnchor="end">
-        {len.show(hole.length).toFixed(1)} {len.unit}
+        {fmt(len.show(hole.length), 1)} {len.unit}
       </text>
       {hole.initiators.map((init) => (
         <g key={init.id}>
           <circle cx={87} cy={y(init.depth)} r={5} fill="#fff" stroke="#000" />
           <text x={112} y={y(init.depth) + 14} className="col-label muted">
-            {lib.detonators.find((d) => d.id === init.detonatorId)?.name ?? 'Detonador'} ·{' '}
-            {(init.delay * 1000).toFixed(0)} ms
+            {lib.detonators.find((d) => d.id === init.detonatorId)?.name ?? t('deck.detonator')} ·{' '}
+            {fmt(init.delay * 1000)} ms
             {init.primerId
               ? ` · ${lib.primers.find((p) => p.id === init.primerId)?.name ?? ''}`
               : ''}
@@ -107,6 +110,8 @@ function ColumnDiagram({
 
 /** Editor de la columna de carga de un taladro. */
 export function DeckEditor({ hole }: { hole: Hole }) {
+  const t = useT();
+  const fmt = useFormat();
   const { len, dia } = useUnits();
   const lib = session.document.project.library;
   const index = indexLibrary(lib);
@@ -134,7 +139,7 @@ export function DeckEditor({ hole }: { hole: Hole }) {
   const replace = (index: number, deck: Deck) => {
     setDecks(
       hole.decks.map((d, i) => (i === index ? deck : d)),
-      'Editar deck',
+      t('deck.edit'),
     );
   };
   const changeKind = (index: number, kind: Deck['kind']) => {
@@ -159,7 +164,7 @@ export function DeckEditor({ hole }: { hole: Hole }) {
         ...hole.decks,
         { id: newId<'Deck'>(), kind: 'air', length: Math.max(0.5, Number(free.toFixed(2))) },
       ],
-      'Agregar deck',
+      t('deck.add'),
     );
   };
   // Se muestra de boca (arriba) a fondo, como en el diagrama.
@@ -167,45 +172,50 @@ export function DeckEditor({ hole }: { hole: Hole }) {
 
   return (
     <section className="panel">
-      <h2>Columna de carga</h2>
+      <h2>{t('deck.title')}</h2>
       <p className="muted">
-        {(charge.explosive + charge.primers).toFixed(1)} kg · carga{' '}
-        {len.show(charge.chargeLength).toFixed(2)} {len.unit} · taco{' '}
-        {len.show(charge.stemmingLength).toFixed(2)} {len.unit}
+        {t('deck.summary', {
+          kg: fmt(charge.explosive + charge.primers, 1),
+          charge: `${fmt(len.show(charge.chargeLength), 2)} ${len.unit}`,
+          stemming: `${fmt(len.show(charge.stemmingLength), 2)} ${len.unit}`,
+        })}
         {charge.emptyLength > 0.005 && (
           <span className="warn">
             {' '}
-            · {len.show(charge.emptyLength).toFixed(2)} {len.unit} sin asignar
+            ·{' '}
+            {t('deck.unassigned', {
+              length: `${fmt(len.show(charge.emptyLength), 2)} ${len.unit}`,
+            })}
           </span>
         )}
       </p>
       {sdob && (
-        <p
-          className="muted"
-          title="Profundidad escalada de enterramiento (Chiappetta, P-01): carga superior, primeros 10·Ø; D solo con material confinante, sin aire (P-14)"
-        >
-          SDOB {sdob.sdob.toFixed(2)} m/kg^⅓ (D {len.show(sdob.depth).toFixed(2)} {len.unit}, W{' '}
-          {sdob.mass.toFixed(1)} kg)
+        <p className="muted" title={t('deck.sdobTitle')}>
+          {t('deck.sdob', {
+            sdob: fmt(sdob.sdob, 2),
+            d: `${fmt(len.show(sdob.depth), 2)} ${len.unit}`,
+            w: fmt(sdob.mass, 1),
+          })}
           {Math.abs(sdob.sdobFromCollar - sdob.sdob) > 0.005 &&
-            ` · desde el collar ${sdob.sdobFromCollar.toFixed(2)} (informativa: el aire no confina)`}
+            ` · ${t('deck.sdobCollar', { v: fmt(sdob.sdobFromCollar, 2) })}`}
           {pressure &&
-            ` · ρ en taladro ${(pressure.density / 1000).toFixed(3)} g/cc · PD ${(pressure.pd / 1e9).toFixed(2)} GPa · PB ${(pressure.pd / 2e9).toFixed(2)} GPa`}
+            ` · ${t('deck.pressure', {
+              rho: fmt(pressure.density / 1000, 3),
+              pd: fmt(pressure.pd / 1e9, 2),
+              pb: fmt(pressure.pd / 2e9, 2),
+            })}`}
         </p>
       )}
       {hole.decks.length > 0 && <ColumnDiagram hole={hole} lib={lib} masses={charge.deckMasses} />}
       <table className="grid-table">
         <thead>
           <tr>
-            <th>Tipo</th>
-            <th>Producto</th>
-            <th title={`Largo [${len.unit}]`}>{len.unit}</th>
-            <th
-              title={`Esponjamiento al gasificar [${len.unit}] (la carga se coloca en largo − esponjamiento)`}
-            >
-              Esp.
-            </th>
-            <th title={`Diámetro efectivo de la carga [${dia.unit}] (cartuchos aplastados)`}>
-              Ø ef.
+            <th>{t('deck.type')}</th>
+            <th>{t('deck.product')}</th>
+            <th title={t('deck.lengthTitle', { unit: len.unit })}>{len.unit}</th>
+            <th title={t('deck.swellTitle', { unit: len.unit })}>{t('deck.swell')}</th>
+            <th title={t('deck.effectiveDiameterTitle', { unit: dia.unit })}>
+              {t('deck.effectiveDiameter')}
             </th>
             <th />
           </tr>
@@ -221,12 +231,12 @@ export function DeckEditor({ hole }: { hole: Hole }) {
                     changeKind(index, e.target.value as Deck['kind']);
                   }}
                 >
-                  {Object.entries(KIND_LABEL)
+                  {KINDS
                     // RM-01: el agua no se ofrece como taco en superficie (solo se conserva si ya estaba).
-                    .filter(([k]) => k !== 'water' || deck.kind === 'water')
-                    .map(([k, label]) => (
+                    .filter((k) => k !== 'water' || deck.kind === 'water')
+                    .map((k) => (
                       <option key={k} value={k}>
-                        {label}
+                        {t(`deck.kind.${k}`)}
                       </option>
                     ))}
                 </select>
@@ -319,11 +329,11 @@ export function DeckEditor({ hole }: { hole: Hole }) {
               <td>
                 <button
                   className="icon danger"
-                  title="Quitar deck"
+                  title={t('deck.remove')}
                   onClick={() => {
                     setDecks(
                       hole.decks.filter((_, i) => i !== index),
-                      'Quitar deck',
+                      t('deck.remove'),
                     );
                   }}
                 >
@@ -334,10 +344,8 @@ export function DeckEditor({ hole }: { hole: Hole }) {
           ))}
         </tbody>
       </table>
-      <button onClick={addDeck}>+ Deck (sobre el último)</button>
-      <p className="hint">
-        Los decks se apilan desde el fondo; el primero de la tabla es el más cercano a la boca.
-      </p>
+      <button onClick={addDeck}>{t('deck.addButton')}</button>
+      <p className="hint">{t('deck.hint')}</p>
       <InitiatorEditor hole={hole} />
     </section>
   );
@@ -348,6 +356,7 @@ export function DeckEditor({ hole }: { hole: Hole }) {
  * boca. Puede haber varios (decks con booster propio, doble primado).
  */
 function InitiatorEditor({ hole }: { hole: Hole }) {
+  const t = useT();
   const { len } = useUnits();
   const lib = session.document.project.library;
   const blast = session.document.project.blasts.find((b) => b.holes.some((h) => h.id === hole.id));
@@ -361,7 +370,7 @@ function InitiatorEditor({ hole }: { hole: Hole }) {
   const replace = (i: number, init: InHoleInitiator) => {
     setInitiators(
       hole.initiators.map((x, k) => (k === i ? init : x)),
-      'Editar iniciador',
+      t('deck.editInitiator'),
     );
   };
   const add = () => {
@@ -375,18 +384,18 @@ function InitiatorEditor({ hole }: { hole: Hole }) {
     };
     const primer = lib.primers[0];
     if (primer) init.primerId = primer.id;
-    setInitiators([...hole.initiators, init], 'Agregar iniciador');
+    setInitiators([...hole.initiators, init], t('deck.addInitiator'));
   };
   return (
     <>
-      <h3>Iniciación (detonador → booster)</h3>
+      <h3>{t('deck.initiation')}</h3>
       <table className="grid-table">
         <thead>
           <tr>
-            <th title={`Profundidad desde la boca [${len.unit}]`}>Prof.</th>
-            <th>Detonador</th>
-            <th>Booster</th>
-            <th title="Retardo de fondo [ms]">ms</th>
+            <th title={t('deck.depthTitle', { unit: len.unit })}>{t('deck.depth')}</th>
+            <th>{t('deck.detonator')}</th>
+            <th>{t('deck.booster')}</th>
+            <th title={t('deck.downholeDelayTitle')}>ms</th>
             <th />
           </tr>
         </thead>
@@ -430,7 +439,7 @@ function InitiatorEditor({ hole }: { hole: Hole }) {
                     replace(i, next);
                   }}
                 >
-                  <option value="">Sin booster</option>
+                  <option value="">{t('deck.noBooster')}</option>
                   {lib.primers.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -451,11 +460,11 @@ function InitiatorEditor({ hole }: { hole: Hole }) {
               <td>
                 <button
                   className="icon danger"
-                  title="Quitar iniciador"
+                  title={t('deck.removeInitiator')}
                   onClick={() => {
                     setInitiators(
                       hole.initiators.filter((_, k) => k !== i),
-                      'Quitar iniciador',
+                      t('deck.removeInitiator'),
                     );
                   }}
                 >
@@ -466,7 +475,7 @@ function InitiatorEditor({ hole }: { hole: Hole }) {
           ))}
         </tbody>
       </table>
-      <button onClick={add}>+ Iniciador</button>
+      <button onClick={add}>{t('deck.addInitiatorButton')}</button>
     </>
   );
 }

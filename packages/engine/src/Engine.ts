@@ -66,6 +66,7 @@ import { TieTool } from './tools/TieTool';
 import { PanTool } from './tools/PanTool';
 import { SelectTool } from './tools/SelectTool';
 import type { Tool, ToolContext, ToolName, ToolPointer } from './tools/types';
+import { defaultEngineText, type EngineText } from './text';
 
 export interface EngineOptions {
   document: DocumentStore;
@@ -131,6 +132,7 @@ export class Engine {
   private readonly planRoot = new Group();
   private readonly decorations: MapDecorations;
   private decorationSettings: DecorationSettings = DEFAULT_DECORATIONS;
+  private text: EngineText = defaultEngineText;
   private measureA: Vec2 | null = null;
   private measureB: Vec2 | null = null;
   private readonly scene3d = new Scene3D();
@@ -452,6 +454,13 @@ export class Engine {
 
   get currentViewMode(): ViewMode {
     return this.viewMode;
+  }
+
+  /** Traductor de los textos visibles del engine (G8); por defecto, español. */
+  setText(text: EngineText): void {
+    this.text = text;
+    this.decorations.setText(text);
+    this.applyView();
   }
 
   /** Grilla, reglas, barra de escala y brújula. */
@@ -836,7 +845,7 @@ export class Engine {
           b.id,
           anchor.x - this.origin.x,
           anchor.y - this.origin.y,
-          b.name.replace('Perímetro ', 'P'),
+          b.name.replace(/^(Perímetro|Boundary) /, 'P'),
         );
       }
     }
@@ -1288,6 +1297,7 @@ export class Engine {
       invalidate: () => {
         this.loop.invalidate();
       },
+      text: (key, vars) => this.text(key, vars),
     };
   }
 }

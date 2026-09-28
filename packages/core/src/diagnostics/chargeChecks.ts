@@ -120,6 +120,7 @@ export function chargeChecks(
       severity: 'warning',
       title: 'Confinamiento insuficiente (SDOB severa)',
       detail: `Profundidad escalada de enterramiento < ${String(options.sdob.severe)} m/kg^⅓: proyección y onda aérea severas (DF-20, fuente secundaria; configurable).`,
+      params: { value: options.sdob.severe },
       holes: sdobSevere,
     },
     {
@@ -127,6 +128,7 @@ export function chargeChecks(
       severity: 'info',
       title: 'Confinamiento bajo (SDOB)',
       detail: `Profundidad escalada de enterramiento < ${String(options.sdob.safe)} m/kg^⅓: posible proyección desde el collar (DF-20; configurable).`,
+      params: { value: options.sdob.safe },
       holes: sdobLow,
     },
   ];

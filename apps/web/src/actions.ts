@@ -24,7 +24,8 @@ import {
 } from '@cronos/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
 import { useAnalysisStore } from './stores/analysisStore';
-import { t } from './i18n';
+import { t, useLocale } from './i18n';
+import { importErrorText, importWarningText, parseErrorText } from './i18n/coreText';
 import { listVersions, loadWithoutSaving, readVersion } from './persistence/autosave';
 import { useUiStore } from './stores/uiStore';
 
@@ -53,14 +54,14 @@ export function undo(): void {
   const label = document.undoLabel;
   if (!label) return;
   document.undo();
-  notify(`Deshecho: ${label}`);
+  notify(t('actions.undone', { label }));
 }
 
 export function redo(): void {
   const label = document.redoLabel;
   if (!label) return;
   document.redo();
-  notify(`Rehecho: ${label}`);
+  notify(t('actions.redone', { label }));
 }
 
 export function deleteSelection(): void {
@@ -68,9 +69,9 @@ export function deleteSelection(): void {
   if (ids.length === 0) return;
   document.dispatch(
     commands.deleteHoles(document, ids),
-    ids.length === 1 ? 'Borrar taladro' : `Borrar ${ids.length} taladros`,
+    ids.length === 1 ? t('actions.deleteHole') : t('actions.deleteHoles', { n: ids.length }),
   );
-  notify(`${ids.length} taladro(s) borrado(s)`);
+  notify(t('actions.holesDeleted', { n: ids.length }));
 }
 
 export function selectAll(): void {
@@ -82,40 +83,39 @@ export function zoomToFit(selectionOnly = false): void {
 }
 
 export function newProject(): void {
-  if (document.canUndo && !window.confirm('¿Descartar el proyecto actual y crear uno nuevo?'))
-    return;
+  if (document.canUndo && !window.confirm(t('actions.discardForNew'))) return;
   document.load(createEmptyProject());
-  notify('Proyecto nuevo');
+  notify(t('toolbar.newProject'));
 }
 
 export async function saveProject(): Promise<void> {
-  await withBusy('Guardando…', async () => {
+  await withBusy(t('actions.saving'), async () => {
     const project = document.project;
     const text = await getCompute().api.serializeProject(project, { appVersion: APP_VERSION });
     const blob = new Blob([text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = window.document.createElement('a');
     a.href = url;
-    a.download = `${project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'proyecto'}.cronos.json`;
+    a.download = `${project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || t('actions.file.project')}.cronos.json`;
     a.click();
     setTimeout(() => {
       URL.revokeObjectURL(url);
     }, 1000);
-    notify(`Proyecto guardado (${(text.length / 1024).toFixed(0)} KB)`);
+    notify(t('actions.saved', { kb: (text.length / 1024).toFixed(0) }));
   });
 }
 
 export async function openProject(file: File): Promise<void> {
-  await withBusy('Abriendo…', async () => {
+  await withBusy(t('actions.opening'), async () => {
     const text = await file.text();
     const result = await getCompute().api.parseProject(text);
     if (!result.ok) {
-      notify(result.error, 'error');
+      notify(parseErrorText(result.error), 'error');
       return;
     }
     document.load(result.file.project);
     const holes = result.file.project.blasts.reduce((n, b) => n + b.holes.length, 0);
-    notify(`Abierto "${result.file.project.name}" (${holes} taladros)`);
+    notify(t('actions.opened', { name: result.file.project.name, n: holes }));
   });
 }
 
@@ -127,7 +127,7 @@ export async function restoreVersion(id: number, confirm = false): Promise<void>
   if (confirm && document.canUndo && !window.confirm(t('versions.confirm', { date }))) return;
   const result = await getCompute().api.parseProject(version.text);
   if (!result.ok) {
-    notify(result.error, 'error');
+    notify(parseErrorText(result.error), 'error');
     return;
   }
   loadWithoutSaving(result.file.project);
@@ -186,7 +186,7 @@ export async function generatePattern(form: PatternForm): Promise<void> {
       };
   const pattern: Pattern = {
     id: newId<'Pattern'>(),
-    name: `Malla ${blast.patterns.length + 1}`,
+    name: t('actions.patternName', { n: blast.patterns.length + 1 }),
     ...geometry,
     ...layout,
     holeTemplate,
@@ -204,13 +204,11 @@ export async function generatePattern(form: PatternForm): Promise<void> {
   // acepta explícitamente.
   if (
     !hasFreeFace &&
-    !window.confirm(
-      `${t('pattern.noFreeFace')}\n\n¿Generar igual? (corte, rampa o primera voladura del banco: malla más cerrada, más carga o fila de alivio)`,
-    )
+    !window.confirm(`${t('pattern.noFreeFace')}\n\n${t('actions.generateAnyway')}`)
   )
     return;
 
-  await withBusy('Generando malla…', async () => {
+  await withBusy(t('actions.generatingPattern'), async () => {
     const t0 = performance.now();
     const holes = await getCompute().api.generatePattern(
       pattern,
@@ -221,10 +219,15 @@ export async function generatePattern(form: PatternForm): Promise<void> {
     const t1 = performance.now();
     document.dispatch(
       commands.addPattern(blast.id, pattern, holes),
-      `Generar ${pattern.name} (${holes.length} taladros)`,
+      t('actions.generatePatternUndo', { name: pattern.name, n: holes.length }),
     );
     const t2 = performance.now();
-    const summary = `${pattern.name}: ${String(holes.length)} taladros (worker ${(t1 - t0).toFixed(0)} ms, documento + render ${(t2 - t1).toFixed(0)} ms)`;
+    const summary = t('actions.patternSummary', {
+      name: pattern.name,
+      n: holes.length,
+      worker: (t1 - t0).toFixed(0),
+      render: (t2 - t1).toFixed(0),
+    });
     if (hasFreeFace) notify(summary);
     else notify(`${summary}. ${t('pattern.noFreeFace')}`, 'error');
   });
@@ -250,7 +253,7 @@ export function generateRowTieUp(
   if (!blast) return;
   const generated = rowTieUp(blast, { ...form, interHoleConnectorId, interRowConnectorId });
   if (generated.connections.length === 0) {
-    notify('El patrón no tiene taladros con fila/columna', 'error');
+    notify(t('actions.noRowCol'), 'error');
     return;
   }
   const inPattern = new Set<string>(
@@ -271,9 +274,9 @@ export function generateRowTieUp(
         ...generated.initiationPoints,
       ],
     }),
-    form.mode === 'echelon' ? 'Amarre en escalón' : 'Amarre por filas',
+    form.mode === 'echelon' ? t('actions.tieUpEchelon') : t('actions.tieUpRows'),
   );
-  notify(`Amarre generado: ${generated.connections.length} conexiones`);
+  notify(t('actions.tieUpGenerated', { n: generated.connections.length }));
 }
 
 /** Programa detonadores electrónicos en los taladros del patrón y quita su red de superficie. */
@@ -288,7 +291,7 @@ export function assignElectronicTimes(
   if (!blast) return;
   const times = electronicTimes(blast, { ...form, detonatorId, interHole, interRow, offset });
   if (times.size === 0) {
-    notify('El patrón no tiene taladros con fila/columna', 'error');
+    notify(t('actions.noRowCol'), 'error');
     return;
   }
   const ids = [...times.keys()];
@@ -307,9 +310,9 @@ export function assignElectronicTimes(
         initiationPoints: plan.initiationPoints.filter((p) => !touches(p.at)),
       }),
     ],
-    `Tiempos electrónicos (${ids.length} taladros)`,
+    t('actions.electronicUndo', { n: ids.length }),
   );
-  notify(`Tiempos electrónicos asignados a ${ids.length} taladros`);
+  notify(t('actions.electronicAssigned', { n: ids.length }));
 }
 
 export function clearConnections(onlySelection: boolean): void {
@@ -318,7 +321,7 @@ export function clearConnections(onlySelection: boolean): void {
   if (onlySelection) {
     document.dispatch(
       commands.removeConnectionsOfHoles(document, blast.id, selection.ids),
-      'Borrar amarres de la selección',
+      t('actions.clearTiesSelection'),
     );
   } else {
     document.dispatch(
@@ -327,7 +330,7 @@ export function clearConnections(onlySelection: boolean): void {
         connections: [],
         initiationPoints: [],
       }),
-      'Borrar todos los amarres',
+      t('actions.clearTiesAll'),
     );
   }
 }
@@ -347,12 +350,12 @@ export function requireCrs(): boolean {
 }
 
 export async function openCsv(file: File): Promise<void> {
-  await withBusy('Leyendo CSV…', async () => {
+  await withBusy(t('actions.readingCsv'), async () => {
     // Bytes, no `file.text()`: la codificación se detecta (ISO-8859-1, docs/theory/03 §5).
     const bytes = new Uint8Array(await file.arrayBuffer());
     const preview = await getCompute().api.csvPreview(bytes);
     if (preview.headers.length === 0) {
-      notify('El archivo está vacío', 'error');
+      notify(t('actions.emptyFile'), 'error');
       return;
     }
     useUiStore.getState().setCsvPreview({ fileName: file.name, bytes, ...preview });
@@ -378,7 +381,7 @@ export function boundaryOps(
 export async function openGeoJson(file: File): Promise<void> {
   const blast = document.project.blasts[0];
   if (!blast) return;
-  await withBusy('Leyendo GeoJSON…', async () => {
+  await withBusy(t('actions.readingGeoJson'), async () => {
     const { epsg } = document.project.coordinateSystem;
     const r = await getCompute().api.geojsonImport(await file.text(), {
       diameter: useUiStore.getState().holeTemplate.diameter,
@@ -404,17 +407,24 @@ export async function openGeoJson(file: File): Promise<void> {
       ...boundaryOps(blast, r.boundaries),
     ];
     if (r.holes.length === 0 && r.boundaries.length === 0) {
-      notify(r.errors[0] ?? 'El GeoJSON no trae taladros ni perímetros', 'error');
+      const first = r.errors[0];
+      notify(
+        first === undefined ? t('actions.geoJsonEmpty') : importErrorText({ message: first }),
+        'error',
+      );
       return;
     }
     document.dispatch(
       ops,
-      `Importar GeoJSON (${String(r.holes.length)} taladros, ${String(r.boundaries.length)} perímetros)`,
+      t('actions.importGeoJsonUndo', { holes: r.holes.length, boundaries: r.boundaries.length }),
     );
     getEngine()?.zoomToFit();
-    const notes = [...r.warnings.map((w) => w.message), ...r.errors];
+    const notes = [
+      ...r.warnings.map(importWarningText),
+      ...r.errors.map((message) => importErrorText({ message })),
+    ];
     notify(
-      `GeoJSON: ${String(r.holes.length)} taladros · ${String(r.boundaries.length)} perímetros${notes.length ? ` · ${notes.join(' ')}` : ''}`,
+      `${t('actions.geoJsonResult', { holes: r.holes.length, boundaries: r.boundaries.length })}${notes.length ? ` · ${notes.join(' ')}` : ''}`,
       notes.length ? 'error' : 'info',
     );
   });
@@ -424,19 +434,23 @@ export async function openGeoJson(file: File): Promise<void> {
 export async function openBoundariesCsv(file: File): Promise<void> {
   const blast = document.project.blasts[0];
   if (!blast) return;
-  await withBusy('Leyendo perímetros…', async () => {
+  await withBusy(t('actions.readingBoundaries'), async () => {
     const r = await getCompute().api.boundariesCsvImport(new Uint8Array(await file.arrayBuffer()));
     if (r.boundaries.length === 0) {
-      notify(r.errors[0] ?? 'El CSV no trae perímetros', 'error');
+      const first = r.errors[0];
+      notify(
+        first === undefined ? t('actions.csvNoBoundaries') : importErrorText({ message: first }),
+        'error',
+      );
       return;
     }
     document.dispatch(
       boundaryOps(blast, r.boundaries),
-      `Importar perímetros (${String(r.boundaries.length)})`,
+      t('actions.importBoundariesUndo', { n: r.boundaries.length }),
     );
     getEngine()?.zoomToFit();
     notify(
-      `${String(r.boundaries.length)} perímetros importados${r.errors.length ? ` · ${r.errors.join(' · ')}` : ''}`,
+      `${t('actions.boundariesImported', { n: r.boundaries.length })}${r.errors.length ? ` · ${r.errors.map((message) => importErrorText({ message })).join(' · ')}` : ''}`,
       r.errors.length ? 'error' : 'info',
     );
   });
@@ -444,25 +458,25 @@ export async function openBoundariesCsv(file: File): Promise<void> {
 
 /** Catálogo de explosivos a CSV (H-401). */
 export async function exportCatalog(): Promise<void> {
-  await withBusy('Exportando catálogo…', async () => {
+  await withBusy(t('actions.exportingCatalog'), async () => {
     const text = await getCompute().api.catalogExport(document.project.library.explosives);
-    download(text, `${baseName()}-explosivos.csv`, 'text/csv');
+    download(text, `${baseName()}-${t('actions.file.explosives')}.csv`, 'text/csv');
   });
 }
 
 /** Agrega los explosivos de un CSV de catálogo a la librería (un paso de deshacer). */
 export async function importCatalog(file: File): Promise<void> {
-  await withBusy('Leyendo catálogo…', async () => {
+  await withBusy(t('actions.readingCatalog'), async () => {
     const r = await getCompute().api.catalogImport(new Uint8Array(await file.arrayBuffer()));
     const lib = document.project.library;
     if (r.explosives.length > 0)
       document.dispatch(
         commands.setLibrary({ ...lib, explosives: [...lib.explosives, ...r.explosives] }),
-        `Importar catálogo (${String(r.explosives.length)} explosivos)`,
+        t('actions.importCatalogUndo', { n: r.explosives.length }),
       );
-    const errs = r.errors.map((e) => `línea ${String(e.line)}: ${e.message}`).join(' · ');
+    const errs = r.errors.map(importErrorText).join(' · ');
     notify(
-      `${String(r.explosives.length)} explosivos importados${errs ? ` · ${errs}` : ''}`,
+      `${t('actions.explosivesImported', { n: r.explosives.length })}${errs ? ` · ${errs}` : ''}`,
       r.errors.length > 0 || r.explosives.length === 0 ? 'error' : 'info',
     );
   });
@@ -471,14 +485,17 @@ export async function importCatalog(file: File): Promise<void> {
 export async function exportGeoJson(): Promise<void> {
   const blast = document.project.blasts[0];
   if (!blast) return;
-  await withBusy('Exportando GeoJSON…', async () => {
+  await withBusy(t('actions.exportingGeoJson'), async () => {
     const text = await getCompute().api.geojsonExport(
       blast,
       document.project.coordinateSystem.epsg,
     );
     download(text, `${baseName()}.geojson`, 'application/geo+json');
     notify(
-      `${String(blast.holes.length)} taladros y ${String(blast.boundaries.length)} perímetros exportados`,
+      t('actions.geoJsonExported', {
+        holes: blast.holes.length,
+        boundaries: blast.boundaries.length,
+      }),
     );
   });
 }
@@ -489,7 +506,7 @@ export function exportPlanPng(): void {
   if (!engine) return;
   const a = window.document.createElement('a');
   a.href = engine.captureImage();
-  a.download = `${baseName()}-plano.png`;
+  a.download = `${baseName()}-${t('actions.file.plan')}.png`;
   a.click();
 }
 
@@ -497,7 +514,7 @@ export function exportPlanPng(): void {
 export async function copyHolesTsv(): Promise<void> {
   const blast = document.project.blasts[0];
   if (!blast) return;
-  await withBusy('Copiando…', async () => {
+  await withBusy(t('actions.copying'), async () => {
     const analysis = useAnalysisStore.getState().analysis;
     const kg = analysis
       ? new Map<string, number>(
@@ -506,7 +523,7 @@ export async function copyHolesTsv(): Promise<void> {
       : undefined;
     const text = await getCompute().api.csvExport(blast.holes, kg, '\t');
     await navigator.clipboard.writeText(text);
-    notify(`${String(blast.holes.length)} taladros copiados (pegar en la hoja de cálculo)`);
+    notify(t('actions.holesCopied', { n: blast.holes.length }));
   });
 }
 
@@ -514,7 +531,7 @@ export async function copyHolesTsv(): Promise<void> {
 export async function exportCsv(): Promise<void> {
   const blast = document.project.blasts[0];
   if (!blast) return;
-  await withBusy('Exportando CSV…', async () => {
+  await withBusy(t('actions.exportingCsv'), async () => {
     const analysis = useAnalysisStore.getState().analysis;
     const kg = analysis
       ? new Map<string, number>(
@@ -524,10 +541,10 @@ export async function exportCsv(): Promise<void> {
     const text = await getCompute().api.csvExport(blast.holes, kg);
     download(
       text,
-      `${document.project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'taladros'}.csv`,
+      `${document.project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || t('actions.file.holes')}.csv`,
       'text/csv',
     );
-    notify(`${blast.holes.length} taladros exportados`);
+    notify(t('actions.holesExported', { n: blast.holes.length }));
   });
 }
 
@@ -545,40 +562,42 @@ function download(data: string | Uint8Array, fileName: string, type: string): vo
 // ------------------------------------------------------------------ DXF y PDF
 
 export async function openDxf(file: File): Promise<void> {
-  await withBusy('Leyendo DXF…', async () => {
+  await withBusy(t('actions.readingDxf'), async () => {
     const text = await file.text();
     const inspection = await getCompute().api.dxfInspect(text);
     if (inspection.entityCount === 0) {
-      notify('El DXF no tiene entidades', 'error');
+      notify(t('actions.dxfEmpty'), 'error');
       return;
     }
     useUiStore.getState().setDxfPreview({ fileName: file.name, text, inspection });
   });
 }
 
-const baseName = () => document.project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'voladura';
+const baseName = () =>
+  document.project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || t('actions.file.blast');
 
 export async function exportDxf(): Promise<void> {
   const blast = document.project.blasts[0];
   if (!blast) return;
-  await withBusy('Exportando DXF…', async () => {
+  await withBusy(t('actions.exportingDxf'), async () => {
     const text = await getCompute().api.dxfExport(document.project, blast.id, { ties: true });
     download(text, `${baseName()}.dxf`, 'application/dxf');
-    notify('DXF exportado');
+    notify(t('actions.dxfExported'));
   });
 }
 
 export async function exportReport(): Promise<void> {
   const blast = document.project.blasts[0];
   if (!blast) return;
-  await withBusy('Generando informe…', async () => {
+  await withBusy(t('actions.generatingReport'), async () => {
     const bytes = await getCompute().api.report(document.project, blast.id, {
       date: new Date().toISOString(),
       appVersion: APP_VERSION,
       holeTable: true,
+      language: useLocale.getState().locale,
     });
-    download(bytes, `${baseName()}-informe.pdf`, 'application/pdf');
-    notify('Informe PDF generado');
+    download(bytes, `${baseName()}-${t('actions.file.report')}.pdf`, 'application/pdf');
+    notify(t('actions.reportGenerated'));
   });
 }
 
@@ -630,19 +649,15 @@ const EXAMPLE_VIEWS: Record<string, () => void> = {
 
 /** Abre un proyecto de ejemplo completamente configurado (se genera en el worker). */
 export async function loadExample(id: string, name: string): Promise<void> {
-  if (
-    document.canUndo &&
-    !window.confirm(`¿Descartar el proyecto actual y abrir el ejemplo "${name}"?`)
-  )
-    return;
-  await withBusy('Preparando ejemplo…', async () => {
+  if (document.canUndo && !window.confirm(t('actions.discardForExample', { name }))) return;
+  await withBusy(t('actions.preparingExample'), async () => {
     const project = await getCompute().api.buildExample(id);
     document.load(project);
     useUiStore.getState().setActiveBoundary(project.blasts[0]?.boundaries[0]?.id ?? null);
     resetView();
     EXAMPLE_VIEWS[id]?.();
     const holes = project.blasts[0]?.holes.length ?? 0;
-    notify(`Ejemplo "${name}": ${holes} taladros`);
+    notify(t('actions.exampleLoaded', { name, n: holes }));
   });
 }
 
@@ -675,7 +690,7 @@ export function createGroupFromSelection(): void {
     groupOps(blast, group.id, [
       { type: 'blast/patch', blastId: blast.id, patch: { groups: [...blast.groups, group] } },
     ]),
-    `Crear ${group.name}`,
+    t('actions.createGroup', { name: group.name }),
   );
 }
 
@@ -683,7 +698,10 @@ export function assignSelectionToGroup(groupId: HoleGroupId | null): void {
   const blast = document.project.blasts[0];
   if (!blast || selection.ids.size === 0) return;
   const name = blast.groups.find((g) => g.id === groupId)?.name;
-  document.dispatch(groupOps(blast, groupId), name ? `Asignar a ${name}` : 'Quitar de grupo');
+  document.dispatch(
+    groupOps(blast, groupId),
+    name ? t('actions.assignGroup', { name }) : t('actions.unassignGroup'),
+  );
 }
 
 export function updateGroup(groupId: HoleGroupId, patch: Partial<Omit<HoleGroup, 'id'>>): void {
@@ -695,7 +713,7 @@ export function updateGroup(groupId: HoleGroupId, patch: Partial<Omit<HoleGroup,
       blastId: blast.id,
       patch: { groups: blast.groups.map((g) => (g.id === groupId ? { ...g, ...patch } : g)) },
     },
-    'Editar grupo',
+    t('actions.editGroup'),
   );
 }
 
@@ -713,7 +731,7 @@ export function removeGroup(groupId: HoleGroupId): void {
       },
       ...(holes.length > 0 ? [{ type: 'holes/replace' as const, blastId: blast.id, holes }] : []),
     ],
-    'Borrar grupo',
+    t('groups.remove'),
   );
 }
 

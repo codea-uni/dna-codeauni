@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import * as actions from '../actions';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { useProject } from '../hooks/useDocument';
+import { t, useT } from '../i18n';
 import { session } from '../session';
 
 type Key = keyof ProductLibrary;
@@ -38,7 +39,7 @@ function useLibraryEditor() {
     key: K,
     id: string,
     patch: { [P in keyof Item<K>]?: Item<K>[P] | undefined },
-    label = 'Editar producto',
+    label = t('lib.editProduct'),
   ) => {
     const list = library[key].map((item) => {
       if (item.id !== id) return item;
@@ -52,48 +53,47 @@ function useLibraryEditor() {
   const add = <K extends Key>(key: K, item: Item<K>) => {
     session.document.dispatch(
       commands.setLibrary({ ...library, [key]: [...library[key], item] }),
-      'Agregar producto',
+      t('lib.addProduct'),
     );
   };
   const remove = (key: Key, id: string, name: string) => {
     const n = usage(key, id);
-    if (
-      n > 0 &&
-      !window.confirm(
-        `"${name}" se usa en ${n} taladro(s)/conexión(es). ¿Borrarlo igual? (quedarán sin producto)`,
-      )
-    )
-      return;
+    if (n > 0 && !window.confirm(t('lib.removeConfirm', { name, n }))) return;
     const list = (library[key] as { id: string }[]).filter((item) => item.id !== id);
-    session.document.dispatch(commands.setLibrary({ ...library, [key]: list }), 'Borrar producto');
+    session.document.dispatch(
+      commands.setLibrary({ ...library, [key]: list }),
+      t('lib.removeProduct'),
+    );
   };
   return { library, update, add, remove };
 }
 
 function RemoveButton({ onClick }: { onClick: () => void }) {
+  const t = useT();
   return (
-    <button className="icon danger" title="Borrar" onClick={onClick}>
+    <button className="icon danger" title={t('lib.remove')} onClick={onClick}>
       ×
     </button>
   );
 }
 
 export function LibraryPanel() {
+  const t = useT();
   const { library, update, add, remove } = useLibraryEditor();
   const catalogInput = useRef<HTMLInputElement>(null);
   return (
     <>
       <section className="panel">
-        <h2>Explosivos</h2>
+        <h2>{t('lib.explosives')}</h2>
         <table className="grid-table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th title="Densidad [g/cm³]">ρ</th>
-              <th title="Velocidad de detonación [m/s]">VOD</th>
-              <th title="Energía (AWS) [MJ/kg]">MJ/kg</th>
-              <th title="Potencia relativa en peso vs ANFO [%]">RWS</th>
-              <th title="Costo por kg">$/kg</th>
+              <th>{t('lib.name')}</th>
+              <th title={t('lib.densityTitle')}>ρ</th>
+              <th title={t('lib.vodTitle')}>VOD</th>
+              <th title={t('lib.energyTitle')}>MJ/kg</th>
+              <th title={t('lib.rwsTitle')}>RWS</th>
+              <th title={t('lib.costPerKg')}>$/kg</th>
               <th />
             </tr>
           </thead>
@@ -103,7 +103,7 @@ export function LibraryPanel() {
                 <td>
                   <TextCell
                     value={e.name}
-                    title={e.form === 'packaged' ? 'Encartuchado' : 'A granel'}
+                    title={e.form === 'packaged' ? t('lib.packaged') : t('lib.bulk')}
                     onCommit={(name) => {
                       update('explosives', e.id, { name });
                     }}
@@ -170,20 +170,17 @@ export function LibraryPanel() {
             ))}
           </tbody>
         </table>
-        <h3>Agua, iniciación y origen</h3>
-        <p className="hint">
-          Resistencia al agua para filtrar por el estado del taladro (P-09), diámetro crítico,
-          necesidad de cebo (RM-05) y la ficha técnica de origen con su versión (DF-22).
-        </p>
+        <h3>{t('lib.waterTitle')}</h3>
+        <p className="hint">{t('lib.waterHint')}</p>
         <table className="grid-table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Agua</th>
-              <th title="Diámetro crítico [mm]">Ø crít.</th>
-              <th title="Necesita booster (agente de voladura)">Cebo</th>
-              <th>Fuente</th>
-              <th>Versión</th>
+              <th>{t('lib.name')}</th>
+              <th>{t('lib.water')}</th>
+              <th title={t('lib.criticalDiameterTitle')}>{t('lib.criticalDiameter')}</th>
+              <th title={t('lib.needsBoosterTitle')}>{t('lib.needsBooster')}</th>
+              <th>{t('lib.source')}</th>
+              <th>{t('lib.version')}</th>
             </tr>
           </thead>
           <tbody>
@@ -200,9 +197,9 @@ export function LibraryPanel() {
                       });
                     }}
                   >
-                    <option value="none">Nula</option>
-                    <option value="limited">Limitada</option>
-                    <option value="high">Alta</option>
+                    <option value="none">{t('lib.waterResistance.none')}</option>
+                    <option value="limited">{t('lib.waterResistance.limited')}</option>
+                    <option value="high">{t('lib.waterResistance.high')}</option>
                   </select>
                 </td>
                 <td>
@@ -229,7 +226,7 @@ export function LibraryPanel() {
                 <td>
                   <TextCell
                     value={e.source ?? ''}
-                    title={e.source ?? 'Sin fuente'}
+                    title={e.source ?? t('lib.noSource')}
                     onCommit={(source) => {
                       update('explosives', e.id, { source: source.trim() || undefined });
                     }}
@@ -248,8 +245,8 @@ export function LibraryPanel() {
           </tbody>
         </table>
         <div className="row">
-          <button onClick={() => void actions.exportCatalog()}>Exportar catálogo CSV</button>
-          <button onClick={() => catalogInput.current?.click()}>Importar catálogo CSV…</button>
+          <button onClick={() => void actions.exportCatalog()}>{t('lib.exportCatalog')}</button>
+          <button onClick={() => catalogInput.current?.click()}>{t('lib.importCatalog')}</button>
           <input
             ref={catalogInput}
             type="file"
@@ -266,7 +263,7 @@ export function LibraryPanel() {
           onClick={() => {
             add('explosives', {
               id: newId<'Explosive'>(),
-              name: 'Nuevo explosivo',
+              name: t('lib.newExplosive'),
               family: 'other',
               form: 'bulk',
               density: 1000,
@@ -277,19 +274,19 @@ export function LibraryPanel() {
             });
           }}
         >
-          + Explosivo
+          {t('lib.addExplosive')}
         </button>
       </section>
 
       <section className="panel">
-        <h2>Detonadores (en taladro)</h2>
+        <h2>{t('lib.detonators')}</h2>
         <table className="grid-table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Tipo</th>
-              <th title="Retardo nominal [ms]">ms</th>
-              <th title="Dispersión (1σ) [ms]">σ ms</th>
+              <th>{t('lib.name')}</th>
+              <th>{t('lib.type')}</th>
+              <th title={t('lib.nominalDelayTitle')}>ms</th>
+              <th title={t('lib.scatterTitle')}>σ ms</th>
               <th>$</th>
               <th />
             </tr>
@@ -313,9 +310,9 @@ export function LibraryPanel() {
                       update('detonators', d.id, { type: e.target.value as typeof d.type });
                     }}
                   >
-                    <option value="nonel">Nonel</option>
-                    <option value="electronic">Electrónico</option>
-                    <option value="electric">Eléctrico</option>
+                    <option value="nonel">{t('lib.detonatorType.nonel')}</option>
+                    <option value="electronic">{t('lib.detonatorType.electronic')}</option>
+                    <option value="electric">{t('lib.detonatorType.electric')}</option>
                   </select>
                 </td>
                 <td>
@@ -363,25 +360,25 @@ export function LibraryPanel() {
           onClick={() => {
             add('detonators', {
               id: newId<'Detonator'>(),
-              name: 'Nonel fondo',
+              name: t('lib.newDetonator'),
               type: 'nonel',
               nominalDelay: 0.5,
               delayScatter: 0.0075,
             });
           }}
         >
-          + Detonador
+          {t('lib.addDetonator')}
         </button>
       </section>
 
       <section className="panel">
-        <h2>Conectores de superficie</h2>
+        <h2>{t('lib.connectors')}</h2>
         <table className="grid-table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th title="Retardo [ms]">ms</th>
-              <th title="Dispersión (1σ) [ms]">σ ms</th>
+              <th>{t('lib.name')}</th>
+              <th title={t('lib.delayTitle')}>ms</th>
+              <th title={t('lib.scatterTitle')}>σ ms</th>
               <th>$</th>
               <th />
             </tr>
@@ -442,24 +439,24 @@ export function LibraryPanel() {
           onClick={() => {
             add('surfaceConnectors', {
               id: newId<'SurfaceConnector'>(),
-              name: 'Nonel superficie',
+              name: t('lib.newConnector'),
               type: 'nonel-surface',
               delay: 0.042,
               delayScatter: 0.0015,
             });
           }}
         >
-          + Conector
+          {t('lib.addConnector')}
         </button>
       </section>
 
       <section className="panel">
-        <h2>Primas y tacos</h2>
+        <h2>{t('lib.primersAndStemming')}</h2>
         <table className="grid-table">
           <thead>
             <tr>
-              <th>Prima</th>
-              <th title="Masa [g]">g</th>
+              <th>{t('lib.primer')}</th>
+              <th title={t('lib.massTitle')}>g</th>
               <th>$</th>
               <th />
             </tr>
@@ -511,14 +508,14 @@ export function LibraryPanel() {
             add('primers', { id: newId<'Primer'>(), name: 'Booster', mass: 0.45 });
           }}
         >
-          + Prima
+          {t('lib.addPrimer')}
         </button>
         <table className="grid-table">
           <thead>
             <tr>
-              <th>Material de taco</th>
-              <th title="Densidad [g/cm³]">ρ</th>
-              <th title="Costo por m³">$/m³</th>
+              <th>{t('lib.stemmingMaterial')}</th>
+              <th title={t('lib.densityTitle')}>ρ</th>
+              <th title={t('lib.costPerM3')}>$/m³</th>
               <th />
             </tr>
           </thead>
@@ -568,16 +565,14 @@ export function LibraryPanel() {
           onClick={() => {
             add('stemmingMaterials', {
               id: newId<'StemmingMaterial'>(),
-              name: 'Taco',
+              name: t('lib.newStemming'),
               density: 1700,
             });
           }}
         >
-          + Taco
+          {t('lib.addStemming')}
         </button>
-        <p className="hint">
-          Valores por defecto: referencias genéricas. Reemplázalos por los de tus productos.
-        </p>
+        <p className="hint">{t('lib.defaultsHint')}</p>
       </section>
     </>
   );

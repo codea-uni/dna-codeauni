@@ -1,5 +1,6 @@
 import { cardinal, measure, type Vec2 } from '@cronos/core';
 import { formatCoordinate, formatDistance, niceStep, scaleBar, ticks } from '../cameras/mapScale';
+import { defaultEngineText, type EngineText } from '../text';
 import { compassRotationDeg } from './compass';
 
 export interface DecorationSettings {
@@ -37,7 +38,7 @@ const CSS = `
 `;
 
 const COMPASS_SVG = `
-<svg viewBox="-30 -30 60 60" width="58" height="58" aria-label="Brújula">
+<svg viewBox="-30 -30 60 60" width="58" height="58">
   <circle r="27" fill="#0d1117d0" stroke="#30363d"/>
   <g class="bl-rose">
     <path d="M0,-21 L5,0 L0,4 L-5,0 Z" fill="#ff5a4e"/>
@@ -45,7 +46,7 @@ const COMPASS_SVG = `
     <text y="-22" dy="-0.2em" text-anchor="middle" font-size="9" font-weight="700" fill="#ff5a4e">N</text>
     <text y="22" dy="0.95em" text-anchor="middle" font-size="8" fill="#c9d1d9">S</text>
     <text x="23" dy="0.35em" text-anchor="start" font-size="8" fill="#c9d1d9">E</text>
-    <text x="-23" dy="0.35em" text-anchor="end" font-size="8" fill="#c9d1d9">O</text>
+    <text class="bl-west" x="-23" dy="0.35em" text-anchor="end" font-size="8" fill="#c9d1d9">O</text>
   </g>
 </svg>`;
 
@@ -80,6 +81,7 @@ export class MapDecorations {
   private readonly leftTicks: HTMLDivElement[] = [];
   private settings: DecorationSettings = DEFAULT_DECORATIONS;
   private mode: 'plan' | '3d' = 'plan';
+  private text: EngineText = defaultEngineText;
 
   constructor(host: HTMLElement) {
     if (!document.getElementById(STYLE_ID)) {
@@ -99,13 +101,29 @@ export class MapDecorations {
     this.left = div('bl-ruler left', this.root);
     this.corner = div('bl-corner', this.root);
     this.corner.textContent = 'm';
-    this.corner.title = 'Coordenadas del proyecto: Este (arriba) y Norte (izquierda)';
     this.scale = div('bl-scale', this.root);
     this.compass = div('bl-compass', this.root);
     this.compass.innerHTML = COMPASS_SVG;
     this.rose = this.compass.querySelector('.bl-rose');
     this.measureLabel = div('bl-measure', this.root);
     this.measureLabel.hidden = true;
+    this.setText(defaultEngineText);
+  }
+
+  /** Textos en el idioma de la app; los números del mapa se refrescan en el próximo frame. */
+  setText(text: EngineText): void {
+    this.text = text;
+    this.corner.title = text('map.rulerCorner');
+    this.compass.querySelector('svg')?.setAttribute('aria-label', text('map.compass'));
+    const west = this.compass.querySelector('.bl-west');
+    if (west) west.textContent = text('map.west');
+  }
+
+  /** Número del mapa (formato es: «1.234,5») con el separador decimal del idioma. */
+  private num(s: string): string {
+    return this.text('map.decimal') === ','
+      ? s
+      : s.replace(/[.,]/g, (c) => (c === '.' ? ',' : '.'));
   }
 
   /** Espacio que ocupan las reglas (izquierda, arriba) en px, para encuadrar sin tapar datos. */
@@ -137,7 +155,7 @@ export class MapDecorations {
         this.topTicks,
         xs,
         (v) => (v - f.minX) / f.metersPerPixel,
-        (v) => formatCoordinate(v, stepX),
+        (v) => this.num(formatCoordinate(v, stepX)),
         'left',
       );
       const stepY = niceStep(70 * f.metersPerPixel);
@@ -147,15 +165,16 @@ export class MapDecorations {
         this.leftTicks,
         ys,
         (v) => (f.maxY - v) / f.metersPerPixel,
-        (v) => formatCoordinate(v, stepY),
+        (v) => this.num(formatCoordinate(v, stepY)),
         'top',
       );
     }
     if (this.settings.scaleBar) {
       const bar = scaleBar(f.metersPerPixel, 120);
-      this.scale.innerHTML = `${formatDistance(bar.meters)}<div class="bar" style="width:${bar.pixels.toFixed(1)}px"></div>${
+      const d = (m: number) => this.num(formatDistance(m));
+      this.scale.innerHTML = `${d(bar.meters)}<div class="bar" style="width:${bar.pixels.toFixed(1)}px"></div>${
         this.settings.grid
-          ? `<small>grilla ${formatDistance(f.gridStep)} · ${formatDistance(f.gridStep * 10)}</small>`
+          ? `<small>${this.text('map.grid')} ${d(f.gridStep)} · ${d(f.gridStep * 10)}</small>`
           : ''
       }`;
     }
@@ -175,8 +194,9 @@ export class MapDecorations {
     }
     const m = measure(a, b);
     const az = (m.azimuth * 180) / Math.PI;
-    const c = (v: number, d: number) => v.toFixed(d).replace('.', ',').replace('-', '−');
-    this.measureLabel.innerHTML = `<b>${formatDistance(m.distance)}</b> · ${c(az, 1)}° ${cardinal(m.azimuth)} · ΔE ${c(m.dx, 2)} · ΔN ${c(m.dy, 2)}`;
+    const c = (v: number, d: number) => this.num(v.toFixed(d).replace('.', ',').replace('-', '−'));
+    const dir = cardinal(m.azimuth).replace('O', this.text('map.west'));
+    this.measureLabel.innerHTML = `<b>${this.num(formatDistance(m.distance))}</b> · ${c(az, 1)}° ${dir} · ΔE ${c(m.dx, 2)} · ΔN ${c(m.dy, 2)}`;
     this.measureLabel.style.left = `${screen.x}px`;
     this.measureLabel.style.top = `${screen.y}px`;
     this.measureLabel.hidden = false;

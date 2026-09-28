@@ -3,27 +3,28 @@ import { colorRange } from '../analysis/visualize';
 import { useProject } from '../hooks/useDocument';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
+import { formatNumber, useT, type MessageKey } from '../i18n';
 
-const OTHER: [keyof typeof MATERIAL_COLORS, string][] = [
-  ['stemming', 'Taco'],
-  ['air', 'Aire'],
-  ['water', 'Agua'],
-  ['plug', 'Tapón'],
-  ['empty', 'Sin cargar'],
+const OTHER: [keyof typeof MATERIAL_COLORS, MessageKey][] = [
+  ['stemming', 'legend.stemming'],
+  ['air', 'legend.air'],
+  ['water', 'legend.water'],
+  ['plug', 'legend.plug'],
+  ['empty', 'legend.empty'],
 ];
 
 const BY_LABEL = {
-  time: 'tiempo de disparo',
-  kg: 'kg por taladro',
-  powderFactor: 'factor de carga',
-  effectiveBurden: 'burden efectivo',
-} as const;
+  time: 'legend.by.time',
+  kg: 'legend.by.kg',
+  powderFactor: 'legend.by.powderFactor',
+  effectiveBurden: 'legend.by.effectiveBurden',
+} as const satisfies Record<string, MessageKey>;
 
 function fmt(v: number, mode: keyof typeof BY_LABEL): string {
-  if (mode === 'time') return `${Math.round(v * 1000)} ms`;
-  if (mode === 'kg') return `${Math.round(v)} kg`;
-  if (mode === 'effectiveBurden') return `${v.toFixed(1)} m`;
-  return `${v.toFixed(2)} kg/m³`;
+  if (mode === 'time') return `${String(Math.round(v * 1000))} ms`;
+  if (mode === 'kg') return `${String(Math.round(v))} kg`;
+  if (mode === 'effectiveBurden') return `${formatNumber(v, 1)} m`;
+  return `${formatNumber(v, 2)} kg/m³`;
 }
 
 /**
@@ -31,6 +32,7 @@ function fmt(v: number, mode: keyof typeof BY_LABEL): string {
  * (materiales, color por tiempo/kg/FC o la animación de la secuencia).
  */
 export function Legend3D() {
+  const tr = useT();
   const mode = useUiStore((s) => s.viewMode);
   const explosives = useProject().library.explosives;
   const colorBy = useAnalysisStore((s) => s.colorBy);
@@ -43,25 +45,25 @@ export function Legend3D() {
     <div className="overlay-3d">
       {sequenceTime !== null ? (
         <>
-          <strong>Secuencia · t = {Math.round(sequenceTime * 1000)} ms</strong>
+          <strong>{tr('legend.sequence', { ms: Math.round(sequenceTime * 1000) })}</strong>
           <ul>
             <li>
               <i style={{ background: '#2a3442' }} />
-              Pendiente
+              {tr('legend.pending')}
             </li>
             <li>
               <i style={{ background: '#fff3b0' }} />
-              Disparando
+              {tr('legend.firing')}
             </li>
             <li>
               <i style={{ background: '#ff5a1f' }} />
-              Detonado
+              {tr('legend.fired')}
             </li>
           </ul>
         </>
       ) : range && colorBy !== 'none' && colorBy !== 'group' ? (
         <>
-          <strong>Columna explosiva por {BY_LABEL[colorBy]}</strong>
+          <strong>{tr('legend.columnBy', { what: tr(BY_LABEL[colorBy]) })}</strong>
           <div
             className="gradient"
             style={{
@@ -87,13 +89,13 @@ export function Legend3D() {
         {OTHER.map(([k, label]) => (
           <li key={k}>
             <i style={{ background: hexCss(MATERIAL_COLORS[k]) }} />
-            {label}
+            {tr(label)}
           </li>
         ))}
       </ul>
       <p>
-        <kbd>arrastre</kbd> orbitar · <kbd>Shift</kbd> desplazar · <kbd>rueda</kbd> acercar ·{' '}
-        <kbd>3</kbd> planta
+        <kbd>{tr('legend.drag')}</kbd> {tr('legend.orbit')} · <kbd>Shift</kbd> {tr('legend.pan')} ·{' '}
+        <kbd>{tr('legend.wheel')}</kbd> {tr('legend.zoom')} · <kbd>3</kbd> {tr('legend.plan')}
       </p>
     </div>
   );

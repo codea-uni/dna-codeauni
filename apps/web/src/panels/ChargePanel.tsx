@@ -12,6 +12,7 @@ import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocumen
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
+import { useT } from '../i18n';
 
 type RuleForm = Omit<ChargeRule, 'airDeckLength' | 'primerId' | 'detonatorId'> & {
   airDeckLength: number;
@@ -50,6 +51,7 @@ function Select({
 }
 
 export function ChargePanel() {
+  const t = useT();
   const { len } = useUnits();
   const project = useProject();
   const blast = useActiveBlast();
@@ -77,7 +79,7 @@ export function ChargePanel() {
   const apply = (ids: HoleId[], toGroup?: HoleGroupId) => {
     if (!blast) return;
     if (ids.length === 0) {
-      useUiStore.getState().notify('No hay taladros a los que aplicar la regla', 'error');
+      useUiStore.getState().notify(t('charge.noHoles'), 'error');
       return;
     }
     const rule: ChargeRule = {
@@ -88,13 +90,7 @@ export function ChargePanel() {
     };
     // P-04: sin taco es un diseño muy riesgoso (proyecciones, sobrepresión), pero existen casos
     // especiales (alivios, pruebas): se pide confirmación explícita.
-    if (
-      form.stemmingLength <= 0 &&
-      !window.confirm(
-        'Sin taco: alto riesgo de proyección de rocas y sobrepresión, y pérdida de energía. ¿Aplicar igual?',
-      )
-    )
-      return;
+    if (form.stemmingLength <= 0 && !window.confirm(t('charge.noStemmingConfirm'))) return;
     if (form.airDeckLength > 0) rule.airDeckLength = form.airDeckLength;
     if (form.primerId) rule.primerId = form.primerId as NonNullable<ChargeRule['primerId']>;
     if (form.detonatorId)
@@ -122,26 +118,23 @@ export function ChargePanel() {
       : [];
     session.document.dispatch(
       [...saveInGroup, ...commands.applyChargeRule(session.document, ids, rule)],
-      `Cargar ${String(ids.length)} taladro(s)`,
+      t('charge.load', { n: ids.length }),
     );
-    useUiStore.getState().notify(`Regla de carga aplicada a ${ids.length} taladro(s)`);
+    useUiStore.getState().notify(t('charge.applied', { n: ids.length }));
   };
 
   return (
     <>
       <section className="panel">
-        <h2>Regla de carga</h2>
-        <p className="hint">
-          De fondo a boca: explosivo · aire (opcional) · taco. El detonador y la prima van cerca del
-          fondo.
-        </p>
+        <h2>{t('charge.title')}</h2>
+        <p className="hint">{t('charge.hint')}</p>
         <Select
-          label="Explosivo"
+          label={t('charge.explosive')}
           value={form.explosiveId}
           options={lib.explosives.map((e) => ({
             id: e.id,
             name: selectedHoles.some((h) => !waterCompatible(e, h.water))
-              ? `${e.name} ⚠ no apto para el agua de la selección`
+              ? t('charge.notWaterSafe', { name: e.name })
               : e.name,
           }))}
           onChange={(v) => {
@@ -149,7 +142,7 @@ export function ChargePanel() {
           }}
         />
         <NumberField
-          label="Taco"
+          label={t('charge.stemming')}
           unit={len.unit}
           decimals={2}
           min={0}
@@ -160,7 +153,7 @@ export function ChargePanel() {
           }}
         />
         <Select
-          label="Material de taco"
+          label={t('charge.stemmingMaterial')}
           value={form.stemmingMaterialId}
           options={lib.stemmingMaterials}
           onChange={(v) => {
@@ -168,7 +161,7 @@ export function ChargePanel() {
           }}
         />
         <NumberField
-          label="Cámara de aire"
+          label={t('charge.airDeck')}
           unit={len.unit}
           decimals={2}
           min={0}
@@ -179,23 +172,23 @@ export function ChargePanel() {
           }}
         />
         <Select
-          label="Prima"
+          label={t('charge.primer')}
           value={form.primerId}
-          options={[{ id: '', name: '(ninguna)' }, ...lib.primers]}
+          options={[{ id: '', name: t('charge.noPrimer') }, ...lib.primers]}
           onChange={(v) => {
             update({ primerId: v });
           }}
         />
         <Select
-          label="Detonador"
+          label={t('charge.detonator')}
           value={form.detonatorId}
-          options={[{ id: '', name: '(ninguno)' }, ...lib.detonators]}
+          options={[{ id: '', name: t('charge.noDetonator') }, ...lib.detonators]}
           onChange={(v) => {
             update({ detonatorId: v });
           }}
         />
         <NumberField
-          label="Prima desde el fondo"
+          label={t('charge.primerOffset')}
           unit={len.unit}
           decimals={2}
           min={0}
@@ -213,14 +206,14 @@ export function ChargePanel() {
               apply([...selection]);
             }}
           >
-            Aplicar a selección ({selection.size})
+            {t('charge.applySelection', { n: selection.size })}
           </button>
           <button
             onClick={() => {
               apply(blast?.holes.map((h) => h.id) ?? []);
             }}
           >
-            Aplicar a todos
+            {t('charge.applyAll')}
           </button>
         </div>
         {blast && blast.groups.length > 0 && (
@@ -231,17 +224,17 @@ export function ChargePanel() {
                 setGroupId(e.target.value);
               }}
             >
-              <option value="">Grupo…</option>
+              <option value="">{t('charge.group')}</option>
               {blast.groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
-                  {g.template?.chargeRule ? ' (con regla)' : ''}
+                  {g.template?.chargeRule ? ` ${t('charge.withRule')}` : ''}
                 </option>
               ))}
             </select>
             <button
               disabled={!group}
-              title="Aplica la regla a los taladros del grupo y la guarda en el grupo"
+              title={t('charge.applyGroupTitle')}
               onClick={() => {
                 if (group)
                   apply(
@@ -250,11 +243,11 @@ export function ChargePanel() {
                   );
               }}
             >
-              Aplicar al grupo
+              {t('charge.applyGroup')}
             </button>
             <button
               disabled={!group?.template?.chargeRule}
-              title="Carga en el formulario la regla guardada en el grupo"
+              title={t('charge.useGroupRuleTitle')}
               onClick={() => {
                 const r = group?.template?.chargeRule;
                 if (!r) return;
@@ -269,7 +262,7 @@ export function ChargePanel() {
                 });
               }}
             >
-              Usar su regla
+              {t('charge.useGroupRule')}
             </button>
           </div>
         )}
@@ -279,19 +272,19 @@ export function ChargePanel() {
             onClick={() => {
               session.document.dispatch(
                 commands.clearCharge(session.document, selection),
-                'Descargar taladros',
+                t('charge.unload'),
               );
             }}
           >
-            Quitar carga de la selección
+            {t('charge.clear')}
           </button>
         </div>
       </section>
       <section className="panel">
-        <h2>Macizo rocoso</h2>
+        <h2>{t('charge.rockMass')}</h2>
         {rock && (
           <NumberField
-            label="Densidad de roca"
+            label={t('charge.rockDensity')}
             unit="t/m³"
             decimals={3}
             min={0.5}
@@ -300,11 +293,14 @@ export function ChargePanel() {
               const rockMasses = project.rockMasses.map((r) =>
                 r.id === rock.id ? { ...r, density: v * 1000 } : r,
               );
-              session.document.dispatch(commands.setRockMasses(rockMasses), 'Densidad de roca');
+              session.document.dispatch(
+                commands.setRockMasses(rockMasses),
+                t('charge.rockDensity'),
+              );
             }}
           />
         )}
-        <p className="hint">Se usa para el tonelaje y el factor de carga en kg/t.</p>
+        <p className="hint">{t('charge.rockHint')}</p>
       </section>
     </>
   );

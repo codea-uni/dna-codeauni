@@ -24,7 +24,7 @@ export class AddHoleTool implements Tool {
       label: String(nextHoleNumber(blast.holes)),
       subdrillConvention: blast.calcParams.subdrillConvention,
     });
-    ctx.document.dispatch(commands.addHoles(blast.id, [hole]), 'Agregar taladro');
+    ctx.document.dispatch(commands.addHoles(blast.id, [hole]), ctx.text('undo.addHole'));
     ctx.selection.set([hole.id]);
   }
 

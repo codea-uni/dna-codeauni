@@ -8,8 +8,10 @@ import { useActiveBlast } from '../hooks/useDocument';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
+import { useT } from '../i18n';
 
 export function BlastPanel() {
+  const t = useT();
   const { len } = useUnits();
   const blast = useActiveBlast();
   const setTool = useUiStore((s) => s.setTool);
@@ -26,7 +28,7 @@ export function BlastPanel() {
   const remove = (id: BoundaryId, name: string) => {
     session.document.dispatch(
       commands.removeBoundary(session.document, blast.id, id),
-      `Borrar ${name}`,
+      t('blast.removeNamed', { name }),
     );
     if (activeBoundaryId === id) setActiveBoundary(null);
   };
@@ -34,31 +36,35 @@ export function BlastPanel() {
   return (
     <>
       <section className="panel">
-        <h2>Voladura</h2>
+        <h2>{t('blast.title')}</h2>
         <p className="muted">
-          {blast.name} · {blast.holes.length} taladros · {blast.patterns.length} mallas
+          {t('blast.summary', {
+            name: blast.name,
+            holes: blast.holes.length,
+            patterns: blast.patterns.length,
+          })}
         </p>
         <NumberField
-          label="Cota de piso"
+          label={t('blast.floor')}
           unit={len.unit}
           value={len.show(blast.bench.floorElevation)}
           onCommit={(raw) => {
             const v = len.parse(raw);
-            setBench({ floorElevation: v }, 'Cota de piso');
+            setBench({ floorElevation: v }, t('blast.floor'));
           }}
         />
         <NumberField
-          label="Altura de banco"
+          label={t('blast.benchHeight')}
           unit={len.unit}
           min={0.1}
           value={len.show(blast.bench.height)}
           onCommit={(raw) => {
             const v = len.parse(raw);
-            setBench({ height: v }, 'Altura de banco');
+            setBench({ height: v }, t('blast.benchHeight'));
           }}
         />
         <label className="field">
-          <span className="field-label">Sobreperforación en inclinados</span>
+          <span className="field-label">{t('blast.subdrillConvention')}</span>
           <select
             value={blast.calcParams.subdrillConvention}
             onChange={(e) => {
@@ -73,31 +79,28 @@ export function BlastPanel() {
                     },
                   },
                 },
-                'Convención de sobreperforación',
+                t('blast.subdrillConventionUndo'),
               );
             }}
           >
-            <option value="vertical">Vertical bajo el piso: L = (H + J)/cos α</option>
-            <option value="lopezJimeno">López Jimeno: L = H/cos α + (1 − α/100)·J</option>
+            <option value="vertical">{t('blast.convention.vertical')}</option>
+            <option value="lopezJimeno">{t('blast.convention.lopezJimeno')}</option>
           </select>
         </label>
-        <p className="hint">
-          El banco y la convención (P-05) se aplican a los taladros nuevos o editados. La geométrica
-          es la exacta; López Jimeno reduce J con la inclinación (criterio empírico).
-        </p>
+        <p className="hint">{t('blast.benchHint')}</p>
       </section>
 
       <section className="panel">
-        <h2>Perímetros</h2>
+        <h2>{t('blast.boundaries')}</h2>
         {blast.boundaries.length === 0 ? (
-          <p className="hint">Sin perímetros. Dibuja uno con la herramienta Perímetro (B).</p>
+          <p className="hint">{t('blast.noBoundaries')}</p>
         ) : (
           <ul className="boundary-list">
             {blast.boundaries.map((b, i) => (
               <li key={b.id} className={b.id === activeBoundaryId ? 'active' : ''}>
                 <button
                   className="swatch"
-                  title="Activar"
+                  title={t('blast.activate')}
                   style={{ background: boundaryColorCss(i) }}
                   onClick={() => {
                     setActiveBoundary(b.id === activeBoundaryId ? null : b.id);
@@ -108,21 +111,26 @@ export function BlastPanel() {
                   onCommit={(name) => {
                     session.document.dispatch(
                       commands.renameBoundary(session.document, blast.id, b.id, name),
-                      'Renombrar perímetro',
+                      t('blast.renameBoundary'),
                     );
                   }}
                 />
-                <span className="muted small" title="Vértices · caras libres">
+                <span className="muted small" title={t('blast.verticesFaces')}>
                   {b.polygon.length} v ·{' '}
                   {b.freeFaceEdges.length === 0 ? (
-                    <span className="warn">sin cara libre</span>
+                    <span className="warn">{t('blast.noFreeFace')}</span>
                   ) : (
-                    `${b.freeFaceEdges.length} cara${b.freeFaceEdges.length > 1 ? 's' : ''} libre${b.freeFaceEdges.length > 1 ? 's' : ''}`
+                    t(
+                      b.freeFaceEdges.length > 1 ? 'blast.freeFaces.other' : 'blast.freeFaces.one',
+                      {
+                        n: b.freeFaceEdges.length,
+                      },
+                    )
                   )}
                 </span>
                 <button
                   className="icon danger"
-                  title="Borrar perímetro"
+                  title={t('blast.removeBoundary')}
                   onClick={() => {
                     remove(b.id, b.name);
                   }}
@@ -136,7 +144,7 @@ export function BlastPanel() {
         <div className="row">
           <IconButton
             icon={Pentagon}
-            label="Dibujar perímetro"
+            label={t('blast.drawBoundary')}
             shortcut="B"
             showLabel
             onClick={() => {
@@ -145,7 +153,7 @@ export function BlastPanel() {
           />
           <IconButton
             icon={Mountain}
-            label="Cara libre"
+            label={t('blast.freeFace')}
             shortcut="C"
             showLabel
             disabled={blast.boundaries.length === 0}
@@ -154,10 +162,7 @@ export function BlastPanel() {
             }}
           />
         </div>
-        <p className="hint">
-          Cara libre: con la herramienta C, haz clic junto a la arista del talud. Las marcas indican
-          hacia dónde se desplaza el material.
-        </p>
+        <p className="hint">{t('blast.freeFaceHint')}</p>
       </section>
     </>
   );
