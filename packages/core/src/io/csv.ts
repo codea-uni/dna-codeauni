@@ -11,12 +11,14 @@ export interface CsvTable {
   rows: string[][];
 }
 
-/** Detecta el separador por la primera línea: tab, punto y coma o coma. */
+/**
+ * Detecta el separador por la primera línea (sin lo que va entre comillas). Tab y punto y coma
+ * tienen prioridad sobre la coma: la coma aparece dentro de números como separador decimal o de
+ * miles (`272,345.578`, `docs/theory/03 §5`), el tab y el punto y coma no.
+ */
 export function detectDelimiter(text: string): string {
-  const line = text.split(/\r?\n/, 1)[0] ?? '';
-  const counts = ['\t', ';', ','].map((d) => [d, line.split(d).length - 1] as const);
-  counts.sort((a, b) => b[1] - a[1]);
-  return counts[0] && counts[0][1] > 0 ? counts[0][0] : ',';
+  const line = (text.split(/\r?\n/, 1)[0] ?? '').replace(/"[^"]*"/g, '');
+  return ['\t', ';'].find((d) => line.includes(d)) ?? ',';
 }
 
 /** Parser CSV (RFC 4180): comillas dobles, comillas escapadas y saltos de línea dentro de campos. */
@@ -54,16 +56,19 @@ export function parseCsv(text: string, delimiter = detectDelimiter(text)): CsvTa
   return { delimiter, headers, rows };
 }
 
-/** Número con punto o coma decimal; NaN si no es válido. */
+/**
+ * Número con punto o coma decimal; NaN si no es válido. Con ambos, el último es el decimal y el
+ * otro separa miles: `272,345.578` → 272345.578 y `1.234,5` → 1234.5 (`docs/theory/03 §5`).
+ */
 export function parseNumber(text: string | undefined): number {
   if (text === undefined) return NaN;
   const t = text.trim().replace(/\s/g, '');
   if (t === '') return NaN;
-  // "1.234,5" → 1234.5 ; "1,5" → 1.5 ; "1234.5" → 1234.5
-  const normalized =
-    t.includes(',') && t.includes('.')
+  const normalized = !(t.includes(',') && t.includes('.'))
+    ? t.replace(',', '.')
+    : t.lastIndexOf(',') > t.lastIndexOf('.')
       ? t.replace(/\./g, '').replace(',', '.')
-      : t.replace(',', '.');
+      : t.replace(/,/g, '');
   const n = Number(normalized);
   return Number.isFinite(n) ? n : NaN;
 }

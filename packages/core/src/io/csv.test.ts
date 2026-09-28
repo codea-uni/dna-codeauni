@@ -27,6 +27,18 @@ describe('CSV', () => {
     expect(parseNumber('abc')).toBeNaN();
   });
 
+  it('trampa de 03 §5: separador ; con decimal punto y miles con coma', () => {
+    // docs/theory/03 §5: «272,345.578» no se lee como dos números ni como 272.345578
+    expect(parseNumber('272,345.578')).toBe(272345.578);
+    expect(parseNumber('8,944,820.25')).toBe(8944820.25);
+    const t = parseCsv(
+      'A1;272,345.578;8,944,820.250;4,254.0\nA2;272,354.578;8,944,820.250;4,254.0',
+    );
+    expect(t.delimiter).toBe(';');
+    expect(t.rows[0]?.map(parseNumber)).toEqual([NaN, 272354.578, 8944820.25, 4254]);
+    expect(parseCsv('"Taladro;x",Este\n1,2').delimiter).toBe(',');
+  });
+
   it('adivina el mapeo por encabezados en español e inglés', () => {
     const m = guessHoleMapping([
       'Taladro',
