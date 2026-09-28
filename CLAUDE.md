@@ -56,7 +56,7 @@ Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab�
 - **Tests obligatorios en core.** Toda función de cálculo nueva o modificada lleva tests en Vitest (`*.test.ts` junto al fuente), con valores de referencia documentados (caso CR-xx o fuente citada en un comentario; ver «Reglas de dominio»). Tests suficientes para asegurar la precisión, sin sobredimensionar: priorizar los cálculos de ingeniería sobre la UI.
 - **Nombres:** código e identificadores en inglés; UI y documentación en español.
 - **Rendimiento:** un cambio que toque engine o workers se valida con el fixture de 5.000 taladros (60 fps en pan/zoom).
-- **i18n:** todo texto nuevo de la UI pasa por `t()` (D-11, `apps/web/src/i18n/`): la clave va en `es.ts` y su traducción en `en.ts`.
+- **i18n:** todo texto visible de la UI pasa por `t()`/`useT()` (D-11, `apps/web/src/i18n/`): la clave va en el diccionario del área (`i18n/ns/*.ts`, español e inglés) y los números con `useFormat()`. Los mensajes del núcleo se traducen en `i18n/coreText.ts` (el núcleo expone `id`/`kind` y `params`); los del motor con `engine.setText`; el PDF con `ReportOptions.language`.
 
 ## Reglas de dominio (guía §9–§11, no negociables)
 
@@ -81,7 +81,7 @@ Detalle, tareas y criterios de salida en `docs/PLAN.md §4`. Cada hito sigue el 
 - **G5:** amarre y tiempos (escalón, ciclos, burden efectivo, CR-05) ✅
 - **G6:** MIC y PPV (límites, K/β por punto, CR-06) ✅
 - **G7:** reporte y escenarios ✅ (CR-04 espera P-15)
-- **G8:** idiomas (usuarios y roles diferidos, D-08)
+- **G8:** idiomas (usuarios y roles diferidos, D-08) ✅
 - **G9:** cierre de la Fase 1; luego F2 análisis avanzado, F3 subterráneo, F4 datos de campo, F5 distribución + backend
 
 El prototipo BlastLab ya implementó las fases 0–9 (malla, carguío, tiempos, CSV, energía, fragmentación, vibración, DXF/PDF, 3D). Se reutilizan y se regularizan hito a hito (D-07).
