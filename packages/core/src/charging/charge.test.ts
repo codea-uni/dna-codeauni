@@ -167,6 +167,34 @@ describe('cubicación por área de influencia', () => {
     expect(r.powderFactorVolume).toBeCloseTo(0.83896, 4);
     expect(r.powderFactorMass * 1000).toBeCloseTo(0.31659, 4);
     expect(r.powderFactorPerHole[4]).toBeCloseTo((314.159 + 0.45) / 375, 4);
+    // Sin malla asociada no hay volumen nominal
+    expect(r.nominalVolume).toBe(0);
+
+    // Con la malla B = S = 5 m: nominal 9 · 5 · 5 · 15 = 3375 m³, igual al cubicado en este caso
+    const pattern = {
+      id: newId<'Pattern'>(),
+      name: 'P',
+      kind: 'square' as const,
+      burden: 5,
+      spacing: 5,
+      origin: { x: 0, y: 0 },
+      rowAzimuth: Math.PI / 2,
+      rowAdvance: 'right' as const,
+      rows: 3,
+      holesPerRow: 3,
+      holeTemplate: DEFAULT_HOLE_TEMPLATE,
+    };
+    const withPattern = computeCharges(
+      {
+        ...blast,
+        patterns: [pattern],
+        holes: holes.map((h) => ({ ...h, patternId: pattern.id })),
+      },
+      lib,
+      2650,
+    );
+    expect(withPattern.nominalVolume).toBeCloseTo(3375, 9);
+    expect(withPattern.nominalLoadingFactor).toBeCloseTo(0.83896, 4);
   });
 
   it('sin perímetro: contorno automático a media distancia entre vecinos', () => {

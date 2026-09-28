@@ -37,7 +37,17 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
   micWindow: 0.008,
   detonationGamma: 3,
   reliefTime: 0,
-  checks: { minStemmingRatio: 0.7, duplicateDistance: 0.5, neighborFactor: 1.5 },
+  checks: {
+    minStemmingRatio: 0.7,
+    duplicateDistance: 0.5,
+    neighborFactor: 1.5,
+    // Verificaciones de cordura de docs/theory/02 §6 (CK-01 a CK-04), como advertencias.
+    maxStemmingRatio: 1.3,
+    stemmingDiameterRatio: { min: 15, max: 25 },
+    subdrillBurdenRatio: { min: 0.2, max: 0.5 },
+    minStiffness: 2,
+    benchDiameterRatio: { min: 50, max: 70 },
+  },
 };
 
 /**

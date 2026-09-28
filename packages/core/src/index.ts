@@ -62,6 +62,7 @@ export * from './io/projectFile';
 export * from './io/csv';
 export * from './io/dxf';
 export * from './io/geojson';
+export * from './design/burden';
 
 /** Verificación de extremo a extremo del cableado core → workers. */
 export function ping(message: string): string {

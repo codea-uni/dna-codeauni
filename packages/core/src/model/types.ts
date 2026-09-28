@@ -158,6 +158,16 @@ export interface CalcParams {
     duplicateDistance: Meters;
     /** Radio de vecindad como múltiplo del mayor entre B y S (⚙). */
     neighborFactor: Ratio;
+    /** Taco máximo como fracción del burden (CK-02: 1,3). */
+    maxStemmingRatio: Ratio;
+    /** Taco en diámetros (CK-02: 15–25·Ø). */
+    stemmingDiameterRatio: { min: Ratio; max: Ratio };
+    /** Sobreperforación en burdens (CK-03: 0,2–0,5·B). */
+    subdrillBurdenRatio: { min: Ratio; max: Ratio };
+    /** Rigidez H/B igual o menor: atención (CK-01: 2). */
+    minStiffness: Ratio;
+    /** Altura de banco en diámetros (CK-04: 50–70). */
+    benchDiameterRatio: { min: Ratio; max: Ratio };
   };
 }
 

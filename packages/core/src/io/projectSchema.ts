@@ -13,6 +13,8 @@ const num = z.number().refine(Number.isFinite, 'número no finito');
 const nonNeg = num.refine((v) => v >= 0, 'debe ser ≥ 0');
 const pos = num.refine((v) => v > 0, 'debe ser > 0');
 
+const range = z.object({ min: nonNeg, max: nonNeg });
+
 const vec2: z.ZodType<M.Vec2> = z.object({ x: num, y: num });
 const vec3: z.ZodType<M.Vec3> = z.object({ x: num, y: num, z: num });
 const polygon2: z.ZodType<M.Polygon2> = z.array(vec2);
@@ -172,7 +174,16 @@ const blast: z.ZodType<M.Blast> = z.object({
     micWindow: pos,
     detonationGamma: pos,
     reliefTime: nonNeg,
-    checks: z.object({ minStemmingRatio: nonNeg, duplicateDistance: nonNeg, neighborFactor: pos }),
+    checks: z.object({
+      minStemmingRatio: nonNeg,
+      duplicateDistance: nonNeg,
+      neighborFactor: pos,
+      maxStemmingRatio: pos,
+      stemmingDiameterRatio: range,
+      subdrillBurdenRatio: range,
+      minStiffness: nonNeg,
+      benchDiameterRatio: range,
+    }),
   }),
   notes: z.string().exactOptional(),
 });

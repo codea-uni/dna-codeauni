@@ -115,9 +115,13 @@ describe('proyectos de ejemplo', () => {
     ]) {
       expect(ids).toContain(expected);
     }
-    // Los ejemplos "buenos" no tienen ninguna observación.
+    // Los ejemplos "buenos" no tienen errores ni advertencias (las notas informativas, reglas R0,
+    // pueden aparecer).
     for (const id of ['production', 'wet', 'electronic', 'inclined']) {
-      expect(analyze(build(id)).a.checks, id).toEqual([]);
+      expect(
+        analyze(build(id)).a.checks.filter((c) => c.severity !== 'info'),
+        id,
+      ).toEqual([]);
     }
   });
 });

@@ -56,6 +56,16 @@ function blastOf(holes: Hole[], burden = 5): Blast {
   };
   return {
     ...createBlast('V', newId<'RockMass'>()),
+    // Cara libre al frente (RM-06): sin ella se avisa voladura confinada.
+    freeFaces: [
+      {
+        id: newId<'FreeFace'>(),
+        crest: [
+          { x: -10, y: -5, z: 15 },
+          { x: 30, y: -5, z: 15 },
+        ],
+      },
+    ],
     patterns: [pattern],
     holes: holes.map((h) => ({ ...h, patternId: pattern.id })),
   };
@@ -63,7 +73,25 @@ function blastOf(holes: Hole[], burden = 5): Blast {
 
 describe('diagnóstico de diseño', () => {
   it('diseño correcto: sin alertas (sin tiempos no evalúa iniciación)', () => {
-    expect(designChecks(blastOf([loaded(0), loaded(6)]), null)).toEqual([]);
+    // Solo la nota informativa H/Ø (15 m / 0,2 m = 75, fuera de 50–70, R0).
+    expect(designChecks(blastOf([loaded(0), loaded(6)]), null).map((c) => c.id)).toEqual([
+      'benchDiameter',
+    ]);
+  });
+
+  it('verificaciones de 02 §6: rigidez, sobreperforación, taco largo y cara libre', () => {
+    // B = 8 m: H/B = 15/8 = 1,875 ≤ 2 (CR-01, rigidez pobre); J = 1,5 m → J/B = 0,19 < 0,2;
+    // taco 12 m > 1,3·B = 10,4 m; sin cara libre → voladura confinada.
+    const b = { ...blastOf([loaded(0, 12)], 8), freeFaces: [] };
+    const ids = designChecks(b, null).map((c) => c.id);
+    expect(ids).toEqual(
+      expect.arrayContaining(['noFreeFace', 'lowStiffness', 'subdrillRange', 'longStemming']),
+    );
+    // Con B = 5 (H/B = 3, J/B = 0,3, taco 3,5 m = 0,7·B) no salta ninguna
+    const ok = designChecks(blastOf([loaded(0, 3.5)], 5), null).map((c) => c.id);
+    expect(ok).not.toEqual(expect.arrayContaining(['lowStiffness']));
+    expect(ok).not.toContain('subdrillRange');
+    expect(ok).not.toContain('longStemming');
   });
 
   it('taco corto con la regla 0.7 × burden y sin taco', () => {

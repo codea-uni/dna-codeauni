@@ -1,4 +1,5 @@
 import type { Blast, HoleId, ProductLibrary, Vec2 } from '../model/types';
+import { nominalVolume } from '../design/burden';
 import { holeCharge, indexLibrary } from './charge';
 import { influenceAreas } from './influence';
 
@@ -28,6 +29,13 @@ export interface ChargeResult {
   /** kg/m³ y kg/kg (mostrar ×1000 como kg/t). */
   powderFactorVolume: number;
   powderFactorMass: number;
+  /**
+   * Volumen nominal Σ B·S·H/cos α [m³] de los taladros con malla (FC-02: la fórmula de los casos
+   * de referencia), junto al cubicado por área de influencia (`volume`); ver P-06.
+   */
+  nominalVolume: number;
+  /** Explosivo de los taladros con malla / volumen nominal [kg/m³] (0 sin malla). */
+  nominalLoadingFactor: number;
   /** Costo total de productos (explosivos, taco, primas, detonadores). */
   cost: number;
   loadedHoles: number;
@@ -78,6 +86,15 @@ export function computeCharges(
     powderFactorPerHole[i] = v > 0 ? (perHole[i] ?? 0) / v : 0;
   }
   const volume = area * blast.bench.height;
+  const patterns = new Map(blast.patterns.map((p) => [p.id, p]));
+  let nominal = 0;
+  let nominalKg = 0;
+  holes.forEach((h, i) => {
+    const p = h.patternId ? patterns.get(h.patternId) : undefined;
+    if (!p) return;
+    nominal += nominalVolume(p.burden, p.spacing, blast.bench.height, h.inclination);
+    nominalKg += perHole[i] ?? 0;
+  });
   const tonnage = volume * rockDensity;
   const kg = totalExplosive + totalPrimers;
   return {
@@ -96,6 +113,8 @@ export function computeCharges(
     tonnage,
     powderFactorVolume: volume > 0 ? kg / volume : 0,
     powderFactorMass: tonnage > 0 ? kg / tonnage : 0,
+    nominalVolume: nominal,
+    nominalLoadingFactor: nominal > 0 ? nominalKg / nominal : 0,
     cost,
     loadedHoles,
     autoBoundary: influence.autoBoundary,

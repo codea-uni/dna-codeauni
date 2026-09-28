@@ -1,6 +1,6 @@
 import { deckIntervals } from '../charging/charge';
 import { boundaryAt } from '../geometry/boundary';
-import type { Blast, HoleId } from '../model/types';
+import type { Blast, CalcParams, HoleId } from '../model/types';
 import type { TimingResult } from '../timing/timing';
 import { DEFAULT_CALC_PARAMS } from '../model/factories';
 
@@ -15,16 +15,8 @@ export interface DesignCheck {
   holes: HoleId[];
 }
 
-export interface DesignCheckOptions {
-  /** Taco mínimo como fracción del burden (regla práctica: 0.7 B). */
-  minStemmingRatio: number;
-  /** Distancia por debajo de la cual dos bocas se consideran duplicadas [m]. */
-  duplicateDistance: number;
-  /** Ventana de coincidencia [s]. */
-  coincidenceWindow: number;
-  /** Radio de vecindad como múltiplo del mayor entre burden y espaciamiento. */
-  neighborFactor: number;
-}
+/** Umbrales de `blast.calcParams.checks` más la ventana de coincidencia [s]. */
+export type DesignCheckOptions = CalcParams['checks'] & { coincidenceWindow: number };
 
 export const DEFAULT_CHECK_OPTIONS: DesignCheckOptions = checkOptionsOf({
   calcParams: DEFAULT_CALC_PARAMS,
@@ -50,6 +42,57 @@ export function designChecks(
   };
   const burdenOf = new Map(blast.patterns.map((p) => [p.id, p.burden]));
   const defaultBurden = blast.patterns[0]?.burden;
+  const outside = (v: number, r: { min: number; max: number }) => v < r.min || v > r.max;
+  const fmtRange = (r: { min: number; max: number }) => `${String(r.min)}–${String(r.max)}`;
+  const H = blast.bench.height;
+
+  // Geometría (docs/theory/02 §6, CK-01, CK-03, CK-04, CK-06): advertencias, nunca bloqueos.
+  const lowStiffness: HoleId[] = [];
+  const subdrillRange: HoleId[] = [];
+  const benchDiameter: HoleId[] = [];
+  for (const h of blast.holes) {
+    const burden = h.patternId ? burdenOf.get(h.patternId) : undefined;
+    if (burden !== undefined) {
+      if (H / burden <= options.minStiffness) lowStiffness.push(h.id);
+      if (outside(h.subdrill / burden, options.subdrillBurdenRatio)) subdrillRange.push(h.id);
+    }
+    if (h.diameter > 0 && outside(H / h.diameter, options.benchDiameterRatio))
+      benchDiameter.push(h.id);
+  }
+  const hasFreeFace =
+    blast.freeFaces.length > 0 || blast.boundaries.some((b) => b.freeFaceEdges.length > 0);
+  add({
+    id: 'noFreeFace',
+    severity: 'warning',
+    title: 'Sin cara libre definida',
+    detail:
+      'Solo queda la superficie del banco como cara libre: voladura confinada, más vibración y peor fragmentación (RM-06). Marca la cara libre en el perímetro (herramienta C).',
+    holes: hasFreeFace ? [] : blast.holes.map((h) => h.id),
+  });
+  add({
+    id: 'lowStiffness',
+    severity: 'warning',
+    title: 'Rigidez del burden baja',
+    detail: `H/B ≤ ${String(options.minStiffness)} (tabla de Konya: mala distribución de energía, más proyección y vibración).`,
+    holes: lowStiffness,
+  });
+  add({
+    id: 'subdrillRange',
+    severity: 'warning',
+    title: 'Sobreperforación fuera de rango',
+    detail: `J/B fuera de ${fmtRange(options.subdrillBurdenRatio)} (rango de las fuentes; configurable).`,
+    holes: subdrillRange,
+  });
+  add({
+    id: 'benchDiameter',
+    severity: 'info',
+    title: 'Diámetro poco usual para la altura de banco',
+    detail: `H/Ø fuera de ${fmtRange(options.benchDiameterRatio)} (regla informativa, R0).`,
+    holes: benchDiameter,
+  });
+
+  const longStemming: HoleId[] = [];
+  const stemmingDiameter: HoleId[] = [];
 
   const unloaded: HoleId[] = [];
   const shortStemming: HoleId[] = [];
@@ -76,8 +119,14 @@ export function designChecks(
       .reduce((s, i) => s + i.deck.length, 0);
     const burden = (h.patternId ? burdenOf.get(h.patternId) : undefined) ?? defaultBurden;
     if (stemming <= 0) noStemming.push(h.id);
-    else if (burden !== undefined && stemming < options.minStemmingRatio * burden)
-      shortStemming.push(h.id);
+    else {
+      if (burden !== undefined && stemming < options.minStemmingRatio * burden)
+        shortStemming.push(h.id);
+      if (burden !== undefined && stemming > options.maxStemmingRatio * burden)
+        longStemming.push(h.id);
+      if (outside(stemming / h.diameter, options.stemmingDiameterRatio))
+        stemmingDiameter.push(h.id);
+    }
     if (h.initiators.length === 0) noDetonator.push(h.id);
   }
   add({
@@ -107,6 +156,20 @@ export function designChecks(
     title: 'Taco corto',
     detail: `Taco menor que ${options.minStemmingRatio} × burden (riesgo de proyecciones).`,
     holes: shortStemming,
+  });
+  add({
+    id: 'longStemming',
+    severity: 'warning',
+    title: 'Taco largo',
+    detail: `Taco mayor que ${String(options.maxStemmingRatio)} × burden: roca sin fragmentar en el collar.`,
+    holes: longStemming,
+  });
+  add({
+    id: 'stemmingDiameter',
+    severity: 'info',
+    title: 'Taco fuera del rango en diámetros',
+    detail: `Taco fuera de ${fmtRange(options.stemmingDiameterRatio)} × Ø (regla de las fuentes; configurable).`,
+    holes: stemmingDiameter,
   });
   add({
     id: 'noDetonator',
