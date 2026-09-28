@@ -57,7 +57,7 @@ export function Legend3D() {
             </li>
           </ul>
         </>
-      ) : range && colorBy !== 'none' ? (
+      ) : range && colorBy !== 'none' && colorBy !== 'group' ? (
         <>
           <strong>Columna explosiva por {BY_LABEL[colorBy]}</strong>
           <div

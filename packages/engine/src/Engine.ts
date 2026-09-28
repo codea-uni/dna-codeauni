@@ -99,6 +99,8 @@ export interface HoleScalars {
   values: ReadonlyMap<HoleId, number>;
   min: number;
   max: number;
+  /** Colores por categoría (p. ej. grupo) en CSS; si están, reemplazan la escala continua. */
+  colors?: ReadonlyMap<HoleId, string>;
 }
 
 export interface SnapSettings {
@@ -872,6 +874,16 @@ export class Engine {
         const t = seq.times.get(id);
         if (t === undefined || seq.t < t) return this.pendingColor;
         return seq.t - t < 0.025 ? this.flashColor : this.firedColor;
+      });
+    } else if (this.scalars?.colors) {
+      const colors = this.scalars.colors;
+      const cache = new Map<string, Color>();
+      this.holes.setColorSource((id) => {
+        const css = colors.get(id);
+        if (css === undefined) return null;
+        let c = cache.get(css);
+        if (!c) cache.set(css, (c = new Color(css)));
+        return c;
       });
     } else if (this.scalars) {
       const { values, min, max } = this.scalars;

@@ -1,4 +1,12 @@
-import { degToRad, freeFaceAlignment, radToDeg, type PatternKind } from '@cronos/core';
+import {
+  degToRad,
+  equilateralSpacing,
+  freeFaceAlignment,
+  radToDeg,
+  type PatternKind,
+} from '@cronos/core';
+import { useT } from '../i18n';
+import { BurdenReference } from './BurdenReference';
 import { useState } from 'react';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
@@ -14,6 +22,7 @@ const KINDS: { value: PatternKind; label: string }[] = [
 
 export function PatternPanel() {
   const { len, dia } = useUnits();
+  const t = useT();
   const blast = useActiveBlast();
   const busy = useUiStore((s) => s.busy);
   const template = useUiStore((s) => s.holeTemplate);
@@ -94,6 +103,20 @@ export function PatternPanel() {
         />
       </section>
 
+      <BurdenReference
+        burden={form.burden}
+        diameter={template.diameter}
+        subdrill={template.subdrill}
+        onBurden={(burden) => {
+          update({ burden });
+        }}
+        onSpacing={(spacing) => {
+          update({ kind: form.kind === 'square' ? 'rectangular' : form.kind, spacing });
+        }}
+        onSubdrill={(subdrill) => {
+          setTemplate({ subdrill });
+        }}
+      />
       <section className="panel">
         <h2>Generar malla</h2>
         <label className="field">
@@ -134,6 +157,15 @@ export function PatternPanel() {
             update({ spacing: v });
           }}
         />
+        {form.kind === 'staggered' && (
+          <button
+            onClick={() => {
+              update({ spacing: Number(equilateralSpacing(form.burden).toFixed(3)) });
+            }}
+          >
+            {t('pattern.equilateral')}
+          </button>
+        )}
         <NumberField
           label="Azimut de filas"
           unit="°"

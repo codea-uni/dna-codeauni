@@ -14,6 +14,7 @@ import { BlastPanel } from './panels/BlastPanel';
 import { ChargePanel } from './panels/ChargePanel';
 import { EnergyPanel } from './panels/EnergyPanel';
 import { LibraryPanel } from './panels/LibraryPanel';
+import { GroupsPanel } from './panels/GroupsPanel';
 import { PatternPanel } from './panels/PatternPanel';
 import { RightSidebar } from './panels/RightSidebar';
 import { TimingPanel } from './panels/TimingPanel';
@@ -93,6 +94,7 @@ export function App() {
             <>
               <BlastPanel />
               <PatternPanel />
+              <GroupsPanel />
             </>
           )}
           {tab === 'charge' && <ChargePanel />}

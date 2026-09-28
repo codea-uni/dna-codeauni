@@ -58,8 +58,19 @@ export function ViewPanel() {
           <option value="time">Tiempo de disparo</option>
           <option value="kg">kg por taladro</option>
           <option value="powderFactor">Factor de carga</option>
+          <option value="group">Grupo</option>
         </select>
       </label>
+      {s.colorBy === 'group' && blast && (
+        <div className="legend-row">
+          {blast.groups.length === 0 && <span className="muted">Sin grupos (pestaña Diseño)</span>}
+          {blast.groups.map((g) => (
+            <span key={g.id} className="legend-chip">
+              <i style={{ background: g.color, height: 10, width: 10 }} /> {g.name}
+            </span>
+          ))}
+        </div>
+      )}
       {range && (
         <div className="legend">
           <div

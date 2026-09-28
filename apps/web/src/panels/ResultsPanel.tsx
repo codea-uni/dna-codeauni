@@ -90,7 +90,19 @@ export function ResultsPanel() {
               value={`${fmt(len.show(c.drilledLength), 1)} ${len.unit}`}
             />
             <Row label="Área" value={`${fmt(area.show(c.area))} ${area.unit}`} />
-            <Row label="Volumen" value={`${fmt(volume.show(c.volume))} ${volume.unit}`} />
+            <Row label="Volumen cubicado" value={`${fmt(volume.show(c.volume))} ${volume.unit}`} />
+            {c.nominalVolume > 0 && (
+              <>
+                <Row
+                  label="Volumen nominal (B·S·H)"
+                  value={`${fmt(volume.show(c.nominalVolume))} ${volume.unit}`}
+                />
+                <Row
+                  label="Factor de carga nominal"
+                  value={`${fmt(c.nominalLoadingFactor, 3)} kg/m³`}
+                />
+              </>
+            )}
             <Row label="Tonelaje" value={`${fmt(c.tonnage / 1000)} t`} />
             <Row label="Factor de carga" value={`${fmt(c.powderFactorVolume, 3)} kg/m³`} />
             <Row label="" value={`${fmt(c.powderFactorMass * 1000, 3)} kg/t`} />

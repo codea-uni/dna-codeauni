@@ -4,11 +4,15 @@ import {
   createEmptyProject,
   electronicTimes,
   fitPatternToPolygon,
+  makeGroup,
   newId,
   nextHoleNumber,
   rowTieUp,
   type Blast,
   type BoundaryId,
+  type Hole,
+  type HoleGroup,
+  type HoleGroupId,
   type Op,
   type Polygon2,
   type DetonatorId,
@@ -193,6 +197,10 @@ export async function generatePattern(form: PatternForm): Promise<void> {
     pattern.name = `${pattern.name} (${boundary.name})`;
   }
 
+  // P-03: sin cara libre se genera igual, con advertencia (la regla no está en R3).
+  const hasFreeFace =
+    blast.freeFaces.length > 0 || blast.boundaries.some((b) => b.freeFaceEdges.length > 0);
+
   await withBusy('Generando malla…', async () => {
     const t0 = performance.now();
     const holes = await getCompute().api.generatePattern(
@@ -206,9 +214,9 @@ export async function generatePattern(form: PatternForm): Promise<void> {
       `Generar ${pattern.name} (${holes.length} taladros)`,
     );
     const t2 = performance.now();
-    notify(
-      `${pattern.name}: ${holes.length} taladros (worker ${(t1 - t0).toFixed(0)} ms, documento + render ${(t2 - t1).toFixed(0)} ms)`,
-    );
+    const summary = `${pattern.name}: ${String(holes.length)} taladros (worker ${(t1 - t0).toFixed(0)} ms, documento + render ${(t2 - t1).toFixed(0)} ms)`;
+    if (hasFreeFace) notify(summary);
+    else notify(`${summary}. ${t('pattern.noFreeFace')}`, 'error');
   });
 }
 
@@ -570,6 +578,83 @@ export async function loadExample(id: string, name: string): Promise<void> {
     const holes = project.blasts[0]?.holes.length ?? 0;
     notify(`Ejemplo "${name}": ${holes} taladros`);
   });
+}
+
+// ------------------------------------------------------------------ Grupos (H-303, RM-18)
+
+function withoutGroup(h: Hole): Hole {
+  const copy = { ...h };
+  delete copy.groupId;
+  return copy;
+}
+
+/** Asigna (o quita, con null) el grupo de los taladros seleccionados, más ops extra en el mismo paso. */
+function groupOps(blast: Blast, groupId: HoleGroupId | null, extra: Op[] = []): Op[] {
+  const ids = selection.ids;
+  const holes = blast.holes
+    .filter((h) => ids.has(h.id))
+    .map((h) => (groupId ? { ...h, groupId } : withoutGroup(h)));
+  return [
+    ...extra,
+    ...(holes.length > 0 ? [{ type: 'holes/replace' as const, blastId: blast.id, holes }] : []),
+  ];
+}
+
+export function createGroupFromSelection(): void {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  const n = blast.groups.length + 1;
+  const group = makeGroup(t('groups.defaultName', { n }), blast.groups.length);
+  document.dispatch(
+    groupOps(blast, group.id, [
+      { type: 'blast/patch', blastId: blast.id, patch: { groups: [...blast.groups, group] } },
+    ]),
+    `Crear ${group.name}`,
+  );
+}
+
+export function assignSelectionToGroup(groupId: HoleGroupId | null): void {
+  const blast = document.project.blasts[0];
+  if (!blast || selection.ids.size === 0) return;
+  const name = blast.groups.find((g) => g.id === groupId)?.name;
+  document.dispatch(groupOps(blast, groupId), name ? `Asignar a ${name}` : 'Quitar de grupo');
+}
+
+export function updateGroup(groupId: HoleGroupId, patch: Partial<Omit<HoleGroup, 'id'>>): void {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  document.dispatch(
+    {
+      type: 'blast/patch',
+      blastId: blast.id,
+      patch: { groups: blast.groups.map((g) => (g.id === groupId ? { ...g, ...patch } : g)) },
+    },
+    'Editar grupo',
+  );
+}
+
+/** Borra el grupo y lo quita de sus taladros (un solo paso de deshacer). */
+export function removeGroup(groupId: HoleGroupId): void {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  const holes = blast.holes.filter((h) => h.groupId === groupId).map(withoutGroup);
+  document.dispatch(
+    [
+      {
+        type: 'blast/patch',
+        blastId: blast.id,
+        patch: { groups: blast.groups.filter((g) => g.id !== groupId) },
+      },
+      ...(holes.length > 0 ? [{ type: 'holes/replace' as const, blastId: blast.id, holes }] : []),
+    ],
+    'Borrar grupo',
+  );
+}
+
+export function selectGroup(groupId: HoleGroupId): void {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  focusHoles(blast.holes.filter((h) => h.groupId === groupId).map((h) => h.id));
 }
 
 /** Selecciona los taladros de una alerta y los encuadra. */

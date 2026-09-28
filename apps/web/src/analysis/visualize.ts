@@ -1,11 +1,12 @@
 import type { BlastAnalysis, HoleId } from '@cronos/core';
-import type { Engine } from '@cronos/engine';
+import type { Engine, HoleScalars } from '@cronos/engine';
+import { session } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
 
 /** Valores por taladro según el modo de color. */
 export function scalarValues(
   analysis: BlastAnalysis,
-  mode: Exclude<ColorBy, 'none'>,
+  mode: Exclude<ColorBy, 'none' | 'group'>,
 ): Map<HoleId, number> {
   const values = new Map<HoleId, number>();
   const ids = analysis.charge.holeIds;
@@ -51,8 +52,20 @@ function range(values: Map<HoleId, number>, robust: boolean): [number, number] {
 
 /** Rango del modo de color actual (para la leyenda). */
 export function colorRange(analysis: BlastAnalysis, mode: ColorBy): [number, number] | null {
-  if (mode === 'none') return null;
+  if (mode === 'none' || mode === 'group') return null;
   return range(scalarValues(analysis, mode), mode !== 'time');
+}
+
+/** Color de cada taladro según su grupo (RM-18); sin grupo, el color por defecto. */
+function groupColors(): HoleScalars {
+  const blast = session.document.project.blasts[0];
+  const colorOf = new Map(blast?.groups.map((g) => [g.id, g.color]));
+  const colors = new Map<HoleId, string>();
+  for (const h of blast?.holes ?? []) {
+    const c = h.groupId ? colorOf.get(h.groupId) : undefined;
+    if (c) colors.set(h.id, c);
+  }
+  return { values: new Map(), min: 0, max: 1, colors };
 }
 
 /** Sincroniza el engine con el análisis y las opciones de visualización. */
@@ -69,6 +82,7 @@ export function bindVisualization(engine: Engine): () => void {
     }
     if (changed('analysis') || changed('colorBy')) {
       if (!analysis || s.colorBy === 'none') engine.setHoleScalars(null);
+      else if (s.colorBy === 'group') engine.setHoleScalars(groupColors());
       else {
         const values = scalarValues(analysis, s.colorBy);
         const [min, max] = range(values, s.colorBy !== 'time');
