@@ -38,6 +38,7 @@ import { useHistory } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { IconButton } from './IconButton';
 import { MenuButton } from './MenuButton';
+import { useT } from '../i18n';
 
 export interface ToolDef {
   name: ToolName;
@@ -143,6 +144,7 @@ export function toolHint(tool: ToolName): string {
 }
 
 export function Toolbar() {
+  const tr = useT();
   const tool = useUiStore((s) => s.tool);
   const setTool = useUiStore((s) => s.setTool);
   const snap = useUiStore((s) => s.snap);
@@ -159,45 +161,53 @@ export function Toolbar() {
     <header className="toolbar">
       <strong className="brand">Cronos</strong>
       <div className="toolbar-group">
-        <IconButton icon={FilePlus} label="Proyecto nuevo" onClick={actions.newProject} />
+        <IconButton icon={FilePlus} label={tr('toolbar.newProject')} onClick={actions.newProject} />
         <IconButton
           icon={FolderOpen}
-          label="Abrir proyecto"
+          label={tr('toolbar.openProject')}
           onClick={() => fileInput.current?.click()}
         />
         <IconButton
           icon={Save}
-          label="Guardar proyecto"
+          label={tr('toolbar.saveProject')}
           shortcut="Ctrl+S"
           onClick={() => void actions.saveProject()}
         />
         <MenuButton
           icon={FileUp}
-          label="Importar"
+          label={tr('toolbar.import')}
           items={[
             {
               icon: Sheet,
-              label: 'Taladros desde CSV…',
+              label: tr('toolbar.importCsv'),
               onSelect: () => csvInput.current?.click(),
             },
             {
               icon: DraftingCompass,
-              label: 'Taladros, perímetros y topografía desde DXF…',
+              label: tr('toolbar.importDxf'),
               onSelect: () => dxfInput.current?.click(),
             },
           ]}
         />
         <MenuButton
           icon={FileDown}
-          label="Exportar"
+          label={tr('toolbar.export')}
           items={[
-            { icon: Sheet, label: 'Taladros a CSV', onSelect: () => void actions.exportCsv() },
+            {
+              icon: Sheet,
+              label: tr('toolbar.exportCsv'),
+              onSelect: () => void actions.exportCsv(),
+            },
             {
               icon: DraftingCompass,
-              label: 'Plano a DXF',
+              label: tr('toolbar.exportDxf'),
               onSelect: () => void actions.exportDxf(),
             },
-            { icon: FileText, label: 'Informe PDF', onSelect: () => void actions.exportReport() },
+            {
+              icon: FileText,
+              label: tr('toolbar.exportPdf'),
+              onSelect: () => void actions.exportReport(),
+            },
           ]}
         />
         <input
@@ -237,14 +247,22 @@ export function Toolbar() {
       <div className="toolbar-group">
         <IconButton
           icon={Undo2}
-          label={history.undoLabel ? `Deshacer: ${history.undoLabel}` : 'Deshacer'}
+          label={
+            history.undoLabel
+              ? tr('toolbar.undoNamed', { label: history.undoLabel })
+              : tr('toolbar.undo')
+          }
           shortcut="Ctrl+Z"
           disabled={!history.canUndo}
           onClick={actions.undo}
         />
         <IconButton
           icon={Redo2}
-          label={history.redoLabel ? `Rehacer: ${history.redoLabel}` : 'Rehacer'}
+          label={
+            history.redoLabel
+              ? tr('toolbar.redoNamed', { label: history.redoLabel })
+              : tr('toolbar.redo')
+          }
           shortcut="Ctrl+Shift+Z"
           disabled={!history.canRedo}
           onClick={actions.redo}
