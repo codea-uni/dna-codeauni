@@ -8,6 +8,7 @@ import { useProject } from '../hooks/useDocument';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
+import { useUnits } from '../hooks/useUnits';
 
 const fmt = (v: number, d = 0) =>
   v.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -15,6 +16,7 @@ const dB = (pa: number) => (pa > 0 ? 20 * Math.log10(pa / 20e-6) : 0);
 
 /** Vibración (PPV), sobrepresión y flyrock (Lundborg). */
 export function VibrationPanel() {
+  const { len } = useUnits();
   const project = useProject();
   const s = useAnalysisStore();
   const setTool = useUiStore((st) => st.setTool);
@@ -116,7 +118,9 @@ export function VibrationPanel() {
                 )}
                 <tr>
                   <td>Alcance flyrock (Lundborg)</td>
-                  <td className="num">{fmt(v.flyrock.range)} m</td>
+                  <td className="num">
+                    {fmt(len.show(v.flyrock.range))} {len.unit}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -131,7 +135,9 @@ export function VibrationPanel() {
                 {v.levels.map((l, i) => (
                   <tr key={l}>
                     <td>{fmt(toUi(l), isPpv ? 0 : 0)}</td>
-                    <td className="num">{fmt(v.distanceForLevel[i] ?? 0)} m</td>
+                    <td className="num">
+                      {fmt(len.show(v.distanceForLevel[i] ?? 0))} {len.unit}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -162,7 +168,7 @@ export function VibrationPanel() {
             <thead>
               <tr>
                 <th>Punto</th>
-                <th>R [m]</th>
+                <th>R [{len.unit}]</th>
                 <th>mm/s</th>
                 <th>dB</th>
                 <th />
@@ -184,7 +190,7 @@ export function VibrationPanel() {
                         }}
                       />
                     </td>
-                    <td className="num">{rec ? fmt(rec.distance) : '—'}</td>
+                    <td className="num">{rec ? fmt(len.show(rec.distance)) : '—'}</td>
                     <td className="num">{rec ? fmt(rec.ppv * 1000, 1) : '—'}</td>
                     <td className="num">{rec ? fmt(rec.airblastDb, 0) : '—'}</td>
                     <td>
@@ -314,11 +320,12 @@ export function VibrationPanel() {
         </label>
         <NumberField
           label="Radio del mapa"
-          unit="m"
+          unit={len.unit}
           decimals={0}
           min={0}
-          value={s.vibExtent}
-          onCommit={(x) => {
+          value={len.show(s.vibExtent)}
+          onCommit={(raw) => {
+            const x = len.parse(raw);
             s.set({ vibExtent: x });
           }}
         />

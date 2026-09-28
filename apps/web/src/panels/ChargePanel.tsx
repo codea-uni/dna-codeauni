@@ -4,6 +4,7 @@ import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { useUnits } from '../hooks/useUnits';
 
 type RuleForm = Omit<ChargeRule, 'airDeckLength' | 'primerId' | 'detonatorId'> & {
   airDeckLength: number;
@@ -42,6 +43,7 @@ function Select({
 }
 
 export function ChargePanel() {
+  const { len } = useUnits();
   const project = useProject();
   const blast = useActiveBlast();
   const selection = useSelectionIds();
@@ -102,11 +104,12 @@ export function ChargePanel() {
         />
         <NumberField
           label="Taco"
-          unit="m"
+          unit={len.unit}
           decimals={2}
           min={0}
-          value={form.stemmingLength}
-          onCommit={(v) => {
+          value={len.show(form.stemmingLength)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             update({ stemmingLength: v });
           }}
         />
@@ -120,11 +123,12 @@ export function ChargePanel() {
         />
         <NumberField
           label="Cámara de aire"
-          unit="m"
+          unit={len.unit}
           decimals={2}
           min={0}
-          value={form.airDeckLength}
-          onCommit={(v) => {
+          value={len.show(form.airDeckLength)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             update({ airDeckLength: v });
           }}
         />
@@ -146,11 +150,12 @@ export function ChargePanel() {
         />
         <NumberField
           label="Prima desde el fondo"
-          unit="m"
+          unit={len.unit}
           decimals={2}
           min={0}
-          value={form.primerOffsetFromToe}
-          onCommit={(v) => {
+          value={len.show(form.primerOffsetFromToe)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             update({ primerOffsetFromToe: v });
           }}
         />

@@ -6,6 +6,7 @@ import { lazy, Suspense, useMemo } from 'react';
 import { useActiveBlast } from '../hooks/useDocument';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { useUnits } from '../hooks/useUnits';
 
 const Histogram = lazy(() => import('../charts/Histogram'));
 
@@ -42,6 +43,7 @@ function histogram(a: BlastAnalysis, binMs: number) {
 }
 
 export function ResultsPanel() {
+  const { len, area, volume } = useUnits();
   const analysis = useAnalysisStore((s) => s.analysis);
   const computing = useAnalysisStore((s) => s.computing);
   const windowMs = (useActiveBlast()?.calcParams.micWindow ?? 0.008) * 1000;
@@ -83,9 +85,12 @@ export function ResultsPanel() {
             />
             <Row label="Explosivo" value={`${fmt(c.totalExplosive)} kg`} />
             <Row label="Primas" value={`${fmt(c.totalPrimers, 1)} kg`} />
-            <Row label="Metros perforados" value={`${fmt(c.drilledLength, 1)} m`} />
-            <Row label="Área" value={`${fmt(c.area)} m²`} />
-            <Row label="Volumen" value={`${fmt(c.volume)} m³`} />
+            <Row
+              label="Metros perforados"
+              value={`${fmt(len.show(c.drilledLength), 1)} ${len.unit}`}
+            />
+            <Row label="Área" value={`${fmt(area.show(c.area))} ${area.unit}`} />
+            <Row label="Volumen" value={`${fmt(volume.show(c.volume))} ${volume.unit}`} />
             <Row label="Tonelaje" value={`${fmt(c.tonnage / 1000)} t`} />
             <Row label="Factor de carga" value={`${fmt(c.powderFactorVolume, 3)} kg/m³`} />
             <Row label="" value={`${fmt(c.powderFactorMass * 1000, 3)} kg/t`} />

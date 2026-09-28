@@ -2,7 +2,6 @@ import {
   commands,
   DEFAULT_CSV_UNITS,
   HOLE_CSV_FIELDS,
-  mToMm,
   nextHoleNumber,
   type HoleCsvMapping,
   type HoleCsvUnits,
@@ -10,6 +9,7 @@ import {
 import { useState } from 'react';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { useUnits } from '../hooks/useUnits';
 
 export interface CsvPreview {
   fileName: string;
@@ -35,6 +35,7 @@ export function CsvImportDialog({
   preview: CsvPreview;
   onClose: () => void;
 }) {
+  const { len, dia } = useUnits();
   const [mapping, setMapping] = useState<HoleCsvMapping>(preview.mapping);
   const [units, setUnits] = useState<HoleCsvUnits>(DEFAULT_CSV_UNITS);
   const [replace, setReplace] = useState(false);
@@ -181,9 +182,10 @@ export function CsvImportDialog({
             </label>
             <h3>Valores por defecto</h3>
             <p className="hint">
-              Sin diámetro: {mToMm(template.diameter).toFixed(0)} mm · sin sobreperforación:{' '}
-              {template.subdrill} m (plantilla). Sin cota: superficie del banco. Sin longitud ni
-              fondo: hasta piso + sobreperforación.
+              Sin diámetro: {dia.show(template.diameter).toFixed(dia.unit === 'in' ? 2 : 0)}{' '}
+              {dia.unit} · sin sobreperforación: {len.show(template.subdrill).toFixed(2)} {len.unit}{' '}
+              (plantilla). Sin cota: superficie del banco. Sin longitud ni fondo: hasta piso +
+              sobreperforación.
             </p>
             <label className="check">
               <input

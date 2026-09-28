@@ -5,12 +5,14 @@ import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { useUnits } from '../hooks/useUnits';
 
 const fmt = (v: number, d = 0) =>
   v.toLocaleString('es', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 /** Energía: PPV de campo cercano (Holmberg–Persson) o densidad de carga en un plano horizontal. */
 export function EnergyPanel() {
+  const { len } = useUnits();
   const project = useProject();
   const blast = useActiveBlast();
   const s = useAnalysisStore();
@@ -66,10 +68,11 @@ export function EnergyPanel() {
         </label>
         <NumberField
           label="Cota del plano"
-          unit="m"
+          unit={len.unit}
           decimals={2}
-          value={s.energyElevation ?? midBench}
-          onCommit={(v) => {
+          value={len.show(s.energyElevation ?? midBench)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             s.set({ energyElevation: v });
           }}
         />
@@ -79,25 +82,27 @@ export function EnergyPanel() {
             s.set({ energyElevation: null });
           }}
         >
-          Usar mitad del banco ({fmt(midBench, 1)} m)
+          Usar mitad del banco ({fmt(len.show(midBench), 1)} {len.unit})
         </button>
         <NumberField
           label="Tamaño de celda"
-          unit="m"
+          unit={len.unit}
           decimals={2}
           min={0}
-          value={s.energyCellSize}
-          onCommit={(v) => {
+          value={len.show(s.energyCellSize)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             s.set({ energyCellSize: v });
           }}
         />
         <NumberField
           label="Radio de influencia"
-          unit="m"
+          unit={len.unit}
           decimals={1}
           min={0}
-          value={s.energyCutoff}
-          onCommit={(v) => {
+          value={len.show(s.energyCutoff)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             s.set({ energyCutoff: v });
           }}
         />
@@ -142,11 +147,12 @@ export function EnergyPanel() {
         ) : (
           <NumberField
             label="σ del núcleo"
-            unit="m"
+            unit={len.unit}
             decimals={2}
             min={0.1}
-            value={s.energySigma}
-            onCommit={(v) => {
+            value={len.show(s.energySigma)}
+            onCommit={(raw) => {
+              const v = len.parse(raw);
               s.set({ energySigma: v });
             }}
           />
@@ -220,7 +226,7 @@ export function EnergyPanel() {
                   <tr>
                     <td>Grilla</td>
                     <td className="num">
-                      {e.nx} × {e.ny} · celda {fmt(e.cellSize, 2)} m
+                      {e.nx} × {e.ny} · celda {fmt(len.show(e.cellSize), 2)} {len.unit}
                     </td>
                   </tr>
                 </tbody>

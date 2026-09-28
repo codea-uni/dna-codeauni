@@ -1,18 +1,10 @@
-import {
-  commands,
-  degToRad,
-  holeToe,
-  mmToM,
-  mToMm,
-  radToDeg,
-  type Hole,
-  type HoleEdit,
-} from '@cronos/core';
+import { commands, degToRad, holeToe, radToDeg, type Hole, type HoleEdit } from '@cronos/core';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useProject, useSelectionIds } from '../hooks/useDocument';
 import { session } from '../session';
 import { DeckEditor } from './DeckEditor';
+import { useUnits } from '../hooks/useUnits';
 
 /** Valor común de una propiedad en la selección, o null si difiere. */
 function common(holes: readonly Hole[], get: (h: Hole) => number): number | null {
@@ -31,6 +23,7 @@ function map(v: number | null, f: (x: number) => number): number | null {
 }
 
 export function PropertiesPanel() {
+  const { len, dia } = useUnits();
   // Suscripciones: re-render cuando cambian el documento o la selección.
   useProject();
   const ids = useSelectionIds();
@@ -95,48 +88,64 @@ export function PropertiesPanel() {
         )}
         <NumberField
           label="Este (X)"
-          unit="m"
-          value={common(holes, (h) => h.collar.x)}
-          onCommit={(v) => {
+          unit={len.unit}
+          value={map(
+            common(holes, (h) => h.collar.x),
+            len.show,
+          )}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             edit({ x: v }, 'Editar X');
           }}
         />
         <NumberField
           label="Norte (Y)"
-          unit="m"
-          value={common(holes, (h) => h.collar.y)}
-          onCommit={(v) => {
+          unit={len.unit}
+          value={map(
+            common(holes, (h) => h.collar.y),
+            len.show,
+          )}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             edit({ y: v }, 'Editar Y');
           }}
         />
         <NumberField
           label="Cota boca (Z)"
-          unit="m"
-          value={common(holes, (h) => h.collar.z)}
-          onCommit={(v) => {
+          unit={len.unit}
+          value={map(
+            common(holes, (h) => h.collar.z),
+            len.show,
+          )}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             edit({ z: v }, 'Editar cota');
           }}
         />
         <NumberField
           label="Diámetro"
-          unit="mm"
-          decimals={1}
-          min={1}
+          unit={dia.unit}
+          decimals={dia.unit === 'in' ? 3 : 1}
+          min={0.001}
           value={map(
             common(holes, (h) => h.diameter),
-            mToMm,
+            dia.show,
           )}
           onCommit={(v) => {
-            edit({ diameter: mmToM(v) }, 'Editar diámetro');
+            edit({ diameter: dia.parse(v) }, 'Editar diámetro');
           }}
         />
         <NumberField
           label="Longitud"
-          unit="m"
+          unit={len.unit}
           decimals={2}
           min={0}
-          value={common(holes, (h) => h.length)}
-          onCommit={(v) => {
+          value={map(
+            common(holes, (h) => h.length),
+            len.show,
+          )}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             edit({ length: v }, 'Editar longitud');
           }}
         />
@@ -170,10 +179,14 @@ export function PropertiesPanel() {
         />
         <NumberField
           label="Sobreperforación"
-          unit="m"
+          unit={len.unit}
           decimals={2}
-          value={common(holes, (h) => h.subdrill)}
-          onCommit={(v) => {
+          value={map(
+            common(holes, (h) => h.subdrill),
+            len.show,
+          )}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             edit({ subdrill: v }, 'Editar sobreperforación');
           }}
         />

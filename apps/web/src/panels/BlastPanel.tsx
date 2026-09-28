@@ -7,8 +7,10 @@ import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { useUnits } from '../hooks/useUnits';
 
 export function BlastPanel() {
+  const { len } = useUnits();
   const blast = useActiveBlast();
   const setTool = useUiStore((s) => s.setTool);
   const activeBoundaryId = useUiStore((s) => s.activeBoundaryId);
@@ -38,18 +40,20 @@ export function BlastPanel() {
         </p>
         <NumberField
           label="Cota de piso"
-          unit="m"
-          value={blast.bench.floorElevation}
-          onCommit={(v) => {
+          unit={len.unit}
+          value={len.show(blast.bench.floorElevation)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             setBench({ floorElevation: v }, 'Cota de piso');
           }}
         />
         <NumberField
           label="Altura de banco"
-          unit="m"
+          unit={len.unit}
           min={0.1}
-          value={blast.bench.height}
-          onCommit={(v) => {
+          value={len.show(blast.bench.height)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             setBench({ height: v }, 'Altura de banco');
           }}
         />

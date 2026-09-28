@@ -4,6 +4,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { lazy, Suspense } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { useUnits } from '../hooks/useUnits';
 
 const SizeCurve = lazy(() => import('../charts/SizeCurve'));
 const fmt = (v: number, d = 1) =>
@@ -32,6 +33,7 @@ const FIELDS: [NumKey, string, string, number, number][] = [
 
 /** Fragmentación: Kuz-Ram (x50, n) y Swebrec (KCO), P20/P50/P80, sobretamaño y finos. */
 export function FragmentationPanel() {
+  const { len, dia } = useUnits();
   const s = useAnalysisStore();
   const inputs = s.fragInputs;
   const r = s.frag;
@@ -124,19 +126,28 @@ export function FragmentationPanel() {
         {!inputs ? (
           <p className="hint">Sin taladros cargados.</p>
         ) : (
-          FIELDS.map(([key, label, unit, k, d]) => (
-            <NumberField
-              key={key}
-              label={label}
-              unit={unit}
-              decimals={d}
-              min={0}
-              value={inputs[key] * k}
-              onCommit={(v) => {
-                edit({ [key]: v / k });
-              }}
-            />
-          ))
+          FIELDS.map(([key, label, unit, k, d]) => {
+            // Longitudes y diámetro en las unidades del proyecto (H-104); el resto con su factor.
+            const conv =
+              unit === 'm'
+                ? len
+                : unit === 'mm'
+                  ? dia
+                  : { unit, show: (x: number) => x * k, parse: (x: number) => x / k };
+            return (
+              <NumberField
+                key={key}
+                label={label}
+                unit={conv.unit}
+                decimals={unit === 'mm' && dia.unit === 'in' ? 2 : d}
+                min={0}
+                value={conv.show(inputs[key])}
+                onCommit={(v) => {
+                  edit({ [key]: conv.parse(v) });
+                }}
+              />
+            );
+          })
         )}
         <h3>Curva</h3>
         <NumberField

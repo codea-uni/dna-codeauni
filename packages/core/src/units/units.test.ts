@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { degToRad, ftToM, mToFt, mToMm, mmToM, msToS, radToDeg, sToMs } from './units';
+import {
+  degToRad,
+  diameterFromDisplay,
+  diameterToDisplay,
+  ftToM,
+  lengthFromDisplay,
+  lengthToDisplay,
+  mToFt,
+  mToMm,
+  mmToM,
+  msToS,
+  radToDeg,
+  sToMs,
+} from './units';
 
 describe('conversiones de unidades', () => {
   it('grados ↔ radianes', () => {
@@ -20,5 +33,15 @@ describe('conversiones de unidades', () => {
   it('pies ↔ metros (1 ft = 0.3048 m exactos)', () => {
     expect(ftToM(1)).toBeCloseTo(0.3048, 12);
     expect(mToFt(15)).toBeCloseTo(49.2126, 4);
+  });
+
+  it('unidades de visualización (H-104): CR-01, Ø 12¼" = 311,15 mm; B = 25,52 ft = 7,779 m', () => {
+    // docs/theory/04 CR-01: Ø = 12¼" (0,31115 m) y Ash B = 25,5 ft ≈ 7,78 m
+    expect(diameterToDisplay(0.31115, 'in')).toBeCloseTo(12.25, 12);
+    expect(diameterToDisplay(0.31115, 'mm')).toBeCloseTo(311.15, 9);
+    expect(diameterFromDisplay(12.25, 'in')).toBeCloseTo(0.31115, 12);
+    expect(lengthFromDisplay(25.520833, 'ft')).toBeCloseTo(7.779, 3);
+    expect(lengthToDisplay(15, 'm')).toBe(15);
+    expect(lengthFromDisplay(lengthToDisplay(123.456, 'ft'), 'ft')).toBeCloseTo(123.456, 12);
   });
 });

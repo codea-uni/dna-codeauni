@@ -10,6 +10,7 @@ import {
 } from '@cronos/core';
 import { NumberCell } from '../components/CellInput';
 import { session } from '../session';
+import { useUnits } from '../hooks/useUnits';
 
 const KIND_LABEL: Record<Deck['kind'], string> = {
   explosive: 'Explosivo',
@@ -45,6 +46,7 @@ function ColumnDiagram({
   lib: ProductLibrary;
   masses: number[];
 }) {
+  const { len } = useUnits();
   const H = 300;
   const top = 12;
   const scale = (H - top * 2) / Math.max(hole.length, 0.1);
@@ -71,16 +73,16 @@ function ColumnDiagram({
             opacity={0.9}
           />
           <text x={112} y={y((Math.max(0, t) + b) / 2) + 4} className="col-label">
-            {deckName(deck, lib)} · {deck.length.toFixed(2)} m
+            {deckName(deck, lib)} · {len.show(deck.length).toFixed(2)} {len.unit}
             {(masses[i] ?? 0) > 0 ? ` · ${(masses[i] ?? 0).toFixed(1)} kg` : ''}
           </text>
           <text x={62} y={y(Math.max(0, t)) + 4} className="col-depth" textAnchor="end">
-            {Math.max(0, t).toFixed(1)}
+            {len.show(Math.max(0, t)).toFixed(1)}
           </text>
         </g>
       ))}
       <text x={62} y={y(hole.length) + 4} className="col-depth" textAnchor="end">
-        {hole.length.toFixed(1)} m
+        {len.show(hole.length).toFixed(1)} {len.unit}
       </text>
       {hole.initiators.map((init) => (
         <g key={init.id}>
@@ -100,6 +102,7 @@ function ColumnDiagram({
 
 /** Editor de la columna de carga de un taladro. */
 export function DeckEditor({ hole }: { hole: Hole }) {
+  const { len } = useUnits();
   const lib = session.document.project.library;
   const charge = holeCharge(hole, indexLibrary(lib));
   const setDecks = (decks: Deck[], label: string) => {
@@ -143,10 +146,14 @@ export function DeckEditor({ hole }: { hole: Hole }) {
     <section className="panel">
       <h2>Columna de carga</h2>
       <p className="muted">
-        {(charge.explosive + charge.primers).toFixed(1)} kg · carga {charge.chargeLength.toFixed(2)}{' '}
-        m · taco {charge.stemmingLength.toFixed(2)} m
+        {(charge.explosive + charge.primers).toFixed(1)} kg · carga{' '}
+        {len.show(charge.chargeLength).toFixed(2)} {len.unit} · taco{' '}
+        {len.show(charge.stemmingLength).toFixed(2)} {len.unit}
         {charge.emptyLength > 0.005 && (
-          <span className="warn"> · {charge.emptyLength.toFixed(2)} m sin asignar</span>
+          <span className="warn">
+            {' '}
+            · {len.show(charge.emptyLength).toFixed(2)} {len.unit} sin asignar
+          </span>
         )}
       </p>
       {hole.decks.length > 0 && <ColumnDiagram hole={hole} lib={lib} masses={charge.deckMasses} />}
@@ -155,7 +162,7 @@ export function DeckEditor({ hole }: { hole: Hole }) {
           <tr>
             <th>Tipo</th>
             <th>Producto</th>
-            <th title="Largo [m]">m</th>
+            <th title={`Largo [${len.unit}]`}>{len.unit}</th>
             <th />
           </tr>
         </thead>
@@ -218,11 +225,11 @@ export function DeckEditor({ hole }: { hole: Hole }) {
               </td>
               <td>
                 <NumberCell
-                  value={deck.length}
+                  value={len.show(deck.length)}
                   decimals={2}
                   min={0}
                   onCommit={(v) => {
-                    replace(index, { ...deck, length: v });
+                    replace(index, { ...deck, length: len.parse(v) });
                   }}
                 />
               </td>

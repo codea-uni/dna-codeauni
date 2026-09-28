@@ -1,16 +1,10 @@
-import {
-  degToRad,
-  freeFaceAlignment,
-  mmToM,
-  mToMm,
-  radToDeg,
-  type PatternKind,
-} from '@cronos/core';
+import { degToRad, freeFaceAlignment, radToDeg, type PatternKind } from '@cronos/core';
 import { useState } from 'react';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
+import { useUnits } from '../hooks/useUnits';
 
 const KINDS: { value: PatternKind; label: string }[] = [
   { value: 'square', label: 'Cuadrada' },
@@ -19,6 +13,7 @@ const KINDS: { value: PatternKind; label: string }[] = [
 ];
 
 export function PatternPanel() {
+  const { len, dia } = useUnits();
   const blast = useActiveBlast();
   const busy = useUiStore((s) => s.busy);
   const template = useUiStore((s) => s.holeTemplate);
@@ -57,12 +52,12 @@ export function PatternPanel() {
         <p className="hint">Se usa al generar mallas y con la herramienta Agregar.</p>
         <NumberField
           label="Diámetro"
-          unit="mm"
-          decimals={1}
+          unit={dia.unit}
+          decimals={dia.unit === 'in' ? 3 : 1}
           min={1}
-          value={mToMm(template.diameter)}
+          value={dia.show(template.diameter)}
           onCommit={(v) => {
-            setTemplate({ diameter: mmToM(v) });
+            setTemplate({ diameter: dia.parse(v) });
           }}
         />
         <NumberField
@@ -89,10 +84,11 @@ export function PatternPanel() {
         />
         <NumberField
           label="Sobreperforación"
-          unit="m"
+          unit={len.unit}
           decimals={2}
-          value={template.subdrill}
-          onCommit={(v) => {
+          value={len.show(template.subdrill)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             setTemplate({ subdrill: v });
           }}
         />
@@ -117,22 +113,24 @@ export function PatternPanel() {
         </label>
         <NumberField
           label="Burden"
-          unit="m"
+          unit={len.unit}
           decimals={2}
           min={0.1}
-          value={form.burden}
-          onCommit={(v) => {
+          value={len.show(form.burden)}
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             update({ burden: v });
           }}
         />
         <NumberField
           label="Espaciamiento"
-          unit="m"
+          unit={len.unit}
           decimals={2}
           min={0.1}
-          value={form.kind === 'square' ? form.burden : form.spacing}
+          value={len.show(form.kind === 'square' ? form.burden : form.spacing)}
           disabled={form.kind === 'square'}
-          onCommit={(v) => {
+          onCommit={(raw) => {
+            const v = len.parse(raw);
             update({ spacing: v });
           }}
         />
@@ -188,11 +186,12 @@ export function PatternPanel() {
           <>
             <NumberField
               label="1ª fila desde el borde"
-              unit="m"
+              unit={len.unit}
               decimals={2}
               min={0}
-              value={form.frontOffset}
-              onCommit={(v) => {
+              value={len.show(form.frontOffset)}
+              onCommit={(raw) => {
+                const v = len.parse(raw);
                 update({ frontOffset: v });
               }}
             />
