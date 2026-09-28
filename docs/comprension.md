@@ -102,3 +102,65 @@ Amarre 1: en línea (fila por fila)        Amarre 2: en «V» (chevron)
 - **Profundidad escalada de enterramiento:** SDOB = d / W^(1/3), donde d es la distancia desde la superficie hasta el centro de la carga (considerando el taco) y W la masa de esa carga. Describe el confinamiento de la carga, es decir, qué tan probable es que se produzcan cráteres, flyrock u onda aérea.
 
 La primera mide el efecto en el entorno. La segunda mide cuán bien contenida está la carga. Además usan exponentes distintos: raíz cuadrada frente a raíz cúbica.
+
+---
+
+# Preguntas por hito (I1: 2 por hito)
+
+Guía `01 §8.1`, paso 4: después de cada hito, el desarrollador contesta por escrito dos preguntas sobre lo construido, y el ingeniero las aprueba. **Pendientes de respuesta.**
+
+## G1 · Modelo de datos y unidades
+
+1. ¿Por qué el proyecto guarda una copia congelada de los productos del catálogo en lugar de solo su id, y qué pasaría con un diseño cerrado si se cambiara la densidad del ANFO en el catálogo?
+   > _Respuesta:_
+2. ¿Por qué no se puede importar sin CRS (EPSG), y qué error típico evita en una mina del Perú (hemisferio sur)?
+   > _Respuesta:_
+
+## G2 · Importación
+
+1. En un CSV con `272,345.578`, ¿cómo decide Cronos si la coma es de miles o decimal, y qué pasaría con un archivo donde todas las celdas son como `274,600`?
+   > _Respuesta:_
+2. ¿Cómo se detecta que Norte y Este vienen intercambiados en UTM zona 18S?
+   > _Respuesta:_
+
+## G3 · Diseño de malla
+
+1. Con CR-01, ¿por qué Konya–Walter da un burden mayor que Ash y qué significa que H/B = 1,875 sea «pobre»?
+   > _Respuesta:_
+2. ¿Por qué el volumen de diseño es B·S·H sin dividir por cos α y cuándo se usa el volumen cubicado (P-06)?
+   > _Respuesta:_
+
+## G4 · Explosivos y carga
+
+1. En CR-02, ¿por qué la densidad media de la emulsión gasificada es 1,2372 g/cc y no 1,38, y qué error tenía la hoja de origen?
+   > _Respuesta:_
+2. ¿Por qué la SDOB no cuenta la cámara de aire sobre la carga (P-14) y por qué es distinta de la distancia escalada de vibración?
+   > _Respuesta:_
+
+## G5 · Amarre y tiempos
+
+1. En CR-05, amarre 5, ¿por qué los taladros B tienen burden efectivo 6,0 m y qué avisa el software?
+   > _Respuesta:_
+2. ¿Por qué el alivio necesita k·B milisegundos (P-02) y qué pasa con Δ = 0?
+   > _Respuesta:_
+
+## G6 · Carga por retardo y PPV
+
+1. ¿Por qué la ventana de MIC es semiabierta y por qué se evalúa una ventana ampliada con detonadores pirotécnicos (P-10)?
+   > _Respuesta:_
+2. Con K = 1140 mm/s y β = 1,6, ¿qué carga por retardo se admite a 200 m para no superar 9,4 mm/s? Explica el cálculo.
+   > _Respuesta:_
+
+## G7 · Reporte y escenarios
+
+1. ¿Qué cambia entre el factor de carga «de diseño» y el «real» del informe, y cuál se compara con los libros?
+   > _Respuesta:_
+2. Al comparar la salida en V con la salida en fila del ejemplo de producción, ¿qué indicador cambia y por qué?
+   > _Respuesta:_
+
+## G8 · Idiomas
+
+1. ¿Por qué el núcleo no traduce sus mensajes y cómo llegan traducidos a la interfaz?
+   > _Respuesta:_
+2. ¿Qué términos mineros se dejaron sin traducir y por qué?
+   > _Respuesta:_

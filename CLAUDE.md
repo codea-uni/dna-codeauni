@@ -82,6 +82,6 @@ Detalle, tareas y criterios de salida en `docs/PLAN.md §4`. Cada hito sigue el 
 - **G6:** MIC y PPV (límites, K/β por punto, CR-06) ✅
 - **G7:** reporte y escenarios ✅ (CR-04 espera P-15)
 - **G8:** idiomas (usuarios y roles diferidos, D-08) ✅
-- **G9:** cierre de la Fase 1; luego F2 análisis avanzado, F3 subterráneo, F4 datos de campo, F5 distribución + backend
+- **G9:** cierre de la Fase 1 🟡 código listo (`docs/hitos/cierre-fase-1.md`); faltan I1, I6 con el ingeniero y los datos de CR-04 (P-15). Luego F2 análisis avanzado, F3 subterráneo, F4 datos de campo, F5 distribución + backend
 
 El prototipo BlastLab ya implementó las fases 0–9 (malla, carguío, tiempos, CSV, energía, fragmentación, vibración, DXF/PDF, 3D). Se reutilizan y se regularizan hito a hito (D-07).

@@ -4,6 +4,10 @@ Aplicación web para **diseñar** una voladura en banco, **simular** su secuenci
 
 Todo corre en el navegador: el cálculo pesado va en Web Workers y la vista usa WebGL. Por ahora no hay backend.
 
+## Demostración
+
+El botón de la claqueta en la barra lanza un recorrido automático con subtítulos por las funciones principales (diseño, carga, 3D, secuencia, burden efectivo, vibración, escenarios, revisión e idiomas), pensado para grabar un video de avance. Esc sale; también se puede pausar o saltar pasos.
+
 ## Requisitos
 
 - Node ≥ 24
@@ -51,5 +55,6 @@ Documentos de trabajo del repositorio:
 | `docs/reglas.md`       | Registro de reglas y fórmulas con estado R0–R4              |
 | `docs/preguntas.md`    | Dudas para el ingeniero de minas, con el valor por defecto  |
 | `docs/decisiones/`     | Notas de decisión (D-01…)                                   |
-| `docs/comprension.md`  | Ejercicio de comprensión del hito G0                        |
+| `docs/comprension.md`  | Ejercicio de comprensión (G0) y preguntas por hito          |
+| `docs/hitos/`          | Reportes de hito y cierre de la Fase 1                      |
 | `CLAUDE.md`            | Reglas del proyecto para asistentes de IA                   |
