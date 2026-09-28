@@ -12,3 +12,5 @@
 El formato viejo se sigue leyendo.
 
 **Consecuencias.** Hay que verificar que el nombre no choque con otro producto antes de distribuirlo (F5).
+
+**Hecho (Tramo 0).** Paquetes `@cronos/*`, UI, informe PDF, worker y `format: 'cronos-project'`, que se escribe desde ahora; `blastlab-project` se sigue leyendo (`packages/core/src/io/projectFile.ts`). Las capas DXF conservan el prefijo `BL_` para seguir reconociendo los DXF ya exportados.

@@ -56,7 +56,7 @@ Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab�
 - **Tests obligatorios en core.** Toda función de cálculo nueva o modificada lleva tests en Vitest (`*.test.ts` junto al fuente), con valores de referencia documentados (caso CR-xx o fuente citada en un comentario; ver «Reglas de dominio»). Tests suficientes para asegurar la precisión, sin sobredimensionar: priorizar los cálculos de ingeniería sobre la UI.
 - **Nombres:** código e identificadores en inglés; UI y documentación en español.
 - **Rendimiento:** un cambio que toque engine o workers se valida con el fixture de 5.000 taladros (60 fps en pan/zoom).
-- **i18n:** todo texto nuevo de la UI pasa por `t()` (D-11), una vez creada la infraestructura en el Tramo 0.
+- **i18n:** todo texto nuevo de la UI pasa por `t()` (D-11, `apps/web/src/i18n/`): la clave va en `es.ts` y su traducción en `en.ts`.
 
 ## Reglas de dominio (guía §9–§11, no negociables)
 
@@ -73,7 +73,7 @@ Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab�
 
 Detalle, tareas y criterios de salida en `docs/PLAN.md §4`. Cada hito sigue el ciclo de `docs/PLAN.md §5` y se cierra con su reporte en `docs/hitos/Gx.md`.
 
-- **Tramo 0 / G0:** base y correcciones críticas (docs ✅, bugs de MIC y CSV, CI, cobertura, renombre, i18n) ⏳
+- **Tramo 0 / G0:** base y correcciones críticas ✅ en código (docs, MIC, CSV, CI, cobertura, Cronos, i18n); falta `docs/comprension.md` aprobado ⏳
 - **G1:** modelo de datos y unidades (esquema v3, CRS, autoguardado)
 - **G2:** importación (trampas de CSV, GeoJSON, fixture CR-04)
 - **G3:** diseño de malla (cara libre, grupos, modelos de burden)

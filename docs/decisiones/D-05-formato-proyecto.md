@@ -11,4 +11,4 @@
 **Consecuencias.**
 
 - Ida y vuelta sin pérdidas, probada en `io/projectFile.test.ts`.
-- Al renombrar a Cronos (D-09), el valor `format: 'blastlab-project'` se sigue aceptando al leer.
+- Al renombrar a Cronos (D-09), el archivo se escribe con `format: 'cronos-project'` y `'blastlab-project'` se sigue aceptando al leer.
