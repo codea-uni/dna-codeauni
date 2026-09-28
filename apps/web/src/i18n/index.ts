@@ -21,9 +21,12 @@ interface LocaleState {
   setLocale: (locale: Locale) => void;
 }
 
+const initial = initialLocale();
+if (typeof document !== 'undefined') document.documentElement.lang = initial;
+
 /** Idioma de la interfaz (preferencia de quien mira; no es parte del proyecto). */
 export const useLocale = create<LocaleState>((set) => ({
-  locale: initialLocale(),
+  locale: initial,
   setLocale: (locale) => {
     try {
       globalThis.localStorage.setItem(STORAGE_KEY, locale);
@@ -50,4 +53,26 @@ export function t(key: MessageKey, vars?: Vars): string {
 export function useT(): typeof t {
   const locale = useLocale((s) => s.locale);
   return (key, vars) => format(MESSAGES[locale][key], vars);
+}
+
+const NUMBER_LOCALE: Record<Locale, string> = { es: 'es-ES', en: 'en-US' };
+
+/** Número con separadores del idioma («1.234,5» / «1,234.5»); «—» si no es finito. */
+export function formatNumber(
+  v: number,
+  decimals = 0,
+  locale: Locale = useLocale.getState().locale,
+): string {
+  if (!Number.isFinite(v)) return '—';
+  return v.toLocaleString(NUMBER_LOCALE[locale], {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: true,
+  });
+}
+
+/** `formatNumber` para componentes: se vuelven a renderizar al cambiar el idioma. */
+export function useFormat(): (v: number, decimals?: number) => string {
+  const locale = useLocale((s) => s.locale);
+  return (v, decimals = 0) => formatNumber(v, decimals, locale);
 }

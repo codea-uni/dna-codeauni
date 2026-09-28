@@ -2,7 +2,16 @@
  * Textos de la interfaz en español: fuente de las claves (D-11). Términos mineros según el
  * glosario de docs/theory/references/R1 §2. `{nombre}` se reemplaza con `t(clave, { nombre })`.
  */
+import * as app from './ns/app';
+import * as core from './ns/core';
+import * as panelsA from './ns/panelsA';
+import * as panelsB from './ns/panelsB';
+
 export const es = {
+  ...app.es,
+  ...core.es,
+  ...panelsA.es,
+  ...panelsB.es,
   'toolbar.newProject': 'Proyecto nuevo',
   'toolbar.openProject': 'Abrir proyecto',
   'toolbar.saveProject': 'Guardar proyecto',
