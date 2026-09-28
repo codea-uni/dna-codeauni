@@ -8,6 +8,8 @@ import {
   FileDown,
   FileText,
   FilePlus,
+  Image as ImageIcon,
+  ClipboardCopy,
   History as HistoryIcon,
   FileUp,
   FolderOpen,
@@ -243,6 +245,12 @@ export function Toolbar() {
               icon: MapIcon,
               label: tr('toolbar.exportGeoJson'),
               onSelect: () => void actions.exportGeoJson(),
+            },
+            { icon: ImageIcon, label: tr('toolbar.exportPng'), onSelect: actions.exportPlanPng },
+            {
+              icon: ClipboardCopy,
+              label: tr('toolbar.copyTsv'),
+              onSelect: () => void actions.copyHolesTsv(),
             },
             {
               icon: FileText,

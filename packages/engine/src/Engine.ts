@@ -617,6 +617,15 @@ export class Engine {
     this.events.emit('sequenceTime', null);
   }
 
+  /**
+   * Imagen PNG (data URL) de la vista actual. Se dibuja y se captura en la misma tarea, así no hace
+   * falta `preserveDrawingBuffer`. Las reglas y la escala son DOM y no salen en la imagen.
+   */
+  captureImage(): string {
+    this.renderer.render(this.scene, this.viewMode === '3d' ? this.camera3d : this.camera);
+    return this.canvas.toDataURL('image/png');
+  }
+
   dispose(): void {
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.resizeObserver.disconnect();

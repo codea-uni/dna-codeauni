@@ -1,4 +1,13 @@
-import { Activity, Flame, Layers, LayoutGrid, Library, Shapes, Timer } from 'lucide-react';
+import {
+  Activity,
+  Flame,
+  Layers,
+  LayoutGrid,
+  Library,
+  Shapes,
+  Timer,
+  GitCompare,
+} from 'lucide-react';
 import { useEffect } from 'react';
 import {
   startAnalysisRunner,
@@ -27,6 +36,7 @@ import { startAutosave } from './persistence/autosave';
 import { restoreLatestAutosave } from './actions';
 import { FragmentationPanel } from './panels/FragmentationPanel';
 import { VibrationPanel } from './panels/VibrationPanel';
+import { ScenariosPanel } from './panels/ScenariosPanel';
 import { getCompute } from './session';
 import { useUiStore } from './stores/uiStore';
 import { Viewport } from './viewport/Viewport';
@@ -38,6 +48,7 @@ const TABS = [
   { id: 'energy', label: 'Energía', icon: Flame },
   { id: 'fragmentation', label: 'Fragm.', icon: Shapes, title: 'Fragmentación' },
   { id: 'vibration', label: 'Vibración', icon: Activity },
+  { id: 'scenarios', label: 'Escenarios', icon: GitCompare, title: 'Escenarios y comparación' },
   { id: 'library', label: 'Librería', icon: Library, title: 'Librería de productos' },
 ] as const;
 
@@ -102,6 +113,7 @@ export function App() {
           {tab === 'energy' && <EnergyPanel />}
           {tab === 'fragmentation' && <FragmentationPanel />}
           {tab === 'vibration' && <VibrationPanel />}
+          {tab === 'scenarios' && <ScenariosPanel />}
           {tab === 'library' && <LibraryPanel />}
         </ErrorBoundary>
       </aside>

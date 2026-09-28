@@ -28,7 +28,15 @@ interface UiState {
   holeTemplate: HoleTemplate;
   /** Conector de la herramienta Amarre. */
   tieConnectorId: SurfaceConnectorId | undefined;
-  leftTab: 'design' | 'charge' | 'timing' | 'energy' | 'fragmentation' | 'vibration' | 'library';
+  leftTab:
+    | 'design'
+    | 'charge'
+    | 'timing'
+    | 'energy'
+    | 'fragmentation'
+    | 'vibration'
+    | 'scenarios'
+    | 'library';
   /** Perímetro activo (resaltado; destino por defecto al generar mallas). */
   activeBoundaryId: BoundaryId | null;
   /** Vista previa del CSV a importar (abre el diálogo). */

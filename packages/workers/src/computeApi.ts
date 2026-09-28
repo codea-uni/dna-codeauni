@@ -12,6 +12,8 @@ import {
   exportHolesCsv,
   guessHoleMapping,
   importHolesFromCsv,
+  compareScenarios,
+  type ScenarioKpis,
   exportExplosivesCsv,
   importExplosivesCsv,
   type Explosive,
@@ -190,6 +192,11 @@ export const computeApi = {
     return importBoundariesFromCsv(parseCsv(decodeText(bytes).text));
   },
 
+  /** Indicadores de cada diseño para compararlos lado a lado (H-701). */
+  compareScenarios(project: Project, designs: { name: string; blast: Blast }[]): ScenarioKpis[] {
+    return compareScenarios(project, designs);
+  },
+
   /** Catálogo de explosivos a CSV (H-401). */
   catalogExport(explosives: Explosive[]): string {
     return exportExplosivesCsv(explosives);
@@ -245,8 +252,8 @@ export const computeApi = {
   },
 
   /** Exporta taladros (y kg por taladro, si se pasan) a CSV. */
-  csvExport(holes: Hole[], chargeKg?: Map<string, number>): string {
-    return exportHolesCsv(holes, chargeKg);
+  csvExport(holes: Hole[], chargeKg?: Map<string, number>, delimiter = ','): string {
+    return exportHolesCsv(holes, chargeKg, delimiter);
   },
 
   /** Serializa el proyecto a JSON (.cronos.json). */

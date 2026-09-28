@@ -483,6 +483,33 @@ export async function exportGeoJson(): Promise<void> {
   });
 }
 
+/** Plano (vista actual) como imagen PNG (`03 §4`). */
+export function exportPlanPng(): void {
+  const engine = getEngine();
+  if (!engine) return;
+  const a = window.document.createElement('a');
+  a.href = engine.captureImage();
+  a.download = `${baseName()}-plano.png`;
+  a.click();
+}
+
+/** Tabla de taladros (con kg) al portapapeles, separada por tabuladores para pegar en una hoja de cálculo. */
+export async function copyHolesTsv(): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  await withBusy('Copiando…', async () => {
+    const analysis = useAnalysisStore.getState().analysis;
+    const kg = analysis
+      ? new Map<string, number>(
+          analysis.charge.holeIds.map((id, i) => [id, analysis.charge.perHole[i] ?? 0]),
+        )
+      : undefined;
+    const text = await getCompute().api.csvExport(blast.holes, kg, '\t');
+    await navigator.clipboard.writeText(text);
+    notify(`${String(blast.holes.length)} taladros copiados (pegar en la hoja de cálculo)`);
+  });
+}
+
 /** Exporta los taladros de la voladura (con kg por taladro si hay análisis) a CSV. */
 export async function exportCsv(): Promise<void> {
   const blast = document.project.blasts[0];

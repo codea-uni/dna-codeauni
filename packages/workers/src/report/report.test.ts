@@ -109,6 +109,7 @@ describe('texto del PDF', () => {
     expect(toWinAnsi('β ≥ 1,5 → α')).toBe('beta >= 1,5 -> alfa');
     expect(toWinAnsi('línea\nnueva')).toBe('línea nueva');
     expect(toWinAnsi('中')).toBe('?');
+    expect(toWinAnsi('(π/4)·√Q ∞')).toBe('(pi/4)·raíz Q inf.');
   });
 
   it('números en formato es-ES', () => {
@@ -151,7 +152,8 @@ describe('informe PDF', () => {
     expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-');
     const doc = await PDFDocument.load(bytes);
     // 2 páginas de resumen + tabla de 250 filas (~62 por página) = 5 páginas en total
-    expect(doc.getPageCount()).toBe(2 + Math.ceil(250 / Math.floor((841.89 - 80 - 40) / 11)));
+    // resumen + plano, carguío/fragmentación/vibración, revisión y supuestos, y la tabla de taladros
+    expect(doc.getPageCount()).toBe(3 + Math.ceil(250 / Math.floor((841.89 - 80 - 40) / 11)));
     expect(doc.getTitle()).toContain('Voladura 1');
     expect(doc.getAuthor()).toBe('Ingeniería');
     expect(doc.getCreator()).toBe('Cronos 0.1.0');
@@ -167,7 +169,7 @@ describe('informe PDF', () => {
       holeTable: false,
     });
     const doc = await PDFDocument.load(bytes);
-    expect(doc.getPageCount()).toBe(2);
+    expect(doc.getPageCount()).toBe(3); // + revisión y supuestos (H-702)
   });
 
   it('voladura inexistente da error', async () => {

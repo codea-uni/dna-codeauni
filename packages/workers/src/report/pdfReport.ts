@@ -102,6 +102,28 @@ class Sheet {
     for (const r of rows) draw(r, false);
     this.y -= 4;
   }
+  /** Párrafo con ajuste de línea al ancho de la página; devuelve false si ya no hay espacio. */
+  paragraph(s: string, size = 8.5, color: RGB = INK): boolean {
+    const maxW = A4[0] - 2 * M;
+    const words = toWinAnsi(s).split(' ');
+    let line = '';
+    const flush = () => {
+      if (!line) return;
+      this.text(line, M, this.y - size, size, { color });
+      this.y -= size + 3;
+      line = '';
+    };
+    for (const w of words) {
+      const next = line ? `${line} ${w}` : w;
+      if (this.font.widthOfTextAtSize(next, size) > maxW) {
+        flush();
+        line = w;
+      } else line = next;
+    }
+    flush();
+    this.y -= 2;
+    return this.y > M + 30;
+  }
   keyValues(pairs: [string, string][], columns = 2): void {
     const colW = (A4[0] - 2 * M) / columns;
     const rows = Math.ceil(pairs.length / columns);
@@ -167,11 +189,17 @@ export async function buildReport(
     ['Altura de banco', `${fmtNumber(blast.bench.height, 1)} m`],
     ['Explosivo', `${fmtNumber(charge.totalExplosive)} kg`],
     ['Primas', `${fmtNumber(charge.totalPrimers, 1)} kg`],
-    ['Volumen', `${fmtNumber(charge.volume)} m³`],
-    ['Tonelaje', `${fmtNumber(charge.tonnage / 1000)} t`],
+    ['Volumen cubicado', `${fmtNumber(charge.volume)} m³`],
+    ['Tonelaje cubicado', `${fmtNumber(charge.tonnage / 1000)} t`],
     [
-      'Factor de carga',
+      'Factor de carga real',
       `${fmtNumber(charge.loadingFactor, 3)} kg/m³ · ${fmtNumber(charge.powderFactor * 1000, 3)} kg/t`,
+    ],
+    [
+      'Factor de carga de diseño (B·S·H)',
+      charge.nominal.volume > 0
+        ? `${fmtNumber(charge.nominal.explosive / charge.nominal.volume, 3)} kg/m³`
+        : '-',
     ],
     ['Energía', `${fmtNumber(charge.totalEnergy / 1e6)} MJ`],
     ['Costo de productos', `${fmtNumber(charge.cost)} ${project.currency}`],
@@ -179,7 +207,10 @@ export async function buildReport(
       'Duración de la secuencia',
       hasTimes ? `${fmtNumber((timing.lastTime - timing.firstTime) * 1000)} ms` : 'sin tiempos',
     ],
-    ['Máx. kg por retardo (8 ms)', hasTimes ? `${fmtNumber(timing.maxChargePerWindow)} kg` : '-'],
+    [
+      `Máx. kg por retardo (${fmtNumber(blast.calcParams.micWindow * 1000)} ms)`,
+      hasTimes ? `${fmtNumber(timing.maxChargePerWindow)} kg` : '-',
+    ],
     ['Grupos coincidentes', hasTimes ? String(timing.coincidentGroups.length) : '-'],
     [
       'P50 / P80 (Swebrec)',
@@ -437,20 +468,28 @@ export async function buildReport(
           : '-',
       ],
       ['Carga máx. por retardo', `${fmtNumber(vib.mic)} kg`],
+      [
+        'Con ventana ampliada (pirotécnicos, P-10)',
+        vib.micExtended
+          ? `${fmtNumber(vib.micExtended.mic)} kg (${fmtNumber(vib.micExtended.window * 1000)} ms)`
+          : '- (solo electrónicos)',
+      ],
     ],
     1,
   );
   s.table(
-    ['Punto de control', 'Distancia [m]', 'PPV [mm/s]', 'Sobrepresión [dB]'],
+    ['Punto de control', 'R [m]', 'PPV [mm/s]', 'Límite', 'kg adm.', 'dB'],
     vib.receivers.length
       ? vib.receivers.map((r) => [
-          r.name,
+          `${r.name}${r.exceeds ? ' (EXCEDE)' : ''}`,
           fmtNumber(r.distance),
           fmtNumber(r.ppv * 1000, 1),
+          r.limit ? fmtNumber(r.limit.ppvMax * 1000, 1) : '-',
+          r.admissibleCharge === null ? '-' : fmtNumber(r.admissibleCharge),
           fmtNumber(r.airblastDb),
         ])
-      : [['(sin puntos de control)', '-', '-', '-']],
-    [200, 105, 105, 105],
+      : [['(sin puntos de control)', '-', '-', '-', '-', '-']],
+    [175, 68, 68, 68, 68, 68],
   );
 
   if (hasTimes && timing.interRowDelays.length > 0) {
@@ -466,6 +505,48 @@ export async function buildReport(
       ]),
       [200, 105, 105, 105],
     );
+  }
+
+  // ---------------------------------------------------------------- Revisión y supuestos (H-702)
+  s = newSheet();
+  s.heading('Revisión del diseño');
+  const checks = analysis.checks;
+  if (checks.length === 0) s.paragraph('Sin observaciones.');
+  else
+    s.table(
+      ['Observación', 'Nivel', 'Taladros'],
+      checks.map((c) => [
+        c.title,
+        c.severity === 'error' ? 'error' : c.severity === 'warning' ? 'advertencia' : 'nota',
+        String(c.holes.length),
+      ]),
+      [360, 80, 75],
+    );
+  s.heading('Modelos, parámetros y supuestos');
+  const cp = blast.calcParams;
+  const generic = project.library.explosives.filter((e) => e.source?.includes('genérico'));
+  const limits = project.ppvLimits ?? [];
+  const notes = [
+    'Unidades SI internas; los resultados se recalculan desde el diseño y no se guardan como fuente de verdad.',
+    `Carga por tramo con π/4 exacto: DCL = (π/4)·Ø²·ρ; masa = DCL·(largo − esponjamiento) (docs/theory/02 §2).`,
+    `Volumen de diseño B·S·H con H vertical (P-06); volumen real por áreas de influencia recortadas al perímetro. Sobreperforación: ${cp.subdrillConvention === 'lopezJimeno' ? 'López Jimeno, L = H/cos α + (1 − α/100)·J' : 'vertical bajo el piso, L = (H + J)/cos α'} (P-05).`,
+    `Tiempos: Dijkstra sobre el amarre + retardo de fondo. Carga máxima por retardo con ventana semiabierta [t, t + ${fmtNumber(cp.micWindow * 1000)} ms) (P-10).`,
+    `Burden efectivo: distancia a la superficie libre más cercana al detonar; un taladro previo alivia si salió al menos ${fmtNumber(cp.reliefRate * 1000, 1)} ms por metro de burden antes y está delante (P-02, P-16).`,
+    `Profundidad escalada de enterramiento (Chiappetta): carga superior, primeros 10·Ø, D solo con material confinante (P-01, P-14); avisos < ${fmtNumber(cp.checks.sdob.severe, 2)} (severa) y < ${fmtNumber(cp.checks.sdob.safe, 2)} m/kg^(1/3), rangos de fuente secundaria.`,
+    `PPV = K·(R/√Q)^(−β) en campo lejano con la distancia al taladro más cercano de la ventana (P-07); K y β del sitio${law ? ` (${fmtNumber(law.k * 1000)} mm/s, ${fmtNumber(law.beta, 2)})` : ''} o del punto; son constantes de sitio, no universales.`,
+    `Límites de PPV: ${limits.length ? limits.map((l) => `${l.structure ?? 'todas'} ${fmtNumber(l.from)}–${l.to === undefined ? '∞' : fmtNumber(l.to)} m: ${fmtNumber(l.ppvMax * 1000, 1)} mm/s (${l.source})`).join('; ') : 'sin tabla'}.`,
+    'Sobrepresión P = k·(R/W^(1/3))^(−β) y alcance de proyecciones de Lundborg: modelos empíricos, informativos.',
+    'Fragmentación: Kuz-Ram (Cunningham 1987, n) con RWS y Swebrec; regresión hasta validar con un ejemplo publicado (P-08).',
+    generic.length
+      ? `Atención: ${String(generic.length)} explosivo(s) con valores genéricos sin ficha técnica (${generic.map((e) => e.name).join(', ')}); reemplazar por la ficha del fabricante.`
+      : 'Todos los explosivos citan su ficha técnica.',
+    'Las reglas por debajo del estado R3 (docs/reglas.md) solo avisan; no bloquean el diseño.',
+  ];
+  for (const n of notes) {
+    if (!s.paragraph(`· ${n}`)) {
+      s = newSheet();
+      s.heading('Modelos, parámetros y supuestos (cont.)');
+    }
   }
 
   // ---------------------------------------------------------------- Tabla de taladros
