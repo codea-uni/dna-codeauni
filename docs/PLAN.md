@@ -55,35 +55,35 @@ BlastLab construyó en orden sus fases 0–9. Todo se reutiliza (D-07), pero nin
 
 Cadena: fuente → caso → prueba → pantalla. Estados: ✅ hecho y verificado con CR · 🟡 parcial o sin CR · ❌ falta. Ningún requisito llega todavía a ✅ completo: solo CR-05 (amarres 1–4) está en los tests.
 
-| R    | Requisito                                  | Hito | Estado                                                                                    | Código actual                                      | CR        | Pantalla                |
-| ---- | ------------------------------------------ | ---- | ----------------------------------------------------------------------------------------- | -------------------------------------------------- | --------- | ----------------------- |
-| R-01 | Importar polígonos (CSV, DXF, GeoJSON)     | G2   | 🟡 solo DXF                                                                               | `core/src/io/dxf.ts`                               | —         | `DxfImportDialog`       |
-| R-02 | Importar taladros con detección de trampas | G2   | 🟡 separador y miles con coma sí; codificación, N/E y duplicados no                       | `core/src/io/csv.ts`                               | CR-04     | `CsvImportDialog`       |
-| R-03 | Importar topografía                        | G2   | 🟡 DXF 3DFACE                                                                             | `core/src/io/dxf.ts`                               | —         | `DxfImportDialog`       |
-| R-04 | Cara libre y burden desde ella             | G3   | 🟡 bordes de perímetro, no línea libre                                                    | `engine/src/tools/FreeFaceTool.ts`                 | CR-01     | `PatternPanel`          |
-| R-05 | Mallas cuadrada, tres bolillos, triangular | G3   | 🟡 sin opción equilátera explícita                                                        | `core/src/patterns/pattern.ts`                     | CR-01     | `PatternPanel`          |
-| R-06 | Malla en polígono cualquiera               | G3   | 🟡 hecho, sin CR                                                                          | `fitPatternToPolygon`                              | CR-04     | `PatternPanel`          |
-| R-07 | Grupos (precorte, buffer, producción)      | G3   | ❌                                                                                        | —                                                  | CR-04     | —                       |
-| R-08 | Taladros inclinados, sobreperforación      | G3   | 🟡 fórmula distinta (ver `preguntas.md` P-05)                                             | `core/src/geometry/hole.ts`                        | CR-03     | `PropertiesPanel`       |
-| R-09 | Burden efectivo según secuencia            | G5   | ❌                                                                                        | —                                                  | CR-05     | —                       |
-| R-10 | Catálogo base e importación                | G4   | 🟡 librería sin fuente ni versión; sin importación                                        | `core/src/model/library.ts`                        | —         | `LibraryPanel`          |
-| R-11 | Catálogo de accesorios                     | G4   | 🟡 sin fuente, longitud ni velocidad de mecha                                             | `core/src/model/types.ts`                          | —         | `LibraryPanel`          |
-| R-12 | Carga por decks con taco de catálogo       | G4   | 🟡 ofrece agua (RM-01)                                                                    | `core/src/charging/charge.ts`                      | CR-01..03 | `DeckEditor`            |
-| R-13 | Cadena de iniciación posicionada           | G4   | 🟡 sin editor de varios boosters ni aviso                                                 | `InHoleInitiator`                                  | —         | `DeckEditor`            |
-| R-14 | Kg, FC, tonelaje, metros, área             | G4   | 🟡 sin factor de energía ni agregados por grupo                                           | `core/src/charging/chargeAnalysis.ts`              | CR-01..03 | `ResultsPanel`          |
-| R-15 | Advertencia de confinamiento               | G4   | ❌ (solo taco < 0,7·B)                                                                    | `core/src/diagnostics/designChecks.ts`             | CR-02     | `ResultsPanel`          |
-| R-16 | Amarre y retardos por separado             | G5   | 🟡                                                                                        | `core/src/timing/`                                 | CR-05     | `TimingPanel`           |
-| R-17 | Tiempo por taladro y reproductor           | G5   | 🟡 CR-05 amarres 1–4; falta el 5 (burden efectivo)                                        | `core/src/timing/timing.ts`                        | CR-05     | `ViewPanel`             |
-| R-18 | Taladro de inicio y amarre generado        | G5   | 🟡 fila y V; falta escalón y ciclos                                                       | `core/src/timing/tieUp.ts`                         | CR-05     | `TimingPanel`           |
-| R-19 | Carga máxima por retardo                   | G6   | 🟡 CR-05 amarres 1–4; ventana aún no persistida                                           | `timing.ts`, `vibration.ts`                        | CR-05     | `ResultsPanel`          |
-| R-20 | PPV con K y β configurables                | G6   | 🟡 K/β global, no por punto                                                               | `core/src/vibration/vibration.ts`                  | CR-06     | `VibrationPanel`        |
-| R-21 | Puntos de monitoreo con límites            | G6   | 🟡 sin límites                                                                            | `MonitoringPoint`                                  | CR-06     | `VibrationPanel`        |
-| R-22 | Reporte PDF                                | G7   | 🟡 sin sección de supuestos                                                               | `workers/src/report/pdfReport.ts`                  | CR-04     | menú                    |
-| R-23 | Escenarios comparables                     | G7   | ❌                                                                                        | —                                                  | —         | —                       |
-| R-24 | Autoguardado y deshacer/rehacer            | G7   | 🟡 autoguardado y undo hechos; falta probar ≥ 50 pasos (H-703)                            | `DocumentStore.ts`, `apps/web/src/persistence/`    | —         | Versiones autoguardadas |
-| R-25 | Usuarios con rol                           | —    | ⏸ diferido (D-08)                                                                         | —                                                  | —         | —                       |
-| R-26 | Español e inglés                           | G8   | ❌                                                                                        | —                                                  | —         | —                       |
-| R-27 | SI y UTM consistentes                      | G1   | 🟡 SI, EPSG obligatorio para importar y unidades de visualización; falta reproyectar (G2) | `core/src/units/units.ts`, `ProjectSettingsDialog` | —         | Ajustes del proyecto    |
+| R    | Requisito                                  | Hito | Estado                                                                                    | Código actual                                         | CR        | Pantalla                |
+| ---- | ------------------------------------------ | ---- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------- | ----------------------- |
+| R-01 | Importar polígonos (CSV, DXF, GeoJSON)     | G2   | 🟡 los tres formatos; sin reproyección                                                    | `core/src/io/dxf.ts`, `geojson.ts`                    | —         | menú Importar           |
+| R-02 | Importar taladros con detección de trampas | G2   | ✅ trampas de 03 §5 con test; CR-04 sintético                                             | `core/src/io/csv.ts`                                  | CR-04     | `CsvImportDialog`       |
+| R-03 | Importar topografía                        | G2   | 🟡 DXF 3DFACE                                                                             | `core/src/io/dxf.ts`                                  | —         | `DxfImportDialog`       |
+| R-04 | Cara libre y burden desde ella             | G3   | 🟡 aristas del perímetro; aviso sin cara libre; burden efectivo en G5                     | `engine/src/tools/FreeFaceTool.ts`, `designChecks.ts` | CR-01     | `PatternPanel`          |
+| R-05 | Mallas cuadrada, tres bolillos, triangular | G3   | ✅ incluye equilátera (S = 2B/√3)                                                         | `core/src/patterns/pattern.ts`, `design/burden.ts`    | CR-01     | `PatternPanel`          |
+| R-06 | Malla en polígono cualquiera               | G3   | 🟡 hecho, sin CR                                                                          | `fitPatternToPolygon`                                 | CR-04     | `PatternPanel`          |
+| R-07 | Grupos (precorte, buffer, producción)      | G3   | 🟡 grupos, asignación y color; falta regla de carga por grupo (G4)                        | `GroupsPanel`, `Hole.groupId`                         | CR-04     | `GroupsPanel`           |
+| R-08 | Taladros inclinados, sobreperforación      | G3   | 🟡 parámetros y chequeo J/B; longitud inclinada en P-05                                   | `core/src/geometry/hole.ts`                           | CR-03     | `PropertiesPanel`       |
+| R-09 | Burden efectivo según secuencia            | G5   | ❌                                                                                        | —                                                     | CR-05     | —                       |
+| R-10 | Catálogo base e importación                | G4   | 🟡 librería sin fuente ni versión; sin importación                                        | `core/src/model/library.ts`                           | —         | `LibraryPanel`          |
+| R-11 | Catálogo de accesorios                     | G4   | 🟡 sin fuente, longitud ni velocidad de mecha                                             | `core/src/model/types.ts`                             | —         | `LibraryPanel`          |
+| R-12 | Carga por decks con taco de catálogo       | G4   | 🟡 ofrece agua (RM-01)                                                                    | `core/src/charging/charge.ts`                         | CR-01..03 | `DeckEditor`            |
+| R-13 | Cadena de iniciación posicionada           | G4   | 🟡 sin editor de varios boosters ni aviso                                                 | `InHoleInitiator`                                     | —         | `DeckEditor`            |
+| R-14 | Kg, FC, tonelaje, metros, área             | G4   | 🟡 sin factor de energía ni agregados por grupo                                           | `core/src/charging/chargeAnalysis.ts`                 | CR-01..03 | `ResultsPanel`          |
+| R-15 | Advertencia de confinamiento               | G4   | ❌ (solo taco < 0,7·B)                                                                    | `core/src/diagnostics/designChecks.ts`                | CR-02     | `ResultsPanel`          |
+| R-16 | Amarre y retardos por separado             | G5   | 🟡                                                                                        | `core/src/timing/`                                    | CR-05     | `TimingPanel`           |
+| R-17 | Tiempo por taladro y reproductor           | G5   | 🟡 CR-05 amarres 1–4; falta el 5 (burden efectivo)                                        | `core/src/timing/timing.ts`                           | CR-05     | `ViewPanel`             |
+| R-18 | Taladro de inicio y amarre generado        | G5   | 🟡 fila y V; falta escalón y ciclos                                                       | `core/src/timing/tieUp.ts`                            | CR-05     | `TimingPanel`           |
+| R-19 | Carga máxima por retardo                   | G6   | 🟡 CR-05 amarres 1–4; ventana aún no persistida                                           | `timing.ts`, `vibration.ts`                           | CR-05     | `ResultsPanel`          |
+| R-20 | PPV con K y β configurables                | G6   | 🟡 K/β global, no por punto                                                               | `core/src/vibration/vibration.ts`                     | CR-06     | `VibrationPanel`        |
+| R-21 | Puntos de monitoreo con límites            | G6   | 🟡 sin límites                                                                            | `MonitoringPoint`                                     | CR-06     | `VibrationPanel`        |
+| R-22 | Reporte PDF                                | G7   | 🟡 sin sección de supuestos                                                               | `workers/src/report/pdfReport.ts`                     | CR-04     | menú                    |
+| R-23 | Escenarios comparables                     | G7   | ❌                                                                                        | —                                                     | —         | —                       |
+| R-24 | Autoguardado y deshacer/rehacer            | G7   | 🟡 autoguardado y undo hechos; falta probar ≥ 50 pasos (H-703)                            | `DocumentStore.ts`, `apps/web/src/persistence/`       | —         | Versiones autoguardadas |
+| R-25 | Usuarios con rol                           | —    | ⏸ diferido (D-08)                                                                         | —                                                     | —         | —                       |
+| R-26 | Español e inglés                           | G8   | ❌                                                                                        | —                                                     | —         | —                       |
+| R-27 | SI y UTM consistentes                      | G1   | 🟡 SI, EPSG obligatorio para importar y unidades de visualización; falta reproyectar (G2) | `core/src/units/units.ts`, `ProjectSettingsDialog`    | —         | Ajustes del proyecto    |
 
 ## 4. Hoja de ruta
 
@@ -120,37 +120,37 @@ Se conservan los IDs de la guía (G, H, R, RM, CR). **Un hito a la vez; no se av
 - Todavía sin UI (llegan en su hito): grupos (G3), estado de agua y catálogo con fuente (G4), límites y K/β por punto (G6).
 - **Salida:** ida y vuelta JSON sin pérdidas con el esquema v3; migración v2 → v3 testeada; sin unidades mezcladas.
 
-### G2: importación (E2; R-01 a R-03)
+### G2: importación (E2; R-01 a R-03) ✅
 
-- [ ] H-201: trampas de `03 §5`:
-  - codificación (`TextDecoder` UTF-8 `fatal`, con respaldo windows-1252);
-  - archivo sin encabezado (primera fila numérica);
-  - separador editable;
-  - IDs duplicados (error con la lista);
-  - Norte/Este intercambiados (aviso y botón para intercambiar);
-  - Z vacía o cero;
-  - atípicos (aviso);
-  - columna de grupo.
-- [ ] Vista previa en el mapa: la importación entra como un solo comando y el diálogo ofrece «Aceptar / Deshacer».
-- [ ] H-202: GeoJSON de entrada y salida (polígonos, líneas, puntos) con `JSON.parse` y zod, sin dependencias nuevas; polígonos por CSV.
-- [ ] Fixture sintético de CR-04: 180 filas sin encabezado (A 32, B 32, C 32, BF 84) con las trampas de `03 §5`.
-- **Salida:** CR-04 sintético cae en su posición; cada trampa se detecta o se rechaza con un mensaje claro.
+**Existía:** mapeo de columnas por encabezado, unidades del archivo, valores por defecto de la plantilla, lista de filas con error; DXF con roles por capa (taladros, perímetros, caras libres, topografía 3DFACE).
 
-### G3: diseño de malla (E3; R-04 a R-08)
+- [x] H-201: trampas de `03 §5` en `packages/core/src/io/csv.ts`:
+  - codificación (`decodeText`: UTF-8 estricto o Windows-1252/ISO-8859-1) y selector en el diálogo;
+  - archivo sin encabezado (primera fila con números) y mapeo por posición «ID, Este, Norte, Cota»;
+  - separador editable (tab y `;` tienen prioridad sobre la coma);
+  - miles con coma a nivel de archivo (`detectThousands`);
+  - IDs duplicados (en el archivo y contra la voladura) como error con la línea;
+  - Norte/Este intercambiados (con rango UTM del EPSG, o por cantidad de cifras) con botón «Intercambiar Este/Norte»;
+  - coordenadas fuera del rango del CRS;
+  - cota vacía o cero, atípicos (a más de máx(10 × mediana, 1 km));
+  - columna Grupo, o grupo desde el prefijo del ID (CR-04: A, B, C, BF).
+- [x] Vista previa en el mapa: «Importar y ver en el mapa» aplica un solo comando; el diálogo muestra los avisos y ofrece «Aceptar», «Deshacer importación» o «Intercambiar Este/Norte».
+- [x] H-202: GeoJSON de entrada y salida (`io/geojson.ts`): puntos = taladros, polígonos = perímetros con `free_face_edges`, líneas = cara libre; rechaza longitud/latitud; avisa si el `crs` del archivo es otro. Perímetros desde CSV.
+- [x] Fixture sintético de CR-04 (`io/fixtures/cr04-sintetico.csv`): 180 filas sin encabezado, `;`, miles con coma, UTM 18S; test en `io/csvTraps.test.ts`.
+- **Pendiente:** reproyectar entre CRS (necesitaría proj4; hoy solo se avisa). El CSV real de CR-04 sigue pendiente de entrega.
 
-- [ ] H-301: cara libre dibujada como polilínea. `Blast.freeFaces` ya existe; hoy solo se marcan bordes del perímetro. Una sola cara libre → advertencia (RM-06). Si generar malla sin cara libre se bloquea o no, se decide en P-03.
-- [ ] H-302: opción «triangular equilátera» (S = 2B/√3); la no equilátera ya se logra con tresbolillo y S ≠ 1,1547·B.
-- [ ] H-303: grupos de taladros (creación, asignación con lazo o polígono, carga y retardo por grupo, color).
-- [ ] H-305: nuevo `core/src/design/burden.ts` con:
-  - Ash (Kb), Konya–Walter (Kd, Ks tomados de la fuente) y Andersen;
-  - S sugerido, (H + 7B)/8 o 1,4·B;
-  - rigidez H/B con el semáforo de Konya;
-  - T = 0,7·B y J = 0,3·B como **parámetros**;
-  - marca de burden fuera de ±10 %.
-- [ ] H-304: longitud de taladro inclinado según la resolución de P-05; CR-03.
-- [ ] Volumen nominal B·S·H (/cos α) junto al cubicado por Voronoi (P-06).
-- [ ] Chequeos de `02 §6`: rigidez, J/B, H/Ø, taco 0,7–1,3·B y 15–25·Ø, burden ±10 %. Umbrales en `calcParams`, siempre advertencias.
-- **Salida:** CR-01 pasos 1–7 y geometría de CR-03 dentro de tolerancia; conteo y área de CR-04.
+### G3: diseño de malla (E3; R-04 a R-08) ✅
+
+**Existía:** mallas cuadrada, rectangular y tresbolillo; recorte a polígono y orientación por azimut; cara libre marcada en las aristas del perímetro (herramienta C) con «Alinear filas a la cara libre» y «1ª fila desde el borde» (burden medido desde la cara libre); inclinación y sobreperforación como parámetros; selección por lazo.
+
+- [x] H-301: la cara libre sigue siendo la arista del perímetro (y `blast.freeFaces` de DXF/GeoJSON). Sin cara libre: advertencia en la revisión («voladura confinada», RM-06) y al generar la malla (P-03: se genera igual).
+- [x] H-302: botón «Equilátera (S = 2B/√3)» en tresbolillo.
+- [x] H-303: panel de grupos (`apps/web/src/panels/GroupsPanel.tsx`): crear desde la selección (lazo = selección por polígono), asignar, quitar, seleccionar para cargar o dar tiempos, tipo y color; «Color de taladros: Grupo» en la vista. Pendiente para G4: regla de carga guardada por grupo (`HoleGroup.template`).
+- [x] H-305: `core/src/design/burden.ts` (Ash, Konya–Walter, Andersen, S sugerido, H/B de Konya, T = 0,7·B y J = 0,3·B, tres bolillos, volumen nominal) con CR-01 pasos 1–7 y 10, CR-02 y CR-03; panel «Burden teórico» con referencia elegida y marca ±10 %.
+- [ ] H-304: longitud de taladro inclinado: sigue abierta P-05 (el código mide J en vertical).
+- [x] Volumen nominal Σ B·S·H/cos α y factor de carga nominal en Resultados, junto al cubicado (P-06).
+- [x] Chequeos de `02 §6` en `diagnostics/designChecks.ts`: rigidez, J/B, H/Ø, taco largo (> 1,3·B) y en diámetros, sin cara libre. Umbrales en `calcParams.checks`; advertencias o notas, nunca bloqueos.
+- **Salida:** CR-01 pasos 1–7 y 10, CR-02 fila 12 y CR-03 (B y V_R) reproducidos; CR-04 sintético con su conteo. Falta P-05 para la longitud de CR-03.
 
 ### G4: explosivos y carga (E4; R-10 a R-15)
 

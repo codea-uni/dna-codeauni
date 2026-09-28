@@ -33,4 +33,10 @@ Estado: 🔴 crítica (bloquea el cierre de un hito) · 🟡 no crítica · ✅ 
 
 ## Respuestas
 
-_(vacío)_
+_(Sin respuestas del ingeniero todavía.)_
+
+## Defectos aplicados en el código (a confirmar)
+
+- **P-03** (G3): se genera la malla sin cara libre y se avisa. La revisión cuenta la superficie del banco como una cara: sin cara marcada, «voladura confinada».
+- **P-06** (G3): Resultados muestra el volumen cubicado (Voronoi) y el nominal (B·S·H/cos α), con su factor de carga; los CR se prueban contra el nominal.
+- **P-10** (Tramo 0): ventana semiabierta [t, t + w) en MIC.
