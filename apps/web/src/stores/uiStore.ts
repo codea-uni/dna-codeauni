@@ -35,6 +35,8 @@ interface UiState {
   csvPreview: CsvPreview | null;
   shortcutsOpen: boolean;
   settingsOpen: boolean;
+  versionsOpen: boolean;
+  setVersionsOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   viewMode: ViewMode;
   /** Pestaña del panel derecho. */
@@ -78,6 +80,10 @@ export const useUiStore = create<UiState>()((set) => ({
   csvPreview: null,
   shortcutsOpen: false,
   settingsOpen: false,
+  versionsOpen: false,
+  setVersionsOpen: (versionsOpen) => {
+    set({ versionsOpen });
+  },
   setSettingsOpen: (settingsOpen) => {
     set({ settingsOpen });
   },

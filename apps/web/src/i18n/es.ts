@@ -32,6 +32,17 @@ export const es = {
   'settings.language': 'Idioma',
   'import.needsCrs':
     'Define el sistema de coordenadas (código EPSG) del proyecto antes de importar.',
+  'toolbar.versions': 'Versiones autoguardadas',
+  'versions.title': 'Versiones autoguardadas',
+  'versions.hint':
+    'Se guarda solo en este navegador, como máximo una versión por minuto; se conservan las 20 más recientes de cada proyecto.',
+  'versions.empty': 'Todavía no hay versiones guardadas.',
+  'versions.holes': '{n} taladros',
+  'versions.restore': 'Restaurar',
+  'versions.confirm':
+    '¿Reemplazar el proyecto actual por la versión del {date}? Podrás volver a él desde esta lista.',
+  'versions.restored': 'Recuperado «{name}» del {date}',
+  'versions.unavailable': 'El autoguardado no está disponible en este navegador.',
 };
 
 export type MessageKey = keyof typeof es;

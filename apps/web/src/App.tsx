@@ -21,6 +21,9 @@ import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { DxfImportDialog } from './dialogs/DxfImportDialog';
 import { ProjectSettingsDialog } from './dialogs/ProjectSettingsDialog';
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
+import { VersionsDialog } from './dialogs/VersionsDialog';
+import { startAutosave } from './persistence/autosave';
+import { restoreLatestAutosave } from './actions';
 import { FragmentationPanel } from './panels/FragmentationPanel';
 import { VibrationPanel } from './panels/VibrationPanel';
 import { getCompute } from './session';
@@ -46,6 +49,8 @@ export function App() {
   const shortcutsOpen = useUiStore((s) => s.shortcutsOpen);
   const settingsOpen = useUiStore((s) => s.settingsOpen);
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
+  const versionsOpen = useUiStore((s) => s.versionsOpen);
+  const setVersionsOpen = useUiStore((s) => s.setVersionsOpen);
   const dxfPreview = useUiStore((s) => s.dxfPreview);
   const setDxfPreview = useUiStore((s) => s.setDxfPreview);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
@@ -53,9 +58,12 @@ export function App() {
     // Precalienta el worker (carga de módulos) para que la primera operación real no pague el arranque.
     void getCompute().api.ping('warmup');
     const stopAnalysis = startAnalysisRunner();
+    const stopAutosave = startAutosave();
+    void restoreLatestAutosave();
     const stops = [startEnergyRunner(), startFragmentationRunner(), startVibrationRunner()];
     return () => {
       stopAnalysis();
+      stopAutosave();
       for (const stop of stops) stop();
     };
   }, []);
@@ -111,6 +119,13 @@ export function App() {
         <ProjectSettingsDialog
           onClose={() => {
             setSettingsOpen(false);
+          }}
+        />
+      )}
+      {versionsOpen && (
+        <VersionsDialog
+          onClose={() => {
+            setVersionsOpen(false);
           }}
         />
       )}

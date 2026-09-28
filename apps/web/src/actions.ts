@@ -18,6 +18,7 @@ import {
 import { APP_VERSION, getCompute, getEngine, session } from './session';
 import { useAnalysisStore } from './stores/analysisStore';
 import { t } from './i18n';
+import { listVersions, loadWithoutSaving, readVersion } from './persistence/autosave';
 import { useUiStore } from './stores/uiStore';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
@@ -109,6 +110,31 @@ export async function openProject(file: File): Promise<void> {
     const holes = result.file.project.blasts.reduce((n, b) => n + b.holes.length, 0);
     notify(`Abierto "${result.file.project.name}" (${holes} taladros)`);
   });
+}
+
+/** Restaura una versión autoguardada (H-102); con `confirm`, pregunta si hay cambios sin deshacer. */
+export async function restoreVersion(id: number, confirm = false): Promise<void> {
+  const version = await readVersion(id);
+  if (!version) return;
+  const date = new Date(version.savedAt).toLocaleString();
+  if (confirm && document.canUndo && !window.confirm(t('versions.confirm', { date }))) return;
+  const result = await getCompute().api.parseProject(version.text);
+  if (!result.ok) {
+    notify(result.error, 'error');
+    return;
+  }
+  loadWithoutSaving(result.file.project);
+  notify(t('versions.restored', { name: version.name, date }));
+}
+
+/** Al abrir la aplicación: recupera la última versión autoguardada, si la hay. */
+export async function restoreLatestAutosave(): Promise<void> {
+  try {
+    const latest = (await listVersions())[0];
+    if (latest && !document.canUndo) await restoreVersion(latest.id);
+  } catch (err) {
+    console.warn('[autoguardado]', err);
+  }
 }
 
 export interface PatternForm {

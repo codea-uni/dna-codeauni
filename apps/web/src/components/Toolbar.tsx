@@ -8,6 +8,7 @@ import {
   FileDown,
   FileText,
   FilePlus,
+  History as HistoryIcon,
   FileUp,
   FolderOpen,
   Grid3x3,
@@ -173,6 +174,13 @@ export function Toolbar() {
           label={tr('toolbar.saveProject')}
           shortcut="Ctrl+S"
           onClick={() => void actions.saveProject()}
+        />
+        <IconButton
+          icon={HistoryIcon}
+          label={tr('toolbar.versions')}
+          onClick={() => {
+            useUiStore.getState().setVersionsOpen(true);
+          }}
         />
         <IconButton
           icon={Settings}

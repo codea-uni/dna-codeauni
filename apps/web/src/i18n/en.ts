@@ -30,4 +30,15 @@ export const en = {
   'settings.diameter': 'Diameter',
   'settings.language': 'Language',
   'import.needsCrs': 'Set the project coordinate system (EPSG code) before importing.',
+  'toolbar.versions': 'Autosaved versions',
+  'versions.title': 'Autosaved versions',
+  'versions.hint':
+    'Stored only in this browser, at most one version per minute; the 20 most recent per project are kept.',
+  'versions.empty': 'No saved versions yet.',
+  'versions.holes': '{n} holes',
+  'versions.restore': 'Restore',
+  'versions.confirm':
+    'Replace the current project with the version from {date}? You can come back to it from this list.',
+  'versions.restored': 'Recovered “{name}” from {date}',
+  'versions.unavailable': 'Autosave is not available in this browser.',
 } satisfies Messages;
