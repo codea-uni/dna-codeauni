@@ -6,7 +6,7 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from 'three';
-import { outwardNormal, polygonEdge, type Blast, type BoundaryId, type Vec3 } from '@blastlab/core';
+import { outwardNormal, polygonEdge, type Blast, type BoundaryId, type Vec3 } from '@cronos/core';
 
 /** Paleta de perímetros (sRGB). El índice es el orden en la voladura. */
 const PALETTE = [0xff7b54, 0xd2a8ff, 0x56d4dd, 0xe3b341, 0x7ee787, 0xff9bce, 0x79c0ff];

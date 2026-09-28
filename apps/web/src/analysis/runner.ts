@@ -3,7 +3,7 @@ import {
   DEFAULT_NEAR_FIELD,
   DEFAULT_VIBRATION_OPTIONS,
   type EnergyOptions,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { getCompute, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 

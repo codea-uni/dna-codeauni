@@ -1,4 +1,4 @@
-import { commands, type HoleId } from '@blastlab/core';
+import { commands, type HoleId } from '@cronos/core';
 import type { Tool, ToolContext, ToolPointer } from './types';
 
 /**

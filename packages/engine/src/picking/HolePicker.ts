@@ -1,4 +1,4 @@
-import { PointIndex, type HoleId, type Project } from '@blastlab/core';
+import { PointIndex, type HoleId, type Project } from '@cronos/core';
 
 /**
  * Picking de taladros en coordenadas de proyecto con un índice espacial en CPU.

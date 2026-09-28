@@ -8,7 +8,7 @@ import {
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { useEffect, useRef } from 'react';
-import type { FragmentationResult } from '@blastlab/core';
+import type { FragmentationResult } from '@cronos/core';
 
 echarts.use([
   LineChart,

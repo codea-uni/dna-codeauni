@@ -5,7 +5,7 @@ import {
   mToMm,
   radToDeg,
   type PatternKind,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { useState } from 'react';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';

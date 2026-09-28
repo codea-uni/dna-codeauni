@@ -6,7 +6,7 @@ import {
   DEFAULT_HOLE_TEMPLATE,
   newId,
   type Project,
-} from '@blastlab/core';
+} from '@cronos/core';
 import type { InstancedMesh } from 'three';
 import { Color, Matrix4, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';

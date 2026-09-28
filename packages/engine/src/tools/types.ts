@@ -9,7 +9,7 @@ import type {
   SelectionStore,
   SnapResult,
   Vec2,
-} from '@blastlab/core';
+} from '@cronos/core';
 
 export type ToolName =
   | 'select'

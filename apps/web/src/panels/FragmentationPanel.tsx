@@ -1,4 +1,4 @@
-import type { KuzRamInputs } from '@blastlab/core';
+import type { KuzRamInputs } from '@cronos/core';
 import { RefreshCw } from 'lucide-react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { lazy, Suspense } from 'react';

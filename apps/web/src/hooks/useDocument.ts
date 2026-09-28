@@ -1,4 +1,4 @@
-import type { Blast, HoleId, Project } from '@blastlab/core';
+import type { Blast, HoleId, Project } from '@cronos/core';
 import { useSyncExternalStore } from 'react';
 import { session } from '../session';
 

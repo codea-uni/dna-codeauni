@@ -1,4 +1,4 @@
-import { turboRgb } from '@blastlab/core';
+import { turboRgb } from '@cronos/core';
 import { Color, SRGBColorSpace } from 'three';
 
 /** Mapa turbo (ver core `turboRgb`), t ∈ [0, 1], como Color de Three (lineal). */

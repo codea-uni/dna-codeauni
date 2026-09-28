@@ -12,7 +12,7 @@ import {
   ShaderMaterial,
   Vector2,
 } from 'three';
-import { holeToe, type Hole, type HoleId, type Vec3 } from '@blastlab/core';
+import { holeToe, type Hole, type HoleId, type Vec3 } from '@cronos/core';
 import { COLORS } from './colors';
 
 const INITIAL_CAPACITY = 1024;

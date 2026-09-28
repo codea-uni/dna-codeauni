@@ -1,4 +1,4 @@
-import { createEmptyProject, DEFAULT_BENCH, DEFAULT_HOLE_TEMPLATE, newId } from '@blastlab/core';
+import { createEmptyProject, DEFAULT_BENCH, DEFAULT_HOLE_TEMPLATE, newId } from '@cronos/core';
 import { describe, expect, it } from 'vitest';
 import { computeApi } from './computeApi';
 

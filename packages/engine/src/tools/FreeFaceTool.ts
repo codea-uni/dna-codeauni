@@ -1,4 +1,4 @@
-import { boundaryAt, commands, nearestEdge } from '@blastlab/core';
+import { boundaryAt, commands, nearestEdge } from '@cronos/core';
 import type { Tool, ToolContext, ToolPointer } from './types';
 
 const EDGE_TOLERANCE_PX = 10;

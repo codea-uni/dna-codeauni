@@ -37,7 +37,7 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            { group: ['@blastlab/*'], message: 'core no depende de otros paquetes.' },
+            { group: ['@cronos/*'], message: 'core no depende de otros paquetes.' },
             {
               group: ['three', 'react', 'react-dom', 'zustand', 'comlink'],
               message: 'core es puro: sin UI/render/workers.',
@@ -55,7 +55,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['@blastlab/workers', '@blastlab/web', 'react', 'react-dom', 'zustand'],
+              group: ['@cronos/workers', '@cronos/web', 'react', 'react-dom', 'zustand'],
               message: 'engine solo depende de core y three.',
             },
           ],

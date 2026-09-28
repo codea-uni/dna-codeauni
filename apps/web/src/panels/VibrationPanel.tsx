@@ -1,5 +1,5 @@
-import { commands, type VibrationMetric } from '@blastlab/core';
-import { turboCss } from '@blastlab/engine';
+import { commands, type VibrationMetric } from '@cronos/core';
+import { turboCss } from '@cronos/engine';
 import { MapPin, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { TextCell } from '../components/CellInput';

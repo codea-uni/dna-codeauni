@@ -1,4 +1,4 @@
-import { commands, newId, type ProductLibrary } from '@blastlab/core';
+import { commands, newId, type ProductLibrary } from '@cronos/core';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { useProject } from '../hooks/useDocument';
 import { session } from '../session';

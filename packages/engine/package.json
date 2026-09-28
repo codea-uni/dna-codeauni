@@ -1,5 +1,5 @@
 {
-  "name": "@blastlab/engine",
+  "name": "@cronos/engine",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@blastlab/core": "workspace:*",
+    "@cronos/core": "workspace:*",
     "three": "^0.186.0"
   },
   "devDependencies": {

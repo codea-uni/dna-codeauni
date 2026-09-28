@@ -1,4 +1,4 @@
-import type { Vec2 } from '@blastlab/core';
+import type { Vec2 } from '@cronos/core';
 
 export interface PlanTransform {
   /** Proyecto [m] → página [pt]. */

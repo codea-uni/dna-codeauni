@@ -6,7 +6,7 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from 'three';
-import type { Blast, HoleId, ProductLibrary, Vec3 } from '@blastlab/core';
+import type { Blast, HoleId, ProductLibrary, Vec3 } from '@cronos/core';
 import { connectorColorHex } from './colormap';
 
 const ARROW_AT = 0.62;

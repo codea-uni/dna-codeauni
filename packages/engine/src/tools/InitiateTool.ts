@@ -1,4 +1,4 @@
-import { commands } from '@blastlab/core';
+import { commands } from '@cronos/core';
 import type { Tool, ToolContext, ToolPointer } from './types';
 
 /** Clic en un taladro: agrega o quita un punto de inicio. */

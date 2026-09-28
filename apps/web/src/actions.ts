@@ -14,7 +14,7 @@ import {
   type Pattern,
   type PatternId,
   type SurfaceConnectorId,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
 import { useAnalysisStore } from './stores/analysisStore';
 import { useUiStore } from './stores/uiStore';
@@ -87,7 +87,7 @@ export async function saveProject(): Promise<void> {
     const url = URL.createObjectURL(blob);
     const a = window.document.createElement('a');
     a.href = url;
-    a.download = `${project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'proyecto'}.blastlab.json`;
+    a.download = `${project.name.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'proyecto'}.cronos.json`;
     a.click();
     setTimeout(() => {
       URL.revokeObjectURL(url);

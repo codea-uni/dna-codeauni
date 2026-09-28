@@ -1,5 +1,5 @@
 /**
- * Modelo de dominio de BlastLab (ver docs/PLAN.md §4).
+ * Modelo de dominio de Cronos (convenciones en docs/ARCHITECTURE.md).
  * Unidades SI internamente; coordenadas de proyecto X = Este, Y = Norte, Z = Cota (Z arriba).
  */
 import type { SCHEMA_VERSION } from './schema';
@@ -55,9 +55,9 @@ export type Polygon2 = readonly Vec2[];
 
 // ===================== Archivo y proyecto =====================
 
-/** Envoltorio serializado (.blastlab.json). */
+/** Envoltorio serializado (.cronos.json). */
 export interface ProjectFile {
-  format: 'blastlab-project';
+  format: 'cronos-project';
   schemaVersion: typeof SCHEMA_VERSION; // migraciones en io/migrations
   savedAt: string; // ISO 8601
   appVersion: string;

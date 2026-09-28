@@ -6,7 +6,7 @@ import {
   nextHoleNumber,
   type HoleCsvMapping,
   type HoleCsvUnits,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { useState } from 'react';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';

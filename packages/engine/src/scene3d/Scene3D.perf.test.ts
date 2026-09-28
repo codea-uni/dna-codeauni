@@ -5,7 +5,7 @@ import {
   DEFAULT_HOLE_TEMPLATE,
   generatePatternHoles,
   newId,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_3D_OPTIONS, Scene3D } from './Scene3D';
 

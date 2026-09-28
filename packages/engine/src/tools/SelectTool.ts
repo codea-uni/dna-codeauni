@@ -1,4 +1,4 @@
-import { commands, type HoleId, type Vec2, type Vec3 } from '@blastlab/core';
+import { commands, type HoleId, type Vec2, type Vec3 } from '@cronos/core';
 import {
   DRAG_THRESHOLD_PX,
   screenDistance,

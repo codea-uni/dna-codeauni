@@ -1,8 +1,8 @@
 # Cronos: reglas del proyecto
 
-Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab»; los paquetes `@blastlab/*` se renombran en el Tramo 0, D-09). Prioridades: **cálculos correctos y verificables**, **fluidez de la interfaz** y **cobertura progresiva de herramientas de simulación**.
+Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab»; paquetes `@cronos/*`, D-09). Prioridades: **cálculos correctos y verificables**, **fluidez de la interfaz** y **cobertura progresiva de herramientas de simulación**.
 
-**Norte:** `docs/theory/`, la guía del ingeniero de minas. Si algo aquí la contradice, gana la guía o la diferencia se anota en `docs/preguntas.md`. Hoja de ruta y estado en `docs/PLAN.md`; arquitectura y vocabulario en `docs/ARCHITECTURE.md`.
+**Norte y máxima prioridad:** `docs/theory/`, la guía del ingeniero de minas. Está por encima de `docs/PLAN.md`, `docs/ARCHITECTURE.md` y este archivo: si algo la contradice, gana la guía y la diferencia se corrige o se anota en `docs/preguntas.md`. Hoja de ruta y estado en `docs/PLAN.md`; arquitectura y vocabulario en `docs/ARCHITECTURE.md`.
 
 ## Dónde buscar
 

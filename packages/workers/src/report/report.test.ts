@@ -9,7 +9,7 @@ import {
   withDownholeDetonator,
   type Pattern,
   type Project,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { PDFDocument } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 import { buildReport } from './pdfReport';
@@ -154,7 +154,7 @@ describe('informe PDF', () => {
     expect(doc.getPageCount()).toBe(2 + Math.ceil(250 / Math.floor((841.89 - 80 - 40) / 11)));
     expect(doc.getTitle()).toContain('Voladura 1');
     expect(doc.getAuthor()).toBe('Ingeniería');
-    expect(doc.getCreator()).toBe('BlastLab 0.1.0');
+    expect(doc.getCreator()).toBe('Cronos 0.1.0');
   });
 
   it('sin tabla de taladros y sin carga no falla', async () => {

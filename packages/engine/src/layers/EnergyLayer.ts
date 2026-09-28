@@ -15,7 +15,7 @@ import {
   RGBAFormat,
   SRGBColorSpace,
 } from 'three';
-import { turboRgb, type Vec3 } from '@blastlab/core';
+import { turboRgb, type Vec3 } from '@cronos/core';
 
 /** Raster coloreado (calculado en el worker) + contornos, en coordenadas de proyecto. */
 export interface EnergyData {

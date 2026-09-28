@@ -1,4 +1,4 @@
-import { commands, type Vec2 } from '@blastlab/core';
+import { commands, type Vec2 } from '@cronos/core';
 import type { Tool, ToolContext, ToolPointer } from './types';
 
 const CLOSE_TOLERANCE_PX = 10;

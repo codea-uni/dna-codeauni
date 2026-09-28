@@ -1,4 +1,4 @@
-import { turboCss } from '@blastlab/engine';
+import { turboCss } from '@cronos/engine';
 import { colorRange, sequenceTimes } from '../analysis/visualize';
 import { getEngine } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';

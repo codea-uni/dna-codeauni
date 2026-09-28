@@ -25,7 +25,7 @@ import {
   type SnapResult,
   type Vec2,
   type Vec3,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { fitBounds, screenToWorld, type PlanViewState } from './cameras/planView';
 import {
   dollyOrbit,

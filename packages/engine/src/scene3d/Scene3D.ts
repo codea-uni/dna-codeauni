@@ -28,7 +28,7 @@ import {
   type Project,
   type SegmentKind,
   type Vec3,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { writeSegmentMatrix } from './segmentMatrix';
 
 /** Colores de materiales (sRGB). Los explosivos se distinguen entre sí por la paleta cálida. */

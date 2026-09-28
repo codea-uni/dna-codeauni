@@ -1,4 +1,4 @@
-import { commands, createHole, nextHoleNumber } from '@blastlab/core';
+import { commands, createHole, nextHoleNumber } from '@cronos/core';
 import type { Tool, ToolContext, ToolPointer } from './types';
 
 /** Agrega un taladro con la plantilla actual en el punto (ajustado por snapping). */

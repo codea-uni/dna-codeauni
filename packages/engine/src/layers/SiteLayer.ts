@@ -7,7 +7,7 @@ import {
   LineLoop,
   LineSegments,
 } from 'three';
-import type { MonitoringPoint, Vec2, Vec3 } from '@blastlab/core';
+import type { MonitoringPoint, Vec2, Vec3 } from '@cronos/core';
 
 /**
  * Elementos de sitio: zona de exclusión por proyecciones (línea roja discontinua) y puntos de

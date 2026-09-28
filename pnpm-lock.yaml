@@ -199,13 +199,13 @@ importers:
 
   apps/web:
     dependencies:
-      '@blastlab/core':
+      '@cronos/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@blastlab/engine':
+      '@cronos/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@blastlab/workers':
+      '@cronos/workers':
         specifier: workspace:*
         version: link:../../packages/workers
       echarts:
@@ -258,7 +258,7 @@ importers:
 
   packages/engine:
     dependencies:
-      '@blastlab/core':
+      '@cronos/core':
         specifier: workspace:*
         version: link:../core
       three:
@@ -271,7 +271,7 @@ importers:
 
   packages/workers:
     dependencies:
-      '@blastlab/core':
+      '@cronos/core':
         specifier: workspace:*
         version: link:../core
       comlink:

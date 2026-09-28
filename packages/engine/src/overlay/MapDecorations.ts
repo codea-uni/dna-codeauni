@@ -1,4 +1,4 @@
-import { cardinal, measure, type Vec2 } from '@blastlab/core';
+import { cardinal, measure, type Vec2 } from '@cronos/core';
 import { formatCoordinate, formatDistance, niceStep, scaleBar, ticks } from '../cameras/mapScale';
 import { compassRotationDeg } from './compass';
 

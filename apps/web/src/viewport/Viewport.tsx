@@ -1,4 +1,4 @@
-import { Engine } from '@blastlab/engine';
+import { Engine } from '@cronos/engine';
 import { useEffect, useRef } from 'react';
 import { bindVisualization } from '../analysis/visualize';
 import { session, setEngine } from '../session';

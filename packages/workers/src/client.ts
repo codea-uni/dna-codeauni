@@ -10,7 +10,7 @@ export interface ComputeClient {
 export function createComputeClient(): ComputeClient {
   const worker = new Worker(new URL('./compute.worker.ts', import.meta.url), {
     type: 'module',
-    name: 'blastlab-compute',
+    name: 'cronos-compute',
   });
   return {
     api: wrap<ComputeApi>(worker),

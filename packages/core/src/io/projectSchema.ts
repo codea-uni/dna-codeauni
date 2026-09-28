@@ -287,7 +287,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
 });
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
-  format: z.literal('blastlab-project'),
+  format: z.literal('cronos-project'),
   schemaVersion: z.literal(2),
   savedAt: z.string(),
   appVersion: z.string(),

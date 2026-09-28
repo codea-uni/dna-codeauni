@@ -5,7 +5,7 @@ import {
   DEFAULT_BENCH,
   DEFAULT_HOLE_TEMPLATE,
   newId,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { Color, type InstancedMesh } from 'three';
 import { describe, expect, it } from 'vitest';
 import { EnergyLayer } from '../layers/EnergyLayer';

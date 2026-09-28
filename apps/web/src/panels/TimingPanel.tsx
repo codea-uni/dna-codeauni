@@ -1,5 +1,5 @@
-import type { DetonatorId, PatternId, SurfaceConnectorId } from '@blastlab/core';
-import { connectorColorCss } from '@blastlab/engine';
+import type { DetonatorId, PatternId, SurfaceConnectorId } from '@cronos/core';
+import { connectorColorCss } from '@cronos/engine';
 import { Cable, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { IconButton } from '../components/IconButton';
@@ -8,7 +8,7 @@ import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
-import { commands } from '@blastlab/core';
+import { commands } from '@cronos/core';
 
 function Select<T extends string>({
   label,

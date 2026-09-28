@@ -1,5 +1,5 @@
 {
-  "name": "blastlab",
+  "name": "cronos",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.5.1",
@@ -7,8 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm --filter @blastlab/web dev",
-    "build": "pnpm typecheck && pnpm --filter @blastlab/web build",
+    "dev": "pnpm --filter @cronos/web dev",
+    "build": "pnpm typecheck && pnpm --filter @cronos/web build",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",

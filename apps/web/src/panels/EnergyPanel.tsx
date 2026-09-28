@@ -1,5 +1,5 @@
-import { commands, DEFAULT_NEAR_FIELD, type EnergyMetric } from '@blastlab/core';
-import { turboCss } from '@blastlab/engine';
+import { commands, DEFAULT_NEAR_FIELD, type EnergyMetric } from '@cronos/core';
+import { turboCss } from '@cronos/engine';
 import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject } from '../hooks/useDocument';

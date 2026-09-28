@@ -42,7 +42,7 @@ import {
   type Pattern,
   type Project,
   type SerializeOptions,
-} from '@blastlab/core';
+} from '@cronos/core';
 
 import { transfer } from 'comlink';
 import { buildReport, type ReportOptions } from './report/pdfReport';
@@ -181,7 +181,7 @@ export const computeApi = {
     return exportHolesCsv(holes, chargeKg);
   },
 
-  /** Serializa el proyecto a JSON (.blastlab.json). */
+  /** Serializa el proyecto a JSON (.cronos.json). */
   serializeProject(project: Project, options: SerializeOptions): string {
     return serializeProject(project, options);
   },

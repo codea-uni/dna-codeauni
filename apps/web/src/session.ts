@@ -1,6 +1,6 @@
-import { createEditorSession, type EditorSession } from '@blastlab/core';
-import type { Engine } from '@blastlab/engine';
-import { createComputeClient, type ComputeClient } from '@blastlab/workers';
+import { createEditorSession, type EditorSession } from '@cronos/core';
+import type { Engine } from '@cronos/engine';
+import { createComputeClient, type ComputeClient } from '@cronos/workers';
 
 /**
  * Singletons de la aplicación: documento + selección (core), cliente de cómputo (workers)

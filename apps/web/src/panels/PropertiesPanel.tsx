@@ -7,7 +7,7 @@ import {
   radToDeg,
   type Hole,
   type HoleEdit,
-} from '@blastlab/core';
+} from '@cronos/core';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useProject, useSelectionIds } from '../hooks/useDocument';

@@ -1,4 +1,4 @@
-import type { ToolName } from '@blastlab/engine';
+import type { ToolName } from '@cronos/engine';
 import {
   Box,
   Cable,
@@ -31,7 +31,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
-import { SCENARIOS } from '@blastlab/core';
+import { SCENARIOS } from '@cronos/core';
 import { useRef } from 'react';
 import * as actions from '../actions';
 import { useHistory } from '../hooks/useDocument';
@@ -157,7 +157,7 @@ export function Toolbar() {
 
   return (
     <header className="toolbar">
-      <strong className="brand">BlastLab</strong>
+      <strong className="brand">Cronos</strong>
       <div className="toolbar-group">
         <IconButton icon={FilePlus} label="Proyecto nuevo" onClick={actions.newProject} />
         <IconButton

@@ -16,7 +16,7 @@ import type { Bench, Blast, Hole, Polygon2, Surface, Vec2, Vec3 } from '../model
 
 // ------------------------------------------------------------------ Escritura (DXF R12 ASCII)
 
-/** Capas que escribe BlastLab (y que reconoce al importar). */
+/** Capas que escribe Cronos (prefijo BL_ heredado; se mantiene para reconocer DXF ya exportados) (y que reconoce al importar). */
 export const DXF_LAYERS = {
   collars: 'BL_BOCAS',
   traces: 'BL_TRAZAS',

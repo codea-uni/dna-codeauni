@@ -7,7 +7,7 @@ import {
   type Deck,
   type Hole,
   type ProductLibrary,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { NumberCell } from '../components/CellInput';
 import { session } from '../session';
 

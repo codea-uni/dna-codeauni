@@ -1,5 +1,5 @@
-import { commands, type BoundaryId } from '@blastlab/core';
-import { boundaryColorCss } from '@blastlab/engine';
+import { commands, type BoundaryId } from '@cronos/core';
+import { boundaryColorCss } from '@cronos/engine';
 import { Mountain, Pentagon } from 'lucide-react';
 import { TextCell } from '../components/CellInput';
 import { IconButton } from '../components/IconButton';

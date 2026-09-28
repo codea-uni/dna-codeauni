@@ -4,7 +4,7 @@ import {
   newId,
   type DxfInspection,
   type DxfLayerRole,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { X } from 'lucide-react';
 import { useState } from 'react';
 import { getCompute, getEngine, session } from '../session';

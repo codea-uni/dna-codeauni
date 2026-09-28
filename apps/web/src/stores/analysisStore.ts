@@ -6,8 +6,8 @@ import type {
   KuzRamInputs,
   VibrationMetric,
   VibrationResult,
-} from '@blastlab/core';
-import type { EngineLayer } from '@blastlab/engine';
+} from '@cronos/core';
+import type { EngineLayer } from '@cronos/engine';
 import { create } from 'zustand';
 
 export type ColorBy = 'none' | 'time' | 'kg' | 'powderFactor';

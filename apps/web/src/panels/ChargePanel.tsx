@@ -1,4 +1,4 @@
-import { commands, type ChargeRule } from '@blastlab/core';
+import { commands, type ChargeRule } from '@cronos/core';
 import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';

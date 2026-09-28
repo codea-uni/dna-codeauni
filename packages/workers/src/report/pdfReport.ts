@@ -12,7 +12,7 @@ import {
   turboRgb,
   type BlastId,
   type Project,
-} from '@blastlab/core';
+} from '@cronos/core';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
 import { fitPlan, scaleBarLength } from './planLayout';
 import { fmtNumber, toWinAnsi } from './pdfText';
@@ -140,8 +140,8 @@ export async function buildReport(
   const doc = await PDFDocument.create();
   doc.setTitle(toWinAnsi(`Informe de voladura · ${blast.name}`));
   doc.setSubject(toWinAnsi(project.name));
-  doc.setCreator(`BlastLab ${options.appVersion}`);
-  doc.setProducer('BlastLab (pdf-lib)');
+  doc.setCreator(`Cronos ${options.appVersion}`);
+  doc.setProducer('Cronos (pdf-lib)');
   if (options.author) doc.setAuthor(toWinAnsi(options.author));
   doc.setCreationDate(new Date(options.date));
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -323,7 +323,7 @@ export async function buildReport(
       align: 'right',
     });
   }
-  s.text(`BlastLab ${options.appVersion} · ${date}`, M, M - 4, 7, { color: MUTED });
+  s.text(`Cronos ${options.appVersion} · ${date}`, M, M - 4, 7, { color: MUTED });
 
   // ---------------------------------------------------------------- Página 2: carguío, fragmentación, vibración
   s = newSheet();

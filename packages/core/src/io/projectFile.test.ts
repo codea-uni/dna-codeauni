@@ -72,6 +72,17 @@ describe('archivo de proyecto', () => {
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
     expect(parsed.file.schemaVersion).toBe(2);
+    expect(parsed.file.format).toBe('cronos-project');
+  });
+
+  it('abre archivos guardados como BlastLab (format "blastlab-project", D-09)', () => {
+    const project = sampleProject();
+    const legacy = { ...(JSON.parse(serializeProject(project, { appVersion: 'x' })) as object) };
+    const r = parseProjectFile(JSON.stringify({ ...legacy, format: 'blastlab-project' }));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.file.format).toBe('cronos-project');
+    expect(r.file.project.id).toBe(project.id);
+    expect(parseProjectFile(JSON.stringify({ ...legacy, format: 'otro' })).ok).toBe(false);
   });
 
   it('rechaza JSON inválido, proyectos mal formados y esquemas futuros', () => {

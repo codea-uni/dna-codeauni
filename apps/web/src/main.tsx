@@ -6,7 +6,7 @@ import './styles.css';
 
 if (import.meta.env.DEV) {
   // Gancho de depuración y medición (solo en desarrollo).
-  Object.assign(window, { __blastlab: { session, getEngine, getCompute } });
+  Object.assign(window, { __cronos: { session, getEngine, getCompute } });
 }
 
 const root = document.getElementById('root');

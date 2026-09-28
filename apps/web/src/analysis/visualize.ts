@@ -1,5 +1,5 @@
-import type { BlastAnalysis, HoleId } from '@blastlab/core';
-import type { Engine } from '@blastlab/engine';
+import type { BlastAnalysis, HoleId } from '@cronos/core';
+import type { Engine } from '@cronos/engine';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
 
 /** Valores por taladro según el modo de color. */

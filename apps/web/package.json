@@ -1,5 +1,5 @@
 {
-  "name": "@blastlab/web",
+  "name": "@cronos/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,9 +10,9 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@blastlab/core": "workspace:*",
-    "@blastlab/engine": "workspace:*",
-    "@blastlab/workers": "workspace:*",
+    "@cronos/core": "workspace:*",
+    "@cronos/engine": "workspace:*",
+    "@cronos/workers": "workspace:*",
     "echarts": "^6.1.0",
     "lucide-react": "^1.47.0",
     "react": "^19.3.0",

@@ -1,4 +1,4 @@
-import { commands } from '@blastlab/core';
+import { commands } from '@cronos/core';
 import type { Tool, ToolContext, ToolPointer } from './types';
 
 const PICK_PX = 10;

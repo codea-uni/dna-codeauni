@@ -5,7 +5,7 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from 'three';
-import type { Vec3 } from '@blastlab/core';
+import type { Vec3 } from '@cronos/core';
 import { turbo } from './colormap';
 
 export interface IsochroneData {

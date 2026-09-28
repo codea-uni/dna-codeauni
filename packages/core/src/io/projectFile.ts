@@ -11,7 +11,7 @@ export interface SerializeOptions {
 export function toProjectFile(project: Project, options: SerializeOptions): ProjectFile {
   const savedAt = (options.now ?? new Date()).toISOString();
   return {
-    format: 'blastlab-project',
+    format: 'cronos-project',
     schemaVersion: SCHEMA_VERSION,
     savedAt,
     appVersion: options.appVersion,
@@ -73,7 +73,10 @@ export function parseProjectFile(text: string): ParseResult {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) {
     return { ok: false, error: 'El archivo no contiene un proyecto.' };
   }
-  const migrated = migrate(data as Record<string, unknown>);
+  const raw = data as Json;
+  // Archivos guardados antes del cambio de nombre a Cronos (D-09).
+  const named = raw.format === 'blastlab-project' ? { ...raw, format: 'cronos-project' } : raw;
+  const migrated = migrate(named);
   const version = migrated.schemaVersion;
   if (typeof version === 'number' && version > SCHEMA_VERSION) {
     return {

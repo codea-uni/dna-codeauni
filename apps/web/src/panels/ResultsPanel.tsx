@@ -1,4 +1,4 @@
-import type { BlastAnalysis, DesignCheck } from '@blastlab/core';
+import type { BlastAnalysis, DesignCheck } from '@cronos/core';
 import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react';
 import * as actions from '../actions';
 import { ErrorBoundary } from '../components/ErrorBoundary';

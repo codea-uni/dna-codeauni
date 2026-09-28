@@ -5,7 +5,7 @@ import {
   type HoleTemplate,
   type SurfaceConnectorId,
   type Vec2,
-} from '@blastlab/core';
+} from '@cronos/core';
 import {
   DEFAULT_DECORATIONS,
   type DecorationSettings,
@@ -13,7 +13,7 @@ import {
   type SnapSettings,
   type ToolName,
   type ViewMode,
-} from '@blastlab/engine';
+} from '@cronos/engine';
 import { create } from 'zustand';
 import type { CsvPreview } from '../dialogs/CsvImportDialog';
 import type { DxfPreview } from '../dialogs/DxfImportDialog';
