@@ -52,7 +52,7 @@ packages/core/src/      dominio y cálculos; sin DOM (Node, workers y hilo princ
   diagnostics/          revisión del diseño (chequeos de cordura)
   analysis/             orquestación de los análisis de una voladura
   io/                   JSON (+ migraciones, zod), CSV, DXF
-  scenarios/            proyectos de ejemplo (se renombra a examples/ en G1)
+  examples/             proyectos de ejemplo (menú Ejemplos)
 packages/engine/src/    Three.js: Engine.ts, loop, cameras, input, layers, picking, tools, scene3d
 packages/workers/src/   compute.worker.ts, computeApi.ts, client.ts, report/ (PDF)
 apps/web/src/           React: viewport, panels, dialogs, charts, stores, analysis (runner)

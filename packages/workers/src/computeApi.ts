@@ -1,5 +1,5 @@
 import {
-  SCENARIOS,
+  EXAMPLES,
   analyzeBlast,
   exportDxf,
   importDxf,
@@ -142,10 +142,10 @@ export const computeApi = {
   },
 
   /** Proyecto de ejemplo completamente configurado. */
-  buildScenario(id: string): Project {
-    const scenario = SCENARIOS.find((s) => s.id === id);
-    if (!scenario) throw new Error(`Ejemplo desconocido: ${id}`);
-    return scenario.build();
+  buildExample(id: string): Project {
+    const example = EXAMPLES.find((s) => s.id === id);
+    if (!example) throw new Error(`Ejemplo desconocido: ${id}`);
+    return example.build();
   },
 
   /** Vista previa de un CSV: encabezados, primeras filas y mapeo sugerido. */

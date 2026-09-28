@@ -29,19 +29,19 @@ A estos se suman los de la arquitectura existente: fluidez (60 fps con 5.000 tal
 
 BlastLab construyó en orden sus fases 0–9. Todo se reutiliza (D-07), pero ninguna fórmula cuenta como verificada hasta reproducir su caso de referencia.
 
-| Fase BlastLab     | Qué hay                                                                                    | Hito de la guía          |
-| ----------------- | ------------------------------------------------------------------------------------------ | ------------------------ |
-| 0 Bootstrap       | Monorepo, engine, workers, DocumentStore con undo/redo                                     | G0                       |
-| 1 Editor de malla | Patrones cuadrado/rectangular/tresbolillo, recorte a polígono, selección, snapping         | G3                       |
-| 2 Carguío         | Librería, decks, kg/taladro, factores, cubicación Voronoi                                  | G4                       |
-| 3 Tiempos         | Dijkstra, electrónicos, plantilla en fila y en V, isócronas, animación, ventana 8 ms       | G5, G6                   |
-| 4 CSV             | Importación con mapeo de columnas, exportación                                             | G2                       |
-| 5 Energía         | Holmberg–Persson en planta, densidad de carga, contornos                                   | F2                       |
-| 6 Fragmentación   | Kuz-Ram, Swebrec, curva, P50/P80                                                           | F2                       |
-| 7 Vibración       | PPV por distancia escalada, sobrepresión, Lundborg, puntos de control                      | G6, F2                   |
-| 8 DXF y PDF       | DXF R12 de entrada y salida, informe PDF vectorial                                         | G2, G7                   |
-| 9 Vista 3D        | Banco, decks coloreados, topografía                                                        | G3 (vista 3D conmutable) |
-| Extras            | Revisión del diseño (`core/src/diagnostics`), ejemplos configurados (`core/src/scenarios`) | G3–G6                    |
+| Fase BlastLab     | Qué hay                                                                                   | Hito de la guía          |
+| ----------------- | ----------------------------------------------------------------------------------------- | ------------------------ |
+| 0 Bootstrap       | Monorepo, engine, workers, DocumentStore con undo/redo                                    | G0                       |
+| 1 Editor de malla | Patrones cuadrado/rectangular/tresbolillo, recorte a polígono, selección, snapping        | G3                       |
+| 2 Carguío         | Librería, decks, kg/taladro, factores, cubicación Voronoi                                 | G4                       |
+| 3 Tiempos         | Dijkstra, electrónicos, plantilla en fila y en V, isócronas, animación, ventana 8 ms      | G5, G6                   |
+| 4 CSV             | Importación con mapeo de columnas, exportación                                            | G2                       |
+| 5 Energía         | Holmberg–Persson en planta, densidad de carga, contornos                                  | F2                       |
+| 6 Fragmentación   | Kuz-Ram, Swebrec, curva, P50/P80                                                          | F2                       |
+| 7 Vibración       | PPV por distancia escalada, sobrepresión, Lundborg, puntos de control                     | G6, F2                   |
+| 8 DXF y PDF       | DXF R12 de entrada y salida, informe PDF vectorial                                        | G2, G7                   |
+| 9 Vista 3D        | Banco, decks coloreados, topografía                                                       | G3 (vista 3D conmutable) |
+| Extras            | Revisión del diseño (`core/src/diagnostics`), ejemplos configurados (`core/src/examples`) | G3–G6                    |
 
 **Brechas más importantes (encontradas al contrastar con `docs/theory/`):**
 
@@ -116,7 +116,7 @@ Se conservan los IDs de la guía (G, H, R, RM, CR). **Un hito a la vez; no se av
 - [ ] Pantalla de ajustes del proyecto: CRS, unidades de visualización (`displayUnits` ya está en el modelo) e idioma.
 - [ ] H-104: conmutador m/ft y mm/in que no altera los datos.
 - [ ] H-102: autoguardado en IndexedDB con las últimas N versiones recuperables. Hoy cerrar el navegador pierde el trabajo.
-- [ ] Renombrar `core/src/scenarios` a `examples`, para reservar "escenario" a las variantes de diseño (G7).
+- [x] Renombrar `core/src/scenarios` a `examples`, para reservar "escenario" a las variantes de diseño (G7).
 - **Salida:** ida y vuelta JSON sin pérdidas con el esquema v3; migración v2 → v3 testeada; sin unidades mezcladas.
 
 ### G2: importación (E2; R-01 a R-03)

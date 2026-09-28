@@ -83,7 +83,7 @@ function buildCharge(
   return { decks, initiators: [init] };
 }
 
-export interface ScenarioSpec {
+export interface ExampleSpec {
   projectName: string;
   blastName: string;
   /** Esquina de referencia en coordenadas de proyecto (UTM ficticio). */
@@ -115,7 +115,7 @@ export interface ScenarioSpec {
 }
 
 /** Construye un proyecto completo (malla, carga, iniciación y puntos de control) a partir de la receta. */
-export function buildScenario(spec: ScenarioSpec): Project {
+export function buildExample(spec: ExampleSpec): Project {
   const project = createEmptyProject(spec.projectName);
   const lib = project.library;
   const base = project.blasts[0];
@@ -241,7 +241,7 @@ export function buildScenario(spec: ScenarioSpec): Project {
   };
 }
 
-// ------------------------------------------------------------------ Escenarios de ejemplo
+// ------------------------------------------------------------------ Proyectos de ejemplo
 
 const ORIGIN = { x: 345_200, y: 8_512_400 };
 const ROCK = { name: 'Pórfido', density: 2650, ucsMPa: 120, eGPa: 45 };
@@ -261,7 +261,7 @@ function perimeter(w: number, h: number, chamfer: number): Vec2[] {
   ];
 }
 
-export interface ScenarioInfo {
+export interface ExampleInfo {
   id: string;
   name: string;
   description: string;
@@ -269,7 +269,7 @@ export interface ScenarioInfo {
 }
 
 /** Recetas de los ejemplos (exportadas para tests y variantes). */
-export const SCENARIO_SPECS = {
+export const EXAMPLE_SPECS = {
   production: {
     projectName: 'Demo · Producción estándar',
     blastName: 'Banco 3435 · Fase 2',
@@ -294,7 +294,7 @@ export const SCENARIO_SPECS = {
       { name: 'Línea eléctrica', dx: 480, dy: 40 },
     ],
     rock: ROCK,
-  } satisfies ScenarioSpec,
+  } satisfies ExampleSpec,
   wet: {
     projectName: 'Demo · Frente con agua',
     blastName: 'Banco 3420 · Rampa',
@@ -318,7 +318,7 @@ export const SCENARIO_SPECS = {
     timing: { mode: 'line', interHole: 'Nonel superficie 25', interRow: 'Nonel superficie 65' },
     monitoring: [{ name: 'Chancador', dx: -350, dy: 30 }],
     rock: ROCK,
-  } satisfies ScenarioSpec,
+  } satisfies ExampleSpec,
   electronic: {
     projectName: 'Demo · Cerca de infraestructura',
     blastName: 'Banco 3450 · Borde planta',
@@ -343,7 +343,7 @@ export const SCENARIO_SPECS = {
       { name: 'Taller', dx: -150, dy: 60 },
     ],
     rock: { ...ROCK, name: 'Andesita' },
-  } satisfies ScenarioSpec,
+  } satisfies ExampleSpec,
   inclined: {
     projectName: 'Demo · Taladros inclinados',
     blastName: 'Banco 3405 · Talud final',
@@ -372,36 +372,36 @@ export const SCENARIO_SPECS = {
     timing: { mode: 'v', interHole: 'Nonel superficie 25', interRow: 'Nonel superficie 65' },
     monitoring: [{ name: 'Mirador', dx: 45, dy: 300 }],
     rock: ROCK,
-  } satisfies ScenarioSpec,
+  } satisfies ExampleSpec,
 };
 
-export const SCENARIOS: ScenarioInfo[] = [
+export const EXAMPLES: ExampleInfo[] = [
   {
     id: 'production',
     name: 'Producción estándar',
     description:
       '≈250 taladros Ø 229 mm · ANFO pesado de fondo + ANFO · salida en V desde la cara libre',
-    build: () => buildScenario(SCENARIO_SPECS.production),
+    build: () => buildExample(EXAMPLE_SPECS.production),
   },
   {
     id: 'wet',
     name: 'Frente con agua',
     description:
       'Filas del fondo con agua cargadas con emulsión · resto con ANFO · amarre línea a línea',
-    build: () => buildScenario(SCENARIO_SPECS.wet),
+    build: () => buildExample(EXAMPLE_SPECS.wet),
   },
   {
     id: 'electronic',
     name: 'Cerca de infraestructura',
     description:
       'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m',
-    build: () => buildScenario(SCENARIO_SPECS.electronic),
+    build: () => buildExample(EXAMPLE_SPECS.electronic),
   },
   {
     id: 'inclined',
     name: 'Taladros inclinados',
     description: 'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
-    build: () => buildScenario(SCENARIO_SPECS.inclined),
+    build: () => buildExample(EXAMPLE_SPECS.inclined),
   },
   {
     id: 'problems',
@@ -412,9 +412,9 @@ export const SCENARIOS: ScenarioInfo[] = [
   },
 ];
 
-/** Escenario con errores frecuentes de terreno, para practicar la revisión (Resultados → Alertas). */
+/** Ejemplo con errores frecuentes de terreno, para practicar la revisión (Resultados → Alertas). */
 function buildProblems(): Project {
-  const project = buildScenario({
+  const project = buildExample({
     projectName: 'Demo · Problemas típicos',
     blastName: 'Banco 3435 · Revisión',
     origin: ORIGIN,

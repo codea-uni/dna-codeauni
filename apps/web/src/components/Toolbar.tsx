@@ -31,7 +31,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
-import { SCENARIOS } from '@cronos/core';
+import { EXAMPLES } from '@cronos/core';
 import { useRef } from 'react';
 import * as actions from '../actions';
 import { useHistory } from '../hooks/useDocument';
@@ -362,11 +362,11 @@ export function Toolbar() {
         <MenuButton
           icon={Presentation}
           label="Ejemplos (proyectos de muestra)"
-          items={SCENARIOS.map((sc) => ({
+          items={EXAMPLES.map((sc) => ({
             icon: Presentation,
             label: sc.name,
             hint: sc.description,
-            onSelect: () => void actions.loadScenario(sc.id, sc.name),
+            onSelect: () => void actions.loadExample(sc.id, sc.name),
           }))}
         />
         <IconButton

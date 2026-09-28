@@ -389,7 +389,7 @@ function resetView(): void {
   a.setLayer('connections', true);
 }
 
-const SCENARIO_VIEWS: Record<string, () => void> = {
+const EXAMPLE_VIEWS: Record<string, () => void> = {
   production: () => {
     useAnalysisStore.getState().set({ colorBy: 'time', labelBy: 'label' });
     useAnalysisStore.getState().setLayer('isochrones', true);
@@ -416,18 +416,18 @@ const SCENARIO_VIEWS: Record<string, () => void> = {
 };
 
 /** Abre un proyecto de ejemplo completamente configurado (se genera en el worker). */
-export async function loadScenario(id: string, name: string): Promise<void> {
+export async function loadExample(id: string, name: string): Promise<void> {
   if (
     document.canUndo &&
     !window.confirm(`¿Descartar el proyecto actual y abrir el ejemplo "${name}"?`)
   )
     return;
   await withBusy('Preparando ejemplo…', async () => {
-    const project = await getCompute().api.buildScenario(id);
+    const project = await getCompute().api.buildExample(id);
     document.load(project);
     useUiStore.getState().setActiveBoundary(project.blasts[0]?.boundaries[0]?.id ?? null);
     resetView();
-    SCENARIO_VIEWS[id]?.();
+    EXAMPLE_VIEWS[id]?.();
     const holes = project.blasts[0]?.holes.length ?? 0;
     notify(`Ejemplo "${name}": ${holes} taladros`);
   });

@@ -7,11 +7,11 @@ import { holeSegments3d } from '../geometry/solid';
 import { parseProjectFile, serializeProject } from '../io/projectFile';
 import type { Project } from '../model/types';
 import { computeVibration, DEFAULT_VIBRATION_OPTIONS } from '../vibration/vibration';
-import { SCENARIOS } from './scenarios';
+import { EXAMPLES } from './examples';
 
 function build(id: string): Project {
-  const s = SCENARIOS.find((x) => x.id === id);
-  if (!s) throw new Error(`sin escenario ${id}`);
+  const s = EXAMPLES.find((x) => x.id === id);
+  if (!s) throw new Error(`sin ejemplo ${id}`);
   return s.build();
 }
 
@@ -23,8 +23,8 @@ function analyze(p: Project) {
   return { blast, a };
 }
 
-describe('escenarios de ejemplo', () => {
-  it.each(SCENARIOS.map((s) => s.id))(
+describe('proyectos de ejemplo', () => {
+  it.each(EXAMPLES.map((s) => s.id))(
     '%s: se construye, se guarda/abre y se analiza completo',
     (id) => {
       const p = build(id);
