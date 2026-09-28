@@ -1,4 +1,11 @@
-import { commands, type ChargeRule } from '@cronos/core';
+import {
+  commands,
+  waterCompatible,
+  type ChargeRule,
+  type HoleGroupId,
+  type HoleId,
+  type Op,
+} from '@cronos/core';
 import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';
@@ -61,12 +68,16 @@ export function ChargePanel() {
     setForm((f) => ({ ...f, ...patch }));
   };
   const rock = project.rockMasses.find((r) => r.id === blast?.rockMassId);
+  const selectedHoles = blast?.holes.filter((h) => selection.has(h.id)) ?? [];
 
-  const apply = (all: boolean) => {
+  const [groupId, setGroupId] = useState<string>('');
+  const group = blast?.groups.find((g) => g.id === groupId);
+
+  /** Aplica la regla a los taladros; con `toGroup`, además la guarda en el grupo (H-303). */
+  const apply = (ids: HoleId[], toGroup?: HoleGroupId) => {
     if (!blast) return;
-    const ids = all ? blast.holes.map((h) => h.id) : [...selection];
     if (ids.length === 0) {
-      useUiStore.getState().notify('Selecciona taladros o usa "Aplicar a todos"', 'error');
+      useUiStore.getState().notify('No hay taladros a los que aplicar la regla', 'error');
       return;
     }
     const rule: ChargeRule = {
@@ -88,9 +99,30 @@ export function ChargePanel() {
     if (form.primerId) rule.primerId = form.primerId as NonNullable<ChargeRule['primerId']>;
     if (form.detonatorId)
       rule.detonatorId = form.detonatorId as NonNullable<ChargeRule['detonatorId']>;
+    const saveInGroup: Op[] = toGroup
+      ? [
+          {
+            type: 'blast/patch',
+            blastId: blast.id,
+            patch: {
+              groups: blast.groups.map((g) =>
+                g.id === toGroup
+                  ? {
+                      ...g,
+                      template: {
+                        ...(g.template ?? useUiStore.getState().holeTemplate),
+                        chargeRule: rule,
+                      },
+                    }
+                  : g,
+              ),
+            },
+          },
+        ]
+      : [];
     session.document.dispatch(
-      commands.applyChargeRule(session.document, ids, rule),
-      `Cargar ${ids.length} taladro(s)`,
+      [...saveInGroup, ...commands.applyChargeRule(session.document, ids, rule)],
+      `Cargar ${String(ids.length)} taladro(s)`,
     );
     useUiStore.getState().notify(`Regla de carga aplicada a ${ids.length} taladro(s)`);
   };
@@ -106,7 +138,12 @@ export function ChargePanel() {
         <Select
           label="Explosivo"
           value={form.explosiveId}
-          options={lib.explosives}
+          options={lib.explosives.map((e) => ({
+            id: e.id,
+            name: selectedHoles.some((h) => !waterCompatible(e, h.water))
+              ? `${e.name} ⚠ no apto para el agua de la selección`
+              : e.name,
+          }))}
           onChange={(v) => {
             update({ explosiveId: v as ChargeRule['explosiveId'] });
           }}
@@ -173,19 +210,69 @@ export function ChargePanel() {
             className="primary-inline"
             disabled={selection.size === 0}
             onClick={() => {
-              apply(false);
+              apply([...selection]);
             }}
           >
             Aplicar a selección ({selection.size})
           </button>
           <button
             onClick={() => {
-              apply(true);
+              apply(blast?.holes.map((h) => h.id) ?? []);
             }}
           >
             Aplicar a todos
           </button>
         </div>
+        {blast && blast.groups.length > 0 && (
+          <div className="row">
+            <select
+              value={groupId}
+              onChange={(e) => {
+                setGroupId(e.target.value);
+              }}
+            >
+              <option value="">Grupo…</option>
+              {blast.groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                  {g.template?.chargeRule ? ' (con regla)' : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              disabled={!group}
+              title="Aplica la regla a los taladros del grupo y la guarda en el grupo"
+              onClick={() => {
+                if (group)
+                  apply(
+                    blast.holes.filter((h) => h.groupId === group.id).map((h) => h.id),
+                    group.id,
+                  );
+              }}
+            >
+              Aplicar al grupo
+            </button>
+            <button
+              disabled={!group?.template?.chargeRule}
+              title="Carga en el formulario la regla guardada en el grupo"
+              onClick={() => {
+                const r = group?.template?.chargeRule;
+                if (!r) return;
+                update({
+                  stemmingLength: r.stemmingLength,
+                  stemmingMaterialId: r.stemmingMaterialId,
+                  explosiveId: r.explosiveId,
+                  airDeckLength: r.airDeckLength ?? 0,
+                  primerId: r.primerId ?? '',
+                  detonatorId: r.detonatorId ?? '',
+                  primerOffsetFromToe: r.primerOffsetFromToe,
+                });
+              }}
+            >
+              Usar su regla
+            </button>
+          </div>
+        )}
         <div className="row">
           <button
             disabled={selection.size === 0}

@@ -1,4 +1,6 @@
 import { commands, newId, type ProductLibrary } from '@cronos/core';
+import { useRef } from 'react';
+import * as actions from '../actions';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { useProject } from '../hooks/useDocument';
 import { session } from '../session';
@@ -31,13 +33,20 @@ function usage(key: Key, id: string): number {
 
 function useLibraryEditor() {
   const library = useProject().library;
+  /** `undefined` en el parche borra el campo opcional. */
   const update = <K extends Key>(
     key: K,
     id: string,
-    patch: Partial<Item<K>>,
+    patch: { [P in keyof Item<K>]?: Item<K>[P] | undefined },
     label = 'Editar producto',
   ) => {
-    const list = library[key].map((item) => (item.id === id ? { ...item, ...patch } : item));
+    const list = library[key].map((item) => {
+      if (item.id !== id) return item;
+      // Sin claves con undefined (exactOptionalPropertyTypes): se filtran al combinar.
+      return Object.fromEntries(
+        Object.entries({ ...item, ...patch }).filter((e: [string, unknown]) => e[1] !== undefined),
+      ) as unknown as Item<K>;
+    });
     session.document.dispatch(commands.setLibrary({ ...library, [key]: list }), label);
   };
   const add = <K extends Key>(key: K, item: Item<K>) => {
@@ -71,6 +80,7 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
 
 export function LibraryPanel() {
   const { library, update, add, remove } = useLibraryEditor();
+  const catalogInput = useRef<HTMLInputElement>(null);
   return (
     <>
       <section className="panel">
@@ -160,6 +170,98 @@ export function LibraryPanel() {
             ))}
           </tbody>
         </table>
+        <h3>Agua, iniciación y origen</h3>
+        <p className="hint">
+          Resistencia al agua para filtrar por el estado del taladro (P-09), diámetro crítico,
+          necesidad de cebo (RM-05) y la ficha técnica de origen con su versión (DF-22).
+        </p>
+        <table className="grid-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Agua</th>
+              <th title="Diámetro crítico [mm]">Ø crít.</th>
+              <th title="Necesita booster (agente de voladura)">Cebo</th>
+              <th>Fuente</th>
+              <th>Versión</th>
+            </tr>
+          </thead>
+          <tbody>
+            {library.explosives.map((e) => (
+              <tr key={e.id}>
+                <td className="muted">{e.name}</td>
+                <td>
+                  <select
+                    className="cell"
+                    value={e.waterResistance}
+                    onChange={(ev) => {
+                      update('explosives', e.id, {
+                        waterResistance: ev.target.value as typeof e.waterResistance,
+                      });
+                    }}
+                  >
+                    <option value="none">Nula</option>
+                    <option value="limited">Limitada</option>
+                    <option value="high">Alta</option>
+                  </select>
+                </td>
+                <td>
+                  <NumberCell
+                    value={(e.criticalDiameter ?? 0) * 1000}
+                    decimals={0}
+                    min={0}
+                    onCommit={(v) => {
+                      update('explosives', e.id, {
+                        criticalDiameter: v > 0 ? v / 1000 : undefined,
+                      });
+                    }}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={e.needsBooster === true}
+                    onChange={(ev) => {
+                      update('explosives', e.id, { needsBooster: ev.target.checked });
+                    }}
+                  />
+                </td>
+                <td>
+                  <TextCell
+                    value={e.source ?? ''}
+                    title={e.source ?? 'Sin fuente'}
+                    onCommit={(source) => {
+                      update('explosives', e.id, { source: source.trim() || undefined });
+                    }}
+                  />
+                </td>
+                <td>
+                  <TextCell
+                    value={e.version ?? ''}
+                    onCommit={(version) => {
+                      update('explosives', e.id, { version: version.trim() || undefined });
+                    }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="row">
+          <button onClick={() => void actions.exportCatalog()}>Exportar catálogo CSV</button>
+          <button onClick={() => catalogInput.current?.click()}>Importar catálogo CSV…</button>
+          <input
+            ref={catalogInput}
+            type="file"
+            accept=".csv,.txt,text/csv"
+            hidden
+            onChange={(ev) => {
+              const file = ev.target.files?.[0];
+              if (file) void actions.importCatalog(file);
+              ev.target.value = '';
+            }}
+          />
+        </div>
         <button
           onClick={() => {
             add('explosives', {

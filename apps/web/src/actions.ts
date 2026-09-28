@@ -440,6 +440,32 @@ export async function openBoundariesCsv(file: File): Promise<void> {
   });
 }
 
+/** Catálogo de explosivos a CSV (H-401). */
+export async function exportCatalog(): Promise<void> {
+  await withBusy('Exportando catálogo…', async () => {
+    const text = await getCompute().api.catalogExport(document.project.library.explosives);
+    download(text, `${baseName()}-explosivos.csv`, 'text/csv');
+  });
+}
+
+/** Agrega los explosivos de un CSV de catálogo a la librería (un paso de deshacer). */
+export async function importCatalog(file: File): Promise<void> {
+  await withBusy('Leyendo catálogo…', async () => {
+    const r = await getCompute().api.catalogImport(new Uint8Array(await file.arrayBuffer()));
+    const lib = document.project.library;
+    if (r.explosives.length > 0)
+      document.dispatch(
+        commands.setLibrary({ ...lib, explosives: [...lib.explosives, ...r.explosives] }),
+        `Importar catálogo (${String(r.explosives.length)} explosivos)`,
+      );
+    const errs = r.errors.map((e) => `línea ${String(e.line)}: ${e.message}`).join(' · ');
+    notify(
+      `${String(r.explosives.length)} explosivos importados${errs ? ` · ${errs}` : ''}`,
+      r.errors.length > 0 || r.explosives.length === 0 ? 'error' : 'info',
+    );
+  });
+}
+
 export async function exportGeoJson(): Promise<void> {
   const blast = document.project.blasts[0];
   if (!blast) return;

@@ -12,6 +12,9 @@ import {
   exportHolesCsv,
   guessHoleMapping,
   importHolesFromCsv,
+  exportExplosivesCsv,
+  importExplosivesCsv,
+  type Explosive,
   importGeoJson,
   exportGeoJson,
   importBoundariesFromCsv,
@@ -185,6 +188,16 @@ export const computeApi = {
   /** Perímetros desde CSV (ID opcional, Este, Norte). */
   boundariesCsvImport(bytes: Uint8Array): ReturnType<typeof importBoundariesFromCsv> {
     return importBoundariesFromCsv(parseCsv(decodeText(bytes).text));
+  },
+
+  /** Catálogo de explosivos a CSV (H-401). */
+  catalogExport(explosives: Explosive[]): string {
+    return exportExplosivesCsv(explosives);
+  },
+
+  /** Explosivos desde un CSV de catálogo (columnas de `exportExplosivesCsv`). */
+  catalogImport(bytes: Uint8Array): ReturnType<typeof importExplosivesCsv> {
+    return importExplosivesCsv(parseCsv(decodeText(bytes).text, undefined, true));
   },
 
   /** Proyecto de ejemplo completamente configurado. */

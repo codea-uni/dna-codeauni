@@ -62,6 +62,7 @@ export * from './io/projectFile';
 export * from './io/csv';
 export * from './io/dxf';
 export * from './io/geojson';
+export * from './io/catalogCsv';
 export * from './design/burden';
 export * from './charging/sdob';
 export * from './charging/pressures';

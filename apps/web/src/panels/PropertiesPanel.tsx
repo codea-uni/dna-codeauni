@@ -1,4 +1,12 @@
-import { commands, degToRad, holeToe, radToDeg, type Hole, type HoleEdit } from '@cronos/core';
+import {
+  commands,
+  degToRad,
+  holeToe,
+  radToDeg,
+  type Hole,
+  type HoleEdit,
+  type HoleWater,
+} from '@cronos/core';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useProject, useSelectionIds } from '../hooks/useDocument';
@@ -193,6 +201,44 @@ export function PropertiesPanel() {
         <p className="hint">
           Cambiar cota, inclinación o sobreperforación recalcula la longitud hasta piso +
           sobreperforación.
+        </p>
+        <label className="field">
+          <span className="field-label">Agua en el taladro</span>
+          <select
+            value={
+              new Set(holes.map((h) => h.water ?? 'unknown')).size === 1
+                ? (holes[0]?.water ?? 'unknown')
+                : 'mixed'
+            }
+            onChange={(e) => {
+              const value = e.target.value as HoleWater | 'unknown';
+              const blast = session.document.project.blasts[0];
+              if (!blast) return;
+              const next = holes.map((h) => {
+                const copy = { ...h };
+                if (value === 'unknown') delete copy.water;
+                else copy.water = value;
+                return copy;
+              });
+              session.document.dispatch(
+                { type: 'holes/replace', blastId: blast.id, holes: next },
+                holes.length === 1
+                  ? 'Estado de agua'
+                  : `Estado de agua (${String(holes.length)} taladros)`,
+              );
+            }}
+          >
+            <option value="mixed" disabled>
+              (varios)
+            </option>
+            <option value="unknown">Sin dato</option>
+            <option value="dry">Seco</option>
+            <option value="static">Agua estática</option>
+            <option value="dynamic">Agua dinámica</option>
+          </select>
+        </label>
+        <p className="hint">
+          P-09: con agua estática no ANFO; con agua dinámica solo emulsión. Se avisa en la revisión.
         </p>
         {toe && (
           <p className="muted mono">
