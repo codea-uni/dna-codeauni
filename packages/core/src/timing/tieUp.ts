@@ -46,6 +46,13 @@ export interface RowTieUpOptions {
   startCol: number;
   interHoleConnectorId: SurfaceConnectorId;
   interRowConnectorId: SurfaceConnectorId;
+  /**
+   * `rows` (defecto): cada fila se encadena desde su pivote y los pivotes se unen entre filas.
+   * `echelon` (en escalón, H-504): solo la fila de inicio se encadena; cada taladro de las demás
+   * filas se inicia desde el de su misma columna en la fila anterior, así las isócronas quedan en
+   * diagonal y cada fila sale hacia el alivio que dejó la anterior.
+   */
+  mode?: 'rows' | 'echelon';
 }
 
 /**
@@ -68,11 +75,13 @@ export function rowTieUp(
     });
   };
   const pivots = new Map<number, Hole>();
+  const echelon = o.mode === 'echelon';
   for (const [row, list] of rows) {
     const p = pivotOf(list, o.startCol);
     const pivot = list[p];
     if (!pivot) continue;
     pivots.set(row, pivot);
+    if (echelon && row !== o.startRow) continue;
     for (let i = p; i < list.length - 1; i++)
       link((list[i] as Hole).id, (list[i + 1] as Hole).id, o.interHoleConnectorId);
     for (let i = p; i > 0; i--)
@@ -83,6 +92,27 @@ export function rowTieUp(
     0,
     rowNumbers.findIndex((r) => r >= o.startRow),
   );
+  if (echelon) {
+    // Cada taladro desde el de su columna en la fila anterior (hacia ambos lados de la de inicio).
+    const byCol = (row: number) => new Map((rows.get(row) ?? []).map((h) => [h.col ?? 0, h]));
+    const chain = (from: number, to: number) => {
+      const a = byCol(from);
+      for (const [col, h] of byCol(to)) {
+        const prev = a.get(col);
+        if (prev) link(prev.id, h.id, o.interRowConnectorId);
+      }
+    };
+    for (let k = startIdx; k < rowNumbers.length - 1; k++)
+      chain(rowNumbers[k] ?? 0, rowNumbers[k + 1] ?? 0);
+    for (let k = startIdx; k > 0; k--) chain(rowNumbers[k] ?? 0, rowNumbers[k - 1] ?? 0);
+    const start = pivots.get(rowNumbers[startIdx] ?? 0);
+    return {
+      connections,
+      initiationPoints: start
+        ? [{ id: newId<'InitiationPoint'>(), at: { kind: 'hole', holeId: start.id }, time: 0 }]
+        : [],
+    };
+  }
   for (let k = startIdx; k < rowNumbers.length - 1; k++) {
     link(
       (pivots.get(rowNumbers[k] ?? 0) as Hole).id,

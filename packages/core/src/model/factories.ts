@@ -41,6 +41,10 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
   detonationGamma: 3,
   reliefRate: 0.003,
   subdrillConvention: 'vertical',
+  delayGuide: {
+    interHole: { min: 0.003, max: 0.008 },
+    interRow: { min: 0.006, max: 0.012 },
+  },
   checks: {
     minStemmingRatio: 0.7,
     duplicateDistance: 0.5,
@@ -54,6 +58,8 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
     minStemmingDiameters: 20,
     sdob: { severe: 0.4, safe: 1.2 },
     rockFactorRange: { min: 0.8, max: 22 },
+    maxEffectiveBurdenRatio: 2,
+    minEffectiveBurdenRatio: 0.5,
   },
 };
 

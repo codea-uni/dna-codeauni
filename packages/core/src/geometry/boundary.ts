@@ -56,15 +56,20 @@ export function boundaryAt(
 }
 
 /**
- * Orientación de filas paralela a la (primera) cara libre, avanzando hacia el interior:
- * la primera fila queda junto al talud y las siguientes se alejan de él.
+ * Orientación de filas paralela a la cara libre principal (la arista de cara libre más larga; un
+ * chaflán marcado no orienta la malla), avanzando hacia el interior: la primera fila queda junto
+ * al talud y las siguientes se alejan de él.
  */
 export function freeFaceAlignment(
   boundary: BlastBoundary,
 ): Pick<Pattern, 'rowAzimuth' | 'rowAdvance'> | null {
-  const i = boundary.freeFaceEdges[0];
-  if (i === undefined) return null;
-  const e = polygonEdge(boundary.polygon, i);
+  let e: [Vec2, Vec2] | null = null;
+  for (const i of boundary.freeFaceEdges) {
+    const edge = polygonEdge(boundary.polygon, i);
+    const length = (s: [Vec2, Vec2] | null) =>
+      s ? Math.hypot(s[1].x - s[0].x, s[1].y - s[0].y) : -1;
+    if (length(edge) > length(e)) e = edge;
+  }
   if (!e) return null;
   const [a, b] = e;
   if (a.x === b.x && a.y === b.y) return null;

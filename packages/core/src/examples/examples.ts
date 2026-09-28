@@ -277,7 +277,9 @@ export const EXAMPLE_SPECS = {
     floorElevation: 3435,
     benchHeight: 15,
     faceAngleDeg: 75,
-    perimeter: perimeter(150, 72, 18),
+    // Chaflán de 12 m: con 18 m el recorte dejaba un taladro de esquina sin vecino delante y sin
+    // alivio al detonar (burden efectivo > 2·B, revisión de G5).
+    perimeter: perimeter(150, 72, 12),
     freeFaceEdges: [NORTH],
     pattern: { kind: 'staggered', burden: 6, spacing: 7, diameterMm: 229, subdrill: 1.5 },
     frontOffset: 3,

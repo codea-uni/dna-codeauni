@@ -177,6 +177,7 @@ const blast: z.ZodType<M.Blast> = z.object({
     detonationGamma: pos,
     reliefRate: nonNeg,
     subdrillConvention: z.enum(['vertical', 'lopezJimeno']),
+    delayGuide: z.object({ interHole: range, interRow: range }),
     checks: z.object({
       minStemmingRatio: nonNeg,
       duplicateDistance: nonNeg,
@@ -189,6 +190,8 @@ const blast: z.ZodType<M.Blast> = z.object({
       minStemmingDiameters: nonNeg,
       sdob: z.object({ severe: nonNeg, safe: nonNeg }),
       rockFactorRange: range,
+      maxEffectiveBurdenRatio: pos,
+      minEffectiveBurdenRatio: nonNeg,
     }),
   }),
   notes: z.string().exactOptional(),
@@ -352,7 +355,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
   format: z.literal('cronos-project'),
-  schemaVersion: z.literal(4),
+  schemaVersion: z.literal(5),
   savedAt: z.string(),
   appVersion: z.string(),
   project: projectSchema,

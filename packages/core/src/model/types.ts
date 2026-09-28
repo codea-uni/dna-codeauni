@@ -160,6 +160,11 @@ export interface CalcParams {
    * volumen B·S·H/cos α (criterio empírico con el que se construyó CR-03).
    */
   subdrillConvention: SubdrillConvention;
+  /**
+   * Guía de retardos por metro [s/m] (H-505, `02 §3`, P-11): entre taladros de una fila por metro de
+   * espaciamiento (3–8 ms/m) y entre filas por metro de burden (6–12 ms/m). Solo avisa.
+   */
+  delayGuide: { interHole: { min: number; max: number }; interRow: { min: number; max: number } };
   /** Umbrales de la revisión del diseño. */
   checks: {
     /** Taco mínimo como fracción del burden (DF-09: 0,7). */
@@ -184,6 +189,10 @@ export interface CalcParams {
     sdob: { severe: number; safe: number };
     /** Factor de roca A de Kuz-Ram fuera de este rango: aviso (P-08: 0,8–22). */
     rockFactorRange: { min: Ratio; max: Ratio };
+    /** Burden efectivo ≥ este múltiplo del nominal: cara libre no despejada (FC-22, CR-05: 2). */
+    maxEffectiveBurdenRatio: Ratio;
+    /** Burden efectivo < este múltiplo del nominal: alivio muy cercano (informativo, 0,5). */
+    minEffectiveBurdenRatio: Ratio;
   };
 }
 

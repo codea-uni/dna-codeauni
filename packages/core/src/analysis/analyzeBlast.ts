@@ -3,7 +3,9 @@ import { chargeChecks } from '../diagnostics/chargeChecks';
 import { checkOptionsOf, designChecks, type DesignCheck } from '../diagnostics/designChecks';
 import type { BlastId, Project } from '../model/types';
 import { computeIsochrones, niceInterval, type Isochrones } from '../timing/isochrones';
+import { effectiveBurden, type EffectiveBurden } from '../timing/effectiveBurden';
 import { computeTiming, type TimingResult } from '../timing/timing';
+import { timingChecks } from '../timing/timingChecks';
 
 /** Opciones de presentación del análisis; los parámetros de cálculo están en `blast.calcParams`. */
 export interface AnalysisOptions {
@@ -18,6 +20,8 @@ export interface BlastAnalysis {
   charge: ChargeResult;
   timing: TimingResult;
   isochrones: Isochrones;
+  /** Burden efectivo según la secuencia (G5). */
+  effectiveBurden: EffectiveBurden;
   /** Revisión del diseño (reglas prácticas). */
   checks: DesignCheck[];
   /** Duración del cálculo [ms]. */
@@ -50,14 +54,18 @@ export function analyzeBlast(
     timing.fireTime,
     interval,
   );
+  const eb = effectiveBurden(blast, timing.fireTime, blast.calcParams.reliefRate);
+  const checkOptions = checkOptionsOf(blast);
   return {
     blastId,
     charge,
     timing,
     isochrones,
+    effectiveBurden: eb,
     checks: [
       ...designChecks(blast, timing),
-      ...chargeChecks(blast, project.library, checkOptionsOf(blast)),
+      ...chargeChecks(blast, project.library, checkOptions),
+      ...timingChecks(blast, timing.fireTime, eb, checkOptions, blast.calcParams.delayGuide),
     ],
     elapsedMs: performance.now() - t0,
   };

@@ -71,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(4);
+    expect(parsed.file.schemaVersion).toBe(5);
     expect(parsed.file.format).toBe('cronos-project');
   });
 

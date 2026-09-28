@@ -21,6 +21,9 @@ import { computeEnergyGrid, DEFAULT_ENERGY_OPTIONS } from './energy/energy';
 import { computeTiming } from './timing/timing';
 import { computeVibration, DEFAULT_VIBRATION_OPTIONS } from './vibration/vibration';
 import { rowTieUp, withDownholeDetonator } from './timing/tieUp';
+import { effectiveBurden } from './timing/effectiveBurden';
+import { timingChecks } from './timing/timingChecks';
+import { checkOptionsOf } from './diagnostics/designChecks';
 
 function best(runs: number, fn: () => void): number {
   let min = Infinity;
@@ -89,6 +92,33 @@ describe('rendimiento con 5.000 taladros', () => {
     const kg = new Float64Array(5000).fill(300);
     const ms = best(10, () => computeTiming(blast, lib, undefined, kg));
     expect(ms).toBeLessThan(20);
+
+    // Burden efectivo y revisión de tiempos (G5), O(n²) en el worker: presupuesto de 300 ms, el
+    // mismo que la energía (criterio de docs/PLAN.md: actualizar en < 300 ms tras una edición).
+    const withFace = {
+      ...blast,
+      freeFaces: [
+        {
+          id: newId<'FreeFace'>(),
+          crest: [
+            { x: 349_990, y: 8_500_000 + 3, z: 15 },
+            { x: 351_000, y: 8_500_000 + 3, z: 15 },
+          ],
+        },
+      ],
+    };
+    const timing = computeTiming(withFace, lib, undefined, kg);
+    const g5 = best(3, () => {
+      const eb = effectiveBurden(withFace, timing.fireTime, withFace.calcParams.reliefRate);
+      timingChecks(
+        withFace,
+        timing.fireTime,
+        eb,
+        checkOptionsOf(withFace),
+        withFace.calcParams.delayGuide,
+      );
+    });
+    expect(g5).toBeLessThan(300);
   });
 
   it('energía (Holmberg–Persson) en < 300 ms', () => {
