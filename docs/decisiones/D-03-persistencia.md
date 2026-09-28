@@ -13,4 +13,4 @@
 
 - Funciona sin conexión.
 - No hay colaboración multiusuario hasta que haya backend.
-- Hoy (antes de G1) no hay autoguardado: cerrar el navegador pierde lo que no se descargó.
+- Autoguardado hecho en G1 (`apps/web/src/persistence/`): metadatos y JSON en dos stores de IndexedDB, una versión por minuto como máximo, 20 por proyecto; se recupera la última al abrir.
