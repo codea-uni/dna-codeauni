@@ -39,6 +39,7 @@ export type FreeFaceId = Id<'FreeFace'>;
 export type InHoleInitiatorId = Id<'InHoleInitiator'>;
 export type BoundaryId = Id<'Boundary'>;
 export type MonitoringPointId = Id<'MonitoringPoint'>;
+export type HoleGroupId = Id<'HoleGroup'>;
 
 /** Punto en coordenadas de proyecto [m], float64. */
 export interface Vec3 {
@@ -79,6 +80,8 @@ export interface Project {
   blasts: Blast[];
   /** Puntos de control (monitoreo de vibración y sobrepresión). */
   monitoringPoints?: MonitoringPoint[];
+  /** Límites de PPV por distancia (RM-21: tabla configurable con fuente, no constantes). */
+  ppvLimits?: PpvLimit[];
   /** Preferencias de visualización; nunca afectan cálculos. */
   displayUnits: DisplayUnits;
 }
@@ -88,6 +91,23 @@ export interface MonitoringPoint {
   name: string;
   /** Ubicación del receptor [m]. */
   position: Vec3;
+  /** PPV admisible en este punto [m/s]; si falta, se toma de `Project.ppvLimits` por distancia. */
+  ppvLimit?: MetersPerSecond;
+  /** K y β propios del punto (sobrescriben la ley del sitio; K con PPV en m/s). */
+  k?: number;
+  beta?: number;
+}
+
+/** Fila de la tabla de límites de vibración (`docs/theory/03 §2`). */
+export interface PpvLimit {
+  /** Distancia desde [m] (incluida). */
+  from: Meters;
+  /** Distancia hasta [m] (excluida); sin valor = sin límite superior. */
+  to?: Meters;
+  /** PPV máximo admisible [m/s]. */
+  ppvMax: MetersPerSecond;
+  /** Norma o criterio de donde sale el valor (obligatorio). */
+  source: string;
 }
 
 export interface CoordinateSystem {
@@ -109,10 +129,49 @@ export interface Blast {
   /** Perímetros de la voladura en planta (cubicación, generación de mallas y caras libres). */
   boundaries: BlastBoundary[];
   freeFaces: FreeFace[];
+  /** Grupos de taladros (precorte, buffer, producción…), RM-18. */
+  groups: HoleGroup[];
   patterns: Pattern[];
   holes: Hole[];
   initiation: InitiationPlan;
+  /** Parámetros de cálculo de esta voladura. */
+  calcParams: CalcParams;
   notes?: string;
+}
+
+/**
+ * Parámetros de cálculo guardados con la voladura (`docs/theory/03 §2`, «parametros_calculo»).
+ * Las reglas por debajo de R3 son parámetros, no constantes (`docs/reglas.md`).
+ */
+export interface CalcParams {
+  /** Ventana de la carga máxima por retardo [s], semiabierta [t, t + w) (DF-12: 8 ms). */
+  micWindow: Seconds;
+  /** γ de la presión de detonación PD = ρ·VOD²/(γ + 1) (DF-02: 3). */
+  detonationGamma: Ratio;
+  /** Tiempo mínimo de alivio Δ del burden efectivo [s] (DF-21: 0). */
+  reliefTime: Seconds;
+  /** Umbrales de la revisión del diseño. */
+  checks: {
+    /** Taco mínimo como fracción del burden (DF-09: 0,7). */
+    minStemmingRatio: Ratio;
+    /** Bocas a menos de esta distancia se consideran duplicadas [m] (⚙). */
+    duplicateDistance: Meters;
+    /** Radio de vecindad como múltiplo del mayor entre B y S (⚙). */
+    neighborFactor: Ratio;
+  };
+}
+
+export type HoleGroupKind = 'presplit' | 'buffer' | 'production' | 'other';
+
+/** Grupo de taladros con su configuración por defecto (`docs/theory/03 §2`). */
+export interface HoleGroup {
+  id: HoleGroupId;
+  name: string;
+  kind: HoleGroupKind;
+  /** Color de presentación (#rrggbb). */
+  color: string;
+  /** Diámetro, sobreperforación, inclinación y regla de carga por defecto. */
+  template?: HoleTemplate;
 }
 
 /**
@@ -208,6 +267,8 @@ export interface ChargeRule {
 }
 
 // ===================== Taladro =====================
+export type HoleWater = 'dry' | 'static' | 'dynamic';
+
 export type HoleStatus = 'designed' | 'drilled' | 'loaded' | 'fired' | 'abandoned';
 
 export interface Hole {
@@ -217,6 +278,9 @@ export interface Hole {
   patternId?: PatternId;
   row?: number;
   col?: number;
+  groupId?: HoleGroupId;
+  /** Estado de agua (RM-02, P-09): filtra productos por resistencia al agua. */
+  water?: HoleWater;
   /** Boca del taladro [m]. */
   collar: Vec3;
   diameter: Meters;
@@ -287,17 +351,29 @@ export interface ProductLibrary {
   stemmingMaterials: StemmingMaterial[];
 }
 
+/** Origen de los datos de un producto (DF-22: ficha técnica con URL y versión). */
+export interface Sourced {
+  /** URL o cita de la ficha técnica. */
+  source?: string;
+  /** Versión o fecha de la ficha. */
+  version?: string;
+}
+
+export type WaterResistance = 'none' | 'limited' | 'high';
+
 export type ExplosiveFamily =
   'anfo' | 'heavy-anfo' | 'emulsion' | 'watergel' | 'dynamite' | 'other';
 
-export interface Explosive {
+export interface Explosive extends Sourced {
   id: ExplosiveId;
   name: string;
   manufacturer?: string;
   family: ExplosiveFamily;
   form: 'bulk' | 'packaged';
-  /** Densidad nominal [kg/m³]. */
+  /** Densidad de diseño [kg/m³]. */
   density: KgPerM3;
+  /** Rango de densidad de la ficha [kg/m³]. */
+  densityRange?: { min: KgPerM3; max: KgPerM3 };
   /** Velocidad de detonación (confinada, nominal) [m/s]. */
   vod: MetersPerSecond;
   /** Energía absoluta por masa (AWS) [J/kg]. */
@@ -306,16 +382,20 @@ export interface Explosive {
   rws: Ratio;
   /** Volumen de gases [m³/kg] (opcional). */
   gasVolume?: number;
-  waterResistant: boolean;
-  /** Diámetro crítico/mínimo recomendado [m]. */
-  minDiameter?: Meters;
+  waterResistance: WaterResistance;
+  /** Diámetro crítico [m]: por debajo no detona de forma estable. */
+  criticalDiameter?: Meters;
+  /** Emulsión gasificada: densidad antes y después de gasificar [kg/m³]. */
+  gassing?: { initialDensity: KgPerM3; finalDensity: KgPerM3 };
+  /** Agente de voladura que necesita booster para iniciarse (RM-05). */
+  needsBooster?: boolean;
   cartridge?: { diameter: Meters; length: Meters; mass: Kilograms };
   costPerKg?: Money;
 }
 
 export type DetonatorType = 'electronic' | 'nonel' | 'electric';
 
-export interface Detonator {
+export interface Detonator extends Sourced {
   id: DetonatorId;
   name: string;
   manufacturer?: string;
@@ -329,7 +409,7 @@ export interface Detonator {
   costPerUnit?: Money;
 }
 
-export interface SurfaceConnector {
+export interface SurfaceConnector extends Sourced {
   id: SurfaceConnectorId;
   name: string;
   type: 'nonel-surface' | 'detonating-cord' | 'electronic-lead';
@@ -338,7 +418,7 @@ export interface SurfaceConnector {
   costPerUnit?: Money;
 }
 
-export interface Primer {
+export interface Primer extends Sourced {
   id: PrimerId;
   name: string;
   mass: Kilograms;
@@ -347,9 +427,14 @@ export interface Primer {
   costPerUnit?: Money;
 }
 
-export interface StemmingMaterial {
+export interface StemmingMaterial extends Sourced {
   id: StemmingMaterialId;
   name: string;
+  kind?: 'crushed-rock' | 'sand' | 'drill-cuttings' | 'plug' | 'other';
+  /** RM-04: el material angular traba mejor. */
+  angularity?: 'angular' | 'rounded';
+  /** Granulometría recomendada [m] (RM-04: 6–14 mm en Ø 50–130 mm, como sugerencia). */
+  grading?: { min: Meters; max: Meters };
   density: KgPerM3;
   costPerM3?: Money;
 }
@@ -364,6 +449,12 @@ export interface RockMass {
   ucs: Pascals;
   /** Módulo de Young [Pa]. */
   youngModulus: Pascals;
+  /** Resistencia a la tracción RT [Pa] (precorte). */
+  tensileStrength?: Pascals;
+  /** Velocidad de onda P [m/s]. */
+  vp?: MetersPerSecond;
+  /** RQD como fracción [0–1]. */
+  rqd?: Ratio;
   /** Índice de volabilidad de Lilly/Cunningham (opcional, alternativa a rockFactor). */
   blastability?: { rmd: number; jps: number; jpa: number; rdi: number; hf: number };
   /** Factor de roca A de Kuz-Ram (si se fija, prevalece sobre blastability). */

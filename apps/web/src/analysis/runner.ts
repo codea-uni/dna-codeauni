@@ -24,11 +24,10 @@ export function startAnalysisRunner(): () => void {
     const blast = document.project.blasts[0];
     if (!blast) return;
     requested = version;
-    const { coincidenceWindowMs, isochroneIntervalMs } = useAnalysisStore.getState();
+    const { isochroneIntervalMs } = useAnalysisStore.getState();
     useAnalysisStore.getState().set({ computing: true });
     try {
       const analysis = await getCompute().api.analyzeBlast(document.project, blast.id, {
-        coincidenceWindow: coincidenceWindowMs / 1000,
         isochroneInterval: isochroneIntervalMs / 1000,
       });
       if (requested !== version) return; // llegó otra versión mientras calculaba
@@ -46,11 +45,7 @@ export function startAnalysisRunner(): () => void {
 
   const offDoc = session.document.subscribe(schedule);
   const offOptions = useAnalysisStore.subscribe((s, prev) => {
-    if (
-      s.coincidenceWindowMs !== prev.coincidenceWindowMs ||
-      s.isochroneIntervalMs !== prev.isochroneIntervalMs
-    )
-      schedule();
+    if (s.isochroneIntervalMs !== prev.isochroneIntervalMs) schedule();
   });
   schedule();
   return () => {
@@ -209,7 +204,6 @@ export function startVibrationRunner(): () => void {
           ...DEFAULT_VIBRATION_OPTIONS,
           metric: s.vibMetric,
           ...(s.vibLawId ? { lawId: s.vibLawId } : {}),
-          coincidenceWindow: s.coincidenceWindowMs / 1000,
           extent: s.vibExtent,
           levels,
         },
@@ -228,14 +222,7 @@ export function startVibrationRunner(): () => void {
   const offDoc = session.document.subscribe(() => {
     if (useAnalysisStore.getState().vibEnabled) schedule();
   });
-  const keys = [
-    'vibEnabled',
-    'vibMetric',
-    'vibLawId',
-    'vibExtent',
-    'vibLevels',
-    'coincidenceWindowMs',
-  ] as const;
+  const keys = ['vibEnabled', 'vibMetric', 'vibLawId', 'vibExtent', 'vibLevels'] as const;
   const offOptions = useAnalysisStore.subscribe((s, prev) => {
     if (!keys.some((k) => s[k] !== prev[k])) return;
     if (!s.vibEnabled) useAnalysisStore.getState().set({ vibration: null });

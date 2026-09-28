@@ -3,6 +3,7 @@ import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react';
 import * as actions from '../actions';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { lazy, Suspense, useMemo } from 'react';
+import { useActiveBlast } from '../hooks/useDocument';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 
@@ -43,7 +44,7 @@ function histogram(a: BlastAnalysis, binMs: number) {
 export function ResultsPanel() {
   const analysis = useAnalysisStore((s) => s.analysis);
   const computing = useAnalysisStore((s) => s.computing);
-  const windowMs = useAnalysisStore((s) => s.coincidenceWindowMs);
+  const windowMs = (useActiveBlast()?.calcParams.micWindow ?? 0.008) * 1000;
   const hist = useMemo(
     () => (analysis && analysis.timing.initiated > 0 ? histogram(analysis, windowMs) : null),
     [analysis, windowMs],

@@ -18,7 +18,6 @@ interface AnalysisState {
   /** Versión del documento a la que corresponde `analysis`. */
   version: number;
   computing: boolean;
-  coincidenceWindowMs: number;
   /** 0 = automático. */
   isochroneIntervalMs: number;
   colorBy: ColorBy;
@@ -68,7 +67,6 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   analysis: null,
   version: -1,
   computing: false,
-  coincidenceWindowMs: 8,
   isochroneIntervalMs: 0,
   colorBy: 'none',
   labelBy: 'label',

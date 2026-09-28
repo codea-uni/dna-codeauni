@@ -171,7 +171,7 @@ export function LibraryPanel() {
               vod: 4500,
               energy: 3.2e6,
               rws: 0.85,
-              waterResistant: false,
+              waterResistance: 'none',
             });
           }}
         >

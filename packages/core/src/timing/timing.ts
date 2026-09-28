@@ -1,12 +1,15 @@
 import type { Blast, HoleId, NodeRef, PatternId, ProductLibrary, Seconds } from '../model/types';
 import { MinHeap } from './heap';
+import { DEFAULT_CALC_PARAMS } from '../model/factories';
 
 export interface TimingOptions {
   /** Ventana de coincidencia [s] (práctica habitual: 8 ms). */
   coincidenceWindow: Seconds;
 }
 
-export const DEFAULT_TIMING_OPTIONS: TimingOptions = { coincidenceWindow: 0.008 };
+export const DEFAULT_TIMING_OPTIONS: TimingOptions = {
+  coincidenceWindow: DEFAULT_CALC_PARAMS.micWindow,
+};
 
 export interface InterRowDelay {
   patternId: PatternId | null;

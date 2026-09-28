@@ -19,7 +19,7 @@ export function createDefaultLibrary(): ProductLibrary {
         vod: 3800,
         energy: 3.7e6,
         rws: 1,
-        waterResistant: false,
+        waterResistance: 'none',
         costPerKg: 0.9,
       },
       {
@@ -31,7 +31,7 @@ export function createDefaultLibrary(): ProductLibrary {
         vod: 4500,
         energy: 3.55e6,
         rws: 0.96,
-        waterResistant: false,
+        waterResistance: 'none',
         costPerKg: 1.05,
       },
       {
@@ -43,7 +43,7 @@ export function createDefaultLibrary(): ProductLibrary {
         vod: 5500,
         energy: 2.9e6,
         rws: 0.78,
-        waterResistant: true,
+        waterResistance: 'high',
         costPerKg: 1.2,
       },
       {
@@ -55,7 +55,7 @@ export function createDefaultLibrary(): ProductLibrary {
         vod: 5000,
         energy: 3.0e6,
         rws: 0.81,
-        waterResistant: true,
+        waterResistance: 'high',
         cartridge: { diameter: 0.0635, length: 0.4064, mass: 1.48 },
         costPerKg: 2.1,
       },

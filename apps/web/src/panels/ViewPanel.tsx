@@ -1,6 +1,8 @@
 import { turboCss } from '@cronos/engine';
 import { colorRange, sequenceTimes } from '../analysis/visualize';
-import { getEngine } from '../session';
+import { NumberField } from '../components/NumberField';
+import { useActiveBlast } from '../hooks/useDocument';
+import { getEngine, session } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
 
 const SPEEDS = [
@@ -20,6 +22,7 @@ function formatValue(v: number, mode: ColorBy): string {
 /** Opciones de visualización del diseño y animación de la secuencia. */
 export function ViewPanel() {
   const s = useAnalysisStore();
+  const blast = useActiveBlast();
   const { analysis } = s;
   const range = analysis ? colorRange(analysis, s.colorBy) : null;
   const timing = analysis?.timing;
@@ -121,21 +124,25 @@ export function ViewPanel() {
           <span className="field-unit">ms</span>
         </span>
       </label>
-      <label className="field">
-        <span className="field-label">Ventana coincidencia</span>
-        <span className="field-input">
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={s.coincidenceWindowMs}
-            onChange={(e) => {
-              s.set({ coincidenceWindowMs: Math.max(1, Number(e.target.value)) });
-            }}
-          />
-          <span className="field-unit">ms</span>
-        </span>
-      </label>
+      {blast && (
+        <NumberField
+          label="Ventana de MIC"
+          unit="ms"
+          decimals={1}
+          min={0.1}
+          value={blast.calcParams.micWindow * 1000}
+          onCommit={(ms) => {
+            session.document.dispatch(
+              {
+                type: 'blast/patch',
+                blastId: blast.id,
+                patch: { calcParams: { ...blast.calcParams, micWindow: ms / 1000 } },
+              },
+              'Ventana de MIC',
+            );
+          }}
+        />
+      )}
 
       <h3>Secuencia</h3>
       {!hasTimes ? (

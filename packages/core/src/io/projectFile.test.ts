@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_BENCH, createEmptyProject } from '../model/factories';
+import { DEFAULT_BENCH, DEFAULT_CALC_PARAMS, createEmptyProject } from '../model/factories';
 import { newId } from '../model/ids';
 import type { Pattern, Project } from '../model/types';
 import { generatePatternHoles } from '../patterns/pattern';
@@ -71,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(2);
+    expect(parsed.file.schemaVersion).toBe(3);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -124,5 +124,35 @@ describe('archivo de proyecto', () => {
     delete blast.boundary;
     const r2 = parseProjectFile(JSON.stringify({ ...v2, schemaVersion: 1 }));
     expect(r2.ok && r2.file.project.blasts[0]?.boundaries).toEqual([]);
+  });
+
+  it('migra v2 → v3: grupos, parámetros de cálculo y resistencia al agua por niveles', () => {
+    const v3 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
+      project: {
+        blasts: Record<string, unknown>[];
+        library: { explosives: Record<string, unknown>[] };
+      };
+    };
+    // Reconstruye un archivo v2: sin grupos ni calcParams; resistencia al agua booleana.
+    for (const b of v3.project.blasts) {
+      delete b.groups;
+      delete b.calcParams;
+    }
+    const [wet, dry] = v3.project.library.explosives;
+    if (!wet || !dry) throw new Error('faltan explosivos');
+    for (const e of v3.project.library.explosives) delete e.waterResistance;
+    wet.waterResistant = true;
+    wet.minDiameter = 0.05;
+    dry.waterResistant = false;
+    const r = parseProjectFile(JSON.stringify({ ...v3, schemaVersion: 2 }));
+    if (!r.ok) throw new Error(r.error);
+    const blast = r.file.project.blasts[0];
+    expect(blast?.groups).toEqual([]);
+    expect(blast?.calcParams).toEqual(DEFAULT_CALC_PARAMS);
+    const [w, d] = r.file.project.library.explosives;
+    expect(w).toMatchObject({ waterResistance: 'high', criticalDiameter: 0.05 });
+    expect(w).not.toHaveProperty('waterResistant');
+    expect(w).not.toHaveProperty('minDiameter');
+    expect(d?.waterResistance).toBe('none');
   });
 });

@@ -92,6 +92,8 @@ const hole: z.ZodType<M.Hole> = z.object({
   patternId: id<'Pattern'>().exactOptional(),
   row: z.int().exactOptional(),
   col: z.int().exactOptional(),
+  groupId: id<'HoleGroup'>().exactOptional(),
+  water: z.enum(['dry', 'static', 'dynamic']).exactOptional(),
   collar: vec3,
   diameter: pos,
   length: nonNeg,
@@ -154,30 +156,52 @@ const blast: z.ZodType<M.Blast> = z.object({
     }),
   ),
   freeFaces: z.array(freeFace),
+  groups: z.array(
+    z.object({
+      id: id<'HoleGroup'>(),
+      name: z.string(),
+      kind: z.enum(['presplit', 'buffer', 'production', 'other']),
+      color: z.string(),
+      template: holeTemplate.exactOptional(),
+    }),
+  ),
   patterns: z.array(pattern),
   holes: z.array(hole),
   initiation,
+  calcParams: z.object({
+    micWindow: pos,
+    detonationGamma: pos,
+    reliefTime: nonNeg,
+    checks: z.object({ minStemmingRatio: nonNeg, duplicateDistance: nonNeg, neighborFactor: pos }),
+  }),
   notes: z.string().exactOptional(),
 });
 
+const sourced = { source: z.string().exactOptional(), version: z.string().exactOptional() };
+
 const explosive: z.ZodType<M.Explosive> = z.object({
+  ...sourced,
   id: id<'Explosive'>(),
   name: z.string(),
   manufacturer: z.string().exactOptional(),
   family: z.enum(['anfo', 'heavy-anfo', 'emulsion', 'watergel', 'dynamite', 'other']),
   form: z.enum(['bulk', 'packaged']),
   density: pos,
+  densityRange: z.object({ min: pos, max: pos }).exactOptional(),
   vod: pos,
   energy: pos,
   rws: pos,
   gasVolume: pos.exactOptional(),
-  waterResistant: z.boolean(),
-  minDiameter: pos.exactOptional(),
+  waterResistance: z.enum(['none', 'limited', 'high']),
+  criticalDiameter: pos.exactOptional(),
+  gassing: z.object({ initialDensity: pos, finalDensity: pos }).exactOptional(),
+  needsBooster: z.boolean().exactOptional(),
   cartridge: z.object({ diameter: pos, length: pos, mass: pos }).exactOptional(),
   costPerKg: nonNeg.exactOptional(),
 });
 
 const detonator: z.ZodType<M.Detonator> = z.object({
+  ...sourced,
   id: id<'Detonator'>(),
   name: z.string(),
   manufacturer: z.string().exactOptional(),
@@ -189,6 +213,7 @@ const detonator: z.ZodType<M.Detonator> = z.object({
 });
 
 const surfaceConnector: z.ZodType<M.SurfaceConnector> = z.object({
+  ...sourced,
   id: id<'SurfaceConnector'>(),
   name: z.string(),
   type: z.enum(['nonel-surface', 'detonating-cord', 'electronic-lead']),
@@ -198,6 +223,7 @@ const surfaceConnector: z.ZodType<M.SurfaceConnector> = z.object({
 });
 
 const primer: z.ZodType<M.Primer> = z.object({
+  ...sourced,
   id: id<'Primer'>(),
   name: z.string(),
   mass: pos,
@@ -206,8 +232,12 @@ const primer: z.ZodType<M.Primer> = z.object({
 });
 
 const stemmingMaterial: z.ZodType<M.StemmingMaterial> = z.object({
+  ...sourced,
   id: id<'StemmingMaterial'>(),
   name: z.string(),
+  kind: z.enum(['crushed-rock', 'sand', 'drill-cuttings', 'plug', 'other']).exactOptional(),
+  angularity: z.enum(['angular', 'rounded']).exactOptional(),
+  grading: z.object({ min: pos, max: pos }).exactOptional(),
   density: pos,
   costPerM3: nonNeg.exactOptional(),
 });
@@ -218,6 +248,9 @@ const rockMass: z.ZodType<M.RockMass> = z.object({
   density: pos,
   ucs: pos,
   youngModulus: pos,
+  tensileStrength: pos.exactOptional(),
+  vp: pos.exactOptional(),
+  rqd: z.number().min(0).max(1).exactOptional(),
   blastability: z.object({ rmd: num, jps: num, jpa: num, rdi: num, hf: num }).exactOptional(),
   rockFactor: pos.exactOptional(),
   swebrecB: pos.exactOptional(),
@@ -281,14 +314,28 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
   surfaces: z.array(surface),
   blasts: z.array(blast),
   monitoringPoints: z
-    .array(z.object({ id: id<'MonitoringPoint'>(), name: z.string(), position: vec3 }))
+    .array(
+      z.object({
+        id: id<'MonitoringPoint'>(),
+        name: z.string(),
+        position: vec3,
+        ppvLimit: pos.exactOptional(),
+        k: pos.exactOptional(),
+        beta: pos.exactOptional(),
+      }),
+    )
+    .exactOptional(),
+  ppvLimits: z
+    .array(
+      z.object({ from: nonNeg, to: pos.exactOptional(), ppvMax: pos, source: z.string().min(1) }),
+    )
     .exactOptional(),
   displayUnits,
 });
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
   format: z.literal('cronos-project'),
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   savedAt: z.string(),
   appVersion: z.string(),
   project: projectSchema,

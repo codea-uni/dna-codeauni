@@ -184,8 +184,6 @@ export interface VibrationOptions {
   metric: VibrationMetric;
   /** Ley de PPV a usar (id); por defecto la primera del proyecto. */
   lawId?: string;
-  /** Ventana para agrupar cargas por retardo [s]. */
-  coincidenceWindow: number;
   /** Cota de los receptores [m]; por defecto la superficie del banco. */
   receiverElevation?: number;
   /** Radio de cálculo alrededor de la voladura [m]; 0 = hasta el nivel más bajo. */
@@ -199,7 +197,6 @@ export interface VibrationOptions {
 
 export const DEFAULT_VIBRATION_OPTIONS: VibrationOptions = {
   metric: 'ppv',
-  coincidenceWindow: 0.008,
   extent: 0,
   levels: [],
   maxCells: 120_000,
@@ -262,10 +259,10 @@ export function computeVibration(
   const timing = computeTiming(
     blast,
     project.library,
-    { coincidenceWindow: options.coincidenceWindow },
+    { coincidenceWindow: blast.calcParams.micWindow },
     charge.perHole,
   );
-  const w = chargePerDelay(timing.fireTime, charge.perHole, options.coincidenceWindow);
+  const w = chargePerDelay(timing.fireTime, charge.perHole, blast.calcParams.micWindow);
   const receiverZ = options.receiverElevation ?? blast.bench.floorElevation + blast.bench.height;
 
   // Fuente = centroide de la carga explosiva de cada taladro.

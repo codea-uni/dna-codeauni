@@ -5,6 +5,8 @@ import { createDefaultLibrary } from './library';
 import type {
   Bench,
   Blast,
+  CalcParams,
+  PpvLimit,
   Hole,
   HoleTemplate,
   PatternId,
@@ -26,6 +28,30 @@ export const DEFAULT_HOLE_TEMPLATE: HoleTemplate = {
   azimuth: 0,
   subdrill: 1.5,
 };
+
+/**
+ * Parámetros de cálculo por defecto (`docs/reglas.md`): ventana de MIC de 8 ms (DF-12), γ = 3
+ * (DF-02), alivio Δ = 0 (DF-21), taco mínimo 0,7·B (DF-09). Duplicado y vecindad son ⚙.
+ */
+export const DEFAULT_CALC_PARAMS: CalcParams = {
+  micWindow: 0.008,
+  detonationGamma: 3,
+  reliefTime: 0,
+  checks: { minStemmingRatio: 0.7, duplicateDistance: 0.5, neighborFactor: 1.5 },
+};
+
+/**
+ * Tabla inicial de límites de PPV: valores de curso (`docs/theory/02 §4`, DF-14), a contrastar con
+ * la norma peruana vigente (P-12). Es un dato del sitio, editable.
+ */
+export function createCoursePpvLimits(): PpvLimit[] {
+  const source = 'Material de curso (docs/theory/02 §4); por contrastar con la norma vigente';
+  return [
+    { from: 0, to: 90, ppvMax: 0.032, source },
+    { from: 90, to: 1524, ppvMax: 0.026, source },
+    { from: 1524, ppvMax: 0.019, source },
+  ];
+}
 
 /** Roca genérica tipo granito (valores de referencia típicos). */
 export function createDefaultRockMass(): RockMass {
@@ -73,9 +99,11 @@ export function createBlast(
     rockMassId,
     boundaries: [],
     freeFaces: [],
+    groups: [],
     patterns: [],
     holes: [],
     initiation: { system: 'nonel', nodes: [], connections: [], initiationPoints: [] },
+    calcParams: structuredClone(DEFAULT_CALC_PARAMS),
   };
 }
 
@@ -94,6 +122,7 @@ export function createEmptyProject(name = 'Proyecto sin título', now = new Date
     siteModels: createDefaultSiteModels(),
     surfaces: [],
     blasts: [createBlast('Voladura 1', rock.id)],
+    ppvLimits: createCoursePpvLimits(),
     displayUnits: {
       length: 'm',
       diameter: 'mm',

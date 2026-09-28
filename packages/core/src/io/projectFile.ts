@@ -1,3 +1,4 @@
+import { DEFAULT_CALC_PARAMS } from '../model/factories';
 import { uuidv7 } from '../model/ids';
 import { SCHEMA_VERSION } from '../model/schema';
 import type { Project, ProjectFile } from '../model/types';
@@ -46,6 +47,40 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
       return { ...rest, boundaries };
     });
     return { ...data, project: { ...project, blasts } };
+  },
+  /**
+   * v2 → v3 (G1, `docs/theory/03 §2–3`): grupos y parámetros de cálculo en cada voladura;
+   * `waterResistant` (booleano) pasa a `waterResistance` y `minDiameter` a `criticalDiameter`.
+   */
+  2: (data) => {
+    const project = data.project;
+    if (!isObject(project)) return data;
+    const blasts = Array.isArray(project.blasts)
+      ? (project.blasts as unknown[]).map((b) =>
+          isObject(b) ? { groups: [], calcParams: structuredClone(DEFAULT_CALC_PARAMS), ...b } : b,
+        )
+      : project.blasts;
+    const library = project.library;
+    const explosives =
+      isObject(library) && Array.isArray(library.explosives)
+        ? (library.explosives as unknown[]).map((e) => {
+            if (!isObject(e)) return e;
+            const { waterResistant, minDiameter, ...rest } = e;
+            return {
+              ...rest,
+              waterResistance: waterResistant === true ? 'high' : 'none',
+              ...(minDiameter === undefined ? {} : { criticalDiameter: minDiameter }),
+            };
+          })
+        : undefined;
+    return {
+      ...data,
+      project: {
+        ...project,
+        blasts,
+        ...(explosives && isObject(library) ? { library: { ...library, explosives } } : {}),
+      },
+    };
   },
 };
 

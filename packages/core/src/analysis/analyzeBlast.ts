@@ -1,19 +1,16 @@
 import { computeCharges, type ChargeResult } from '../charging/chargeAnalysis';
-import { DEFAULT_CHECK_OPTIONS, designChecks, type DesignCheck } from '../diagnostics/designChecks';
+import { designChecks, type DesignCheck } from '../diagnostics/designChecks';
 import type { BlastId, Project } from '../model/types';
 import { computeIsochrones, niceInterval, type Isochrones } from '../timing/isochrones';
-import { computeTiming, DEFAULT_TIMING_OPTIONS, type TimingResult } from '../timing/timing';
+import { computeTiming, type TimingResult } from '../timing/timing';
 
+/** Opciones de presentación del análisis; los parámetros de cálculo están en `blast.calcParams`. */
 export interface AnalysisOptions {
-  coincidenceWindow: number;
   /** Intervalo de isócronas [s]; 0 = automático. */
   isochroneInterval: number;
 }
 
-export const DEFAULT_ANALYSIS_OPTIONS: AnalysisOptions = {
-  coincidenceWindow: DEFAULT_TIMING_OPTIONS.coincidenceWindow,
-  isochroneInterval: 0,
-};
+export const DEFAULT_ANALYSIS_OPTIONS: AnalysisOptions = { isochroneInterval: 0 };
 
 export interface BlastAnalysis {
   blastId: BlastId;
@@ -42,7 +39,7 @@ export function analyzeBlast(
   const timing = computeTiming(
     blast,
     project.library,
-    { coincidenceWindow: options.coincidenceWindow },
+    { coincidenceWindow: blast.calcParams.micWindow },
     charge.perHole,
   );
   const range = timing.lastTime - timing.firstTime;
@@ -57,10 +54,7 @@ export function analyzeBlast(
     charge,
     timing,
     isochrones,
-    checks: designChecks(blast, timing, {
-      ...DEFAULT_CHECK_OPTIONS,
-      coincidenceWindow: options.coincidenceWindow,
-    }),
+    checks: designChecks(blast, timing),
     elapsedMs: performance.now() - t0,
   };
 }

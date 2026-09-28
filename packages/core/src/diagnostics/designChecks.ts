@@ -2,6 +2,7 @@ import { deckIntervals } from '../charging/charge';
 import { boundaryAt } from '../geometry/boundary';
 import type { Blast, HoleId } from '../model/types';
 import type { TimingResult } from '../timing/timing';
+import { DEFAULT_CALC_PARAMS } from '../model/factories';
 
 export type CheckSeverity = 'error' | 'warning' | 'info';
 
@@ -25,12 +26,14 @@ export interface DesignCheckOptions {
   neighborFactor: number;
 }
 
-export const DEFAULT_CHECK_OPTIONS: DesignCheckOptions = {
-  minStemmingRatio: 0.7,
-  duplicateDistance: 0.5,
-  coincidenceWindow: 0.008,
-  neighborFactor: 1.5,
-};
+export const DEFAULT_CHECK_OPTIONS: DesignCheckOptions = checkOptionsOf({
+  calcParams: DEFAULT_CALC_PARAMS,
+});
+
+/** Umbrales guardados en la voladura (`blast.calcParams`). */
+export function checkOptionsOf(blast: Pick<Blast, 'calcParams'>): DesignCheckOptions {
+  return { ...blast.calcParams.checks, coincidenceWindow: blast.calcParams.micWindow };
+}
 
 /**
  * Revisión del diseño con reglas prácticas de voladura. No reemplaza el criterio del ingeniero:
@@ -39,7 +42,7 @@ export const DEFAULT_CHECK_OPTIONS: DesignCheckOptions = {
 export function designChecks(
   blast: Blast,
   timing: TimingResult | null,
-  options: DesignCheckOptions = DEFAULT_CHECK_OPTIONS,
+  options: DesignCheckOptions = checkOptionsOf(blast),
 ): DesignCheck[] {
   const checks: DesignCheck[] = [];
   const add = (c: DesignCheck) => {
