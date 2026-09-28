@@ -35,7 +35,8 @@ describe('CSV', () => {
       'A1;272,345.578;8,944,820.250;4,254.0\nA2;272,354.578;8,944,820.250;4,254.0',
     );
     expect(t.delimiter).toBe(';');
-    expect(t.rows[0]?.map(parseNumber)).toEqual([NaN, 272354.578, 8944820.25, 4254]);
+    expect(t.hasHeader).toBe(false); // primera fila con números: sin encabezado
+    expect(t.rows[0]?.map((c) => parseNumber(c))).toEqual([NaN, 272345.578, 8944820.25, 4254]);
     expect(parseCsv('"Taladro;x",Este\n1,2').delimiter).toBe(',');
   });
 

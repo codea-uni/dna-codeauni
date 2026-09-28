@@ -12,6 +12,9 @@ import {
   exportHolesCsv,
   guessHoleMapping,
   importHolesFromCsv,
+  decodeText,
+  positionalHoleMapping,
+  type TextEncodingName,
   parseCsv,
   generatePatternHoles,
   parseProjectFile,
@@ -51,6 +54,24 @@ import { buildReport, type ReportOptions } from './report/pdfReport';
  * API que el worker de cómputo expone vía Comlink.
  * Solo delega en funciones puras de core; así se testea en Node sin worker.
  */
+
+export interface CsvReadOptions {
+  encoding?: TextEncodingName;
+  delimiter?: string;
+  hasHeader?: boolean;
+}
+
+export interface CsvPreviewData {
+  text: string;
+  encoding: TextEncodingName;
+  delimiter: string;
+  hasHeader: boolean;
+  headers: string[];
+  sample: string[][];
+  rowCount: number;
+  mapping: HoleCsvMapping;
+}
+
 export const computeApi = {
   ping(message: string): string {
     return ping(message);
@@ -148,32 +169,41 @@ export const computeApi = {
     return example.build();
   },
 
-  /** Vista previa de un CSV: encabezados, primeras filas y mapeo sugerido. */
-  csvPreview(text: string): {
-    delimiter: string;
-    headers: string[];
-    sample: string[][];
-    rowCount: number;
-    mapping: HoleCsvMapping;
-  } {
-    const table = parseCsv(text);
+  /**
+   * Vista previa de un CSV: decodifica (codificación detectada o elegida), detecta separador y
+   * encabezado (o usa los elegidos) y sugiere el mapeo (por nombre o, sin encabezado, por posición).
+   */
+  csvPreview(bytes: Uint8Array, options: CsvReadOptions = {}): CsvPreviewData {
+    const { text, encoding } = decodeText(bytes, options.encoding);
+    const table = parseCsv(text, options.delimiter, options.hasHeader);
     return {
+      text,
+      encoding,
       delimiter: table.delimiter,
+      hasHeader: table.hasHeader,
       headers: table.headers,
       sample: table.rows.slice(0, 8),
       rowCount: table.rows.length,
-      mapping: guessHoleMapping(table.headers),
+      mapping: table.hasHeader
+        ? guessHoleMapping(table.headers)
+        : positionalHoleMapping(table.rows[0] ?? []),
     };
   },
 
-  /** Importa taladros desde CSV con el mapeo y las unidades elegidas. */
+  /** Importa taladros desde CSV con el separador, encabezado, mapeo y unidades elegidos. */
   csvImport(
     text: string,
+    read: { delimiter: string; hasHeader: boolean },
     mapping: HoleCsvMapping,
     units: HoleCsvUnits,
     defaults: HoleCsvDefaults,
   ): HoleCsvImport {
-    return importHolesFromCsv(parseCsv(text), mapping, units, defaults);
+    return importHolesFromCsv(
+      parseCsv(text, read.delimiter, read.hasHeader),
+      mapping,
+      units,
+      defaults,
+    );
   },
 
   /** Exporta taladros (y kg por taladro, si se pasan) a CSV. */

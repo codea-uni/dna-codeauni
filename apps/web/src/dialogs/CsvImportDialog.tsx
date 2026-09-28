@@ -5,20 +5,19 @@ import {
   nextHoleNumber,
   type HoleCsvMapping,
   type HoleCsvUnits,
+  type ImportWarning,
+  type TextEncodingName,
 } from '@cronos/core';
+import type { CsvPreviewData, CsvReadOptions } from '@cronos/workers';
 import { useState } from 'react';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
 
-export interface CsvPreview {
+export interface CsvPreview extends CsvPreviewData {
   fileName: string;
-  text: string;
-  delimiter: string;
-  headers: string[];
-  sample: string[][];
-  rowCount: number;
-  mapping: HoleCsvMapping;
+  /** Bytes originales: se vuelven a decodificar si el usuario cambia la codificación. */
+  bytes: Uint8Array;
 }
 
 const DELIMITER_NAME: Record<string, string> = {
@@ -27,16 +26,26 @@ const DELIMITER_NAME: Record<string, string> = {
   '\t': 'tabulador',
 };
 
-/** Importación de taladros desde CSV: mapeo de columnas, unidades y vista previa. */
+/**
+ * Importación de taladros desde CSV (H-201, H-203; trampas de docs/theory/03 §5): lectura
+ * (codificación, separador, encabezado), mapeo de columnas, unidades y vista previa. Importar
+ * aplica los taladros al mapa como un solo comando; el diálogo sigue abierto con los avisos para
+ * aceptar o deshacer.
+ */
 export function CsvImportDialog({
-  preview,
+  preview: initial,
   onClose,
 }: {
   preview: CsvPreview;
   onClose: () => void;
 }) {
+  const [preview, setPreview] = useState(initial);
+  const [groupFromPrefix, setGroupFromPrefix] = useState(false);
+  const [result, setResult] = useState<{ imported: number; warnings: ImportWarning[] } | null>(
+    null,
+  );
   const { len, dia } = useUnits();
-  const [mapping, setMapping] = useState<HoleCsvMapping>(preview.mapping);
+  const [mapping, setMapping] = useState<HoleCsvMapping>(initial.mapping);
   const [units, setUnits] = useState<HoleCsvUnits>(DEFAULT_CSV_UNITS);
   const [replace, setReplace] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -44,19 +53,48 @@ export function CsvImportDialog({
   const template = useUiStore((s) => s.holeTemplate);
   const missing = HOLE_CSV_FIELDS.filter((f) => f.required && (mapping[f.field] ?? -1) < 0);
 
-  const run = async () => {
+  const reread = async (options: CsvReadOptions) => {
+    setBusy(true);
+    try {
+      const next = await getCompute().api.csvPreview(preview.bytes, {
+        encoding: preview.encoding,
+        delimiter: preview.delimiter,
+        hasHeader: preview.hasHeader,
+        ...options,
+      });
+      setPreview({ ...preview, ...next });
+      // Con otro separador o encabezado cambian las columnas: se vuelve a sugerir el mapeo.
+      if (options.delimiter !== undefined || options.hasHeader !== undefined)
+        setMapping(next.mapping);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const run = async (map: HoleCsvMapping = mapping) => {
     const blast = session.document.project.blasts[0];
     if (!blast) return;
     setBusy(true);
     try {
-      const result = await getCompute().api.csvImport(preview.text, mapping, units, {
-        diameter: template.diameter,
-        subdrill: template.subdrill,
-        bench: blast.bench,
-        startNumber: replace ? 1 : nextHoleNumber(blast.holes),
-      });
-      setErrors(result.errors);
-      if (result.holes.length === 0) {
+      const { epsg } = session.document.project.coordinateSystem;
+      const r = await getCompute().api.csvImport(
+        preview.text,
+        { delimiter: preview.delimiter, hasHeader: preview.hasHeader },
+        map,
+        units,
+        {
+          diameter: template.diameter,
+          subdrill: template.subdrill,
+          bench: blast.bench,
+          startNumber: replace ? 1 : nextHoleNumber(blast.holes),
+          existingLabels: replace ? [] : blast.holes.map((h) => h.label),
+          groups: blast.groups,
+          groupFromPrefix,
+          ...(epsg === undefined ? {} : { epsg }),
+        },
+      );
+      setErrors(r.errors);
+      if (r.holes.length === 0) {
         useUiStore.getState().notify('No se importó ningún taladro', 'error');
         return;
       }
@@ -69,21 +107,41 @@ export function CsvImportDialog({
                 blast.holes.map((h) => h.id),
               )
             : []),
-          ...commands.addHoles(blast.id, result.holes),
+          ...(r.groups.length > 0
+            ? [
+                {
+                  type: 'blast/patch' as const,
+                  blastId: blast.id,
+                  patch: { groups: [...blast.groups, ...r.groups] },
+                },
+              ]
+            : []),
+          ...commands.addHoles(blast.id, r.holes),
         ],
-        `Importar CSV (${result.holes.length} taladros)`,
+        `Importar CSV (${String(r.holes.length)} taladros)`,
       );
       getEngine()?.zoomToFit();
-      useUiStore
-        .getState()
-        .notify(
-          `${result.holes.length} taladros importados${result.errors.length ? ` · ${result.errors.length} filas con error` : ''}`,
-          result.errors.length ? 'error' : 'info',
-        );
-      if (result.errors.length === 0) onClose();
+      setResult({ imported: r.holes.length, warnings: r.warnings });
     } finally {
       setBusy(false);
     }
+  };
+
+  /** Deshace la importación aplicada y vuelve al mapeo. */
+  const undoImport = () => {
+    session.document.undo();
+    setResult(null);
+  };
+
+  const swapAndRetry = () => {
+    session.document.undo();
+    const swapped: HoleCsvMapping = { ...mapping };
+    if (mapping.y === undefined) delete swapped.x;
+    else swapped.x = mapping.y;
+    if (mapping.x === undefined) delete swapped.y;
+    else swapped.y = mapping.x;
+    setMapping(swapped);
+    void run(swapped);
   };
 
   const setUnit = <K extends keyof HoleCsvUnits>(k: K, v: HoleCsvUnits[K]) => {
@@ -100,10 +158,50 @@ export function CsvImportDialog({
           </button>
         </header>
         <p className="muted">
-          {preview.rowCount} filas · separador:{' '}
-          {DELIMITER_NAME[preview.delimiter] ?? preview.delimiter} · {preview.headers.length}{' '}
-          columnas
+          {preview.rowCount} filas · {preview.headers.length} columnas
         </p>
+        <div className="row">
+          <label className="field">
+            <span className="field-label">Codificación</span>
+            <select
+              value={preview.encoding}
+              disabled={busy || result !== null}
+              onChange={(e) => {
+                void reread({ encoding: e.target.value as TextEncodingName });
+              }}
+            >
+              <option value="utf-8">UTF-8</option>
+              <option value="windows-1252">ISO-8859-1 / Windows-1252</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Separador</span>
+            <select
+              value={preview.delimiter}
+              disabled={busy || result !== null}
+              onChange={(e) => {
+                void reread({ delimiter: e.target.value });
+              }}
+            >
+              {Object.entries(DELIMITER_NAME).map(([d, name]) => (
+                <option key={d} value={d}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={preview.hasHeader}
+              disabled={busy || result !== null}
+              onChange={(e) => {
+                void reread({ hasHeader: e.target.checked });
+              }}
+            />
+            Primera fila = encabezado
+          </label>
+        </div>
         <div className="modal-cols">
           <section>
             <h3>Columnas</h3>
@@ -197,6 +295,17 @@ export function CsvImportDialog({
               />
               Reemplazar los taladros existentes
             </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={groupFromPrefix}
+                disabled={(mapping.group ?? -1) >= 0}
+                onChange={(e) => {
+                  setGroupFromPrefix(e.target.checked);
+                }}
+              />
+              Sin columna Grupo: agrupar por el prefijo del ID (A, B, BF…)
+            </label>
           </section>
         </div>
         <h3>Vista previa</h3>
@@ -220,6 +329,20 @@ export function CsvImportDialog({
             </tbody>
           </table>
         </div>
+        {result && (
+          <div className={result.warnings.length > 0 ? 'errors' : 'hint'}>
+            <strong>
+              {result.imported} taladros en el mapa. Revisa su posición y acepta o deshaz.
+            </strong>
+            {result.warnings.length > 0 && (
+              <ul>
+                {result.warnings.map((w) => (
+                  <li key={w.kind}>{w.message}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         {errors.length > 0 && (
           <div className="errors">
             <strong>{errors.length} filas no se importaron:</strong>
@@ -236,14 +359,28 @@ export function CsvImportDialog({
           {missing.length > 0 && (
             <span className="warn">Falta mapear: {missing.map((m) => m.label).join(', ')}</span>
           )}
-          <button onClick={onClose}>Cancelar</button>
-          <button
-            className="primary-inline"
-            disabled={busy || missing.length > 0}
-            onClick={() => void run()}
-          >
-            {busy ? 'Importando…' : 'Importar'}
-          </button>
+          {result === null ? (
+            <>
+              <button onClick={onClose}>Cancelar</button>
+              <button
+                className="primary-inline"
+                disabled={busy || missing.length > 0}
+                onClick={() => void run()}
+              >
+                {busy ? 'Importando…' : 'Importar y ver en el mapa'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={undoImport}>Deshacer importación</button>
+              {result.warnings.some((w) => w.kind === 'swapXY') && (
+                <button onClick={swapAndRetry}>Intercambiar Este/Norte</button>
+              )}
+              <button className="primary-inline" onClick={onClose}>
+                Aceptar
+              </button>
+            </>
+          )}
         </footer>
       </div>
     </div>

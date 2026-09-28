@@ -325,13 +325,14 @@ export function requireCrs(): boolean {
 
 export async function openCsv(file: File): Promise<void> {
   await withBusy('Leyendo CSV…', async () => {
-    const text = await file.text();
-    const preview = await getCompute().api.csvPreview(text);
+    // Bytes, no `file.text()`: la codificación se detecta (ISO-8859-1, docs/theory/03 §5).
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const preview = await getCompute().api.csvPreview(bytes);
     if (preview.headers.length === 0) {
       notify('El archivo está vacío', 'error');
       return;
     }
-    useUiStore.getState().setCsvPreview({ fileName: file.name, text, ...preview });
+    useUiStore.getState().setCsvPreview({ fileName: file.name, bytes, ...preview });
   });
 }
 
