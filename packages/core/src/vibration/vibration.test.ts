@@ -11,6 +11,7 @@ import { polygonSignedArea } from '../geometry/polygon';
 import type { Blast, Project, VibrationLaw } from '../model/types';
 import { withDownholeDetonator } from '../timing/tieUp';
 import {
+  admissibleCharge,
   airblastAt,
   chargePerDelay,
   computeVibration,
@@ -20,6 +21,7 @@ import {
   offsetHullRound,
   pascalToDb,
   ppvAt,
+  ppvLimitFor,
 } from './vibration';
 
 const law: VibrationLaw = {
@@ -210,5 +212,78 @@ describe('vibración de una voladura', () => {
       Math.sqrt(314.159) * Math.pow(1.14 / 0.002, 1 / 1.6),
       3,
     );
+  });
+});
+
+describe('G6: PPV en puntos de monitoreo, límites y MIC admisible', () => {
+  // docs/theory/04, ejemplo a mano de CR-06: K = 1140 mm/s (1,14 m/s), β = 1,6, Q = 100 kg
+  const cr06: VibrationLaw = { ...law, k: 1.14, beta: 1.6 };
+
+  it('CR-06: 200 m → 9,4462 mm/s y 300 m → 4,9375 mm/s (±1 %)', () => {
+    expect((ppvAt(cr06, 200, 100) * 1000) / 9.4462).toBeCloseTo(1, 2);
+    expect((ppvAt(cr06, 300, 100) * 1000) / 4.9375).toBeCloseTo(1, 2);
+  });
+
+  it('H-603: la MIC admisible invierte la ley (9,4462 mm/s a 200 m → 100 kg)', () => {
+    expect(admissibleCharge(cr06, 200, 0.0094462)).toBeCloseTo(100, 2);
+    expect(
+      admissibleCharge(
+        { ...cr06, scaling: 'cube-root' },
+        200,
+        ppvAt({ ...cr06, scaling: 'cube-root' }, 200, 100),
+      ),
+    ).toBeCloseTo(100, 6);
+  });
+
+  it('límite por punto o por tabla (estructura y distancia, P-12)', () => {
+    const limits = [
+      { from: 0, to: 90, ppvMax: 0.032, source: 'curso' },
+      { from: 90, ppvMax: 0.026, source: 'curso' },
+      { structure: 'vivienda', from: 0, ppvMax: 0.005, source: 'EIA' },
+    ];
+    expect(ppvLimitFor({}, 50, limits)).toEqual({ ppvMax: 0.032, source: 'curso' });
+    expect(ppvLimitFor({}, 90, limits)?.ppvMax).toBe(0.026);
+    expect(ppvLimitFor({ structure: 'vivienda' }, 500, limits)).toEqual({
+      ppvMax: 0.005,
+      source: 'EIA',
+    });
+    expect(ppvLimitFor({ ppvLimit: 0.01 }, 500, limits)?.ppvMax).toBe(0.01);
+    expect(ppvLimitFor({}, 50, [])).toBeNull();
+  });
+
+  it('K y β del punto, excedencia, MIC admisible y centroide informativo (P-07)', () => {
+    const { project, blast } = project3Holes();
+    const base = project.monitoringPoints?.[0];
+    if (!base) throw new Error('sin punto');
+    const near = { ...base, id: newId<'MonitoringPoint'>(), name: 'Cerca', ppvLimit: 0.001 };
+    const own = { ...base, id: newId<'MonitoringPoint'>(), name: 'Propio', k: 0.5, beta: 1.2 };
+    const p = { ...project, monitoringPoints: [base, near, own] };
+    const r = computeVibration(p, blast, DEFAULT_VIBRATION_OPTIONS);
+    const [a, b, c] = r.receivers;
+    if (!a || !b || !c) throw new Error('faltan receptores');
+    // Tabla por defecto del proyecto (curso, P-12): a 200 m, 26 mm/s
+    expect(a.limit?.ppvMax).toBe(0.026);
+    expect(a.exceeds).toBe(a.ppv > 0.026);
+    // Límite del punto de 1 mm/s: se excede; la MIC admisible devuelve ese PPV a esa distancia
+    expect(b.exceeds).toBe(true);
+    expect(ppvAt(b.law ?? cr06, b.distance, b.admissibleCharge ?? 0)).toBeCloseTo(0.001, 9);
+    // K y β propios
+    expect(c.ppv).toBeCloseTo(0.5 * Math.pow(c.distance / Math.sqrt(c.charge), -1.2), 9);
+    // Cada taladro en su ventana: carga 314,16 kg; el centroide es el propio taladro
+    expect(a.charge).toBeCloseTo(314.159, 2);
+    expect(a.centroid?.distance).toBeCloseTo(a.distance, 6);
+  });
+
+  it('P-10: MIC con ventana ampliada por la dispersión pirotécnica (w + 2σ)', () => {
+    const { project, blast } = project3Holes();
+    // Nonel de la librería: σ = 7,5 ms → ventana 8 + 15 = 23 ms. Con 0, 20 y 40 ms se agrupan de a dos.
+    const holes = blast.holes.map((h, i) => ({
+      ...h,
+      initiators: h.initiators.map((init) => ({ ...init, delay: i * 0.02 })),
+    }));
+    const r = computeVibration(project, { ...blast, holes }, DEFAULT_VIBRATION_OPTIONS);
+    expect(r.mic).toBeCloseTo(314.159, 2);
+    expect(r.micExtended?.window).toBeCloseTo(0.023, 9);
+    expect(r.micExtended?.mic).toBeCloseTo(2 * 314.159, 2);
   });
 });

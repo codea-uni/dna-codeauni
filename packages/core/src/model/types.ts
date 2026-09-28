@@ -96,10 +96,18 @@ export interface MonitoringPoint {
   /** K y β propios del punto (sobrescriben la ley del sitio; K con PPV en m/s). */
   k?: number;
   beta?: number;
+  /** Tipo de estructura (vivienda, planta, línea…): elige las filas de `Project.ppvLimits` (P-12). */
+  structure?: string;
 }
 
-/** Fila de la tabla de límites de vibración (`docs/theory/03 §2`). */
+/**
+ * Fila de la tabla de límites de vibración (`docs/theory/03 §2`, P-12): por tipo de estructura
+ * (opcional; sin él aplica a todas) y rango de distancia. Los valores salen del instrumento de
+ * gestión ambiental de la operación (EIA) y llevan su fuente.
+ */
 export interface PpvLimit {
+  /** Tipo de estructura al que aplica; sin valor, a todas. */
+  structure?: string;
   /** Distancia desde [m] (incluida). */
   from: Meters;
   /** Distancia hasta [m] (excluida); sin valor = sin límite superior. */

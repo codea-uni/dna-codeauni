@@ -10,6 +10,8 @@ import type {
   Blast,
   FlyrockParams,
   HoleId,
+  MonitoringPoint,
+  PpvLimit,
   Project,
   Vec2,
   Vec3,
@@ -41,6 +43,38 @@ export function distanceForPpv(
     Math.pow(chargePerDelay, law.scaling === 'square-root' ? 1 / 2 : 1 / 3) *
     Math.pow(law.k / ppv, 1 / law.beta)
   );
+}
+
+/**
+ * Carga por retardo admisible [kg] para no superar `ppv` [m/s] a la distancia `distance` [m]
+ * (H-603, FC-25): se invierte la ley, W = (R / SD_adm)^(2 ó 3) con SD_adm = (PPV/k)^(−1/β).
+ */
+export function admissibleCharge(
+  law: Pick<VibrationLaw, 'k' | 'beta' | 'scaling'>,
+  distance: number,
+  ppv: number,
+): number {
+  const sd = Math.pow(ppv / law.k, -1 / law.beta);
+  return Math.pow(distance / sd, law.scaling === 'square-root' ? 2 : 3);
+}
+
+/**
+ * Límite de PPV de un punto (RM-21, P-12): el propio del punto o, si no tiene, el menor de las
+ * filas de la tabla que aplican a su tipo de estructura y a la distancia. null si no hay límite.
+ */
+export function ppvLimitFor(
+  point: Pick<MonitoringPoint, 'ppvLimit' | 'structure'>,
+  distance: number,
+  limits: readonly PpvLimit[],
+): { ppvMax: number; source: string } | null {
+  if (point.ppvLimit !== undefined) return { ppvMax: point.ppvLimit, source: 'Límite del punto' };
+  let best: PpvLimit | null = null;
+  for (const l of limits) {
+    if (l.structure !== undefined && l.structure !== point.structure) continue;
+    if (distance < l.from || (l.to !== undefined && distance >= l.to)) continue;
+    if (!best || l.ppvMax < best.ppvMax) best = l;
+  }
+  return best ? { ppvMax: best.ppvMax, source: best.source } : null;
 }
 
 /** Sobrepresión [Pa] (raíz cúbica): P = k · (R / W^(1/3))^(−β). */
@@ -216,6 +250,21 @@ export interface ReceiverResult {
   airblastPa: number;
   airblastDb: number;
   governingHole: HoleId | null;
+  /** Ley usada en el punto (K y β propios o los del sitio). */
+  law: Pick<VibrationLaw, 'k' | 'beta' | 'scaling'> | null;
+  /** Carga de la ventana que gobierna [kg] y su inicio [s]. */
+  charge: number;
+  windowStart: number;
+  /** Límite aplicable y si se excede (RM-21). */
+  limit: { ppvMax: number; source: string } | null;
+  exceeds: boolean;
+  /** Carga por retardo admisible para el límite a la distancia del taladro más cercano [kg] (H-603). */
+  admissibleCharge: number | null;
+  /**
+   * PPV con la distancia al centroide de la carga de la ventana, solo informativo y solo si el
+   * punto está a más de 5 veces la extensión del grupo (P-07).
+   */
+  centroid: { distance: number; ppv: number } | null;
 }
 
 export interface VibrationResult extends ScalarGrid {
@@ -228,6 +277,11 @@ export interface VibrationResult extends ScalarGrid {
   colorMax: number;
   /** Máxima carga por retardo [kg] y si hubo taladros sin tiempo (carga individual). */
   mic: number;
+  /**
+   * MIC con ventana ampliada por la dispersión de los detonadores pirotécnicos (P-10):
+   * w + 2·σ_máx de los no electrónicos usados. null si todos son electrónicos.
+   */
+  micExtended: { window: number; mic: number } | null;
   notInitiated: number;
   /** Distancia a la que se alcanza cada nivel con la MIC [m] (mismo orden que `levels`). */
   distanceForLevel: number[];
@@ -241,7 +295,10 @@ interface Source {
   x: number;
   y: number;
   z: number;
+  /** Carga de la ventana que gobierna [kg]. */
   w: number;
+  /** Carga propia del taladro [kg]. */
+  w0: number;
 }
 
 /** Vibración, sobrepresión y flyrock de una voladura. */
@@ -289,10 +346,30 @@ export function computeVibration(
       y: h.collar.y + (toe.y - h.collar.y) * f,
       z: h.collar.z + (toe.z - h.collar.z) * f,
       w: w[i] ?? kg,
+      w0: kg,
     });
   });
   let mic = 0;
   for (const s of sources) mic = Math.max(mic, s.w);
+
+  // P-10: con pirotécnicos, dos taladros separados algo más que la ventana pueden coincidir.
+  const detonators = new Map(project.library.detonators.map((d) => [d.id, d]));
+  let sigma = -1;
+  for (const h of blast.holes)
+    for (const init of h.initiators) {
+      const d = detonators.get(init.detonatorId);
+      if (d && d.type !== 'electronic') sigma = Math.max(sigma, d.delayScatter);
+    }
+  const micExtended =
+    sigma < 0
+      ? null
+      : (() => {
+          const window = blast.calcParams.micWindow + 2 * sigma;
+          const wx = chargePerDelay(timing.fireTime, charge.perHole, window);
+          let m = 0;
+          for (const v of wx) m = Math.max(m, v);
+          return { window, mic: m };
+        })();
 
   const flyrockRange = maxDiameter > 0 ? lundborgRange(site.flyrock, maxDiameter) : 0;
   const flyrockZone =
@@ -321,26 +398,85 @@ export function computeVibration(
       : Math.cbrt(mic) * Math.pow(site.airblast.k / lv, 1 / site.airblast.beta),
   );
 
+  const indexOf = new Map(blast.holes.map((h, i) => [h.id, i]));
+  const window = blast.calcParams.micWindow;
   const receivers: ReceiverResult[] = (project.monitoringPoints ?? []).map((p) => {
-    let best = { ppv: 0, air: 0, distance: Infinity, hole: null as HoleId | null };
+    // K y β propios del punto (H-602) sobre la ley del sitio.
+    const pointLaw = law ? { ...law, k: p.k ?? law.k, beta: p.beta ?? law.beta } : null;
+    let best = { ppv: 0, air: 0, distance: Infinity, hole: null as HoleId | null, w: 0 };
     for (const s of sources) {
       const r = Math.hypot(p.position.x - s.x, p.position.y - s.y, p.position.z - s.z);
-      const v = law ? ppvAt(law, r, s.w) : 0;
+      const v = pointLaw ? ppvAt(pointLaw, r, s.w) : 0;
       const a = airblastAt(site.airblast, r, s.w);
-      if (v > best.ppv) best = { ...best, ppv: v, distance: r, hole: s.id };
+      if (v > best.ppv) best = { ...best, ppv: v, distance: r, hole: s.id, w: s.w };
       best.air = Math.max(best.air, a);
+    }
+    const distance = Number.isFinite(best.distance) ? best.distance : 0;
+    const group = best.hole ? governingWindow(indexOf.get(best.hole) ?? -1) : null;
+    const limit = ppvLimitFor(p, distance, project.ppvLimits ?? []);
+    let centroid: ReceiverResult['centroid'] = null;
+    if (group && pointLaw) {
+      const members = sources.filter((s) => group.members.has(s.id));
+      const kg = members.reduce((a, s) => a + s.w0, 0);
+      if (kg > 0) {
+        const cx = members.reduce((a, s) => a + s.x * s.w0, 0) / kg;
+        const cy = members.reduce((a, s) => a + s.y * s.w0, 0) / kg;
+        const cz = members.reduce((a, s) => a + s.z * s.w0, 0) / kg;
+        const extent = Math.max(...members.map((s) => Math.hypot(s.x - cx, s.y - cy, s.z - cz)));
+        const rc = Math.hypot(p.position.x - cx, p.position.y - cy, p.position.z - cz);
+        if (rc >= 5 * extent) centroid = { distance: rc, ppv: ppvAt(pointLaw, rc, best.w) };
+      }
     }
     return {
       id: p.id,
       name: p.name,
       position: p.position,
-      distance: Number.isFinite(best.distance) ? best.distance : 0,
+      distance,
       ppv: best.ppv,
       airblastPa: best.air,
       airblastDb: pascalToDb(best.air),
       governingHole: best.hole,
+      law: pointLaw,
+      charge: best.w,
+      windowStart: group?.start ?? NaN,
+      limit,
+      exceeds: limit !== null && best.ppv > limit.ppvMax,
+      admissibleCharge:
+        limit && pointLaw && distance > 0
+          ? admissibleCharge(pointLaw, distance, limit.ppvMax)
+          : null,
+      centroid,
     };
   });
+
+  /** Ventana [t, t + w) de mayor carga que contiene al taladro i (la que gobierna su PPV). */
+  function governingWindow(i: number): { start: number; members: Set<HoleId> } | null {
+    const ti = timing.fireTime[i] ?? NaN;
+    if (!Number.isFinite(ti)) return null;
+    const eps = 1e-9;
+    let bestStart = ti;
+    let bestKg = -1;
+    let bestMembers = new Set<HoleId>();
+    for (let k = 0; k < blast.holes.length; k++) {
+      const s = timing.fireTime[k] ?? NaN;
+      if (!(s > ti - window + eps && s <= ti)) continue;
+      const members = new Set<HoleId>();
+      let kg = 0;
+      blast.holes.forEach((h, j) => {
+        const t = timing.fireTime[j] ?? NaN;
+        if (t >= s && t - s < window - eps) {
+          members.add(h.id);
+          kg += charge.perHole[j] ?? 0;
+        }
+      });
+      if (kg > bestKg) {
+        bestKg = kg;
+        bestStart = s;
+        bestMembers = members;
+      }
+    }
+    return { start: bestStart, members: bestMembers };
+  }
 
   const emptyGrid = {
     originX: 0,
@@ -359,6 +495,7 @@ export function computeVibration(
     law,
     levels,
     mic,
+    micExtended,
     notInitiated: timing.notInitiated,
     distanceForLevel,
     receivers,

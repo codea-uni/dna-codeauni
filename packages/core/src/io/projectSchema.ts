@@ -342,12 +342,19 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
         ppvLimit: pos.exactOptional(),
         k: pos.exactOptional(),
         beta: pos.exactOptional(),
+        structure: z.string().exactOptional(),
       }),
     )
     .exactOptional(),
   ppvLimits: z
     .array(
-      z.object({ from: nonNeg, to: pos.exactOptional(), ppvMax: pos, source: z.string().min(1) }),
+      z.object({
+        structure: z.string().exactOptional(),
+        from: nonNeg,
+        to: pos.exactOptional(),
+        ppvMax: pos,
+        source: z.string().min(1),
+      }),
     )
     .exactOptional(),
   displayUnits,
