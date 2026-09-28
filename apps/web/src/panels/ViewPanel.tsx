@@ -16,6 +16,7 @@ const SPEEDS = [
 function formatValue(v: number, mode: ColorBy): string {
   if (mode === 'time') return `${(v * 1000).toFixed(0)} ms`;
   if (mode === 'kg') return `${v.toFixed(0)} kg`;
+  if (mode === 'effectiveBurden') return `${v.toFixed(1)} m`;
   return `${v.toFixed(2)} kg/m³`;
 }
 
@@ -58,6 +59,7 @@ export function ViewPanel() {
           <option value="time">Tiempo de disparo</option>
           <option value="kg">kg por taladro</option>
           <option value="powderFactor">Factor de carga</option>
+          <option value="effectiveBurden">Burden efectivo</option>
           <option value="group">Grupo</option>
         </select>
       </label>

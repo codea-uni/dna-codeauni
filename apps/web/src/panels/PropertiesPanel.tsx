@@ -13,6 +13,7 @@ import { useProject, useSelectionIds } from '../hooks/useDocument';
 import { session } from '../session';
 import { DeckEditor } from './DeckEditor';
 import { useUnits } from '../hooks/useUnits';
+import { useAnalysisStore } from '../stores/analysisStore';
 
 /** Valor común de una propiedad en la selección, o null si difiere. */
 function common(holes: readonly Hole[], get: (h: Hole) => number): number | null {
@@ -31,6 +32,7 @@ function map(v: number | null, f: (x: number) => number): number | null {
 }
 
 export function PropertiesPanel() {
+  const analysis = useAnalysisStore((st) => st.analysis);
   const { len, dia } = useUnits();
   // Suscripciones: re-render cuando cambian el documento o la selección.
   useProject();
@@ -67,6 +69,16 @@ export function PropertiesPanel() {
     );
   };
   const toe = single ? holeToe(single) : undefined;
+  // Resultado del worker para el taladro seleccionado (tiempo relativo y burden efectivo, G5).
+  const k = single && analysis ? analysis.charge.holeIds.indexOf(single.id) : -1;
+  const seq =
+    analysis && k >= 0
+      ? {
+          t: (analysis.timing.fireTime[k] ?? NaN) - analysis.timing.firstTime,
+          eff: analysis.effectiveBurden.effective[k] ?? NaN,
+          nom: analysis.effectiveBurden.nominal[k] ?? NaN,
+        }
+      : null;
 
   return (
     <>
@@ -240,6 +252,17 @@ export function PropertiesPanel() {
         <p className="hint">
           P-09: con agua estática no ANFO; con agua dinámica solo emulsión. Se avisa en la revisión.
         </p>
+        {seq && Number.isFinite(seq.t) && (
+          <p className="muted">
+            Sale a {(seq.t * 1000).toFixed(0)} ms del primero
+            {Number.isFinite(seq.eff)
+              ? ` · burden efectivo ${len.show(seq.eff).toFixed(2)} ${len.unit}`
+              : seq.eff === Infinity
+                ? ' · sin cara libre al detonar'
+                : ''}
+            {Number.isFinite(seq.nom) && ` (nominal ${len.show(seq.nom).toFixed(2)} ${len.unit})`}
+          </p>
+        )}
         {toe && (
           <p className="muted mono">
             Fondo: E {toe.x.toFixed(2)} N {toe.y.toFixed(2)} Z {toe.z.toFixed(2)}

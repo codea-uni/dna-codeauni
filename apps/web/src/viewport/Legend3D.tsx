@@ -16,11 +16,13 @@ const BY_LABEL = {
   time: 'tiempo de disparo',
   kg: 'kg por taladro',
   powderFactor: 'factor de carga',
+  effectiveBurden: 'burden efectivo',
 } as const;
 
 function fmt(v: number, mode: keyof typeof BY_LABEL): string {
   if (mode === 'time') return `${Math.round(v * 1000)} ms`;
   if (mode === 'kg') return `${Math.round(v)} kg`;
+  if (mode === 'effectiveBurden') return `${v.toFixed(1)} m`;
   return `${v.toFixed(2)} kg/m³`;
 }
 

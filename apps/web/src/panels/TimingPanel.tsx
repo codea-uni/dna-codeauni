@@ -1,4 +1,4 @@
-import type { DetonatorId, PatternId, SurfaceConnectorId } from '@cronos/core';
+import type { Blast, CalcParams, DetonatorId, PatternId, SurfaceConnectorId } from '@cronos/core';
 import { connectorColorCss } from '@cronos/engine';
 import { Cable, Zap } from 'lucide-react';
 import { useState } from 'react';
@@ -41,6 +41,7 @@ function Select<T extends string>({
 }
 
 export function TimingPanel() {
+  const [tieMode, setTieMode] = useState<'rows' | 'echelon'>('rows');
   const project = useProject();
   const blast = useActiveBlast();
   const selection = useSelectionIds();
@@ -145,6 +146,8 @@ export function TimingPanel() {
         </div>
       </section>
 
+      {blast && <SequenceParams blast={blast} />}
+
       <section className="panel">
         <h2>Amarre automático</h2>
         {patterns.length === 0 ? (
@@ -182,8 +185,22 @@ export function TimingPanel() {
             <button disabled={!single} onClick={takeFromSelection}>
               Usar taladro seleccionado como inicio
             </button>
+            <label className="field">
+              <span className="field-label">Tipo</span>
+              <select
+                value={tieMode}
+                onChange={(e) => {
+                  setTieMode(e.target.value as 'rows' | 'echelon');
+                }}
+              >
+                <option value="rows">Por filas (línea a línea o en V)</option>
+                <option value="echelon">En escalón (echelon)</option>
+              </select>
+            </label>
             <p className="hint">
-              Columna en un extremo: línea a línea. Columna central: salida en V.
+              Por filas: columna en un extremo = línea a línea; central = salida en V. En escalón:
+              solo la fila de inicio se encadena y cada taladro sale desde el de adelante (isócronas
+              en diagonal).
             </p>
             <h3>Nonel (superficie)</h3>
             <Select
@@ -210,6 +227,7 @@ export function TimingPanel() {
                     patternId: patternId as PatternId,
                     startRow: start.startRow,
                     startCol: start.startCol,
+                    mode: tieMode,
                   },
                   tie.interHole as SurfaceConnectorId,
                   tie.interRow as SurfaceConnectorId,
@@ -336,5 +354,97 @@ export function TimingPanel() {
         </div>
       </section>
     </>
+  );
+}
+
+/**
+ * Parámetros de la secuencia guardados en la voladura: alivio del burden efectivo (P-02) y guía de
+ * retardos por metro (H-505, P-11). Se editan como comando (con deshacer).
+ */
+function SequenceParams({ blast }: { blast: Blast }) {
+  const cp = blast.calcParams;
+  const set = (patch: Partial<CalcParams>, label: string) => {
+    session.document.dispatch(
+      { type: 'blast/patch', blastId: blast.id, patch: { calcParams: { ...cp, ...patch } } },
+      label,
+    );
+  };
+  const guide = cp.delayGuide;
+  const setGuide = (
+    which: keyof CalcParams['delayGuide'],
+    bound: 'min' | 'max',
+    msPerM: number,
+  ) => {
+    set(
+      { delayGuide: { ...guide, [which]: { ...guide[which], [bound]: msPerM / 1000 } } },
+      'Guía de retardos',
+    );
+  };
+  return (
+    <section className="panel">
+      <h2>Parámetros de la secuencia</h2>
+      <NumberField
+        label="Alivio del burden"
+        unit="ms/m"
+        decimals={1}
+        min={0}
+        value={cp.reliefRate * 1000}
+        onCommit={(v) => {
+          set({ reliefRate: v / 1000 }, 'Alivio del burden');
+        }}
+      />
+      <p className="hint">
+        Un taladro ya detonado cuenta como cara libre si salió al menos este tiempo por metro de
+        burden antes (P-02: 3 ms/m roca dura, 5–6 ms/m roca blanda; 0 = caso límite optimista).
+      </p>
+      <div className="row">
+        <NumberField
+          label="Entre taladros mín."
+          unit="ms/m"
+          decimals={1}
+          min={0}
+          value={guide.interHole.min * 1000}
+          onCommit={(v) => {
+            setGuide('interHole', 'min', v);
+          }}
+        />
+        <NumberField
+          label="máx."
+          unit="ms/m"
+          decimals={1}
+          min={0}
+          value={guide.interHole.max * 1000}
+          onCommit={(v) => {
+            setGuide('interHole', 'max', v);
+          }}
+        />
+      </div>
+      <div className="row">
+        <NumberField
+          label="Entre filas mín."
+          unit="ms/m"
+          decimals={1}
+          min={0}
+          value={guide.interRow.min * 1000}
+          onCommit={(v) => {
+            setGuide('interRow', 'min', v);
+          }}
+        />
+        <NumberField
+          label="máx."
+          unit="ms/m"
+          decimals={1}
+          min={0}
+          value={guide.interRow.max * 1000}
+          onCommit={(v) => {
+            setGuide('interRow', 'max', v);
+          }}
+        />
+      </div>
+      <p className="hint">
+        Guía de diseño (aviso informativo): entre taladros por metro de espaciamiento (P-11: 3–8
+        ms/m), entre filas por metro de burden (6–12 ms/m).
+      </p>
+    </section>
   );
 }

@@ -236,6 +236,8 @@ export interface TieUpForm {
   patternId: PatternId;
   startRow: number;
   startCol: number;
+  /** `rows` = línea a línea o en V según la columna de inicio; `echelon` = en escalón (H-504). */
+  mode?: 'rows' | 'echelon';
 }
 
 /** Reemplaza las conexiones y puntos de inicio de los taladros del patrón por un amarre por filas. */
@@ -269,7 +271,7 @@ export function generateRowTieUp(
         ...generated.initiationPoints,
       ],
     }),
-    'Amarre por filas',
+    form.mode === 'echelon' ? 'Amarre en escalón' : 'Amarre por filas',
   );
   notify(`Amarre generado: ${generated.connections.length} conexiones`);
 }

@@ -15,7 +15,9 @@ export function scalarValues(
       ? analysis.timing.fireTime
       : mode === 'kg'
         ? analysis.charge.perHole
-        : analysis.charge.loadingFactorPerHole;
+        : mode === 'effectiveBurden'
+          ? analysis.effectiveBurden.effective
+          : analysis.charge.loadingFactorPerHole;
   ids.forEach((id, i) => {
     const v = source[i] ?? NaN;
     if (Number.isFinite(v) && (mode === 'time' || v > 0)) values.set(id, v);
@@ -33,7 +35,8 @@ function labels(analysis: BlastAnalysis, mode: LabelBy): Map<HoleId, string> | n
   const ids = analysis.charge.holeIds;
   ids.forEach((id, i) => {
     if (mode === 'time') {
-      const t = analysis.timing.fireTime[i] ?? NaN;
+      // Tiempo relativo al primer taladro (H-502; el absoluto incluye el retardo de fondo).
+      const t = (analysis.timing.fireTime[i] ?? NaN) - analysis.timing.firstTime;
       out.set(id, Number.isFinite(t) ? String(Math.round(t * 1000)) : '—');
     } else {
       out.set(id, (analysis.charge.perHole[i] ?? 0).toFixed(0));
