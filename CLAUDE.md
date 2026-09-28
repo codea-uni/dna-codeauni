@@ -79,8 +79,8 @@ Detalle, tareas y criterios de salida en `docs/PLAN.md §4`. Cada hito sigue el 
 - **G3:** diseño de malla (cara libre, grupos, modelos de burden) ✅
 - **G4:** explosivos y carga (catálogo con fuente, SDOB, PD/PB, CR-01..03) ✅ (CR-04 espera las fichas de HA73/HA64, P-15)
 - **G5:** amarre y tiempos (escalón, ciclos, burden efectivo, CR-05) ✅
-- **G6:** MIC y PPV (límites, K/β por punto, CR-06)
-- **G7:** reporte y escenarios
+- **G6:** MIC y PPV (límites, K/β por punto, CR-06) ✅
+- **G7:** reporte y escenarios ✅ (CR-04 espera P-15)
 - **G8:** idiomas (usuarios y roles diferidos, D-08)
 - **G9:** cierre de la Fase 1; luego F2 análisis avanzado, F3 subterráneo, F4 datos de campo, F5 distribución + backend
 
