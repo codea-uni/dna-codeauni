@@ -4,28 +4,28 @@ Un bloque por hito con la plantilla de la guía (`docs/theory/01 §8.2`). Al cer
 
 ## Fase 1: cierre (G9), medido el 2026-09-28
 
-Semáforo **amarillo**: el código de G0–G8 está completo y verificado; faltan las mediciones que hacen personas (I1, I6) y los datos de CR-04 (P-15).
+Semáforo **amarillo**: el código de G0–G8 está completo y verificado; faltan las mediciones que hacen personas (I1, I6) y la carga de CR-04, que queda pendiente (S-03: malla sintética y ANFO Pesado Famesa como sustitutos).
 
 ### Hitos
 
-| Hito                    | Estado    | Casos de referencia                                     | Pendiente                                         |
-| ----------------------- | --------- | ------------------------------------------------------- | ------------------------------------------------- |
-| G0 Comprensión y base   | ✅ código | —                                                       | Respuesta 3 de `docs/QUESTIONS.md` (CR-01 a mano) |
-| G1 Modelo y unidades    | ✅        | Migraciones v1→v5 con test                              | —                                                 |
-| G2 Importación          | ✅        | CR-04 sintético (180 taladros, trampas de `03 §5`)      | Reproyección entre CRS; CSV real de CR-04         |
-| G3 Malla                | ✅        | CR-01 pasos 1–7 y 10, CR-02 fila 12, CR-03 (B, L, V)    | —                                                 |
-| G4 Explosivos y carga   | ✅        | CR-01 pasos 8–12, CR-02 filas 1–14 y 3 variantes, CR-03 | CR-04 a mano: fichas de HA73/HA64 (P-15)          |
-| G5 Amarre y tiempos     | ✅        | CR-05 amarres 1–5 (tiempos, MIC, burden efectivo)       | Confirmar P-16                                    |
-| G6 MIC y PPV            | ✅        | CR-06 (ejemplo a mano) e inversa                        | Registros reales de CR-06 (F4)                    |
-| G7 Reporte y escenarios | ✅        | Comparación de escenarios; 60 pasos de deshacer         | Reporte de CR-04 (P-15)                           |
-| G8 Idiomas              | ✅        | Todos los avisos del núcleo traducidos (test)           | —                                                 |
+| Hito                    | Estado    | Casos de referencia                                     | Pendiente                                        |
+| ----------------------- | --------- | ------------------------------------------------------- | ------------------------------------------------ |
+| G0 Comprensión y base   | ✅ código | —                                                       | Respuesta 3 de`docs/QUESTIONS.md` (CR-01 a mano) |
+| G1 Modelo y unidades    | ✅        | Migraciones v1→v5 con test                              | —                                                |
+| G2 Importación          | ✅        | CR-04 sintético (180 taladros, trampas de`03 §5`)       | Reproyección entre CRS                           |
+| G3 Malla                | ✅        | CR-01 pasos 1–7 y 10, CR-02 fila 12, CR-03 (B, L, V)    | —                                                |
+| G4 Explosivos y carga   | ✅        | CR-01 pasos 8–12, CR-02 filas 1–14 y 3 variantes, CR-03 | CR-04 a mano: fichas de HA73/HA64 (P-15)         |
+| G5 Amarre y tiempos     | ✅        | CR-05 amarres 1–5 (tiempos, MIC, burden efectivo)       | Confirmar P-16                                   |
+| G6 MIC y PPV            | ✅        | CR-06 (ejemplo a mano) e inversa                        | Registros reales de CR-06 (F4)                   |
+| G7 Reporte y escenarios | ✅        | Comparación de escenarios; 60 pasos de deshacer         | Reporte de CR-04 (P-15)                          |
+| G8 Idiomas              | ✅        | Todos los avisos del núcleo traducidos (test)           | —                                                |
 
 ### Indicadores (guía `§10`)
 
 | Indicador                     | Meta                                                            | Medido                                                                                                                                                                                           | Estado         |
 | ----------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
-| **I1 Comprensión**            | 6 en G0 y 2 por hito, 100 % aprobadas                           | G0: 5/6 aprobadas (falta la 3). Por hito: 16 preguntas preparadas en `docs/QUESTIONS.md`, sin responder                                                                                          | 🟡             |
-| **I2 Trazabilidad**           | 100 % de los requisitos con fuente → caso → prueba → pantalla   | 19/26 requisitos completos (✅), 7 parciales (🟡) y R-25 diferido (D-08). Detalle en `docs/ROADMAP.md §3`                                                                                        | 🟡             |
+| **I1 Comprensión**            | 6 en G0 y 2 por hito, 100 % aprobadas                           | G0: 5/6 aprobadas (falta la 3). Por hito: 16 preguntas preparadas en`docs/QUESTIONS.md`, sin responder                                                                                           | 🟡             |
+| **I2 Trazabilidad**           | 100 % de los requisitos con fuente → caso → prueba → pantalla   | 19/26 requisitos completos (✅), 7 parciales (🟡) y R-25 diferido (D-08). Detalle en`docs/ROADMAP.md §3`                                                                                         | 🟡             |
 | **I3 Verificación numérica**  | 100 % de los CR aplicables dentro de tolerancia                 | CR-01, CR-02, CR-03, CR-05 y CR-06: 5/5 completos. CR-04: importación y conteo; carga y reporte esperan P-15. CR-07: fase F2                                                                     | 🟡 (por datos) |
 | **I4 Calidad automática**     | Pruebas en verde; fórmulas con prueba externa; cobertura ≥ 85 % | 217 pruebas + 6 de rendimiento en verde; núcleo con 95,4 % de líneas (73,9 % de ramas); 24 de 32 fórmulas en R3; CI en cada push                                                                 | ✅             |
 | **I5 Rigor de fuentes**       | 0 reglas sin cita y 0 preguntas críticas abiertas               | Constantes sin ficha: 8 (CT-01 a CT-08), todas registradas, como parámetro editable o avisadas en el informe PDF. Preguntas críticas abiertas: 0 (P-15 es un dato pendiente; P-16 no es crítica) | 🟡             |
@@ -100,7 +100,7 @@ Un ingeniero que no participó en el desarrollo reproduce CR-04 sin ayuda. Se re
 | 10  | Comparar                                                                                                   | Escenarios → Comparar                                   |        |                 |
 | 11  | Generar el reporte                                                                                         | Exportar → Informe PDF                                  |        |                 |
 
-**Requisitos previos:** el CSV real de CR-04 y las fichas de HA73 y HA64 del proveedor (P-15), registradas con su densidad en taladro.
+**Requisitos previos:** la malla sintética de CR-04 (`io/fixtures/cr04-sintetico.csv`) y el ANFO Pesado de Famesa como sustituto de HA73/HA64 (S-03). El ingeniero puede hacer la prueba sin esperar datos.
 
 ## Trazabilidad de requisitos de la Fase 1 (indicador I2)
 
@@ -178,21 +178,21 @@ en el navegador sin interfaz (semáforo, flechas, daño, fragmentación) sin err
 Criterio de la guía: «casos de referencia de cada modelo reproducidos». Semáforo **verde en código**, con tres modelos
 que siguen sin caso propio (se muestran como estimaciones).
 
-| Modelo                  | Regla        | Estado | Caso reproducido                                |
-| ----------------------- | ------------ | ------ | ----------------------------------------------- |
-| Precorte y buffer       | FC-31, FC-32 | R3     | CR-01, `X-PRE`                                  |
-| Burden efectivo (P-16)  | FC-22        | R3     | CR-05 (amarre 5 con 8 ms/m, S-06)               |
-| Holmberg–Persson        | FC-28        | R3     | `R1` F25                                        |
-| Daño por VPPc           | FC-33        | R1     | — (sin caso publicado)                          |
-| Kuz-Ram                 | FC-26        | R2     | CR-02 #15 y `X-D1` (regresión; CR-07 no existe) |
-| Swebrec                 | FC-27        | R1     | — (identidades de la curva)                     |
-| Semáforo de SDOB y taco | FC-34        | R3     | `R1` F12, CR-02 fila 13                         |
-| Lundborg y sobrepresión | FC-29, FC-30 | R1     | — (estimaciones con parámetros del sitio)       |
-| Velocidad de burden     | FC-36        | R3     | Zhang et al. (2021)                             |
-| Alcance balístico       | FC-37        | R0     | Ejemplo de P-21 (regresión; k de calibración)   |
-| Costo                   | FC-35        | R3     | CR-02 #16, #17                                  |
-| Doble cebado            | FC-38        | R3     | `R1` F19                                        |
-| VOD(D)                  | FC-20        | R3     | `R2` F02                                        |
+| Modelo                  | Regla        | Estado | Caso reproducido                               |
+| ----------------------- | ------------ | ------ | ---------------------------------------------- |
+| Precorte y buffer       | FC-31, FC-32 | R3     | CR-01,`X-PRE`                                  |
+| Burden efectivo (P-16)  | FC-22        | R3     | CR-05 (amarre 5 con 8 ms/m, S-06)              |
+| Holmberg–Persson        | FC-28        | R3     | `R1` F25                                       |
+| Daño por VPPc           | FC-33        | R1     | — (sin caso publicado)                         |
+| Kuz-Ram                 | FC-26        | R2     | CR-02#15 y `X-D1` (regresión; CR-07 no existe) |
+| Swebrec                 | FC-27        | R1     | — (identidades de la curva)                    |
+| Semáforo de SDOB y taco | FC-34        | R3     | `R1` F12, CR-02 fila 13                        |
+| Lundborg y sobrepresión | FC-29, FC-30 | R1     | — (estimaciones con parámetros del sitio)      |
+| Velocidad de burden     | FC-36        | R3     | Zhang et al. (2021)                            |
+| Alcance balístico       | FC-37        | R0     | Ejemplo de P-21 (regresión; k de calibración)  |
+| Costo                   | FC-35        | R3     | CR-02#16, #17                                  |
+| Doble cebado            | FC-38        | R3     | `R1` F19                                       |
+| VOD(D)                  | FC-20        | R3     | `R2` F02                                       |
 
 Indicadores: I3 todos los modelos con caso disponible dentro de tolerancia · I4 245 + 6 pruebas en verde, esquema v10
 con migraciones probadas · I5 supuestos S-01…S-09 documentados, 0 preguntas abiertas.

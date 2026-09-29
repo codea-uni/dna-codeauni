@@ -40,9 +40,9 @@ Detalle y trazabilidad R-01…R-27 en `docs/REPORTS.md`.
 | ----------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | G0 Base                 | CI, cobertura, bugs de MIC y CSV corregidos, nombre Cronos, i18n                               | Comprensión 3 (CR-01 a mano), la responde el desarrollador |
 | G1 Modelo y unidades    | Esquema con grupos, agua, límites, `calcParams`; EPSG obligatorio; unidades m/ft; autoguardado | Reglas y escala del mapa en ft                             |
-| G2 Importación          | Trampas de CSV de `03 §5`, GeoJSON, vista previa con deshacer, fixture sintético de CR-04      | Reproyección entre CRS; CSV real de CR-04                  |
+| G2 Importación          | Trampas de CSV de `03 §5`, GeoJSON, vista previa con deshacer, fixture sintético de CR-04      | Reproyección entre CRS                                     |
 | G3 Malla                | Cara libre, equilátera, grupos, modelos de burden (CR-01, CR-02, CR-03), chequeos de `02 §6`   | —                                                          |
-| G4 Carga                | Catálogo con fuente, decks, iniciación, SDOB, PD/PB, factores (CR-01…CR-03)                    | CR-04 a mano (fichas HA73/HA64)                            |
+| G4 Carga                | Catálogo con fuente, decks, iniciación, SDOB, PD/PB, factores (CR-01…CR-03)                    | Carga de CR-04 pendiente (S-03)                            |
 | G5 Tiempos              | Escalón, ciclos, burden efectivo, guía de ms/m (CR-05)                                         | Regla de alivio por isócronas → A1b                        |
 | G6 MIC y PPV            | Ventana ampliada, K/β por punto, límites, carga admisible (CR-06)                              | Ajuste de K/β con registros reales → F4                    |
 | G7 Reporte y escenarios | Escenarios comparables, PDF con supuestos, PNG y TSV                                           | Reporte de CR-04                                           |
