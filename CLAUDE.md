@@ -73,6 +73,6 @@ Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab�
 
 ## Hitos
 
-Uno a la vez, con el ciclo de `docs/ROADMAP.md`. Fases: **F1** diseño y simulación (G0–G9, código completo) · **F2** análisis avanzado (A0–A6, en curso) · **F3** subterráneo (S0–S6) · **F4** datos de campo (C0–C5) · **F5** distribución y backend (D0–D4). El detalle y el hito en curso están solo en `docs/ROADMAP.md`.
+Uno a la vez, con el ciclo de `docs/ROADMAP.md`. Fases: **F1** diseño y simulación (G0–G9, código completo) · **F2** análisis avanzado (A0–A6, código terminado) · **Evaluación 2** (en curso) · **F3** subterráneo (S0–S6) · **F4** datos de campo (C0–C5) · **F5** distribución y backend (D0–D4). El detalle y el hito en curso están solo en `docs/ROADMAP.md`.
 
 El prototipo BlastLab ya implementó las fases 0–9 (malla, carguío, tiempos, CSV, energía, fragmentación, vibración, DXF/PDF, 3D). Se reutilizan y se regularizan hito a hito (D-07).

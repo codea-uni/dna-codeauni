@@ -168,4 +168,31 @@ Hito: A5 · Reglas: FC-36 (R1 → R3), FC-37 (R0), FC-35 (→ R3), FC-38 nueva (
 Zhang 2021 (57,6; 16,5; 19,5; 16,7; 10,6 m/s), P-21 (14,1 m/s; 22,7 m), CR-02 #16/#17 (321,40; 144; 0,1836 US$/t),
 R1 F19 (doble cebado), R2 F02 (4029,6; 4548,1 m/s)
 Indicadores: I4 245 + 6 pruebas en verde · No verificado: k por fila (calibración de sitio, S-01)
+
+Hito: A6 · Cierre de F2 · Demostración con 3 pasos nuevos; ejemplos con RT, Vp y costo de perforación; revisión visual
+en el navegador sin interfaz (semáforo, flechas, daño, fragmentación) sin errores de consola · Supuesto S-09 (B/Ø ≥ 7)
 ```
+
+### Cierre de la Fase 2 (2026-09-29)
+
+Criterio de la guía: «casos de referencia de cada modelo reproducidos». Semáforo **verde en código**, con tres modelos
+que siguen sin caso propio (se muestran como estimaciones).
+
+| Modelo                  | Regla        | Estado | Caso reproducido                                |
+| ----------------------- | ------------ | ------ | ----------------------------------------------- |
+| Precorte y buffer       | FC-31, FC-32 | R3     | CR-01, `X-PRE`                                  |
+| Burden efectivo (P-16)  | FC-22        | R3     | CR-05 (amarre 5 con 8 ms/m, S-06)               |
+| Holmberg–Persson        | FC-28        | R3     | `R1` F25                                        |
+| Daño por VPPc           | FC-33        | R1     | — (sin caso publicado)                          |
+| Kuz-Ram                 | FC-26        | R2     | CR-02 #15 y `X-D1` (regresión; CR-07 no existe) |
+| Swebrec                 | FC-27        | R1     | — (identidades de la curva)                     |
+| Semáforo de SDOB y taco | FC-34        | R3     | `R1` F12, CR-02 fila 13                         |
+| Lundborg y sobrepresión | FC-29, FC-30 | R1     | — (estimaciones con parámetros del sitio)       |
+| Velocidad de burden     | FC-36        | R3     | Zhang et al. (2021)                             |
+| Alcance balístico       | FC-37        | R0     | Ejemplo de P-21 (regresión; k de calibración)   |
+| Costo                   | FC-35        | R3     | CR-02 #16, #17                                  |
+| Doble cebado            | FC-38        | R3     | `R1` F19                                        |
+| VOD(D)                  | FC-20        | R3     | `R2` F02                                        |
+
+Indicadores: I3 todos los modelos con caso disponible dentro de tolerancia · I4 245 + 6 pruebas en verde, esquema v10
+con migraciones probadas · I5 supuestos S-01…S-09 documentados, 0 preguntas abiertas.

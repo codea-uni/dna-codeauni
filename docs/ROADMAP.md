@@ -4,12 +4,12 @@
 
 ## ▶ Dónde estamos (2026-09-29)
 
-| Qué           | Valor                                                                     |
-| ------------- | ------------------------------------------------------------------------- |
-| Fase          | **F2 Análisis avanzado**                                                  |
-| Hito en curso | **▶ A1b Burden efectivo por isócronas**                                   |
-| Después       | A2 → A3 → A4 → A5 → A6 → Evaluación 2 → F3                                |
-| Fase 1        | Código completo; el cierre formal espera datos y aprobaciones (ver abajo) |
+| Qué           | Valor                                                                            |
+| ------------- | -------------------------------------------------------------------------------- |
+| Fase          | **Evaluación 2** (F2 terminada en código; ver «Fase 2» en `docs/REPORTS.md`)     |
+| Hito en curso | **▶ E2.1 Manual básico** (sección «Evaluación 2» más abajo)                      |
+| Después       | E2.2 registro de comentarios → E2.3 sesión con ingenieros → F3 (S0)              |
+| Fase 1        | Código completo; el cierre formal espera datos y aprobaciones (ver `REPORTS.md`) |
 
 ## Todas las fases
 
@@ -17,8 +17,8 @@
 | ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
 | **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
 | Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                            | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
-| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · A5 · **▶ A6**                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
-| Evaluación 2                  | Ingenieros externos                              | E2.1 manual · E2.2 comentarios · E2.3 sesión                                                                                 | Hallazgos críticos resueltos                           | —                        |
+| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · A5 · A6                                                                                       | Caso de referencia de cada modelo reproducido          | ✅ código                |
+| Evaluación 2                  | Ingenieros externos                              | **▶ E2.1** manual · E2.2 comentarios · E2.3 sesión                                                                           | Hallazgos críticos resueltos                           | ⏳ en curso              |
 | **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                 | Ronda completa dentro de sección; casos de referencia  | —                        |
 | **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                               | Un diseño calibrado con datos reales                   | —                        |
 | **F5** Distribución y backend | Dejarlo listo para terceros                      | D0 backend · D1 usuarios y roles · D2 comentarios y auditoría · D3 manual y paquete · D4 cierre                              | Lista de lanzamiento aprobada                          | —                        |
@@ -111,9 +111,9 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 - Se aplazan: Monte Carlo de dispersión (DF-15) y JKMRC de finos (sin constantes públicas).
 - **Salida:** FC-36 en R3; FC-37 en R0 hasta calibrar k con perfiles de pila reales (F4). Hecho: `analysis/displacement.ts` (en el análisis del worker), dirección desde `effectiveBurden.toward`, capa de flechas en la vista con c_B y k editables; costo de perforación y US$/t en Resultados (CR-02 #16, #17 y 0,1836 US$/t); aviso de doble cebado (F19); VOD(D) con los ejemplos de `R2` F02 (FC-20 en R3). Esquema v10.
 
-### A6: cierre de F2
+### A6: cierre de F2 ✅
 
-- Reporte la sección «Fase 2» de `docs/REPORTS.md`; demostración y ejemplos con precorte, daño y semáforo. Luego **Evaluación 2** con ingenieros externos.
+- Hecho: reporte y tabla de cierre en la sección «Fase 2» de `docs/REPORTS.md`; demostración con semáforo de SDOB, desplazamiento y daño (15 pasos, ≈ 125 s); ejemplos con RT, Vp (VPPc calculada) y costo de perforación; revisión visual en el navegador sin interfaz. Luego **Evaluación 2**.
 
 ## Evaluación 2 (después de A6)
 
