@@ -968,124 +968,6 @@ kbd {
   }
 }
 
-/* Portada y cierre a pantalla completa. */
-.demo-card {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(252, 74, 26, 0.35), transparent 45%),
-    radial-gradient(circle at 75% 80%, rgba(247, 183, 51, 0.25), transparent 50%),
-    linear-gradient(160deg, #0b0f17 0%, #111a2b 55%, #0b0f17 100%);
-  color: #fff;
-  text-align: center;
-  overflow: hidden;
-}
-
-.demo-card.intro {
-  animation: demo-card-out 1.2s ease-in 5.6s forwards;
-}
-
-.demo-card.outro {
-  animation: demo-fade-in 1s ease-out both;
-}
-
-.demo-card-glow {
-  position: absolute;
-  width: 900px;
-  height: 900px;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, #fc4a1a33, #f7b73333, transparent, #fc4a1a33);
-  filter: blur(60px);
-  animation: demo-spin 18s linear infinite;
-}
-
-.demo-brand {
-  position: relative;
-  font-size: clamp(56px, 11vw, 150px);
-  font-weight: 800;
-  letter-spacing: 0.28em;
-  padding-left: 0.28em;
-  background: linear-gradient(90deg, #ffd27a, #fc4a1a 60%, #ffd27a);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation:
-    demo-rise 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both,
-    demo-shine 4s linear 1.2s infinite;
-}
-
-.demo-tagline {
-  position: relative;
-  font-size: clamp(18px, 2.4vw, 30px);
-  font-weight: 300;
-  opacity: 0.92;
-  animation: demo-rise 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 0.35s both;
-}
-
-.demo-card-line {
-  position: relative;
-  width: 220px;
-  height: 3px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, #f7b733, #fc4a1a, transparent);
-  animation: demo-grow 1s ease-out 0.8s both;
-}
-
-.demo-card-sub {
-  position: relative;
-  max-width: 760px;
-  padding: 0 16px;
-  font-size: clamp(14px, 1.5vw, 19px);
-  color: rgba(255, 255, 255, 0.7);
-  animation: demo-rise 1s ease-out 1.1s both;
-}
-
-.demo-stats {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 200px));
-  gap: 14px;
-  margin: 8px 16px;
-}
-
-.demo-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 16px 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(6px);
-  animation: demo-rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.demo-stat strong {
-  font-size: 30px;
-  font-weight: 800;
-  background: linear-gradient(90deg, #ffd27a, #fc4a1a);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.demo-stat span {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-@media (max-width: 800px) {
-  .demo-stats {
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
-  }
-}
-
 /* Capítulo numerado que entra en cada paso. */
 .demo-chapter {
   position: absolute;
@@ -1216,30 +1098,76 @@ kbd {
   }
 }
 
-@keyframes demo-shine {
-  to {
-    background-position: 200% center;
-  }
+/* Paneles en ventanas flotantes: se arrastran por el título y se agrandan desde la esquina. */
+.tabs .tab-popout {
+  flex: 0 0 auto;
+  align-self: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 4px;
+  padding: 0;
+  border-radius: 6px;
 }
 
-@keyframes demo-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.tabs .tab-popout:hover {
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.06);
 }
 
-@keyframes demo-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.floating-window {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  min-height: 200px;
+  max-width: calc(100vw - 8px);
+  max-height: calc(100vh - 8px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  border-radius: 10px;
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  resize: both;
 }
 
-@keyframes demo-card-out {
-  to {
-    opacity: 0;
-    visibility: hidden;
-  }
+.floating-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.floating-header strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.floating-spacer {
+  flex: 1;
+}
+
+.floating-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* En una ventana hay más ancho: los campos y tablas se aprovechan mejor. */
+.floating-body .panel {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.floating-placeholder .row {
+  gap: 0.4rem;
 }

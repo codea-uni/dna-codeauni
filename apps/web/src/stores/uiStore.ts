@@ -23,6 +23,37 @@ import type { DxfPreview } from '../dialogs/DxfImportDialog';
  * Estado de UI. Nunca contiene el diseño (ver CLAUDE.md: React no renderiza el diseño).
  * Los cambios de herramienta, snapping y plantilla se reenvían al engine desde el Viewport.
  */
+/** Panel abierto en una ventana flotante (posición y tamaño en px de la pantalla). */
+export interface FloatingPanel {
+  id: UiState['leftTab'] | UiState['rightTab'];
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const FLOATING_KEY = 'cronos.floating';
+
+/** Ventanas recordadas entre sesiones (preferencia local; si el almacenamiento falla, ninguna). */
+function loadFloating(): FloatingPanel[] {
+  try {
+    const raw = localStorage.getItem(FLOATING_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? (parsed as FloatingPanel[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFloating(list: FloatingPanel[]): FloatingPanel[] {
+  try {
+    localStorage.setItem(FLOATING_KEY, JSON.stringify(list));
+  } catch {
+    // ponytail: sin almacenamiento las ventanas no se recuerdan, nada más.
+  }
+  return list;
+}
+
 interface UiState {
   tool: ToolName;
   snap: SnapSettings;
@@ -84,6 +115,12 @@ interface UiState {
   setHover: (hover: HoleId | null) => void;
   notify: (text: string, kind?: 'info' | 'error') => void;
   setBusy: (busy: string | null) => void;
+  /** Paneles abiertos como ventanas flotantes; el último está encima. */
+  floating: FloatingPanel[];
+  floatPanel: (id: FloatingPanel['id']) => void;
+  dockPanel: (id: FloatingPanel['id']) => void;
+  updateFloating: (id: FloatingPanel['id'], patch: Partial<Omit<FloatingPanel, 'id'>>) => void;
+  raiseFloating: (id: FloatingPanel['id']) => void;
 }
 
 export const useUiStore = create<UiState>()((set) => ({
@@ -92,6 +129,33 @@ export const useUiStore = create<UiState>()((set) => ({
   holeTemplate: DEFAULT_HOLE_TEMPLATE,
   tieConnectorId: undefined,
   leftTab: 'design',
+  floating: loadFloating(),
+  floatPanel: (id) => {
+    set((s) => {
+      if (s.floating.some((f) => f.id === id)) return {};
+      const n = s.floating.length;
+      const w = Math.min(560, window.innerWidth - 40);
+      const h = Math.min(Math.round(window.innerHeight * 0.72), window.innerHeight - 80);
+      const x = Math.max(20, Math.round((window.innerWidth - w) / 2) + n * 28);
+      const y = 70 + n * 28;
+      return { floating: saveFloating([...s.floating, { id, x, y, w, h }]) };
+    });
+  },
+  dockPanel: (id) => {
+    set((s) => ({ floating: saveFloating(s.floating.filter((f) => f.id !== id)) }));
+  },
+  updateFloating: (id, patch) => {
+    set((s) => ({
+      floating: saveFloating(s.floating.map((f) => (f.id === id ? { ...f, ...patch } : f))),
+    }));
+  },
+  raiseFloating: (id) => {
+    set((s) => {
+      const f = s.floating.find((x) => x.id === id);
+      if (!f || s.floating.at(-1)?.id === id) return {};
+      return { floating: saveFloating([...s.floating.filter((x) => x.id !== id), f]) };
+    });
+  },
   activeBoundaryId: null,
   csvPreview: null,
   shortcutsOpen: false,

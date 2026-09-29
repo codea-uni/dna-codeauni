@@ -7,8 +7,8 @@ import { DEMO_STEPS, runStep, stopDemo } from './tour';
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /**
- * Modo demostración para grabar video: portada y cierre animados, capítulo numerado, subtítulo y
- * barra de progreso por pasos. Cada paso se ejecuta al entrar (con la vista limpia, así se puede
+ * Modo demostración para grabar video (tutorial): capítulo numerado, subtítulo y barra de progreso
+ * por pasos. Cada paso se ejecuta al entrar (con la vista limpia, así se puede
  * retroceder) y avanza solo al cumplir su duración. Teclas: ← → pasos, espacio pausa, Esc salir.
  */
 export function DemoOverlay() {
@@ -103,49 +103,10 @@ export function DemoOverlay() {
         ))}
       </div>
 
-      {current.card === 'intro' && (
-        <div key={`card-${String(step)}`} className="demo-card intro">
-          <div className="demo-card-glow" />
-          <div className="demo-brand">CRONOS</div>
-          <div className="demo-tagline">{t('demo.card.tagline')}</div>
-          <div className="demo-card-line" />
-          <div className="demo-card-sub">{t('demo.card.sub')}</div>
-        </div>
-      )}
-      {current.card === 'outro' && (
-        <div key={`card-${String(step)}`} className="demo-card outro">
-          <div className="demo-card-glow" />
-          <div className="demo-brand">CRONOS</div>
-          <div className="demo-tagline">{t('demo.outro.title')}</div>
-          <div className="demo-stats">
-            {(
-              [
-                ['demo.outro.stat1v', 'demo.outro.stat1'],
-                ['demo.outro.stat2v', 'demo.outro.stat2'],
-                ['demo.outro.stat3v', 'demo.outro.stat3'],
-                ['demo.outro.stat4v', 'demo.outro.stat4'],
-              ] as const
-            ).map(([v, l], i) => (
-              <div
-                key={l}
-                className="demo-stat"
-                style={{ animationDelay: `${String(400 + i * 180)}ms` }}
-              >
-                <strong>{t(v)}</strong>
-                <span>{t(l)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="demo-card-sub">{t('demo.outro.next')}</div>
-        </div>
-      )}
-
-      {!current.card && (
-        <div key={`chapter-${String(step)}`} className="demo-chapter">
-          <span className="demo-chapter-num">{pad(step + 1)}</span>
-          <span className="demo-chapter-title">{t(current.chapter)}</span>
-        </div>
-      )}
+      <div key={`chapter-${String(step)}`} className="demo-chapter">
+        <span className="demo-chapter-num">{pad(step + 1)}</span>
+        <span className="demo-chapter-title">{t(current.chapter)}</span>
+      </div>
 
       <div className="demo-caption" role="status" aria-live="polite">
         <div key={`text-${String(step)}`} className="demo-caption-text">

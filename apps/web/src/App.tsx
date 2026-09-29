@@ -1,13 +1,3 @@
-import {
-  Activity,
-  Flame,
-  Layers,
-  LayoutGrid,
-  Library,
-  Shapes,
-  Timer,
-  GitCompare,
-} from 'lucide-react';
 import { useEffect } from 'react';
 import {
   startAnalysisRunner,
@@ -20,14 +10,7 @@ import { StatusBar } from './components/StatusBar';
 import { DemoOverlay } from './demo/DemoOverlay';
 import { Toolbar } from './components/Toolbar';
 import { useShortcuts } from './hooks/useShortcuts';
-import { BlastPanel } from './panels/BlastPanel';
-import { ChargePanel } from './panels/ChargePanel';
-import { EnergyPanel } from './panels/EnergyPanel';
-import { LibraryPanel } from './panels/LibraryPanel';
-import { GroupsPanel } from './panels/GroupsPanel';
-import { PatternPanel } from './panels/PatternPanel';
 import { RightSidebar } from './panels/RightSidebar';
-import { TimingPanel } from './panels/TimingPanel';
 import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { DxfImportDialog } from './dialogs/DxfImportDialog';
 import { ProjectSettingsDialog } from './dialogs/ProjectSettingsDialog';
@@ -35,39 +18,12 @@ import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
 import { VersionsDialog } from './dialogs/VersionsDialog';
 import { startAutosave } from './persistence/autosave';
 import { restoreLatestAutosave } from './actions';
-import { FragmentationPanel } from './panels/FragmentationPanel';
-import { VibrationPanel } from './panels/VibrationPanel';
-import { ScenariosPanel } from './panels/ScenariosPanel';
 import { getCompute } from './session';
 import { useUiStore } from './stores/uiStore';
-import { useT, type MessageKey } from './i18n';
+import { useT } from './i18n';
+import { FloatingWindows, PopOutButton, SidebarBody } from './components/FloatingWindows';
+import { LEFT_TABS } from './panels/registry';
 import { Viewport } from './viewport/Viewport';
-
-const TABS = [
-  { id: 'design', label: 'app.tab.design', icon: LayoutGrid },
-  { id: 'charge', label: 'app.tab.charge', icon: Layers },
-  { id: 'timing', label: 'app.tab.timing', icon: Timer },
-  { id: 'energy', label: 'app.tab.energy', icon: Flame },
-  {
-    id: 'fragmentation',
-    label: 'app.tab.fragmentation',
-    icon: Shapes,
-    title: 'app.tab.fragmentation.title',
-  },
-  { id: 'vibration', label: 'app.tab.vibration', icon: Activity },
-  {
-    id: 'scenarios',
-    label: 'app.tab.scenarios',
-    icon: GitCompare,
-    title: 'app.tab.scenarios.title',
-  },
-  { id: 'library', label: 'app.tab.library', icon: Library, title: 'app.tab.library.title' },
-] as const satisfies readonly {
-  id: string;
-  label: MessageKey;
-  icon: unknown;
-  title?: MessageKey;
-}[];
 
 export function App() {
   useShortcuts();
@@ -103,7 +59,7 @@ export function App() {
       <aside className="sidebar left">
         <ErrorBoundary>
           <nav className="tabs" role="tablist">
-            {TABS.map((t) => (
+            {LEFT_TABS.map((t) => (
               <button
                 key={t.id}
                 role="tab"
@@ -118,21 +74,9 @@ export function App() {
                 <span>{tr(t.label)}</span>
               </button>
             ))}
+            <PopOutButton id={tab} />
           </nav>
-          {tab === 'design' && (
-            <>
-              <BlastPanel />
-              <PatternPanel />
-              <GroupsPanel />
-            </>
-          )}
-          {tab === 'charge' && <ChargePanel />}
-          {tab === 'timing' && <TimingPanel />}
-          {tab === 'energy' && <EnergyPanel />}
-          {tab === 'fragmentation' && <FragmentationPanel />}
-          {tab === 'vibration' && <VibrationPanel />}
-          {tab === 'scenarios' && <ScenariosPanel />}
-          {tab === 'library' && <LibraryPanel />}
+          <SidebarBody id={tab} />
         </ErrorBoundary>
       </aside>
       <main className="viewport-host">
@@ -140,6 +84,7 @@ export function App() {
       </main>
       <RightSidebar />
       <StatusBar />
+      <FloatingWindows />
       <DemoOverlay />
       {shortcutsOpen && (
         <ShortcutsDialog

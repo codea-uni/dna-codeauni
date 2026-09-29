@@ -151,22 +151,8 @@ export const es = {
   'demo.ch.review': 'Revisión del diseño',
   'demo.ch.language': 'Bilingüe',
   'demo.ch.end': 'Resumen',
-  'demo.card.tagline': 'Diseño y simulación de voladuras',
-  'demo.card.sub':
-    'Diseño, carga, secuencia, vibración, daño, fragmentación y desplazamiento, con cada cálculo verificado contra casos de referencia.',
   'demo.fragmentation':
     'Fragmentación: tamaño medio y curva granulométrica con Kuz-Ram y Swebrec (P50 y P80), sobretamaño y finos.',
-  'demo.outro.title': 'Correcto antes que vistoso: cada número tiene su fuente',
-  'demo.outro.stat1v': '38',
-  'demo.outro.stat1': 'fórmulas registradas con fuente y estado',
-  'demo.outro.stat2v': '250+',
-  'demo.outro.stat2': 'pruebas automáticas con casos de referencia',
-  'demo.outro.stat3v': '5.000',
-  'demo.outro.stat3': 'taladros a 60 fps en el navegador',
-  'demo.outro.stat4v': 'ES · EN',
-  'demo.outro.stat4': 'interfaz e informe PDF bilingües',
-  'demo.outro.next':
-    'Siguiente: evaluación con ingenieros externos y módulo subterráneo (frentes y anillos).',
   'demo.pause': 'Pausar',
   'demo.resume': 'Continuar',
   'demo.next': 'Siguiente',

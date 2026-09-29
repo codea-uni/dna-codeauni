@@ -1,34 +1,10 @@
-import { ChartColumn, MousePointerClick, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useT } from '../i18n';
 import { useSelectionIds } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
-import { MapPanel } from './MapPanel';
-import { PropertiesPanel } from './PropertiesPanel';
-import { ResultsPanel } from './ResultsPanel';
-import { ViewPanel } from './ViewPanel';
-
-const TABS = [
-  {
-    id: 'selection',
-    label: 'sidebar.selection',
-    icon: MousePointerClick,
-    title: 'sidebar.selectionTitle',
-  },
-  {
-    id: 'view',
-    label: 'sidebar.view',
-    icon: SlidersHorizontal,
-    title: 'sidebar.viewTitle',
-  },
-  {
-    id: 'results',
-    label: 'sidebar.results',
-    icon: ChartColumn,
-    title: 'sidebar.resultsTitle',
-  },
-] as const;
+import { PopOutButton, SidebarBody } from '../components/FloatingWindows';
+import { RIGHT_TABS } from './registry';
 
 /**
  * Panel derecho: la selección (lo específico) separada de los ajustes generales y los resultados.
@@ -48,7 +24,7 @@ export function RightSidebar() {
   return (
     <aside className="sidebar right">
       <nav className="tabs" role="tablist">
-        {TABS.map((it) => (
+        {RIGHT_TABS.map((it) => (
           <button
             key={it.id}
             role="tab"
@@ -68,16 +44,10 @@ export function RightSidebar() {
             </span>
           </button>
         ))}
+        <PopOutButton id={tab} />
       </nav>
       <ErrorBoundary>
-        {tab === 'selection' && <PropertiesPanel />}
-        {tab === 'view' && (
-          <>
-            <ViewPanel />
-            <MapPanel />
-          </>
-        )}
-        {tab === 'results' && <ResultsPanel />}
+        <SidebarBody id={tab} />
       </ErrorBoundary>
     </aside>
   );

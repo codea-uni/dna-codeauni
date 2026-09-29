@@ -5,6 +5,10 @@
 export const es = {
   'common.warning': 'Advertencia',
 
+  'float.open': 'Abrir en ventana (se puede mover y agrandar)',
+  'float.dock': 'Volver a la barra lateral',
+  'float.show': 'Traer al frente',
+  'float.placeholder': 'Este panel está abierto en una ventana flotante.',
   'sidebar.selection': 'Selección',
   'sidebar.selectionTitle': 'Propiedades de los taladros seleccionados',
   'sidebar.view': 'Vista',
@@ -291,6 +295,10 @@ export const es = {
 export const en = {
   'common.warning': 'Warning',
 
+  'float.open': 'Open in a window (movable and resizable)',
+  'float.dock': 'Back to the sidebar',
+  'float.show': 'Bring to front',
+  'float.placeholder': 'This panel is open in a floating window.',
   'sidebar.selection': 'Selection',
   'sidebar.selectionTitle': 'Properties of the selected holes',
   'sidebar.view': 'View',

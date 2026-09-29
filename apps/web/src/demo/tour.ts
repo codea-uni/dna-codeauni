@@ -17,8 +17,6 @@ export interface DemoStep {
   caption: MessageKey;
   /** Duración del paso [ms] antes de pasar al siguiente. */
   ms: number;
-  /** Portada o cierre a pantalla completa. */
-  card?: 'intro' | 'outro';
   run: () => void | Promise<void>;
 }
 
@@ -68,7 +66,6 @@ export const DEMO_STEPS: DemoStep[] = [
   {
     chapter: 'demo.ch.intro',
     caption: 'demo.intro',
-    card: 'intro',
     ms: 9000,
     run: async () => {
       await loadProduction();
@@ -216,7 +213,6 @@ export const DEMO_STEPS: DemoStep[] = [
   {
     chapter: 'demo.ch.end',
     caption: 'demo.end',
-    card: 'outro',
     ms: 10000,
     run: () => {
       useUiStore.setState({ leftTab: 'design', rightTab: 'results' });

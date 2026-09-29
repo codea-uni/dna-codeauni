@@ -148,22 +148,8 @@ export const en = {
   'demo.ch.review': 'Design review',
   'demo.ch.language': 'Bilingual',
   'demo.ch.end': 'Summary',
-  'demo.card.tagline': 'Blast design and simulation',
-  'demo.card.sub':
-    'Design, charging, sequence, vibration, damage, fragmentation and displacement, with every calculation checked against reference cases.',
   'demo.fragmentation':
     'Fragmentation: mean size and size distribution with Kuz-Ram and Swebrec (P50 and P80), oversize and fines.',
-  'demo.outro.title': 'Correct before flashy: every number has a source',
-  'demo.outro.stat1v': '38',
-  'demo.outro.stat1': 'formulas registered with source and status',
-  'demo.outro.stat2v': '250+',
-  'demo.outro.stat2': 'automated tests with reference cases',
-  'demo.outro.stat3v': '5,000',
-  'demo.outro.stat3': 'holes at 60 fps in the browser',
-  'demo.outro.stat4v': 'ES · EN',
-  'demo.outro.stat4': 'bilingual interface and PDF report',
-  'demo.outro.next':
-    'Next: evaluation with external engineers and the underground module (faces and rings).',
   'demo.pause': 'Pause',
   'demo.resume': 'Resume',
   'demo.next': 'Next',
