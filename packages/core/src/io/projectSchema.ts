@@ -192,6 +192,7 @@ const blast: z.ZodType<M.Blast> = z.object({
       rockFactorRange: range,
       maxEffectiveBurdenRatio: pos,
       minEffectiveBurdenRatio: nonNeg,
+      presplitLead: nonNeg,
     }),
   }),
   notes: z.string().exactOptional(),
@@ -370,7 +371,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
   format: z.literal('cronos-project'),
-  schemaVersion: z.literal(5),
+  schemaVersion: z.literal(6),
   savedAt: z.string(),
   appVersion: z.string(),
   project: projectSchema,

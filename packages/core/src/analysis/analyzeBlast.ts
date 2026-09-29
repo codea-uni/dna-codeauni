@@ -6,6 +6,7 @@ import { computeIsochrones, niceInterval, type Isochrones } from '../timing/isoc
 import { effectiveBurden, type EffectiveBurden } from '../timing/effectiveBurden';
 import { computeTiming, type TimingResult } from '../timing/timing';
 import { timingChecks } from '../timing/timingChecks';
+import { presplitChecks } from '../design/presplit';
 
 /** Opciones de presentación del análisis; los parámetros de cálculo están en `blast.calcParams`. */
 export interface AnalysisOptions {
@@ -66,6 +67,7 @@ export function analyzeBlast(
       ...designChecks(blast, timing),
       ...chargeChecks(blast, project.library, checkOptions),
       ...timingChecks(blast, timing.fireTime, eb, checkOptions, blast.calcParams.delayGuide),
+      ...presplitChecks(blast, project.library, rock, timing.fireTime, checkOptions),
     ],
     elapsedMs: performance.now() - t0,
   };

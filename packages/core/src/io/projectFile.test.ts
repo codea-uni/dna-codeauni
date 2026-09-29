@@ -71,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(5);
+    expect(parsed.file.schemaVersion).toBe(6);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -177,5 +177,17 @@ describe('archivo de proyecto', () => {
       micWindow: 0.01,
       checks: { ...DEFAULT_CALC_PARAMS.checks, minStemmingRatio: 0.8 },
     });
+  });
+
+  it('migra v5 → v6: adelanto del precorte con su valor por defecto (100 ms)', () => {
+    const v6 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
+      project: { blasts: { calcParams: { checks: Record<string, unknown> } }[] };
+    };
+    const blast = v6.project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    delete blast.calcParams.checks.presplitLead;
+    const r = parseProjectFile(JSON.stringify({ ...v6, schemaVersion: 5 }));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.file.project.blasts[0]?.calcParams.checks.presplitLead).toBe(0.1);
   });
 });
