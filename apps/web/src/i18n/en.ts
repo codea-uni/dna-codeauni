@@ -68,6 +68,16 @@ export const en = {
   'groups.kind.buffer': 'Buffer',
   'groups.kind.production': 'Production',
   'groups.kind.other': 'Other',
+  'groups.presplit.pb': 'Pb = {pb} MPa (rock UCS: {ucs} MPa) · f = {f}',
+  'groups.presplit.spacing': 'Spacing {s} {u} · maximum E = D·(Pb + T)/T = {e} {u}',
+  'groups.presplit.noRt': 'The rock has no tensile strength: the maximum spacing is not computed.',
+  'groups.presplit.suggest': 'Charge for Pb = UCS: Ø {d} {u}',
+  'groups.presplit.noCharge': 'Charge the group holes to compute the presplit.',
+  'groups.buffer.suggest':
+    'Suggested buffer: B = {b} {u} · S = 1.15·B = {s} {u} (with {w} kg per hole and the production powder factor, {pf} kg/t)',
+  'groups.buffer.needProduction':
+    'A production group with pattern and charge, and the rock, are needed to suggest the buffer.',
+  'groups.source': 'Course formulas (R1 F26, case CR-01): guidance only, never blocking.',
   'burden.title': 'Theoretical burden',
   'burden.hint':
     'A reference to choose the operating burden; it does not block (docs/theory/02 §1). Kd and Ks come from the Konya and Walter (1990) tables.',

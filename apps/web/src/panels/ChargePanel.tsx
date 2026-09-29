@@ -5,6 +5,7 @@ import {
   type HoleGroupId,
   type HoleId,
   type Op,
+  type RockMass,
 } from '@cronos/core';
 import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
@@ -70,6 +71,13 @@ export function ChargePanel() {
     setForm((f) => ({ ...f, ...patch }));
   };
   const rock = project.rockMasses.find((r) => r.id === blast?.rockMassId);
+  /** Reemplaza la roca de la voladura (comando con deshacer). */
+  const setRock = (next: RockMass, label: string) => {
+    session.document.dispatch(
+      commands.setRockMasses(project.rockMasses.map((r) => (r.id === next.id ? next : r))),
+      label,
+    );
+  };
   const selectedHoles = blast?.holes.filter((h) => selection.has(h.id)) ?? [];
 
   const [groupId, setGroupId] = useState<string>('');
@@ -283,22 +291,51 @@ export function ChargePanel() {
       <section className="panel">
         <h2>{t('charge.rockMass')}</h2>
         {rock && (
-          <NumberField
-            label={t('charge.rockDensity')}
-            unit="t/m³"
-            decimals={3}
-            min={0.5}
-            value={rock.density / 1000}
-            onCommit={(v) => {
-              const rockMasses = project.rockMasses.map((r) =>
-                r.id === rock.id ? { ...r, density: v * 1000 } : r,
-              );
-              session.document.dispatch(
-                commands.setRockMasses(rockMasses),
-                t('charge.rockDensity'),
-              );
-            }}
-          />
+          <>
+            <NumberField
+              label={t('charge.rockDensity')}
+              unit="t/m³"
+              decimals={3}
+              min={0.5}
+              value={rock.density / 1000}
+              onCommit={(v) => {
+                setRock({ ...rock, density: v * 1000 }, t('charge.rockDensity'));
+              }}
+            />
+            <NumberField
+              label={t('charge.rockUcs')}
+              unit="MPa"
+              decimals={1}
+              min={0}
+              value={rock.ucs / 1e6}
+              onCommit={(v) => {
+                setRock({ ...rock, ucs: v * 1e6 }, t('charge.rockUcs'));
+              }}
+            />
+            <NumberField
+              label={t('charge.rockTensile')}
+              unit="MPa"
+              decimals={1}
+              min={0}
+              value={(rock.tensileStrength ?? 0) / 1e6}
+              onCommit={(v) => {
+                const next: RockMass = { ...rock, tensileStrength: v * 1e6 };
+                if (v <= 0) delete next.tensileStrength;
+                setRock(next, t('charge.rockTensile'));
+              }}
+            />
+            <NumberField
+              label={t('charge.rockYoung')}
+              unit="GPa"
+              decimals={1}
+              min={0}
+              value={rock.youngModulus / 1e9}
+              onCommit={(v) => {
+                setRock({ ...rock, youngModulus: v * 1e9 }, t('charge.rockYoung'));
+              }}
+            />
+            <p className="hint">{t('charge.rockStrengthHint')}</p>
+          </>
         )}
         <p className="hint">{t('charge.rockHint')}</p>
       </section>

@@ -73,6 +73,15 @@ export const es = {
   'check.invertedOrder.title': 'Orden invertido respecto de la cara libre',
   'check.invertedOrder.detail':
     'Detonan antes que un vecino que está más cerca de la cara libre: salen contra roca sin alivio (CK-10).',
+  'check.presplitPressure.title': 'Presión del precorte sobre la resistencia de la roca',
+  'check.presplitPressure.detail':
+    'Pb = 110·f^n·ρ·VOD² supera la UCS: tritura la pared en vez de abrir el plano (R1 F26). Desacopla más la carga.',
+  'check.presplitSpacing.title': 'Precorte con espaciamiento mayor que el máximo',
+  'check.presplitSpacing.detail':
+    'El vecino más cercano está más lejos que E = D·(Pb + RT)/RT: la grieta no une los taladros (R1 F26).',
+  'check.presplitLead.title': 'Precorte sin adelanto suficiente',
+  'check.presplitLead.detail':
+    'El precorte debe salir al menos {value} ms antes que el resto de la voladura (R1 F26).',
   'check.closeRelief.title': 'Alivio muy cercano',
   'check.closeRelief.detail':
     'Burden efectivo < {value} × nominal: el alivio viene de un taladro muy próximo.',
@@ -222,6 +231,15 @@ export const en = {
   'check.invertedOrder.title': 'Firing order reversed relative to the free face',
   'check.invertedOrder.detail':
     'They fire before a neighbour closer to the free face: they break against unrelieved rock (CK-10).',
+  'check.presplitPressure.title': 'Presplit pressure above the rock strength',
+  'check.presplitPressure.detail':
+    'Pb = 110·f^n·ρ·VOD² exceeds the UCS: it crushes the wall instead of opening the plane (R1 F26). Decouple the charge further.',
+  'check.presplitSpacing.title': 'Presplit spacing above the maximum',
+  'check.presplitSpacing.detail':
+    'The nearest neighbour is farther than E = D·(Pb + T)/T: the crack does not join the holes (R1 F26).',
+  'check.presplitLead.title': 'Presplit fires too late',
+  'check.presplitLead.detail':
+    'The presplit must fire at least {value} ms before the rest of the blast (R1 F26).',
   'check.closeRelief.title': 'Relief too close',
   'check.closeRelief.detail':
     'Effective burden < {value} × nominal: relief comes from a very close hole.',

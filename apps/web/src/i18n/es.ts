@@ -70,6 +70,17 @@ export const es = {
   'groups.kind.buffer': 'Buffer',
   'groups.kind.production': 'Producción',
   'groups.kind.other': 'Otro',
+  'groups.presplit.pb': 'Pb = {pb} MPa (UCS de la roca: {ucs} MPa) · f = {f}',
+  'groups.presplit.spacing': 'Espaciamiento {s} {u} · máximo E = D·(Pb + RT)/RT = {e} {u}',
+  'groups.presplit.noRt':
+    'Falta la resistencia a tracción de la roca: no se calcula el espaciamiento máximo.',
+  'groups.presplit.suggest': 'Carga para Pb = UCS: Ø {d} {u}',
+  'groups.presplit.noCharge': 'Carga los taladros del grupo para calcular el precorte.',
+  'groups.buffer.suggest':
+    'Buffer sugerido: B = {b} {u} · S = 1,15·B = {s} {u} (con {w} kg por taladro y el FC de la producción, {pf} kg/t)',
+  'groups.buffer.needProduction':
+    'Para sugerir el buffer hace falta un grupo de producción con malla y carga, y la roca.',
+  'groups.source': 'Fórmulas del curso (R1 F26, caso CR-01): orientan, no bloquean.',
   'burden.title': 'Burden teórico',
   'burden.hint':
     'Referencia para elegir el burden operativo; no bloquea (docs/theory/02 §1). Kd y Ks salen de las tablas de Konya y Walter (1990).',

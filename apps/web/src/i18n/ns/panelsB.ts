@@ -182,6 +182,11 @@ export const es = {
   'charge.rockMass': 'Macizo rocoso',
   'charge.rockDensity': 'Densidad de roca',
   'charge.rockHint': 'Se usa para el tonelaje y el factor de carga en kg/t.',
+  'charge.rockUcs': 'Resistencia a compresión (UCS)',
+  'charge.rockTensile': 'Resistencia a tracción (RT)',
+  'charge.rockYoung': 'Módulo de Young',
+  'charge.rockStrengthHint':
+    'UCS y RT se usan en el precorte; UCS y el módulo, en el factor de roca de Kuz-Ram. RT = 0: sin dato.',
 
   // Voladura y perímetros
   'blast.removeNamed': 'Borrar {name}',
@@ -415,6 +420,11 @@ export const en = {
   'charge.rockMass': 'Rock mass',
   'charge.rockDensity': 'Rock density',
   'charge.rockHint': 'Used for tonnage and the powder factor in kg/t.',
+  'charge.rockUcs': 'Uniaxial compressive strength (UCS)',
+  'charge.rockTensile': 'Tensile strength (T)',
+  'charge.rockYoung': "Young's modulus",
+  'charge.rockStrengthHint':
+    'UCS and T are used for the presplit; UCS and the modulus, for the Kuz-Ram rock factor. T = 0: no data.',
 
   'blast.removeNamed': 'Delete {name}',
   'blast.title': 'Blast',
