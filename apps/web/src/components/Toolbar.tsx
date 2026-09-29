@@ -39,6 +39,7 @@ import {
 import { EXAMPLES } from '@cronos/core';
 import { useRef } from 'react';
 import * as actions from '../actions';
+import { startDemo, stopDemo } from '../demo/tour';
 import { useHistory } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { IconButton } from './IconButton';
@@ -188,7 +189,8 @@ export function Toolbar() {
           label={tr('toolbar.demo')}
           active={demoOn}
           onClick={() => {
-            useUiStore.getState().setDemo({ demoStep: 0, demoPaused: false });
+            if (demoOn) stopDemo();
+            else startDemo();
           }}
         />
         <IconButton

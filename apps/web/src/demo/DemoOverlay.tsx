@@ -1,12 +1,15 @@
-import { Pause, Play, SkipForward, X } from 'lucide-react';
+import { Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
 import { useUiStore } from '../stores/uiStore';
-import { DEMO_STEPS, stopDemo } from './tour';
+import { DEMO_STEPS, runStep, stopDemo } from './tour';
+
+const pad = (n: number) => String(n).padStart(2, '0');
 
 /**
- * Subtítulo y controles del modo demostración. Cada paso se ejecuta una vez al entrar y avanza
- * solo cuando pasa su duración (pausa: detiene el avance; siguiente: salta).
+ * Modo demostración para grabar video: portada y cierre animados, capítulo numerado, subtítulo y
+ * barra de progreso por pasos. Cada paso se ejecuta al entrar (con la vista limpia, así se puede
+ * retroceder) y avanza solo al cumplir su duración. Teclas: ← → pasos, espacio pausa, Esc salir.
  */
 export function DemoOverlay() {
   const t = useT();
@@ -14,6 +17,8 @@ export function DemoOverlay() {
   const paused = useUiStore((s) => s.demoPaused);
   const setDemo = useUiStore((s) => s.setDemo);
   const ran = useRef<number | null>(null);
+  // Tiempo que le queda al paso actual: la pausa lo congela y al continuar sigue desde ahí.
+  const remaining = useRef(0);
 
   useEffect(() => {
     if (step === null) {
@@ -27,67 +32,169 @@ export function DemoOverlay() {
     }
     if (ran.current !== step) {
       ran.current = step;
-      void Promise.resolve(current.run()).catch((err: unknown) => {
+      remaining.current = current.ms;
+      void runStep(current).catch((err: unknown) => {
         console.error('[demo]', err);
       });
     }
     if (paused) return;
+    const start = performance.now();
     const timer = setTimeout(() => {
       setDemo({ demoStep: step + 1 });
-    }, current.ms);
+    }, remaining.current);
     return () => {
       clearTimeout(timer);
+      remaining.current = Math.max(0, remaining.current - (performance.now() - start));
     };
   }, [step, paused, setDemo]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const { demoStep, demoPaused } = useUiStore.getState();
+      if (demoStep === null) return;
       if (e.key === 'Escape') stopDemo();
+      else if (e.key === 'ArrowRight') setDemo({ demoStep: demoStep + 1 });
+      else if (e.key === 'ArrowLeft') setDemo({ demoStep: Math.max(0, demoStep - 1) });
+      else if (e.key === ' ') setDemo({ demoPaused: !demoPaused });
+      else return;
+      e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, []);
+  }, [setDemo]);
 
   if (step === null) return null;
   const current = DEMO_STEPS[step];
   if (!current) return null;
+  const go = (s: number) => {
+    setDemo({ demoStep: Math.min(Math.max(0, s), DEMO_STEPS.length - 1) });
+  };
+  const playState = paused ? 'paused' : 'running';
+
   return (
-    <div className="demo-caption" role="status" aria-live="polite">
-      <span className="demo-step">
-        {step + 1} / {DEMO_STEPS.length}
-      </span>
-      <p>{t(current.caption)}</p>
-      <div className="demo-controls">
-        <button
-          className="icon"
-          aria-label={paused ? t('demo.resume') : t('demo.pause')}
-          title={paused ? t('demo.resume') : t('demo.pause')}
-          onClick={() => {
-            setDemo({ demoPaused: !paused });
-          }}
-        >
-          {paused ? <Play size={16} /> : <Pause size={16} />}
-        </button>
-        <button
-          className="icon"
-          aria-label={t('demo.next')}
-          title={t('demo.next')}
-          onClick={() => {
-            setDemo({ demoStep: step + 1 });
-          }}
-        >
-          <SkipForward size={16} />
-        </button>
-        <button
-          className="icon"
-          aria-label={t('demo.exit')}
-          title={t('demo.exit')}
-          onClick={stopDemo}
-        >
-          <X size={16} />
-        </button>
+    <div className="demo-root">
+      <div className="demo-vignette" />
+
+      <div
+        className="demo-progress"
+        role="progressbar"
+        aria-valuenow={step + 1}
+        aria-valuemax={DEMO_STEPS.length}
+      >
+        {DEMO_STEPS.map((s, i) => (
+          <button
+            key={s.chapter}
+            className={`demo-seg${i < step ? ' done' : ''}`}
+            title={`${pad(i + 1)} · ${t(s.chapter)}`}
+            aria-label={t(s.chapter)}
+            onClick={() => {
+              go(i);
+            }}
+          >
+            {i === step && (
+              <i
+                key={step}
+                style={{ animationDuration: `${String(s.ms)}ms`, animationPlayState: playState }}
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {current.card === 'intro' && (
+        <div key={`card-${String(step)}`} className="demo-card intro">
+          <div className="demo-card-glow" />
+          <div className="demo-brand">CRONOS</div>
+          <div className="demo-tagline">{t('demo.card.tagline')}</div>
+          <div className="demo-card-line" />
+          <div className="demo-card-sub">{t('demo.card.sub')}</div>
+        </div>
+      )}
+      {current.card === 'outro' && (
+        <div key={`card-${String(step)}`} className="demo-card outro">
+          <div className="demo-card-glow" />
+          <div className="demo-brand">CRONOS</div>
+          <div className="demo-tagline">{t('demo.outro.title')}</div>
+          <div className="demo-stats">
+            {(
+              [
+                ['demo.outro.stat1v', 'demo.outro.stat1'],
+                ['demo.outro.stat2v', 'demo.outro.stat2'],
+                ['demo.outro.stat3v', 'demo.outro.stat3'],
+                ['demo.outro.stat4v', 'demo.outro.stat4'],
+              ] as const
+            ).map(([v, l], i) => (
+              <div
+                key={l}
+                className="demo-stat"
+                style={{ animationDelay: `${String(400 + i * 180)}ms` }}
+              >
+                <strong>{t(v)}</strong>
+                <span>{t(l)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="demo-card-sub">{t('demo.outro.next')}</div>
+        </div>
+      )}
+
+      {!current.card && (
+        <div key={`chapter-${String(step)}`} className="demo-chapter">
+          <span className="demo-chapter-num">{pad(step + 1)}</span>
+          <span className="demo-chapter-title">{t(current.chapter)}</span>
+        </div>
+      )}
+
+      <div className="demo-caption" role="status" aria-live="polite">
+        <div key={`text-${String(step)}`} className="demo-caption-text">
+          <span className="demo-kicker">
+            {pad(step + 1)} / {pad(DEMO_STEPS.length)} · {t(current.chapter)}
+          </span>
+          <p>{t(current.caption)}</p>
+        </div>
+        <div className="demo-controls">
+          <button
+            className="icon"
+            aria-label={t('demo.prev')}
+            title={`${t('demo.prev')} (←)`}
+            disabled={step === 0}
+            onClick={() => {
+              go(step - 1);
+            }}
+          >
+            <SkipBack size={16} />
+          </button>
+          <button
+            className="icon"
+            aria-label={paused ? t('demo.resume') : t('demo.pause')}
+            title={`${paused ? t('demo.resume') : t('demo.pause')} (␣)`}
+            onClick={() => {
+              setDemo({ demoPaused: !paused });
+            }}
+          >
+            {paused ? <Play size={16} /> : <Pause size={16} />}
+          </button>
+          <button
+            className="icon"
+            aria-label={t('demo.next')}
+            title={`${t('demo.next')} (→)`}
+            onClick={() => {
+              setDemo({ demoStep: step + 1 });
+            }}
+          >
+            <SkipForward size={16} />
+          </button>
+          <button
+            className="icon"
+            aria-label={t('demo.exit')}
+            title={t('demo.exit')}
+            onClick={stopDemo}
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
