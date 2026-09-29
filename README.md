@@ -6,9 +6,13 @@ Todo corre en el navegador: el cálculo pesado va en Web Workers y la vista usa 
 
 ## Demostración
 
-El botón de la claqueta en la barra lanza un recorrido automático de 16 pasos (≈ 2 min) pensado para grabar un video: portada y cierre animados, capítulo numerado, subtítulo y barra de progreso. Cubre diseño, carga, 3D, secuencia, burden efectivo, semáforo de proyección, desplazamiento, daño, fragmentación, vibración, escenarios, revisión e idiomas.
+El botón de la claqueta en la barra lanza un recorrido automático de 16 pasos (≈ 2 min) pensado para grabar un video tutorial: capítulo numerado, subtítulo y barra de progreso. Cubre diseño, carga, 3D, secuencia, burden efectivo, semáforo de proyección, desplazamiento, daño, fragmentación, vibración, escenarios, revisión e idiomas.
 
 Controles: **← →** paso anterior o siguiente, **espacio** pausa, **Esc** sale; también con los botones del subtítulo o haciendo clic en la barra de progreso. Cada paso parte de una vista limpia, así que se puede retroceder o saltar a cualquiera.
+
+## Ventanas flotantes
+
+Cada pestaña de las barras laterales tiene un botón para abrirla en una **ventana flotante** que se arrastra por el título y se agranda desde la esquina (útil en pantallas chicas o con tablas anchas, como Escenarios, Librería o Resultados). La barra muestra un aviso con «Traer al frente» y «Volver a la barra lateral»; las posiciones se recuerdan en el navegador. Durante la demostración las ventanas se ocultan.
 
 ## Requisitos
 
