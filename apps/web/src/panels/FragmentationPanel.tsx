@@ -7,11 +7,12 @@ import { useAnalysisStore } from '../stores/analysisStore';
 import { useUnits } from '../hooks/useUnits';
 import { useActiveBlast } from '../hooks/useDocument';
 import { useFormat, useT, type MessageKey } from '../i18n';
+import { session } from '../session';
 
 const SizeCurve = lazy(() => import('../charts/SizeCurve'));
 
 type NumKey = {
-  [K in keyof KuzRamInputs]: KuzRamInputs[K] extends number ? K : never;
+  [K in keyof KuzRamInputs]-?: KuzRamInputs[K] extends number ? K : never;
 }[keyof KuzRamInputs];
 
 /** Campos de entrada: [clave, etiqueta, unidad, factor SI → UI, decimales]. */
@@ -28,6 +29,7 @@ const FIELDS: [NumKey, MessageKey, string, number, number][] = [
   ['bottomChargeLength', 'frag.field.bottomChargeLength', 'm', 1, 2],
   ['columnChargeLength', 'frag.field.columnChargeLength', 'm', 1, 2],
   ['benchHeight', 'frag.field.benchHeight', 'm', 1, 2],
+  ['patternFactor', 'frag.field.patternFactor', '', 1, 2],
 ];
 
 /** Fragmentación: Kuz-Ram (x50, n) y Swebrec (KCO), P20/P50/P80, sobretamaño y finos. */
@@ -42,8 +44,20 @@ export function FragmentationPanel() {
   const inputs = s.fragInputs;
   const r = s.frag;
   const edit = (patch: Partial<KuzRamInputs>) => {
-    if (inputs) s.set({ fragAuto: false, fragInputs: { ...inputs, ...patch } });
+    if (!inputs) return;
+    // La desviación de perforación se guarda en la voladura (CT-08, parámetro del proyecto).
+    if (patch.drillDeviation !== undefined && blast)
+      session.document.dispatch(
+        {
+          type: 'blast/patch',
+          blastId: blast.id,
+          patch: { calcParams: { ...blast.calcParams, drillDeviation: patch.drillDeviation } },
+        },
+        t('frag.field.drillDeviation'),
+      );
+    s.set({ fragAuto: false, fragInputs: { ...inputs, ...patch } });
   };
+  const nRange = blast?.calcParams.checks.uniformityRange;
 
   return (
     <>
@@ -163,6 +177,12 @@ export function FragmentationPanel() {
               })}
             </p>
           )}
+        {r && nRange && (r.n < nRange.min || r.n > nRange.max) && (
+          <p className="warn">
+            {t('frag.nOut', { n: fmt(r.n, 2), min: nRange.min, max: nRange.max })}
+          </p>
+        )}
+        <p className="hint">{t('frag.status')}</p>
         <h3>{t('frag.curve')}</h3>
         <NumberField
           label={t('frag.xmax')}

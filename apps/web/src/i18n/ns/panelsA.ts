@@ -103,6 +103,11 @@ export const es = {
   'frag.field.spacing': 'Espaciamiento',
   'frag.field.diameter': 'Diámetro',
   'frag.field.drillDeviation': 'Desviación perforación',
+  'frag.field.patternFactor': 'Factor de malla f_m (1; 1,1; 1,15)',
+  'frag.nOut':
+    'n = {n} fuera del rango usual {min}–{max} (Cunningham 2005): revisa la malla o la carga.',
+  'frag.status':
+    'Kuz-Ram se verifica con CR-02 (regresión) hasta tener un ejemplo publicado independiente (CR-07). Swebrec: literatura abierta, sin caso de referencia.',
   'frag.field.chargeLength': 'Largo de carga',
   'frag.field.bottomChargeLength': 'Carga de fondo',
   'frag.field.columnChargeLength': 'Carga de columna',
@@ -363,6 +368,11 @@ export const en = {
   'frag.field.spacing': 'Spacing',
   'frag.field.diameter': 'Diameter',
   'frag.field.drillDeviation': 'Drilling deviation',
+  'frag.field.patternFactor': 'Pattern factor f_m (1; 1.1; 1.15)',
+  'frag.nOut':
+    'n = {n} outside the usual {min}–{max} range (Cunningham 2005): check the pattern or the charge.',
+  'frag.status':
+    'Kuz-Ram is checked against CR-02 (regression) until an independent published example exists (CR-07). Swebrec: open literature, no reference case.',
   'frag.field.chargeLength': 'Charge length',
   'frag.field.bottomChargeLength': 'Bottom charge',
   'frag.field.columnChargeLength': 'Column charge',
