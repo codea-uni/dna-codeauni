@@ -7,21 +7,21 @@
 | Qué                   | Valor                                                                         |
 | --------------------- | ----------------------------------------------------------------------------- |
 | Fase                  | **F2 Análisis avanzado** (la Fase 1 tiene el código completo; ver pendientes) |
-| Hito en curso         | **A1 Precorte y buffer (CR-01)**                                              |
-| Último hito cerrado   | A0 Especificación y preguntas de F2 (solo docs)                               |
-| Qué sigue exactamente | `docs/PLAN.md §4`, «Fase 2», hito A1                                          |
-| Preguntas abiertas F2 | P-17…P-22 en `docs/preguntas.md` (ninguna bloquea A1 ni A2)                   |
+| Hito en curso         | **A2 Holmberg–Persson y criterio de daño**                                    |
+| Último hito cerrado   | A1 Precorte y buffer (CR-01; reporte en `docs/hitos/fase-2.md`)               |
+| Qué sigue exactamente | `docs/PLAN.md §4`, «Fase 2», hito A2                                          |
+| Preguntas abiertas F2 | P-17…P-22 en `docs/preguntas.md` (ninguna bloquea A2)                         |
 
 ## Mapa de fases
 
-| Fase                       | Hitos                                                                                                                                                                             | Estado                                          |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| **F1 Diseño y simulación** | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte y escenarios · G8 idiomas · G9 cierre (`docs/hitos/cierre-fase-1.md`)         | ✅ código · 🟡 cierre formal (pendientes abajo) |
-| **F2 Análisis avanzado**   | A0 especificación ✅ · **A1 precorte y buffer** · A2 Holmberg–Persson y daño · A3 Kuz-Ram y Swebrec · A4 proyección y onda aérea · A5 desplazamiento y verificaciones · A6 cierre | ⏳ en curso                                     |
-| Evaluación 2               | Ingenieros externos                                                                                                                                                               | —                                               |
-| F3 Subterráneo             | Frentes y anillos (`docs/theory/references/R4`)                                                                                                                                   | —                                               |
-| F4 Datos de campo          | As-drilled, sismógrafos, ajuste de K/β, IREDES                                                                                                                                    | —                                               |
-| F5 Distribución + backend  | Usuarios, roles, auditoría (D-08)                                                                                                                                                 | —                                               |
+| Fase                       | Hitos                                                                                                                                                                                | Estado                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| **F1 Diseño y simulación** | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte y escenarios · G8 idiomas · G9 cierre (`docs/hitos/cierre-fase-1.md`)            | ✅ código · 🟡 cierre formal (pendientes abajo) |
+| **F2 Análisis avanzado**   | A0 especificación ✅ · A1 precorte y buffer ✅ · **A2 Holmberg–Persson y daño** · A3 Kuz-Ram y Swebrec · A4 proyección y onda aérea · A5 desplazamiento y verificaciones · A6 cierre | ⏳ en curso                                     |
+| Evaluación 2               | Ingenieros externos                                                                                                                                                                  | —                                               |
+| F3 Subterráneo             | Frentes y anillos (`docs/theory/references/R4`)                                                                                                                                      | —                                               |
+| F4 Datos de campo          | As-drilled, sismógrafos, ajuste de K/β, IREDES                                                                                                                                       | —                                               |
+| F5 Distribución + backend  | Usuarios, roles, auditoría (D-08)                                                                                                                                                    | —                                               |
 
 ## Pendientes de la Fase 1 (no bloquean F2)
 

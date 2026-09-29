@@ -164,3 +164,10 @@ Guía `01 §8.1`, paso 4: después de cada hito, el desarrollador contesta por e
    > _Respuesta:_
 2. ¿Qué términos mineros se dejaron sin traducir y por qué?
    > _Respuesta:_
+
+## F2 A1 · Precorte y buffer
+
+1. ¿Por qué el precorte se diseña imponiendo Pb ≈ UCS, y qué pasa si Pb queda muy por encima o muy por debajo?
+   > _Respuesta:_
+2. En CR-01, ¿por qué la relación de desacople f multiplica (D_c/D)² por 13/15 y qué diámetro de carga resulta?
+   > _Respuesta:_

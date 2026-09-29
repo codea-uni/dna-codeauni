@@ -240,13 +240,13 @@ Guía `01 §3` y `§19`: energía y daño, fragmentación, onda aérea, desplaza
 - `reglas.md`: FC-26…FC-32 completadas; nuevas FC-33 (daño H-P), FC-34 (bandas SDOB), FC-35 (costo).
 - `preguntas.md`: P-17…P-22 con su valor por defecto. Ninguna bloquea A1 ni A2.
 
-#### A1: precorte y buffer (CR-01)
+#### A1: precorte y buffer (CR-01) ✅
 
 - Núcleo `core/src/design/presplit.ts` (`R1` F26): f = (D_carga/D_pozo)², Pb = 110·f^n·ρ·VOD² (MPa, g/cc, km/s; n = 1,25 seco, 0,9 con agua), diámetro de carga imponiendo Pb = UCS·R, E ≤ D_pozo·(Pb + RT)/RT y factor de carga γ.
 - Núcleo `core/src/design/buffer.ts` (`R1` A.2): B_buf, S_buf = 1,15·B_buf y DST.
 - Tests: CR-01 precorte (f 0,0664 → 1,80"; con 1¾": f 0,0628, Pb 46,6 MPa, E 1,12–1,13 m, γ ≤ 1,53–1,54 kg/m²); `X-PRE` (E 2,229 m, 1,54 kg/m, Pb 100 MPa); CR-01 buffer (5,9; 6,9; 3,4 m).
 - Interfaz: el panel de grupos muestra el cálculo sugerido para grupos de precorte y buffer, con aviso si el diseño se sale; aviso en la revisión si el precorte no sale ≥ 100 ms antes que la producción. La roca muestra UCS, RT, E y A (hoy solo entran por archivo).
-- **Salida:** FC-31 y FC-32 en R3.
+- **Salida:** FC-31 y FC-32 en R3. Hecho: `design/presplit.ts` (fórmulas, `presplitHole`, `presplitChecks` en la revisión con `calcParams.checks.presplitLead` = 100 ms, esquema v6), sugerencia en el panel de grupos y UCS, RT y E editables en Carguío. El γ de CR-01 no se reproduce (P-18); DST está en el núcleo pero no en el panel (necesita la quebradura Q_b).
 
 #### A2: Holmberg–Persson y criterio de daño
 
