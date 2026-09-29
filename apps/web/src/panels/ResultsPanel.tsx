@@ -106,6 +106,18 @@ export function ResultsPanel() {
               label={t('results.cost')}
               value={`${fmt(c.cost)} ${session.document.project.currency}`}
             />
+            {c.drillingCost > 0 && (
+              <>
+                <Row
+                  label={t('results.drillingCost')}
+                  value={`${fmt(c.drillingCost)} ${session.document.project.currency}`}
+                />
+                <Row
+                  label={t('results.costPerTonne')}
+                  value={`${fmt(((c.cost + c.drillingCost) / c.tonnage) * 1000, 3)} ${session.document.project.currency}/t`}
+                />
+              </>
+            )}
           </tbody>
         </table>
         {c.nominal.volume > 0 && <DesignFactors charge={c} />}

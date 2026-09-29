@@ -188,6 +188,7 @@ export const es = {
   'charge.rockYoung': 'Módulo de Young',
   'charge.rockStrengthHint':
     'UCS y RT se usan en el precorte; UCS y el módulo, en el factor de roca de Kuz-Ram. RT = 0: sin dato.',
+  'charge.drillingCost': 'Costo de perforación',
 
   // Voladura y perímetros
   'blast.removeNamed': 'Borrar {name}',
@@ -427,6 +428,7 @@ export const en = {
   'charge.rockYoung': "Young's modulus",
   'charge.rockStrengthHint':
     'UCS and T are used for the presplit; UCS and the modulus, for the Kuz-Ram rock factor. T = 0: no data.',
+  'charge.drillingCost': 'Drilling cost',
 
   'blast.removeNamed': 'Delete {name}',
   'blast.title': 'Blast',

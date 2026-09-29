@@ -1,5 +1,5 @@
 import { sdobBand, type BlastAnalysis, type HoleId } from '@cronos/core';
-import type { Engine, HoleScalars } from '@cronos/engine';
+import type { Engine, HoleScalars, IsochroneData } from '@cronos/engine';
 import { session } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
 
@@ -74,6 +74,41 @@ function sdobColors(analysis: BlastAnalysis): HoleScalars {
   return { values: new Map(), min: 0, max: 1, colors };
 }
 
+/**
+ * Flechas de desplazamiento (A5): desde la boca en la dirección de salida y con el largo del
+ * alcance balístico; color por velocidad de burden.
+ */
+export function displacementArrows(analysis: BlastAnalysis): IsochroneData | null {
+  const blast = session.document.project.blasts[0];
+  if (!blast) return null;
+  const { range, velocity } = analysis.displacement;
+  const toward = analysis.effectiveBurden.toward;
+  const segs: number[] = [];
+  const levels: number[] = [];
+  let min = Infinity;
+  let max = -Infinity;
+  blast.holes.forEach((h, i) => {
+    const r = range[i] ?? NaN;
+    const v = velocity[i] ?? NaN;
+    const ux = toward[2 * i] ?? 0;
+    const uy = toward[2 * i + 1] ?? 0;
+    if (!Number.isFinite(r) || r <= 0 || (ux === 0 && uy === 0)) return;
+    const x1 = h.collar.x + ux * r;
+    const y1 = h.collar.y + uy * r;
+    const head = Math.min(0.2 * r, 3);
+    const c = Math.cos(0.45);
+    const sn = Math.sin(0.45);
+    segs.push(h.collar.x, h.collar.y, x1, y1);
+    segs.push(x1, y1, x1 - head * (ux * c - uy * sn), y1 - head * (uy * c + ux * sn));
+    segs.push(x1, y1, x1 - head * (ux * c + uy * sn), y1 - head * (uy * c - ux * sn));
+    levels.push(v, v, v);
+    min = Math.min(min, v);
+    max = Math.max(max, v);
+  });
+  if (levels.length === 0) return null;
+  return { segments: Float64Array.from(segs), levels: Float32Array.from(levels), min, max };
+}
+
 /** Color de cada taladro según su grupo (RM-18); sin grupo, el color por defecto. */
 function groupColors(): HoleScalars {
   const blast = session.document.project.blasts[0];
@@ -116,6 +151,7 @@ export function bindVisualization(engine: Engine): () => void {
       engine.setVibration(v && v.nx > 0 ? { ...v, colorLog: true } : null, s.vibOpacity);
       engine.setFlyrockZone(v ? v.flyrock.zone : null);
     }
+    if (changed('analysis')) engine.setDisplacement(analysis ? displacementArrows(analysis) : null);
     if (changed('analysis')) {
       const iso = analysis?.isochrones;
       const t = analysis?.timing;

@@ -93,7 +93,14 @@ export interface EngineEvents extends Record<string, unknown> {
 export type ViewMode = 'plan' | '3d';
 
 export type EngineLayer =
-  'labels' | 'traces' | 'connections' | 'isochrones' | 'energy' | 'vibration' | 'flyrock';
+  | 'labels'
+  | 'traces'
+  | 'connections'
+  | 'isochrones'
+  | 'energy'
+  | 'vibration'
+  | 'flyrock'
+  | 'displacement';
 
 /** Valores escalares por taladro para colorear con el mapa turbo. */
 export interface HoleScalars {
@@ -154,6 +161,9 @@ export class Engine {
   private lastSiteMpp = 0;
   private readonly initiation = new InitiationLayer();
   private readonly isochrones = new IsochronesLayer();
+  /** Flechas de desplazamiento (A5): segmentos coloreados por velocidad con el mismo mapa. */
+  private readonly displacement = new IsochronesLayer();
+  private displacementData: IsochroneData | null = null;
   private readonly energy = new EnergyLayer();
   private energyData: EnergyData | null = null;
   private readonly vibration = new EnergyLayer();
@@ -178,6 +188,7 @@ export class Engine {
     energy: true,
     vibration: true,
     flyrock: true,
+    displacement: false,
   };
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
@@ -269,6 +280,7 @@ export class Engine {
       this.energy.root,
       this.vibration.root,
       this.isochrones.lines,
+      this.displacement.lines,
       this.boundaries.root,
       this.initiation.root,
       this.holes.root,
@@ -572,6 +584,13 @@ export class Engine {
     this.applyView();
   }
 
+  /** Flechas de desplazamiento en planta (segmentos en coordenadas de proyecto, color por nivel). */
+  setDisplacement(data: IsochroneData | null): void {
+    this.displacementData = data;
+    this.displacement.set(data, this.origin);
+    this.loop.invalidate();
+  }
+
   setIsochrones(data: IsochroneData | null): void {
     this.isochroneData = data;
     this.isochrones.set(data, this.origin);
@@ -648,6 +667,7 @@ export class Engine {
     this.boundaryLabels.dispose();
     this.initiation.dispose();
     this.isochrones.dispose();
+    this.displacement.dispose();
     this.energy.dispose();
     this.energy3d.dispose();
     this.vibration3d.dispose();
@@ -992,6 +1012,7 @@ export class Engine {
     this.rebuildBoundaries();
     this.rebuildInitiation();
     this.isochrones.set(this.isochroneData, this.origin);
+    this.displacement.set(this.displacementData, this.origin);
     this.energy.set(this.energyData, this.origin);
     this.vibration.set(this.vibrationData, this.origin);
     this.site.setZone(this.flyrockZone, this.origin, this.view.metersPerPixel);
@@ -1111,6 +1132,7 @@ export class Engine {
     this.holes.traceObject.visible = this.layerVisible.traces && spacingPx >= 8;
     this.initiation.root.visible = this.layerVisible.connections;
     this.isochrones.lines.visible = this.layerVisible.isochrones;
+    this.displacement.lines.visible = this.layerVisible.displacement;
     this.energy.root.visible = this.layerVisible.energy;
     this.apply3dVisibility();
     this.vibration.root.visible = this.layerVisible.vibration;

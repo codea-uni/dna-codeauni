@@ -1,8 +1,9 @@
+import type { Blast, BlastAnalysis } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { colorRange, sequenceTimes, SDOB_COLORS } from '../analysis/visualize';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
-import { useT } from '../i18n';
+import { useFormat, useT } from '../i18n';
 import { getEngine, session } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
 
@@ -130,6 +131,7 @@ export function ViewPanel() {
             ['isochrones', 'view.layer.isochrones'],
             ['labels', 'view.labels'],
             ['traces', 'view.layer.traces'],
+            ['displacement', 'view.layer.displacement'],
           ] as const
         ).map(([layer, label]) => (
           <label key={layer} className="check">
@@ -144,6 +146,9 @@ export function ViewPanel() {
           </label>
         ))}
       </div>
+      {s.layers.displacement && blast && analysis && (
+        <DisplacementParams blast={blast} analysis={analysis} />
+      )}
       <label className="field">
         <span className="field-label">{t('view.isochroneInterval')}</span>
         <span className="field-input">
@@ -228,5 +233,55 @@ export function ViewPanel() {
         </>
       )}
     </section>
+  );
+}
+
+/** Parámetros y resumen del desplazamiento (A5, Zhang et al. 2021; P-21). */
+function DisplacementParams({ blast, analysis }: { blast: Blast; analysis: BlastAnalysis }) {
+  const t = useT();
+  const fmt = useFormat();
+  const dp = blast.calcParams.displacement;
+  const set = (patch: Partial<typeof dp>, label: string) => {
+    session.document.dispatch(
+      {
+        type: 'blast/patch',
+        blastId: blast.id,
+        patch: { calcParams: { ...blast.calcParams, displacement: { ...dp, ...patch } } },
+      },
+      label,
+    );
+  };
+  const { velocity, range, decoupled } = analysis.displacement;
+  const finite = (a: Float64Array) => [...a].filter((v) => Number.isFinite(v));
+  const vMax = Math.max(0, ...finite(velocity));
+  const rMax = Math.max(0, ...finite(range));
+  return (
+    <>
+      <NumberField
+        label={t('view.disp.cB')}
+        decimals={2}
+        min={0.01}
+        max={1}
+        value={dp.cB}
+        onCommit={(v) => {
+          set({ cB: v }, t('view.disp.cB'));
+        }}
+      />
+      <NumberField
+        label={t('view.disp.rowFactor')}
+        decimals={2}
+        min={0.1}
+        max={1}
+        value={dp.rowFactor}
+        onCommit={(v) => {
+          set({ rowFactor: v }, t('view.disp.rowFactor'));
+        }}
+      />
+      <p className="hint">
+        {t('view.disp.summary', { v: fmt(vMax, 1), r: fmt(rMax, 1) })}
+        {decoupled > 0 && ` ${t('view.disp.decoupled', { n: decoupled })}`}
+      </p>
+      <p className="hint">{t('view.disp.source')}</p>
+    </>
   );
 }

@@ -81,6 +81,7 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
     energy: true,
     vibration: true,
     flyrock: true,
+    displacement: false,
   },
   sequenceTime: null,
   sequencePlaying: false,

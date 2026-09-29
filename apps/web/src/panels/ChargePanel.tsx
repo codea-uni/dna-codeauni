@@ -335,6 +335,25 @@ export function ChargePanel() {
               }}
             />
             <p className="hint">{t('charge.rockStrengthHint')}</p>
+            {blast && (
+              <NumberField
+                label={t('charge.drillingCost')}
+                unit={`${project.currency}/m`}
+                decimals={2}
+                min={0}
+                value={blast.calcParams.drillingCostPerMeter}
+                onCommit={(v) => {
+                  session.document.dispatch(
+                    {
+                      type: 'blast/patch',
+                      blastId: blast.id,
+                      patch: { calcParams: { ...blast.calcParams, drillingCostPerMeter: v } },
+                    },
+                    t('charge.drillingCost'),
+                  );
+                }}
+              />
+            )}
           </>
         )}
         <p className="hint">{t('charge.rockHint')}</p>
