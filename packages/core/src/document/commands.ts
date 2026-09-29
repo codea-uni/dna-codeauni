@@ -18,6 +18,7 @@ import type {
   MonitoringPointId,
   NodeRef,
   Pattern,
+  PatternId,
   Polygon2,
   ProductLibrary,
   Radians,
@@ -171,6 +172,39 @@ export function addPattern(blastId: BlastId, pattern: Pattern, holes: readonly H
     { type: 'patterns/insert', blastId, entries: [{ item: pattern }] },
     ...addHoles(blastId, holes),
   ];
+}
+
+/**
+ * Borra mallas y sus taladros (con las conexiones y puntos de inicio que los referencian), en un
+ * solo paso de deshacer. Los taladros sin malla no se tocan.
+ */
+export function removePatterns(
+  doc: DocumentReader,
+  blastId: BlastId,
+  patternIds: readonly PatternId[],
+): Op[] {
+  const blast = doc.getBlast(blastId);
+  if (!blast || patternIds.length === 0) return [];
+  const ids = new Set<string>(patternIds);
+  const holes = blast.holes.filter((h) => h.patternId !== undefined && ids.has(h.patternId));
+  return [
+    ...deleteHoles(
+      doc,
+      holes.map((h) => h.id),
+    ),
+    { type: 'patterns/remove', blastId, ids: [...patternIds] },
+  ];
+}
+
+/** Reemplaza mallas por una nueva (observación 1 del ingeniero: generar no debe superponer). */
+export function replacePatterns(
+  doc: DocumentReader,
+  blastId: BlastId,
+  oldPatternIds: readonly PatternId[],
+  pattern: Pattern,
+  holes: readonly Hole[],
+): Op[] {
+  return [...removePatterns(doc, blastId, oldPatternIds), ...addPattern(blastId, pattern, holes)];
 }
 
 // ------------------------------------------------------------------ Perímetros

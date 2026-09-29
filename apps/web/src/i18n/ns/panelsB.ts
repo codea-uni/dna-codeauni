@@ -223,6 +223,15 @@ export const es = {
   'pattern.template': 'Plantilla de taladro',
   'pattern.templateHint': 'Se usa al generar mallas y con la herramienta Agregar.',
   'pattern.generate': 'Generar malla',
+  'pattern.regenerate': 'Reemplazar malla',
+  'pattern.willReplace':
+    'Este perímetro ya tiene malla ({n} taladros): al generar se reemplaza (se puede deshacer con Ctrl+Z).',
+  'pattern.replaceConfirm':
+    'Ya hay una malla en este perímetro ({names}, {n} taladros). ¿Reemplazarla por la nueva? Se borran sus taladros y amarres; se puede deshacer con Ctrl+Z.',
+  'pattern.list': 'Mallas de la voladura',
+  'pattern.remove': 'Borrar malla y sus taladros',
+  'pattern.removeConfirm': '¿Borrar la malla «{name}» y sus {n} taladros?',
+  'pattern.removeUndo': 'Borrar malla {name}',
   'pattern.type': 'Tipo',
   'pattern.spacing': 'Espaciamiento',
   'pattern.rowAzimuth': 'Azimut de filas',
@@ -461,6 +470,15 @@ export const en = {
   'pattern.template': 'Hole template',
   'pattern.templateHint': 'Used when generating patterns and by the Add tool.',
   'pattern.generate': 'Generate pattern',
+  'pattern.regenerate': 'Replace pattern',
+  'pattern.willReplace':
+    'This boundary already has a pattern ({n} holes): generating replaces it (undo with Ctrl+Z).',
+  'pattern.replaceConfirm':
+    'This boundary already has a pattern ({names}, {n} holes). Replace it with the new one? Its holes and tie-ups are deleted; undo with Ctrl+Z.',
+  'pattern.list': 'Blast patterns',
+  'pattern.remove': 'Delete pattern and its holes',
+  'pattern.removeConfirm': 'Delete pattern “{name}” and its {n} holes?',
+  'pattern.removeUndo': 'Delete pattern {name}',
   'pattern.type': 'Type',
   'pattern.spacing': 'Spacing',
   'pattern.rowAzimuth': 'Row azimuth',

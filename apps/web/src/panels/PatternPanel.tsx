@@ -7,7 +7,9 @@ import {
 } from '@cronos/core';
 import { useT } from '../i18n';
 import { BurdenReference } from './BurdenReference';
+import { Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { IconButton } from '../components/IconButton';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
@@ -49,6 +51,10 @@ export function PatternPanel() {
         );
   const clip = selectedBoundary !== undefined;
   const alignment = selectedBoundary ? freeFaceAlignment(selectedBoundary) : null;
+  // Taladros de las mallas que se reemplazarán al generar sobre este perímetro.
+  const replacing = (blast?.holes ?? []).filter((h) =>
+    blast?.patterns.some((p) => p.id === h.patternId && p.boundaryId === selectedBoundary?.id),
+  ).length;
 
   return (
     <>
@@ -257,6 +263,7 @@ export function PatternPanel() {
           }}
         />
         {!clip && <p className="hint">{t('pattern.centeredHint')}</p>}
+        {replacing > 0 && <p className="hint">{t('pattern.willReplace', { n: replacing })}</p>}
         <button
           className="primary"
           disabled={busy !== null}
@@ -264,8 +271,36 @@ export function PatternPanel() {
             void actions.generatePattern({ ...form, boundaryId: selectedBoundary?.id ?? null })
           }
         >
-          {t('pattern.generate')}
+          {replacing > 0 ? t('pattern.regenerate') : t('pattern.generate')}
         </button>
+        {(blast?.patterns.length ?? 0) > 0 && (
+          <>
+            <h3>{t('pattern.list')}</h3>
+            <table className="grid-table compact">
+              <tbody>
+                {blast?.patterns.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td className="num muted">
+                      {t('groups.holes', {
+                        n: blast.holes.filter((h) => h.patternId === p.id).length,
+                      })}
+                    </td>
+                    <td>
+                      <IconButton
+                        icon={Trash2}
+                        label={t('pattern.remove')}
+                        onClick={() => {
+                          actions.removePattern(p.id);
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
       </section>
     </>
   );

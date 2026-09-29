@@ -158,7 +158,23 @@ export interface PatternForm {
   frontOffset: number;
 }
 
-/** Genera una malla en el worker y la agrega como un solo paso de undo. */
+/** Borra una malla y sus taladros (con confirmación), como un solo paso de deshacer. */
+export function removePattern(patternId: PatternId): void {
+  const blast = document.project.blasts[0];
+  const p = blast?.patterns.find((x) => x.id === patternId);
+  if (!blast || !p) return;
+  const n = blast.holes.filter((h) => h.patternId === patternId).length;
+  if (!window.confirm(t('pattern.removeConfirm', { name: p.name, n }))) return;
+  document.dispatch(
+    commands.removePatterns(document, blast.id, [patternId]),
+    t('pattern.removeUndo', { name: p.name }),
+  );
+}
+
+/**
+ * Genera una malla en el worker y la agrega como un solo paso de undo. Si el perímetro ya tiene
+ * malla, la reemplaza (con confirmación).
+ */
 export async function generatePattern(form: PatternForm): Promise<void> {
   const blast = document.project.blasts[0];
   const engine = getEngine();
@@ -197,6 +213,27 @@ export async function generatePattern(form: PatternForm): Promise<void> {
     pattern.name = `${pattern.name} (${boundary.name})`;
   }
 
+  // Observación 1 del ingeniero: generar sobre un perímetro que ya tiene malla la reemplaza, con
+  // confirmación; las mallas de otros perímetros se conservan (varias áreas en la misma voladura).
+  const replaced = blast.patterns.filter((p) => p.boundaryId === pattern.boundaryId);
+  const replacedHoles = blast.holes.filter((h) =>
+    replaced.some((p) => p.id === h.patternId),
+  ).length;
+  if (
+    replaced.length > 0 &&
+    !window.confirm(
+      t('pattern.replaceConfirm', {
+        names: replaced.map((p) => p.name).join(', '),
+        n: replacedHoles,
+      }),
+    )
+  )
+    return;
+  if (replaced.length > 0) {
+    const base = t('actions.patternName', { n: blast.patterns.length - replaced.length + 1 });
+    pattern.name = boundary ? `${base} (${boundary.name})` : base;
+  }
+
   // P-03: sin cara libre se genera igual, con advertencia (la regla no está en R3).
   const hasFreeFace =
     blast.freeFaces.length > 0 || blast.boundaries.some((b) => b.freeFaceEdges.length > 0);
@@ -218,7 +255,15 @@ export async function generatePattern(form: PatternForm): Promise<void> {
     );
     const t1 = performance.now();
     document.dispatch(
-      commands.addPattern(blast.id, pattern, holes),
+      replaced.length > 0
+        ? commands.replacePatterns(
+            document,
+            blast.id,
+            replaced.map((p) => p.id),
+            pattern,
+            holes,
+          )
+        : commands.addPattern(blast.id, pattern, holes),
       t('actions.generatePatternUndo', { name: pattern.name, n: holes.length }),
     );
     const t2 = performance.now();
