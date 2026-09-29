@@ -1,4 +1,10 @@
-import { commands, DEFAULT_NEAR_FIELD, type EnergyMetric } from '@cronos/core';
+import {
+  commands,
+  criticalPpv,
+  DEFAULT_NEAR_FIELD,
+  type EnergyMetric,
+  type RockMass,
+} from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
@@ -7,6 +13,13 @@ import { useFormat, useT } from '../i18n';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUnits } from '../hooks/useUnits';
+
+const DAMAGE_BANDS = [
+  'energy.damage.band0',
+  'energy.damage.band1',
+  'energy.damage.band2',
+  'energy.damage.band3',
+] as const;
 
 /** Energía: PPV de campo cercano (Holmberg–Persson) o densidad de carga en un plano horizontal. */
 export function EnergyPanel() {
@@ -23,6 +36,15 @@ export function EnergyPanel() {
   const midBench = blast ? blast.bench.floorElevation + blast.bench.height / 2 : 0;
   const [levelsText, setLevelsText] = useState(s.energyLevels.join('; '));
   const e = s.energy;
+  const rock = project.rockMasses.find((r) => r.id === blast?.rockMassId);
+  const vppc = criticalPpv(rock);
+  const damage = isPpv && s.energyDamage && vppc !== null;
+  const setRock = (next: RockMass, label: string) => {
+    session.document.dispatch(
+      commands.setRockMasses(project.rockMasses.map((r) => (r.id === next.id ? next : r))),
+      label,
+    );
+  };
 
   const setNearField = (patch: Partial<typeof nf>) => {
     session.document.dispatch(
@@ -139,6 +161,54 @@ export function EnergyPanel() {
                 setNearField({ beta: v });
               }}
             />
+            <p className="hint">{t('energy.validityHint')}</p>
+            <h3>{t('energy.damage.title')}</h3>
+            {rock && (
+              <>
+                <NumberField
+                  label={t('energy.damage.vp')}
+                  unit="m/s"
+                  decimals={0}
+                  min={0}
+                  value={rock.vp ?? 0}
+                  onCommit={(v) => {
+                    const next: RockMass = { ...rock, vp: v };
+                    if (v <= 0) delete next.vp;
+                    setRock(next, t('energy.damage.vp'));
+                  }}
+                />
+                <NumberField
+                  label={t('energy.damage.vppc')}
+                  unit="mm/s"
+                  decimals={0}
+                  min={0}
+                  value={(rock.vppc ?? 0) * 1000}
+                  onCommit={(v) => {
+                    const next: RockMass = { ...rock, vppc: v / 1000 };
+                    if (v <= 0) delete next.vppc;
+                    setRock(next, t('energy.damage.vppc'));
+                  }}
+                />
+              </>
+            )}
+            <p className="hint">
+              {vppc === null
+                ? t('energy.damage.none')
+                : t(vppc.computed ? 'energy.damage.computed' : 'energy.damage.given', {
+                    v: fmt(vppc.value * 1000, 0),
+                  })}
+            </p>
+            <label className="check">
+              <input
+                type="checkbox"
+                disabled={vppc === null}
+                checked={damage}
+                onChange={(ev) => {
+                  s.set({ energyDamage: ev.target.checked });
+                }}
+              />
+              {t('energy.damage.show')}
+            </label>
           </>
         ) : (
           <NumberField
@@ -247,7 +317,10 @@ export function EnergyPanel() {
                 <tbody>
                   {e.contourLevels.map((l, i) => (
                     <tr key={l}>
-                      <td>{fmt(l * toUi, isPpv ? 0 : 3)}</td>
+                      <td>
+                        {fmt(l * toUi, isPpv ? 0 : 3)}
+                        {damage && ` · ${t(DAMAGE_BANDS[i] ?? 'energy.damage.band3')}`}
+                      </td>
                       <td className="num">{fmt(e.areaAbove[i] ?? 0)}</td>
                     </tr>
                   ))}

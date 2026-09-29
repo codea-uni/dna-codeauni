@@ -1,4 +1,6 @@
 import {
+  criticalPpv,
+  DAMAGE_MULTIPLES,
   DEFAULT_ENERGY_OPTIONS,
   DEFAULT_NEAR_FIELD,
   DEFAULT_VIBRATION_OPTIONS,
@@ -62,6 +64,9 @@ function energyOptions(): EnergyOptions | null {
   const s = useAnalysisStore.getState();
   const nearField = session.document.project.siteModels.nearField ?? DEFAULT_NEAR_FIELD;
   const toSi = s.energyMetric === 'nearFieldPpv' ? 1 / 1000 : 1; // mm/s → m/s
+  const rock = session.document.project.rockMasses.find((r) => r.id === blast.rockMassId);
+  const vppc = criticalPpv(rock);
+  const damage = s.energyDamage && s.energyMetric === 'nearFieldPpv' && vppc;
   return {
     ...DEFAULT_ENERGY_OPTIONS,
     metric: s.energyMetric,
@@ -69,7 +74,9 @@ function energyOptions(): EnergyOptions | null {
     cellSize: s.energyCellSize,
     cutoff: s.energyCutoff,
     sigma: s.energySigma,
-    levels: s.energyLevels.map((l) => l * toSi),
+    levels: damage
+      ? DAMAGE_MULTIPLES.map((m) => m * damage.value)
+      : s.energyLevels.map((l) => l * toSi),
     nearField,
   };
 }
@@ -115,6 +122,7 @@ export function startEnergyRunner(): () => void {
     'energyCutoff',
     'energySigma',
     'energyLevels',
+    'energyDamage',
   ] as const;
   const offOptions = useAnalysisStore.subscribe((s, prev) => {
     if (keys.some((k) => s[k] !== prev[k])) {

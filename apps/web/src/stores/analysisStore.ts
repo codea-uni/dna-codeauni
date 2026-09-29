@@ -37,6 +37,8 @@ interface AnalysisState {
   energySigma: number;
   /** Niveles de contorno en unidades de presentación (mm/s o kg/m³); vacío = automáticos. */
   energyLevels: number[];
+  /** Contornos de daño en múltiplos de VPPc (FC-33) en vez de los niveles del usuario. */
+  energyDamage: boolean;
   energyOpacity: number;
   energy: EnergyResult | null;
   energyComputing: boolean;
@@ -89,6 +91,7 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   energyCutoff: 0,
   energySigma: 2,
   energyLevels: [],
+  energyDamage: false,
   energyOpacity: 0.6,
   energy: null,
   energyComputing: false,
