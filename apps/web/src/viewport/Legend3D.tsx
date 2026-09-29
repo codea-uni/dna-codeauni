@@ -61,7 +61,7 @@ export function Legend3D() {
             </li>
           </ul>
         </>
-      ) : range && colorBy !== 'none' && colorBy !== 'group' ? (
+      ) : range && colorBy !== 'none' && colorBy !== 'group' && colorBy !== 'sdob' ? (
         <>
           <strong>{tr('legend.columnBy', { what: tr(BY_LABEL[colorBy]) })}</strong>
           <div

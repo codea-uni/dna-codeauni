@@ -7,6 +7,7 @@ import {
   indexLibrary,
   newId,
   scaledDepthOfBurial,
+  stemmingForSdob,
   vodAtDiameter,
   type Deck,
   type Hole,
@@ -122,6 +123,8 @@ export function DeckEditor({ hole }: { hole: Hole }) {
   const topProduct =
     topDeck?.kind === 'explosive' ? index.explosives.get(topDeck.explosiveId) : undefined;
   const gamma = session.document.project.blasts[0]?.calcParams.detonationGamma ?? 3;
+  // Taco para quedar en energía controlada: el segundo corte de las bandas de SDOB (0,92, `R1` F12).
+  const sdobTarget = session.document.project.blasts[0]?.calcParams.sdobBands[1] ?? 0.92;
   const pressure = (() => {
     if (topDeck?.kind !== 'explosive' || !topProduct) return null;
     const mass = charge.deckMasses[sdob?.deckIndex ?? -1] ?? 0;
@@ -196,6 +199,10 @@ export function DeckEditor({ hole }: { hole: Hole }) {
             d: `${fmt(len.show(sdob.depth), 2)} ${len.unit}`,
             w: fmt(sdob.mass, 1),
           })}
+          {` · ${t('deck.sdobStemming', {
+            sd: fmt(sdobTarget, 2),
+            t: `${fmt(len.show(stemmingForSdob(sdobTarget, sdob.mass, sdob.length / 10)), 2)} ${len.unit}`,
+          })}`}
           {Math.abs(sdob.sdobFromCollar - sdob.sdob) > 0.005 &&
             ` · ${t('deck.sdobCollar', { v: fmt(sdob.sdobFromCollar, 2) })}`}
           {pressure &&

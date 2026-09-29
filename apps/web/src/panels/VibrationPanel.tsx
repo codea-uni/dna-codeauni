@@ -136,6 +136,12 @@ export function VibrationPanel() {
                     {fmt(len.show(v.flyrock.range))} {len.unit}
                   </td>
                 </tr>
+                <tr>
+                  <td>{t('vib.flyrockFragment')}</td>
+                  <td className="num">
+                    {fmt(len.show(v.flyrock.fragmentSize), 2)} {len.unit}
+                  </td>
+                </tr>
               </tbody>
             </table>
             <table className="grid-table compact">
@@ -307,6 +313,7 @@ export function VibrationPanel() {
           </>
         )}
         <h3>{t('vib.airblast')} · P = K · (R / W^⅓)^−β</h3>
+        <p className="hint">{t('vib.airblastSource')}</p>
         <NumberField
           label="K"
           unit="kPa"
@@ -326,14 +333,14 @@ export function VibrationPanel() {
             setSite({ airblast: { ...site.airblast, beta: x } }, t('vib.airblast'));
           }}
         />
-        <h3>Flyrock (Lundborg)</h3>
+        <h3>{t('vib.flyrockTitle')}</h3>
         <NumberField
           label={t('vib.safetyFactor')}
           decimals={2}
           min={0.1}
           value={site.flyrock.safetyFactor}
           onCommit={(x) => {
-            setSite({ flyrock: { ...site.flyrock, safetyFactor: x } }, 'Flyrock');
+            setSite({ flyrock: { ...site.flyrock, safetyFactor: x } }, t('vib.flyrockTitle'));
           }}
         />
         <h3>{t('vib.map')}</h3>

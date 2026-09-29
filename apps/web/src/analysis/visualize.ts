@@ -1,4 +1,4 @@
-import type { BlastAnalysis, HoleId } from '@cronos/core';
+import { sdobBand, type BlastAnalysis, type HoleId } from '@cronos/core';
 import type { Engine, HoleScalars } from '@cronos/engine';
 import { session } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
@@ -6,7 +6,7 @@ import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysis
 /** Valores por taladro según el modo de color. */
 export function scalarValues(
   analysis: BlastAnalysis,
-  mode: Exclude<ColorBy, 'none' | 'group'>,
+  mode: Exclude<ColorBy, 'none' | 'group' | 'sdob'>,
 ): Map<HoleId, number> {
   const values = new Map<HoleId, number>();
   const ids = analysis.charge.holeIds;
@@ -55,8 +55,23 @@ function range(values: Map<HoleId, number>, robust: boolean): [number, number] {
 
 /** Rango del modo de color actual (para la leyenda). */
 export function colorRange(analysis: BlastAnalysis, mode: ColorBy): [number, number] | null {
-  if (mode === 'none' || mode === 'group') return null;
+  if (mode === 'none' || mode === 'group' || mode === 'sdob') return null;
   return range(scalarValues(analysis, mode), mode !== 'time');
+}
+
+/** Colores del semáforo de SDOB (`R1` F12): cráter, incontrolada, controlada, muy controlada, mínima. */
+export const SDOB_COLORS = ['#d7263d', '#f46036', '#2e933c', '#1b98e0', '#8a8a8a'] as const;
+
+/** Color de cada taladro según su banda de SDOB (A4). */
+function sdobColors(analysis: BlastAnalysis): HoleScalars {
+  const cuts = session.document.project.blasts[0]?.calcParams.sdobBands ?? [];
+  const colors = new Map<HoleId, string>();
+  analysis.charge.holeIds.forEach((id, i) => {
+    const v = analysis.sdob[i] ?? NaN;
+    if (Number.isFinite(v))
+      colors.set(id, SDOB_COLORS[Math.min(sdobBand(v, cuts), 4)] ?? '#8a8a8a');
+  });
+  return { values: new Map(), min: 0, max: 1, colors };
 }
 
 /** Color de cada taladro según su grupo (RM-18); sin grupo, el color por defecto. */
@@ -86,6 +101,7 @@ export function bindVisualization(engine: Engine): () => void {
     if (changed('analysis') || changed('colorBy')) {
       if (!analysis || s.colorBy === 'none') engine.setHoleScalars(null);
       else if (s.colorBy === 'group') engine.setHoleScalars(groupColors());
+      else if (s.colorBy === 'sdob') engine.setHoleScalars(sdobColors(analysis));
       else {
         const values = scalarValues(analysis, s.colorBy);
         const [min, max] = range(values, s.colorBy !== 'time');

@@ -60,10 +60,10 @@ export const es = {
     'Por debajo del diámetro crítico el explosivo no detona de forma estable (CK-09).',
   'check.sdobSevere.title': 'Confinamiento insuficiente (SDOB severa)',
   'check.sdobSevere.detail':
-    'Profundidad escalada de enterramiento < {value} m/kg^⅓: proyección y onda aérea severas (DF-20, fuente secundaria; configurable).',
+    'Profundidad escalada de enterramiento < {value} m/kg^⅓: proyección y onda aérea severas (cráter violento, R1 F12; configurable).',
   'check.sdobLow.title': 'Confinamiento bajo (SDOB)',
   'check.sdobLow.detail':
-    'Profundidad escalada de enterramiento < {value} m/kg^⅓: posible proyección desde el collar (DF-20; configurable).',
+    'Profundidad escalada de enterramiento < {value} m/kg^⅓: energía incontrolada, posible proyección desde el collar (R1 F12; configurable).',
   'check.tieCycle.title': 'Amarre con ciclos',
   'check.tieCycle.detail':
     'Hay conexiones que forman un circuito cerrado: revisa el sentido del amarre (H-504).',
@@ -85,6 +85,9 @@ export const es = {
   'check.presplitLead.title': 'Precorte sin adelanto suficiente',
   'check.presplitLead.detail':
     'El precorte debe salir al menos {value} ms antes que el resto de la voladura (R1 F26).',
+  'check.stemmingEjection.title': 'Intervalo corto con la fila de adelante',
+  'check.stemmingEjection.detail':
+    'La fila de adelante detonó hace menos de {value} ms: riesgo de eyección del taco (R1 F27).',
   'check.closeRelief.title': 'Alivio muy cercano',
   'check.closeRelief.detail':
     'Burden efectivo < {value} × nominal: el alivio viene de un taladro muy próximo.',
@@ -221,10 +224,10 @@ export const en = {
     'Below the critical diameter the explosive does not detonate steadily (CK-09).',
   'check.sdobSevere.title': 'Insufficient confinement (severe SDOB)',
   'check.sdobSevere.detail':
-    'Scaled depth of burial < {value} m/kg^⅓: severe flyrock and airblast (DF-20, secondary source; configurable).',
+    'Scaled depth of burial < {value} m/kg^⅓: violent cratering (R1 F12; configurable).',
   'check.sdobLow.title': 'Low confinement (SDOB)',
   'check.sdobLow.detail':
-    'Scaled depth of burial < {value} m/kg^⅓: possible flyrock from the collar (DF-20; configurable).',
+    'Scaled depth of burial < {value} m/kg^⅓: uncontrolled energy, possible flyrock from the collar (R1 F12; configurable).',
   'check.tieCycle.title': 'Tie-up with loops',
   'check.tieCycle.detail':
     'Some connections form a closed loop: check the direction of the tie-up (H-504).',
@@ -246,6 +249,9 @@ export const en = {
   'check.presplitLead.title': 'Presplit fires too late',
   'check.presplitLead.detail':
     'The presplit must fire at least {value} ms before the rest of the blast (R1 F26).',
+  'check.stemmingEjection.title': 'Short interval to the row ahead',
+  'check.stemmingEjection.detail':
+    'The row ahead fired less than {value} ms earlier: risk of stemming ejection (R1 F27).',
   'check.closeRelief.title': 'Relief too close',
   'check.closeRelief.detail':
     'Effective burden < {value} × nominal: relief comes from a very close hole.',

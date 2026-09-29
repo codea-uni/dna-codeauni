@@ -1,5 +1,5 @@
 import { turboCss } from '@cronos/engine';
-import { colorRange, sequenceTimes } from '../analysis/visualize';
+import { colorRange, sequenceTimes, SDOB_COLORS } from '../analysis/visualize';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
 import { useT } from '../i18n';
@@ -20,6 +20,14 @@ function formatValue(v: number, mode: ColorBy): string {
   if (mode === 'effectiveBurden') return `${v.toFixed(1)} m`;
   return `${v.toFixed(2)} kg/m³`;
 }
+
+const SDOB_BANDS = [
+  'view.sdob.crater',
+  'view.sdob.uncontrolled',
+  'view.sdob.controlled',
+  'view.sdob.veryControlled',
+  'view.sdob.minimal',
+] as const;
 
 /** Opciones de visualización del diseño y animación de la secuencia. */
 export function ViewPanel() {
@@ -62,9 +70,22 @@ export function ViewPanel() {
           <option value="kg">{t('view.color.kg')}</option>
           <option value="powderFactor">{t('view.color.powderFactor')}</option>
           <option value="effectiveBurden">{t('view.color.effectiveBurden')}</option>
+          <option value="sdob">{t('view.color.sdob')}</option>
           <option value="group">{t('view.color.group')}</option>
         </select>
       </label>
+      {s.colorBy === 'sdob' && blast && (
+        <div className="legend-row">
+          {SDOB_BANDS.map((key, i) => (
+            <span key={key} className="legend-chip">
+              <i style={{ background: SDOB_COLORS[i], height: 10, width: 10 }} /> {t(key)}
+            </span>
+          ))}
+          <span className="muted">
+            {t('view.sdobCuts', { cuts: blast.calcParams.sdobBands.join(' · ') })}
+          </span>
+        </div>
+      )}
       {s.colorBy === 'group' && blast && (
         <div className="legend-row">
           {blast.groups.length === 0 && <span className="muted">{t('view.noGroups')}</span>}

@@ -10,7 +10,8 @@ import type {
 import type { EngineLayer } from '@cronos/engine';
 import { create } from 'zustand';
 
-export type ColorBy = 'none' | 'time' | 'kg' | 'powderFactor' | 'effectiveBurden' | 'group';
+export type ColorBy =
+  'none' | 'time' | 'kg' | 'powderFactor' | 'effectiveBurden' | 'sdob' | 'group';
 export type LabelBy = 'label' | 'time' | 'kg';
 
 interface AnalysisState {
