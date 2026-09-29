@@ -43,8 +43,10 @@ export interface KuzRamInputs {
   bottomChargeLength: Meters;
   columnChargeLength: Meters;
   benchHeight: Meters;
-  /** Malla en tresbolillo multiplica n por 1.1 (Cunningham 1987). */
-  staggered: boolean;
+  /** Factor de malla f_m de n: 1,0 cuadrada o rectangular, 1,1 tresbolillo, 1,15 equilátera (`R1` F23). */
+  patternFactor: number;
+  /** Exponente b de Swebrec de la roca; si falta se deriva de n (KCO). */
+  swebrecB?: number;
 }
 
 export interface KuzRamResult {
@@ -75,8 +77,9 @@ export function kuzRam(i: KuzRamInputs): KuzRamResult {
     (1 - i.drillDeviation / i.burden) *
     Math.pow(Math.abs(i.bottomChargeLength - i.columnChargeLength) / L + 0.1, 0.1) *
     (L / i.benchHeight);
-  if (i.staggered) n *= 1.1;
-  n = Math.max(0.3, n);
+  n *= i.patternFactor;
+  // ponytail: guarda numérica (n ≤ 0 no define una curva); el rango usual 0,7–2 es un aviso (CT-08).
+  n = Math.max(n, Number.EPSILON);
   const x50 = x50cm / 100;
   return { x50, n, xc: x50 / Math.pow(Math.LN2, 1 / n) };
 }
@@ -145,7 +148,7 @@ export function fragmentation(
 ): FragmentationResult {
   const kr = kuzRam(inputs);
   const xmax = Math.max(options.xmax ?? Math.min(inputs.burden, inputs.spacing), kr.x50 * 1.05);
-  const b = swebrecB(kr.x50, xmax, kr.n);
+  const b = inputs.swebrecB ?? swebrecB(kr.x50, xmax, kr.n);
   const both = (p: number) => ({
     rosinRammler: rosinRammlerSize(p, kr.xc, kr.n),
     swebrec: swebrecSize(p, kr.x50, xmax, b),
@@ -190,7 +193,10 @@ export function kuzRamInputsFromBlast(
   blast: Blast,
   library: ProductLibrary,
   charge: Pick<ChargeResult, 'perHole' | 'loadingFactor' | 'holeIds'>,
-  rock: Pick<RockMass, 'density' | 'ucs' | 'youngModulus' | 'blastability' | 'rockFactor'>,
+  rock: Pick<
+    RockMass,
+    'density' | 'ucs' | 'youngModulus' | 'blastability' | 'rockFactor' | 'swebrecB'
+  >,
   patternId?: string,
 ): KuzRamInputs | null {
   const pattern = blast.patterns.find((p) => p.id === patternId) ?? blast.patterns[0];
@@ -226,9 +232,12 @@ export function kuzRamInputsFromBlast(
     }
   }
   const n = loaded.length;
-  const spacingGuess = Math.sqrt(
-    charge.loadingFactor > 0 ? kg / n / charge.loadingFactor / blast.bench.height : 25,
-  );
+  // Sin malla, B = S = √(V/H) con el volumen que da el factor de carga.
+  if (!pattern && charge.loadingFactor <= 0) return null;
+  const spacingGuess = Math.sqrt(kg / n / charge.loadingFactor / blast.bench.height);
+  const equilateral =
+    pattern !== undefined &&
+    Math.abs(pattern.spacing - (2 * pattern.burden) / Math.sqrt(3)) < 0.01 * pattern.spacing;
   return {
     rockFactor: rockFactor(rock),
     loadingFactor: charge.loadingFactor,
@@ -237,11 +246,12 @@ export function kuzRamInputsFromBlast(
     burden: pattern?.burden ?? spacingGuess,
     spacing: pattern?.spacing ?? spacingGuess,
     diameter: diameter / n,
-    drillDeviation: 0.1,
+    drillDeviation: blast.calcParams.drillDeviation,
     chargeLength: chargeLength / n,
     bottomChargeLength: bottom / n,
     columnChargeLength: column / n,
     benchHeight: blast.bench.height,
-    staggered: pattern?.kind === 'staggered',
+    patternFactor: pattern?.kind === 'staggered' ? (equilateral ? 1.15 : 1.1) : 1,
+    ...(rock.swebrecB !== undefined ? { swebrecB: rock.swebrecB } : {}),
   };
 }

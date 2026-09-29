@@ -177,6 +177,8 @@ export interface CalcParams {
    * el caso límite optimista.
    */
   reliefRate: number;
+  /** Desviación de perforación W de Kuz-Ram [m] (término 1 − W/B de n; CT-08, parámetro). */
+  drillDeviation: number;
   /**
    * Sobreperforación de taladros inclinados (P-05): `vertical` = J bajo el piso medido en vertical,
    * L = (H + J)/cos α (geometría exacta, defecto); `lopezJimeno` = L = H/cos α + (1 − α°/100)·J y
@@ -218,6 +220,8 @@ export interface CalcParams {
     minEffectiveBurdenRatio: Ratio;
     /** Burden efectivo ≥ este múltiplo: alivio insuficiente, aviso intermedio (P-16: 1,5). */
     midEffectiveBurdenRatio: Ratio;
+    /** Índice de uniformidad n de Kuz-Ram fuera de este rango: aviso (Cunningham 2005: 0,7–2). */
+    uniformityRange: { min: Ratio; max: Ratio };
     /** Adelanto mínimo del precorte sobre el resto de la voladura [s] (`R1` F26: 100 ms). */
     presplitLead: number;
   };

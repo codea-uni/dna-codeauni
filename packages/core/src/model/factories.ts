@@ -40,6 +40,7 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
   micWindow: 0.008,
   detonationGamma: 3,
   reliefRate: 0.003,
+  drillDeviation: 0.1,
   subdrillConvention: 'vertical',
   delayGuide: {
     interHole: { min: 0.003, max: 0.008 },
@@ -62,6 +63,7 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
     minEffectiveBurdenRatio: 0.5,
     midEffectiveBurdenRatio: 1.5,
     presplitLead: 0.1,
+    uniformityRange: { min: 0.7, max: 2 },
   },
 };
 

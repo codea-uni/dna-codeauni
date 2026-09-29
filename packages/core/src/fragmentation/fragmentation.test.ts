@@ -10,58 +10,80 @@ import {
   type KuzRamInputs,
 } from './fragmentation';
 
-// Caso manual (cálculo con calculadora, ver comentarios):
-// A = 7, K = 0.6 kg/m³, Q = 200 kg, ANFO (RWS 100), B = 5, S = 6, d = 200 mm, W = 0.2, L = 12.5, H = 15.
+// CR-02 fila 15 (`docs/theory/04`; `R1` F23 y Ejemplo B, solo regresión hasta CR-07): A = 5,2,
+// V = 942,39 m³, Q = 660,34 kg, RWS = 80,67 (726/900), B = 8,5/1,15, S = 8,5, Ø = 11", W = 0,3 m,
+// solo carga de fondo, carga sobre el piso (8,7 − 1,0) = 7,7 m, H = 15 m, f_m = 1,1.
+const B = 8.5 / 1.15;
 const inputs: KuzRamInputs = {
-  rockFactor: 7,
-  loadingFactor: 0.6,
-  chargePerHole: 200,
-  rws: 1,
-  burden: 5,
-  spacing: 6,
-  diameter: 0.2,
-  drillDeviation: 0.2,
-  chargeLength: 12.5,
-  bottomChargeLength: 12.5,
+  rockFactor: 5.2,
+  loadingFactor: 660.34 / 942.39,
+  chargePerHole: 660.34,
+  rws: 0.8067,
+  burden: B,
+  spacing: 8.5,
+  diameter: 11 * 0.0254,
+  drillDeviation: 0.3,
+  chargeLength: 7.7,
+  bottomChargeLength: 7.7,
   columnChargeLength: 0,
   benchHeight: 15,
-  staggered: false,
+  patternFactor: 1.1,
+};
+const rel = (v: number, e: number, tol: number) => {
+  expect(Math.abs(v / e - 1)).toBeLessThanOrEqual(tol);
 };
 
 describe('Kuz-Ram', () => {
-  it('x50 y n (Cunningham 1987)', () => {
+  it('CR-02 #15: X50 = 25,5 cm, n = 1,04, Xc = 36,4 cm (±1 %)', () => {
     const r = kuzRam(inputs);
-    // x50 = 7 · 0.6^−0.8 · 200^(1/6) · 1.15^(19/30) = 7 · 1.5048 · 2.4183 · 1.0926 = 27.831 cm
-    expect(r.x50 * 100).toBeCloseTo(27.8307, 3);
-    // n = (2.2 − 14·5/200) · √1.1 · (1 − 0.2/5) · 1.1^0.1 · (12.5/15) = 1.5671
-    expect(r.n).toBeCloseTo(1.5671, 4);
-    // xc = x50 / (ln 2)^(1/n) = 35.164 cm
-    expect(r.xc * 100).toBeCloseTo(35.1639, 3);
-    expect(rosinRammlerPassing(r.x50, r.xc, r.n)).toBeCloseTo(0.5, 9);
-    // Tresbolillo: n × 1.1
-    expect(kuzRam({ ...inputs, staggered: true }).n).toBeCloseTo(1.5671 * 1.1, 3);
+    rel(r.x50 * 100, 25.5, 0.01);
+    rel(r.n, 1.04, 0.01);
+    rel(r.xc * 100, 36.4, 0.01);
   });
 
-  it('P80 (Rosin-Rammler) y Swebrec/KCO', () => {
+  it('CR-02 #15: X80 ≈ 57,5 cm y pasantes 23/49/75/94 % en 10/25/50/100 cm (R1 F23)', () => {
+    const r = kuzRam(inputs);
+    const f = fragmentation(inputs, { oversizeSize: 1, finesSize: 0.01 });
+    rel(f.p80.rosinRammler * 100, 57.5, 0.01);
+    // X80 = X50·(ln 5/ln 2)^(1/n) (P-19)
+    rel(f.p80.rosinRammler, r.x50 * (Math.log(5) / Math.LN2) ** (1 / r.n), 1e-9);
+    for (const [cm, pct] of [
+      [10, 23],
+      [25, 49],
+      [50, 75],
+      [100, 94],
+    ] as const)
+      expect(Math.abs(rosinRammlerPassing(cm / 100, r.xc, r.n) * 100 - pct)).toBeLessThanOrEqual(1);
+  });
+
+  it('cruce con X-D1 Fragmentacion: H 15, B 9, S 10,3, Ø 270 mm, Q 771 kg, A 5,2, RWS 90 → X50 = 29,5 cm', () => {
+    const r = kuzRam({
+      ...inputs,
+      burden: 9,
+      spacing: 10.3,
+      diameter: 0.27,
+      chargePerHole: 771,
+      loadingFactor: 771 / (9 * 10.3 * 15),
+      rws: 0.9,
+    });
+    rel(r.x50 * 100, 29.5, 0.01);
+  });
+
+  it('Swebrec (KCO): identidades de la curva', () => {
     const r = fragmentation(inputs, { xmax: 5, oversizeSize: 1, finesSize: 0.01 });
-    // P80_RR = xc · (−ln 0.2)^(1/n) = 47.641 cm
-    expect(r.p80.rosinRammler * 100).toBeCloseTo(47.6409, 3);
-    // b = 2 ln2 · ln(500/27.83) · n = 6.2751
-    expect(r.b).toBeCloseTo(6.2751, 4);
-    // P80_Swebrec = xmax · exp(−0.25^(1/b) · ln(xmax/x50)) = 49.338 cm
-    expect(r.p80.swebrec * 100).toBeCloseTo(49.3377, 3);
     expect(r.p50.swebrec).toBeCloseTo(r.x50, 9);
-    expect(swebrecPassing(2 * r.x50, r.x50, r.xmax, r.b)).toBeCloseTo(0.84837, 4);
     expect(swebrecPassing(r.xmax, r.x50, r.xmax, r.b)).toBe(1);
     expect(swebrecSize(0.5, r.x50, r.xmax, r.b)).toBeCloseTo(r.x50, 9);
-    // Curvas monótonas crecientes entre 0 y 1
     for (let k = 1; k < r.curve.length; k++) {
       expect(r.curve[k]?.swebrec ?? 0).toBeGreaterThanOrEqual(r.curve[k - 1]?.swebrec ?? 0);
       expect(r.curve[k]?.rosinRammler ?? 0).toBeGreaterThanOrEqual(
         r.curve[k - 1]?.rosinRammler ?? 0,
       );
     }
-    expect(r.oversize.rosinRammler).toBeCloseTo(1 - rosinRammlerPassing(1, r.xc, r.n), 9);
+    // b de la roca, si existe, reemplaza al derivado
+    expect(fragmentation({ ...inputs, swebrecB: 3 }, { oversizeSize: 1, finesSize: 0.01 }).b).toBe(
+      3,
+    );
   });
 
   it('factor de roca A (Cunningham)', () => {
@@ -138,7 +160,7 @@ describe('entradas desde la voladura', () => {
       youngModulus: 50e9,
     });
     if (!inputs) throw new Error('sin entradas');
-    expect(inputs).toMatchObject({ burden: 5, spacing: 6, staggered: true, benchHeight: 15 });
+    expect(inputs).toMatchObject({ burden: 5, spacing: 6, patternFactor: 1.1, benchHeight: 15 });
     expect(inputs.diameter).toBeCloseTo(0.2, 12);
     expect(inputs.chargeLength).toBeCloseTo(12.5, 9);
     // Fondo medio: (19 · 12.5 + 2) / 20 = 11.975 m; columna: 10.5 / 20 = 0.525 m

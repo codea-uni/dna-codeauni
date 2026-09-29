@@ -71,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(7);
+    expect(parsed.file.schemaVersion).toBe(8);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -179,7 +179,7 @@ describe('archivo de proyecto', () => {
     });
   });
 
-  it('migra v5 → v7: adelanto del precorte (100 ms) y aviso intermedio de burden (1,5·B)', () => {
+  it('migra v5 → v8: adelanto del precorte, aviso intermedio de burden y parámetros de Kuz-Ram', () => {
     const v6 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
       project: { blasts: { calcParams: { checks: Record<string, unknown> } }[] };
     };
@@ -187,10 +187,18 @@ describe('archivo de proyecto', () => {
     if (!blast) throw new Error('sin voladura');
     delete blast.calcParams.checks.presplitLead;
     delete blast.calcParams.checks.midEffectiveBurdenRatio;
+    delete blast.calcParams.checks.uniformityRange;
+    delete (blast.calcParams as Record<string, unknown>).drillDeviation;
     const r = parseProjectFile(JSON.stringify({ ...v6, schemaVersion: 5 }));
     if (!r.ok) throw new Error(r.error);
     expect(r.file.project.blasts[0]?.calcParams.checks.presplitLead).toBe(0.1);
     // v6 → v7: aviso intermedio de burden efectivo (P-16)
     expect(r.file.project.blasts[0]?.calcParams.checks.midEffectiveBurdenRatio).toBe(1.5);
+    // v7 → v8: desviación de perforación y rango de n de Kuz-Ram
+    expect(r.file.project.blasts[0]?.calcParams.drillDeviation).toBe(0.1);
+    expect(r.file.project.blasts[0]?.calcParams.checks.uniformityRange).toEqual({
+      min: 0.7,
+      max: 2,
+    });
   });
 });

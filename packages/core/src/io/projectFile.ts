@@ -93,6 +93,8 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
   5: fillCalcParams,
   /** v6 → v7 (F2, A1b): aviso intermedio de burden efectivo (P-16). */
   6: fillCalcParams,
+  /** v7 → v8 (F2, A3): desviación de perforación de Kuz-Ram y rango de n. */
+  7: fillCalcParams,
 };
 
 /** Completa `calcParams` de cada voladura con los valores por defecto de los campos que falten. */
