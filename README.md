@@ -6,7 +6,9 @@ Todo corre en el navegador: el cálculo pesado va en Web Workers y la vista usa 
 
 ## Demostración
 
-El botón de la claqueta en la barra lanza un recorrido automático con subtítulos por las funciones principales (diseño, carga, 3D, secuencia, burden efectivo, vibración, escenarios, revisión e idiomas), pensado para grabar un video de avance. Esc sale; también se puede pausar o saltar pasos.
+El botón de la claqueta en la barra lanza un recorrido automático de 16 pasos (≈ 2 min) pensado para grabar un video: portada y cierre animados, capítulo numerado, subtítulo y barra de progreso. Cubre diseño, carga, 3D, secuencia, burden efectivo, semáforo de proyección, desplazamiento, daño, fragmentación, vibración, escenarios, revisión e idiomas.
+
+Controles: **← →** paso anterior o siguiente, **espacio** pausa, **Esc** sale; también con los botones del subtítulo o haciendo clic en la barra de progreso. Cada paso parte de una vista limpia, así que se puede retroceder o saltar a cualquiera.
 
 ## Requisitos
 

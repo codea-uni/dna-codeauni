@@ -113,7 +113,7 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 
 ### A6: cierre de F2 ✅
 
-- Hecho: reporte y tabla de cierre en la sección «Fase 2» de `docs/REPORTS.md`; demostración con semáforo de SDOB, desplazamiento y daño (15 pasos, ≈ 125 s); ejemplos con RT, Vp (VPPc calculada) y costo de perforación; revisión visual en el navegador sin interfaz. Luego **Evaluación 2**.
+- Hecho: reporte y tabla de cierre en la sección «Fase 2» de `docs/REPORTS.md`; demostración para video con portada, capítulos, barra de progreso y navegación ← → (16 pasos, ≈ 2 min); ejemplos con RT, Vp (VPPc calculada) y costo de perforación; revisión visual en el navegador sin interfaz. Luego **Evaluación 2**.
 
 ## Evaluación 2 (después de A6)
 
