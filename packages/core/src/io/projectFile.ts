@@ -91,6 +91,8 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
   4: fillCalcParams,
   /** v5 → v6 (F2, A1): adelanto mínimo del precorte. */
   5: fillCalcParams,
+  /** v6 → v7 (F2, A1b): aviso intermedio de burden efectivo (P-16). */
+  6: fillCalcParams,
 };
 
 /** Completa `calcParams` de cada voladura con los valores por defecto de los campos que falten. */

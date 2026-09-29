@@ -444,7 +444,8 @@ export const EXAMPLE_SPECS = {
     floorElevation: 3450,
     benchHeight: 12,
     faceAngleDeg: 72,
-    perimeter: perimeter(80, 45, 8),
+    // Chaflán de 6 m: con 8 m el taladro de esquina de la 2ª fila salía con 1,6·B (aviso de P-16).
+    perimeter: perimeter(80, 45, 6),
     freeFaceEdges: [NORTH],
     pattern: { kind: 'rectangular', burden: 4, spacing: 5, diameterMm: 165, subdrill: 1 },
     frontOffset: 2,

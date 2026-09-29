@@ -49,6 +49,7 @@ export function timingChecks(
 ): DesignCheck[] {
   const holes = blast.holes;
   const unrelieved: HoleId[] = [];
+  const partialRelief: HoleId[] = [];
   const closeRelief: HoleId[] = [];
   const inverted: HoleId[] = [];
   const spacingOf = new Map(blast.patterns.map((p) => [p.id, p.spacing]));
@@ -58,6 +59,7 @@ export function timingChecks(
     const b = eb.nominal[i] ?? NaN;
     if (!Number.isFinite(e) || !Number.isFinite(b)) return;
     if (e >= options.maxEffectiveBurdenRatio * b - 1e-6) unrelieved.push(h.id);
+    else if (e >= options.midEffectiveBurdenRatio * b - 1e-6) partialRelief.push(h.id);
     else if (e < options.minEffectiveBurdenRatio * b) closeRelief.push(h.id);
     // Orden invertido: un vecino más cerca de la cara libre detona después.
     const ti = fireTime[i] ?? NaN;
@@ -118,6 +120,14 @@ export function timingChecks(
       detail: `Burden efectivo ≥ ${String(options.maxEffectiveBurdenRatio)} × nominal al detonar: la cara hacia la que sale todavía no se abrió (RM-07, CR-05).`,
       params: { value: options.maxEffectiveBurdenRatio },
       holes: unrelieved,
+    },
+    {
+      id: 'partialRelief',
+      severity: 'warning',
+      title: 'Alivio insuficiente',
+      detail: `Burden efectivo ≥ ${String(options.midEffectiveBurdenRatio)} × nominal al detonar: sale con más burden que el de diseño (P-16).`,
+      params: { value: options.midEffectiveBurdenRatio },
+      holes: partialRelief,
     },
     {
       id: 'invertedOrder',

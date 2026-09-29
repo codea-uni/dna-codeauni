@@ -70,6 +70,9 @@ export const es = {
   'check.unrelievedBurden.title': 'Cara libre no despejada',
   'check.unrelievedBurden.detail':
     'Burden efectivo ≥ {value} × nominal al detonar: la cara hacia la que sale todavía no se abrió (RM-07, CR-05).',
+  'check.partialRelief.title': 'Alivio insuficiente',
+  'check.partialRelief.detail':
+    'Burden efectivo ≥ {value} × nominal al detonar: sale con más burden que el de diseño (P-16).',
   'check.invertedOrder.title': 'Orden invertido respecto de la cara libre',
   'check.invertedOrder.detail':
     'Detonan antes que un vecino que está más cerca de la cara libre: salen contra roca sin alivio (CK-10).',
@@ -228,6 +231,9 @@ export const en = {
   'check.unrelievedBurden.title': 'Free face not cleared',
   'check.unrelievedBurden.detail':
     'Effective burden ≥ {value} × nominal at firing: the face it moves toward has not opened yet (RM-07, CR-05).',
+  'check.partialRelief.title': 'Insufficient relief',
+  'check.partialRelief.detail':
+    'Effective burden ≥ {value} × nominal at firing: the hole fires with more burden than designed (P-16).',
   'check.invertedOrder.title': 'Firing order reversed relative to the free face',
   'check.invertedOrder.detail':
     'They fire before a neighbour closer to the free face: they break against unrelieved rock (CK-10).',

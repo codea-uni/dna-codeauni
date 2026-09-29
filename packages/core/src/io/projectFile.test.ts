@@ -71,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(6);
+    expect(parsed.file.schemaVersion).toBe(7);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -179,15 +179,18 @@ describe('archivo de proyecto', () => {
     });
   });
 
-  it('migra v5 → v6: adelanto del precorte con su valor por defecto (100 ms)', () => {
+  it('migra v5 → v7: adelanto del precorte (100 ms) y aviso intermedio de burden (1,5·B)', () => {
     const v6 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
       project: { blasts: { calcParams: { checks: Record<string, unknown> } }[] };
     };
     const blast = v6.project.blasts[0];
     if (!blast) throw new Error('sin voladura');
     delete blast.calcParams.checks.presplitLead;
+    delete blast.calcParams.checks.midEffectiveBurdenRatio;
     const r = parseProjectFile(JSON.stringify({ ...v6, schemaVersion: 5 }));
     if (!r.ok) throw new Error(r.error);
     expect(r.file.project.blasts[0]?.calcParams.checks.presplitLead).toBe(0.1);
+    // v6 → v7: aviso intermedio de burden efectivo (P-16)
+    expect(r.file.project.blasts[0]?.calcParams.checks.midEffectiveBurdenRatio).toBe(1.5);
   });
 });

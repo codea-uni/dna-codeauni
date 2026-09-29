@@ -60,6 +60,7 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
     rockFactorRange: { min: 0.8, max: 22 },
     maxEffectiveBurdenRatio: 2,
     minEffectiveBurdenRatio: 0.5,
+    midEffectiveBurdenRatio: 1.5,
     presplitLead: 0.1,
   },
 };

@@ -49,26 +49,25 @@ export function holeIndex(holes: Blast['holes']): PointIndex<number> {
 
 /**
  * «Delante» de un taladro = al menos media fila (0,5·B) más cerca de la cara libre: separa la fila
- * de adelante de los vecinos de la misma fila, cuyas distancias a la cara varían un poco en
- * perímetros irregulares. Sin burden nominal, cualquier diferencia mayor que 1 mm.
+ * de adelante de los vecinos de la misma fila (orden invertido, CK-10). Sin burden nominal,
+ * cualquier diferencia mayor que 1 mm.
  */
 export function frontMargin(nominalBurden: number): number {
   return Number.isFinite(nominalBurden) ? 0.5 * nominalBurden : FRONT_TOL;
 }
 
 /**
- * Burden efectivo según la secuencia (FC-22, RM-07, `docs/theory/02 §3`, P-02). Para cada taladro,
- * la distancia (en planta, desde la boca) a la superficie libre más cercana en el instante en que
- * detona. Superficies libres: la cara libre definida por el usuario y los taladros que detonaron
- * al menos `reliefRate`·B antes (P-02: el alivio necesita tiempo de desplazamiento; 0 = caso
- * límite optimista).
+ * Burden efectivo según la secuencia (FC-22, RM-07, `docs/theory/02 §3`, P-02 y P-16). Para cada
+ * taladro, la distancia (en planta, desde la boca) a la superficie libre más cercana en el instante
+ * en que detona. Superficies libres: la cara libre definida por el usuario y el frente que dejan
+ * los taladros que detonaron al menos `reliefRate`·B antes (P-02: el alivio necesita tiempo de
+ * desplazamiento; 0 = caso límite optimista).
  *
- * Un taladro detonado alivia solo a los que están **detrás** de él respecto de la cara libre
- * (al menos media fila más lejos de ella, `frontMargin`): así se reproduce CR-05, donde en el amarre 5 la fila trasera conserva
- * B_ef = 6 m aunque sus vecinos de fila ya detonaron (P-16, por confirmar). Sin cara libre
- * definida, cualquier taladro detonado alivia.
- * Búsqueda con el índice espacial (flatbush): el vecino elegible más cercano, acotado por la
- * distancia a la cara libre.
+ * P-16: alivia **cualquier** taladro previo, también los vecinos de la misma fila; los simultáneos
+ * no. La distancia es la perpendicular a la isócrona de los taladros detonados, aproximada por el
+ * segmento entre el taladro detonado más cercano y su vecino detonado más próximo (a menos de
+ * 2·max(B, S)); si no hay vecino, la distancia al punto (P-02).
+ * Búsqueda con el índice espacial (flatbush), acotada por la distancia a la cara libre.
  */
 export function effectiveBurden(
   blast: Pick<Blast, 'holes' | 'patterns' | 'boundaries' | 'freeFaces'>,
@@ -79,12 +78,15 @@ export function effectiveBurden(
   const effective = new Float64Array(n).fill(NaN);
   const nominal = new Float64Array(n).fill(NaN);
   const faceDistance = new Float64Array(n).fill(Infinity);
-  const burdenOf = new Map(blast.patterns.map((p) => [p.id, p.burden]));
+  const patternOf = new Map(blast.patterns.map((p) => [p.id, p]));
   const segs = freeFaceSegments(blast);
-  const hasFace = segs.length > 0;
+  const reach = new Float64Array(n).fill(Infinity);
   blast.holes.forEach((h, i) => {
-    const b = h.patternId ? burdenOf.get(h.patternId) : undefined;
-    if (b !== undefined) nominal[i] = b;
+    const p = h.patternId ? patternOf.get(h.patternId) : undefined;
+    if (p) {
+      nominal[i] = p.burden;
+      reach[i] = 2 * Math.max(p.burden, p.spacing);
+    }
     for (const s of segs)
       faceDistance[i] = Math.min(
         faceDistance[i] ?? Infinity,
@@ -98,15 +100,22 @@ export function effectiveBurden(
     const bi = nominal[i] ?? NaN;
     const delay = reliefRate * (Number.isFinite(bi) ? bi : 0);
     const di = faceDistance[i] ?? Infinity;
-    const margin = frontMargin(bi);
-    // Alivia un taladro que detonó al menos `delay` antes y, con cara libre, que está delante.
-    // Estrictamente antes: el propio taladro y los simultáneos no alivian.
+    // Estrictamente antes y con al menos `delay`: el propio taladro y los simultáneos no alivian.
     const relieving = (j: number) =>
-      ti - (fireTime[j] ?? NaN) > 1e-9 &&
-      ti - (fireTime[j] ?? NaN) >= delay - 1e-9 &&
-      (!hasFace || (faceDistance[j] ?? Infinity) < di - margin);
-    const near = index.nearest(hi.collar.x, hi.collar.y, di, (j) => !relieving(j));
-    effective[i] = near ? Math.hypot(hi.collar.x - near.x, hi.collar.y - near.y) : di;
+      ti - (fireTime[j] ?? NaN) > 1e-9 && ti - (fireTime[j] ?? NaN) >= delay - 1e-9;
+    const { x, y } = hi.collar;
+    const near = index.nearest(x, y, di, (j) => !relieving(j));
+    if (!near) {
+      effective[i] = di;
+      return;
+    }
+    const pair = index.nearest(
+      near.x,
+      near.y,
+      reach[i] ?? Infinity,
+      (j) => j === near.id || !relieving(j),
+    );
+    effective[i] = pair ? segmentDistance(x, y, [near, pair]) : Math.hypot(x - near.x, y - near.y);
   });
   return { effective, nominal, faceDistance };
 }

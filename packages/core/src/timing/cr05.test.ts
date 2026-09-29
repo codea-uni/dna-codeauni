@@ -217,8 +217,13 @@ describe('CR-05: burden efectivo según la secuencia (P-02: alivio a 3 ms/m de b
     });
   });
 
-  it('amarre 5 (fila trasera primero): B = 6,0 m con avisos; A = 3,0 m', () => {
-    const blast = cr05('B1', AMARRE_5);
+  // Amarre 5 con la regla de P-16: un taladro previo alivia también a sus vecinos de fila si
+  // detonó al menos reliefRate·B antes. `04` espera B = 6,0 m en B1, B2 y B3; con 3 ms/m (9 ms)
+  // B1 alivia a B2 (17 ms después, a 3,5 m). Con el alivio típico de 8–12 ms/m (P-16) no le da
+  // tiempo y se reproduce el 6,0 m del caso (supuesto documentado en docs/QUESTIONS.md, S-06).
+  it('amarre 5 con alivio típico (8 ms/m, P-16): B = 6,0 m con avisos; A = 3,0 m (CR-05)', () => {
+    const base = cr05('B1', AMARRE_5);
+    const blast = { ...base, calcParams: { ...base.calcParams, reliefRate: 0.008 } };
     const { effective, byId } = burdens(blast);
     expect(effective.slice(0, 3).map((e) => Number(e.toFixed(9)))).toEqual([3, 3, 3]);
     expect(effective.slice(3).map((e) => Number(e.toFixed(9)))).toEqual([6, 6, 6]);
@@ -227,11 +232,30 @@ describe('CR-05: burden efectivo según la secuencia (P-02: alivio a 3 ms/m de b
     expect(byId.invertedOrder).toEqual(back);
   });
 
+  it('amarre 5 con 3 ms/m (P-16): B1 = 6,0 m; B2 y B3 se alivian con su vecino de fila (3,5 m)', () => {
+    const blast = cr05('B1', AMARRE_5);
+    const { effective, byId } = burdens(blast);
+    expect(effective.map((e) => Number(e.toFixed(9)))).toEqual([3, 3, 3, 6, 3.5, 3.5]);
+    expect(byId.unrelievedBurden).toEqual([blast.holes[3]?.id]);
+  });
+
+  it('distancia perpendicular a la isócrona detonada, no al taladro (P-16)', () => {
+    // A1 (0; 3) y A2 (3,5; 3) ya detonaron; B2 en (1,75; 6) está a 3,47 m de cada uno pero a 3,0 m
+    // de la línea A1–A2 (el frente abierto).
+    const blast = cr05('A1', AMARRE_1);
+    const [a1, a2, , , b2] = blast.holes;
+    if (!a1 || !a2 || !b2) throw new Error('faltan taladros');
+    const holes = [a1, a2, { ...b2, collar: { ...b2.collar, x: 1.75, y: 6 } }];
+    const fire = Float64Array.from([0, 0.02, 0.1]);
+    const eb = effectiveBurden({ ...blast, holes }, fire, 0.003);
+    expect(eb.effective[2]).toBeCloseTo(3, 9);
+  });
+
   it('sin cara libre y con alivio 0 (caso límite de P-02) cualquier taladro previo alivia', () => {
     const blast = { ...cr05('B1', AMARRE_5), freeFaces: [] };
     const r = computeTiming(blast, lib, { coincidenceWindow: WINDOW }, KG);
     const eb = effectiveBurden(blast, r.fireTime, 0);
-    // B1 no tiene superficie libre (∞); B2 se alivia con B1 a 3,5 m.
+    // B1 no tiene superficie libre (∞); B2 se alivia con B1 a 3,5 m (vecino de fila).
     expect(eb.effective[3]).toBe(Infinity);
     expect(eb.effective[4]).toBeCloseTo(3.5, 9);
   });

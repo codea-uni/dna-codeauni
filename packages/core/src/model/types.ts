@@ -216,6 +216,8 @@ export interface CalcParams {
     maxEffectiveBurdenRatio: Ratio;
     /** Burden efectivo < este múltiplo del nominal: alivio muy cercano (informativo, 0,5). */
     minEffectiveBurdenRatio: Ratio;
+    /** Burden efectivo ≥ este múltiplo: alivio insuficiente, aviso intermedio (P-16: 1,5). */
+    midEffectiveBurdenRatio: Ratio;
     /** Adelanto mínimo del precorte sobre el resto de la voladura [s] (`R1` F26: 100 ms). */
     presplitLead: number;
   };
