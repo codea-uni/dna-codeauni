@@ -41,6 +41,7 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
   detonationGamma: 3,
   reliefRate: 0.003,
   drillDeviation: 0.1,
+  sdobBands: [0.62, 0.92, 1.44, 1.84],
   subdrillConvention: 'vertical',
   delayGuide: {
     interHole: { min: 0.003, max: 0.008 },
@@ -57,12 +58,14 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
     minStiffness: 2,
     benchDiameterRatio: { min: 50, max: 70 },
     minStemmingDiameters: 20,
-    sdob: { severe: 0.4, safe: 1.2 },
+    // Cortes de `R1` F12 (P-20): cráter violento < 0,62; energía incontrolada < 0,92.
+    sdob: { severe: 0.62, safe: 0.92 },
     rockFactorRange: { min: 0.8, max: 22 },
     maxEffectiveBurdenRatio: 2,
     minEffectiveBurdenRatio: 0.5,
     midEffectiveBurdenRatio: 1.5,
     presplitLead: 0.1,
+    minInterRowDelay: 0.035,
     uniformityRange: { min: 0.7, max: 2 },
   },
 };

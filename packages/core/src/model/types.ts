@@ -177,6 +177,8 @@ export interface CalcParams {
    * el caso límite optimista.
    */
   reliefRate: number;
+  /** Cortes ascendentes de las bandas de SDOB [m/kg^(1/3)] (`R1` F12, P-20). */
+  sdobBands: number[];
   /** Desviación de perforación W de Kuz-Ram [m] (término 1 − W/B de n; CT-08, parámetro). */
   drillDeviation: number;
   /**
@@ -210,7 +212,7 @@ export interface CalcParams {
     benchDiameterRatio: { min: Ratio; max: Ratio };
     /** Taco mínimo en diámetros (P-04: ~20·Ø). */
     minStemmingDiameters: Ratio;
-    /** Profundidad escalada de enterramiento [m/kg^(1/3)]: severa por debajo, sin proyección por encima (DF-20). */
+    /** Profundidad escalada de enterramiento [m/kg^(1/3)]: cráter violento y energía incontrolada por debajo (`R1` F12). */
     sdob: { severe: number; safe: number };
     /** Factor de roca A de Kuz-Ram fuera de este rango: aviso (P-08: 0,8–22). */
     rockFactorRange: { min: Ratio; max: Ratio };
@@ -222,6 +224,8 @@ export interface CalcParams {
     midEffectiveBurdenRatio: Ratio;
     /** Índice de uniformidad n de Kuz-Ram fuera de este rango: aviso (Cunningham 2005: 0,7–2). */
     uniformityRange: { min: Ratio; max: Ratio };
+    /** Intervalo mínimo entre filas [s]; menos → eyección del taco (`R1` F27, `P5 p77`: 35 ms). */
+    minInterRowDelay: number;
     /** Adelanto mínimo del precorte sobre el resto de la voladura [s] (`R1` F26: 100 ms). */
     presplitLead: number;
   };

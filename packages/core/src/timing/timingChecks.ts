@@ -52,6 +52,7 @@ export function timingChecks(
   const partialRelief: HoleId[] = [];
   const closeRelief: HoleId[] = [];
   const inverted: HoleId[] = [];
+  const ejection: HoleId[] = [];
   const spacingOf = new Map(blast.patterns.map((p) => [p.id, p.spacing]));
   const index = holeIndex(holes);
   holes.forEach((h, i) => {
@@ -68,16 +69,20 @@ export function timingChecks(
     const s = h.patternId ? (spacingOf.get(h.patternId) ?? b) : b;
     const radius = options.neighborFactor * Math.max(b, s);
     const { x, y } = h.collar;
-    const ahead = index.inBox(x - radius, y - radius, x + radius, y + radius).some((j) => {
+    // Vecinos de la fila de adelante (más cerca de la cara libre).
+    const front = index.inBox(x - radius, y - radius, x + radius, y + radius).filter((j) => {
       const hj = holes[j];
       return (
         hj !== undefined &&
-        (fireTime[j] ?? NaN) > ti &&
         (eb.faceDistance[j] ?? Infinity) < di - frontMargin(b) &&
         Math.hypot(x - hj.collar.x, y - hj.collar.y) <= radius
       );
     });
-    if (ahead) inverted.push(h.id);
+    if (front.some((j) => (fireTime[j] ?? NaN) > ti)) inverted.push(h.id);
+    // Eyección del taco (`R1` F27, `P5 p77`): la fila de adelante salió hace menos del mínimo.
+    const lastFront = Math.max(...front.map((j) => fireTime[j] ?? NaN).filter((t) => t < ti));
+    if (Number.isFinite(lastFront) && ti - lastFront < options.minInterRowDelay - 1e-9)
+      ejection.push(h.id);
   });
 
   // Guía de retardos por metro entre vecinos de la misma malla (fila y columna).
@@ -136,6 +141,15 @@ export function timingChecks(
       detail:
         'Detonan antes que un vecino que está más cerca de la cara libre: salen contra roca sin alivio (CK-10).',
       holes: inverted,
+    },
+    {
+      id: 'stemmingEjection',
+      // Nota (R1, sin caso): en salidas en V las «filas» efectivas son diagonales (S-07).
+      severity: 'info',
+      title: 'Intervalo corto con la fila de adelante',
+      detail: `La fila de adelante detonó hace menos de ${String(options.minInterRowDelay * 1000)} ms: riesgo de eyección del taco (R1 F27).`,
+      params: { value: options.minInterRowDelay * 1000 },
+      holes: ejection,
     },
     {
       id: 'closeRelief',

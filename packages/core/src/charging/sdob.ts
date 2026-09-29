@@ -68,3 +68,22 @@ export function scaledDepthOfBurial(
   }
   return null;
 }
+
+/**
+ * Banda de la SDOB (`R1` F12, `P4-C5 p7`; cortes de P-20): 0 cráter violento, 1 energía
+ * incontrolada, 2 controlada, 3 muy controlada, 4 efectos mínimos en superficie. `cuts` ascendentes
+ * [m/kg^(1/3)], por defecto 0,62 / 0,92 / 1,44 / 1,84 (`calcParams.sdobBands`).
+ */
+export function sdobBand(sdob: number, cuts: readonly number[]): number {
+  let band = 0;
+  for (const c of cuts) if (sdob >= c) band++;
+  return band;
+}
+
+/**
+ * Taco que da una SDOB objetivo (diseño inverso, `R1` F06/F12): D = SD·W^(1/3) y D = T + L_w/2 con
+ * L_w = 10·Ø, así que T = SD·W^(1/3) − 5·Ø. W = masa de los primeros 10·Ø de la carga superior.
+ */
+export function stemmingForSdob(target: number, mass: Kilograms, diameter: Meters): Meters {
+  return target * Math.cbrt(mass) - 5 * diameter;
+}

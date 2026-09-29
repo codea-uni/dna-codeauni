@@ -1,4 +1,6 @@
+import { indexLibrary } from '../charging/charge';
 import { computeCharges, type ChargeResult } from '../charging/chargeAnalysis';
+import { scaledDepthOfBurial } from '../charging/sdob';
 import { chargeChecks } from '../diagnostics/chargeChecks';
 import { checkOptionsOf, designChecks, type DesignCheck } from '../diagnostics/designChecks';
 import type { BlastId, Project } from '../model/types';
@@ -23,6 +25,8 @@ export interface BlastAnalysis {
   isochrones: Isochrones;
   /** Burden efectivo según la secuencia (G5). */
   effectiveBurden: EffectiveBurden;
+  /** Profundidad escalada de enterramiento por taladro [m/kg^(1/3)] (NaN sin carga). */
+  sdob: Float64Array;
   /** Revisión del diseño (reglas prácticas). */
   checks: DesignCheck[];
   /** Duración del cálculo [ms]. */
@@ -57,12 +61,15 @@ export function analyzeBlast(
   );
   const eb = effectiveBurden(blast, timing.fireTime, blast.calcParams.reliefRate);
   const checkOptions = checkOptionsOf(blast);
+  const lib = indexLibrary(project.library);
+  const sdob = Float64Array.from(blast.holes, (h) => scaledDepthOfBurial(h, lib)?.sdob ?? NaN);
   return {
     blastId,
     charge,
     timing,
     isochrones,
     effectiveBurden: eb,
+    sdob,
     checks: [
       ...designChecks(blast, timing),
       ...chargeChecks(blast, project.library, checkOptions),

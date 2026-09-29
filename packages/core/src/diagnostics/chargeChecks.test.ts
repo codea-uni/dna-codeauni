@@ -106,11 +106,11 @@ describe('revisión de la carga (G4)', () => {
     );
   });
 
-  it('SDOB (CK-08, DF-20): taco 1 m → severa; taco 3 m → baja; taco 5,5 m → sin aviso', () => {
+  it('SDOB (CK-08, cortes de R1 F12): taco 0,4 m → cráter; taco 2 m → incontrolada; taco 5,5 m → sin aviso', () => {
     // q = 800·π/4·0,2² = 25,13 kg/m; L_w = 2 m, W = 50,3 kg (∛ = 3,69)
-    // taco 1 → D = 2 → SD 0,54 < 1,2; taco 0,4 → D = 1,4 → SD 0,38 < 0,4; taco 5,5 → SD 1,76
+    // taco 0,4 → D = 1,4 → SD 0,38 < 0,62; taco 2 → D = 3 → SD 0,81 < 0,92; taco 5,5 → SD 1,76
     const severe = hole([exp(anfo, 16.1), stem(0.4)], [16]);
-    const low = hole([exp(anfo, 15.5), stem(1)], [16]);
+    const low = hole([exp(anfo, 14.5), stem(2)], [16]);
     const fine = hole([exp(anfo, 11), stem(5.5)], [16]);
     const r = check([severe, low, fine]);
     expect(r.sdobSevere).toEqual([severe.id]);

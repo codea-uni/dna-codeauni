@@ -95,6 +95,11 @@ export function lundborgRange(params: FlyrockParams, diameter: number): number {
   return params.k * Math.pow(diameter, 2 / 3) * params.safetyFactor;
 }
 
+/** Lundborg: tamaño del fragmento asociado T [m] = 0,1·d^(2/3) con d en pulgadas (P-20). */
+export function lundborgFragmentSize(diameter: number): number {
+  return 0.1 * Math.pow(diameter / 0.0254, 2 / 3);
+}
+
 /**
  * Carga por retardo de cada taladro (`docs/theory/02 §4`): la mayor carga de las ventanas
  * semiabiertas [t, t + w) que lo contienen. Así, el máximo por taladro de PPV(R_i, Q_i) es el
@@ -286,7 +291,8 @@ export interface VibrationResult extends ScalarGrid {
   /** Distancia a la que se alcanza cada nivel con la MIC [m] (mismo orden que `levels`). */
   distanceForLevel: number[];
   receivers: ReceiverResult[];
-  flyrock: { range: number; zone: Vec2[] };
+  /** Alcance de Lundborg [m], tamaño del fragmento asociado [m] y zona de exclusión. */
+  flyrock: { range: number; fragmentSize: number; zone: Vec2[] };
   elapsedMs: number;
 }
 
@@ -499,7 +505,11 @@ export function computeVibration(
     notInitiated: timing.notInitiated,
     distanceForLevel,
     receivers,
-    flyrock: { range: flyrockRange, zone: flyrockZone },
+    flyrock: {
+      range: flyrockRange,
+      fragmentSize: maxDiameter > 0 ? lundborgFragmentSize(maxDiameter) : 0,
+      zone: flyrockZone,
+    },
   };
   if (sources.length === 0 || (isPpv && !law) || options.skipGrid)
     return { ...emptyGrid, ...base, elapsedMs: performance.now() - t0 };

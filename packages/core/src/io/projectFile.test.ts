@@ -71,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(8);
+    expect(parsed.file.schemaVersion).toBe(9);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -179,7 +179,7 @@ describe('archivo de proyecto', () => {
     });
   });
 
-  it('migra v5 → v8: adelanto del precorte, aviso intermedio de burden y parámetros de Kuz-Ram', () => {
+  it('migra v5 → v9: parámetros nuevos de F2 con sus valores por defecto', () => {
     const v6 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
       project: { blasts: { calcParams: { checks: Record<string, unknown> } }[] };
     };
@@ -189,6 +189,8 @@ describe('archivo de proyecto', () => {
     delete blast.calcParams.checks.midEffectiveBurdenRatio;
     delete blast.calcParams.checks.uniformityRange;
     delete (blast.calcParams as Record<string, unknown>).drillDeviation;
+    delete (blast.calcParams as Record<string, unknown>).sdobBands;
+    delete blast.calcParams.checks.minInterRowDelay;
     const r = parseProjectFile(JSON.stringify({ ...v6, schemaVersion: 5 }));
     if (!r.ok) throw new Error(r.error);
     expect(r.file.project.blasts[0]?.calcParams.checks.presplitLead).toBe(0.1);
