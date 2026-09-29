@@ -524,6 +524,8 @@ export interface RockMass {
   tensileStrength?: Pascals;
   /** Velocidad de onda P [m/s]. */
   vp?: MetersPerSecond;
+  /** Velocidad pico de partícula crítica VPPc [m/s] (retroanálisis, P-17); si falta, RT·Vp/E. */
+  vppc?: MetersPerSecond;
   /** RQD como fracción [0–1]. */
   rqd?: Ratio;
   /** Índice de volabilidad de Lilly/Cunningham (opcional, alternativa a rockFactor). */

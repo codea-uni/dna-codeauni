@@ -3,9 +3,14 @@ import { applyChargeRule, linearChargeDensity } from '../charging/charge';
 import { createBlast, createHole, DEFAULT_BENCH, DEFAULT_HOLE_TEMPLATE } from '../model/factories';
 import { newId } from '../model/ids';
 import { createDefaultLibrary } from '../model/library';
-import type { Blast } from '../model/types';
+import type { Blast, Explosive } from '../model/types';
 import { marchingSquares } from './contours';
-import { computeEnergyGrid, DEFAULT_ENERGY_OPTIONS } from './energy';
+import {
+  computeEnergyGrid,
+  criticalPpv,
+  DEFAULT_ENERGY_OPTIONS,
+  holmbergPerssonPpv,
+} from './energy';
 
 const lib = createDefaultLibrary();
 function first<T>(list: readonly T[]): T {
@@ -161,5 +166,83 @@ describe('energía con varios taladros', () => {
       const rMin = Math.min(Math.hypot(cx, cy), Math.hypot(cx - 10, cy));
       expect(v / (0.7 * Math.pow(S(rMin), 0.75))).toBeCloseTo(1, 2);
     }
+  });
+});
+
+describe('Holmberg–Persson: ejemplo resuelto de R1 F25 (X-D1 HOLMBERG Fit)', () => {
+  // q = 75,75 kg/m, columna de 8,7 m al fondo de un taladro de 16 m, geófono en superficie (G = 0),
+  // K = 982 mm/s, α = 1,2068. Esperado: 36 mm/s a 100 m; 184 a 50 m; 6,9 a 200 m; 2,6 a 300 m.
+  const cases: [number, number, number][] = [
+    [100, 36, 0.01],
+    [50, 184, 0.005],
+    [200, 6.9, 0.005],
+    [300, 2.6, 0.005],
+  ];
+  const base = {
+    linearCharge: 75.75,
+    chargeLength: 8.7,
+    chargeBottomDepth: 16,
+    k: 982,
+    alpha: 1.2068,
+  };
+
+  it('forma cerrada PPV = K·[(q/R)·Δθ]^α', () => {
+    for (const [R, expected, tol] of cases) {
+      const v = holmbergPerssonPpv({ ...base, distance: R });
+      expect(Math.abs(v / expected - 1)).toBeLessThanOrEqual(tol);
+    }
+  });
+
+  it('la grilla (integral por tramos, β = 2α) coincide con la forma cerrada en campo cercano', () => {
+    const D = 0.311;
+    const q = 75.75;
+    const ex: Explosive = {
+      ...anfo,
+      id: newId<'Explosive'>(),
+      density: q / ((Math.PI / 4) * D * D),
+    };
+    const lib2 = { ...lib, explosives: [ex] };
+    const h = createHole({
+      position: { x: 0, y: 0 },
+      template: { ...DEFAULT_HOLE_TEMPLATE, diameter: D, subdrill: 0 },
+      bench: DEFAULT_BENCH,
+      label: '1',
+    });
+    const hole = {
+      ...h,
+      length: 16,
+      decks: [
+        // De fondo a boca: 8,7 m de carga y 7,3 m de taco.
+        { id: newId<'Deck'>(), kind: 'explosive' as const, explosiveId: ex.id, length: 8.7 },
+        { id: newId<'Deck'>(), kind: 'stemming' as const, materialId: stemming.id, length: 7.3 },
+      ],
+    };
+    // Un segundo taladro igual a 400 m solo extiende la grilla (queda fuera del radio de 30 m).
+    const far = { ...hole, id: newId<'Hole'>(), collar: { ...hole.collar, x: 400 } };
+    const blast = { ...createBlast('F25', newId<'RockMass'>()), holes: [hole, far] };
+    const r = computeEnergyGrid(blast, lib2, {
+      ...DEFAULT_ENERGY_OPTIONS,
+      nearField: { k: 0.982, alpha: 1.2068, beta: 2 * 1.2068 },
+      elevation: hole.collar.z,
+      cellSize: 1,
+      cutoff: 30,
+    });
+    // Campo cercano (R ≲ 3·L_c ≈ 26 m, P-17): la grilla contra la forma cerrada validada arriba.
+    for (const R of [5, 10, 20]) {
+      const { v, cx, cy } = cellAt(r, R, 0.5);
+      const exact = holmbergPerssonPpv({ ...base, k: 0.982, distance: Math.hypot(cx, cy) });
+      expect(Math.abs(v / exact - 1)).toBeLessThanOrEqual(0.01);
+    }
+  });
+});
+
+describe('VPPc (P-17)', () => {
+  const rock = { tensileStrength: 8e6, vp: 4500, youngModulus: 45e9 };
+  it('sin dato del usuario: RT·Vp/E (8 MPa · 4500 m/s / 45 GPa = 0,8 m/s, dentro de 0,7–1,0 de roca dura)', () => {
+    expect(criticalPpv(rock)).toEqual({ value: 0.8, computed: true });
+  });
+  it('el dato de retroanálisis manda; sin RT, Vp o VPPc no hay valor', () => {
+    expect(criticalPpv({ ...rock, vppc: 3.11 })).toEqual({ value: 3.11, computed: false });
+    expect(criticalPpv({ youngModulus: 45e9 })).toBeNull();
   });
 });

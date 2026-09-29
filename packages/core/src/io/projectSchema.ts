@@ -272,6 +272,7 @@ const rockMass: z.ZodType<M.RockMass> = z.object({
   youngModulus: pos,
   tensileStrength: pos.exactOptional(),
   vp: pos.exactOptional(),
+  vppc: pos.exactOptional(),
   rqd: z.number().min(0).max(1).exactOptional(),
   blastability: z.object({ rmd: num, jps: num, jpa: num, rdi: num, hf: num }).exactOptional(),
   rockFactor: pos.exactOptional(),

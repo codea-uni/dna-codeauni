@@ -1,6 +1,6 @@
 import { deckIntervals, indexLibrary, linearChargeDensity } from '../charging/charge';
 import { azimuthToUnit } from '../geometry/vec';
-import type { Blast, Hole, ProductLibrary } from '../model/types';
+import type { Blast, Hole, MetersPerSecond, ProductLibrary, RockMass } from '../model/types';
 import { turboRgb } from './colormap';
 import { marchingSquares, type Contours, type ScalarGrid } from './contours';
 
@@ -19,6 +19,44 @@ export interface NearFieldParams {
 }
 
 export const DEFAULT_NEAR_FIELD: NearFieldParams = { k: 0.7, alpha: 0.7, beta: 1.5 };
+
+/**
+ * Forma cerrada de Holmberg–Persson para una columna vertical con β = 2α (`R1` F25, `X-D1 HOLMBERG
+ * Fit`): PPV = K·[(q/R)·Δθ]^α, con Δθ = φ − atan(tan φ − L_c/R) y φ = atan((D − G)/R). R es la
+ * distancia horizontal, D la profundidad del fondo de la carga y G la del geófono (0 en superficie).
+ * PPV en las unidades de K. Válida en campo cercano (R ≲ 2–3·L_c, P-17).
+ */
+export function holmbergPerssonPpv(p: {
+  linearCharge: number;
+  chargeLength: number;
+  chargeBottomDepth: number;
+  distance: number;
+  geophoneDepth?: number;
+  k: number;
+  alpha: number;
+}): number {
+  const phi = Math.atan((p.chargeBottomDepth - (p.geophoneDepth ?? 0)) / p.distance);
+  const dTheta = phi - Math.atan(Math.tan(phi) - p.chargeLength / p.distance);
+  return p.k * ((p.linearCharge / p.distance) * dTheta) ** p.alpha;
+}
+
+/** Bandas de daño por Holmberg–Persson en múltiplos de VPPc (`R3` F14, McKenzie; FC-33). */
+export const DAMAGE_MULTIPLES = [0.25, 1, 4, 8] as const;
+
+/**
+ * VPPc de la roca (P-17): el dato del usuario (retroanálisis) o, si falta, RT·Vp/E (criterio de
+ * Persson–Holmberg–Lee de daño incipiente). Sin datos no hay valor por defecto.
+ */
+export function criticalPpv(
+  rock: Pick<RockMass, 'vppc' | 'tensileStrength' | 'vp' | 'youngModulus'> | undefined,
+): { value: MetersPerSecond; computed: boolean } | null {
+  if (!rock) return null;
+  if (rock.vppc !== undefined && rock.vppc > 0) return { value: rock.vppc, computed: false };
+  const { tensileStrength: rt, vp } = rock;
+  if (rt && vp && rock.youngModulus > 0)
+    return { value: (rt * vp) / rock.youngModulus, computed: true };
+  return null;
+}
 
 export type EnergyMetric = 'nearFieldPpv' | 'chargeDensity';
 

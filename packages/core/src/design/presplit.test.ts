@@ -44,6 +44,8 @@ describe('CR-01 precorte (R1 A.3, P1-S5 p69)', () => {
     const e = presplitMaxSpacing(D, pb, 8e6);
     expect(e).toBeGreaterThanOrEqual(1.12);
     expect(e).toBeLessThanOrEqual(1.13);
+    // γ con la columna cargada: 1,514 kg/m² (P-18, confirmado por el ingeniero; `04` dice 1,53–1,54).
+    rel(presplitLoadFactor(1.75 * IN, 1100, e), 1.514, 0.002);
   });
 });
 
