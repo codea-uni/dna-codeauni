@@ -45,7 +45,8 @@ export const es = {
   'view.disp.cB': 'Fracción de energía cinética c_B',
   'view.disp.rowFactor': 'Reducción por fila k',
   'view.disp.summary': 'Velocidad de burden máx. {v} m/s · alcance del centroide máx. {r} m.',
-  'view.disp.decoupled': '{n} taladros con carga desacoplada quedan fuera del modelo.',
+  'view.disp.excluded':
+    '{n} taladros quedan fuera de la validez del modelo (carga desacoplada o B/Ø < 7).',
   'view.disp.source':
     'Zhang, Chi y Yi (2021): v_B con el burden efectivo; dirección hacia la cara abierta; tiro parabólico. k es de calibración de sitio (0,6–0,8).',
   'view.layer.traces': 'Trazas',
@@ -330,7 +331,7 @@ export const en = {
   'view.disp.cB': 'Kinetic energy fraction c_B',
   'view.disp.rowFactor': 'Per-row reduction k',
   'view.disp.summary': 'Max burden velocity {v} m/s · max centroid throw {r} m.',
-  'view.disp.decoupled': '{n} holes with decoupled charges are outside the model.',
+  'view.disp.excluded': '{n} holes are outside the model’s validity (decoupled charge or B/Ø < 7).',
   'view.disp.source':
     'Zhang, Chi and Yi (2021): v_B with the effective burden; direction toward the open face; ballistic throw. k is a site calibration (0.6–0.8).',
   'view.layer.traces': 'Traces',

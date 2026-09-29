@@ -251,7 +251,7 @@ function DisplacementParams({ blast, analysis }: { blast: Blast; analysis: Blast
       label,
     );
   };
-  const { velocity, range, decoupled } = analysis.displacement;
+  const { velocity, range, excluded } = analysis.displacement;
   const finite = (a: Float64Array) => [...a].filter((v) => Number.isFinite(v));
   const vMax = Math.max(0, ...finite(velocity));
   const rMax = Math.max(0, ...finite(range));
@@ -279,7 +279,7 @@ function DisplacementParams({ blast, analysis }: { blast: Blast; analysis: Blast
       />
       <p className="hint">
         {t('view.disp.summary', { v: fmt(vMax, 1), r: fmt(rMax, 1) })}
-        {decoupled > 0 && ` ${t('view.disp.decoupled', { n: decoupled })}`}
+        {excluded > 0 && ` ${t('view.disp.excluded', { n: excluded })}`}
       </p>
       <p className="hint">{t('view.disp.source')}</p>
     </>

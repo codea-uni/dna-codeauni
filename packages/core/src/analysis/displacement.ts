@@ -6,6 +6,12 @@ import type { EffectiveBurden } from '../timing/effectiveBurden';
 const G = 9.80665;
 
 /**
+ * B/Ø mínimo del modelo: el menor de los casos citados de Zhang et al. (2021) es Malmberget,
+ * 0,8 m / 115 mm ≈ 7 (S-09). Por debajo, v ∝ 1/B se dispara fuera de lo validado.
+ */
+export const MIN_BURDEN_DIAMETER_RATIO = 7;
+
+/**
  * Velocidad de burden (Zhang, Chi & Yi 2021, J. Rock Mech. Geotech. Eng. 13(4):767–773, FC-36):
  * v_B = √[π·c_B·ρ_e·e_e·c_e / (2·ρ_r·tan θ)]·(d/B), con c_e = largo de carga / altura de banco.
  * Solo para carga acoplada (P-21). SI: ρ en kg/m³, e_e en J/kg, v en m/s.
@@ -47,8 +53,8 @@ export interface Displacement {
   range: Float64Array;
   /** Fila contada desde la cara libre (1 = primera). */
   row: Float64Array;
-  /** Taladros con carga desacoplada: fuera de la validez del modelo. */
-  decoupled: number;
+  /** Taladros fuera de la validez del modelo: carga desacoplada o B/Ø < 7. */
+  excluded: number;
 }
 
 /**
@@ -70,7 +76,7 @@ export function computeDisplacement(
   const row = new Float64Array(n).fill(NaN);
   const H = blast.bench.height;
   const launch = Math.PI / 2 - blast.bench.faceAngle;
-  let decoupled = 0;
+  let excluded = 0;
   blast.holes.forEach((h, i) => {
     const b = eb.effective[i] ?? NaN;
     const nominal = eb.nominal[i] ?? NaN;
@@ -93,8 +99,8 @@ export function computeDisplacement(
       volume += (Math.PI / 4) * h.diameter ** 2 * len;
     }
     if (mass <= 0 || H <= 0) return;
-    if (isDecoupled) {
-      decoupled++;
+    if (isDecoupled || b / h.diameter < MIN_BURDEN_DIAMETER_RATIO) {
+      excluded++;
       return;
     }
     const v = burdenVelocity({
@@ -118,5 +124,5 @@ export function computeDisplacement(
     row[i] = r;
     range[i] = ballisticRange(vRow, launch, H / 2);
   });
-  return { velocity, range, row, decoupled };
+  return { velocity, range, row, excluded };
 }

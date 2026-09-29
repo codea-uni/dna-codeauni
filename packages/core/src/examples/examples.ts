@@ -121,7 +121,17 @@ export interface ExampleSpec {
     /** Límite propio del punto [mm/s]. */
     ppvLimitMmS?: number;
   }[];
-  rock: { name: string; density: number; ucsMPa: number; eGPa: number };
+  rock: {
+    name: string;
+    density: number;
+    ucsMPa: number;
+    eGPa: number;
+    /** Resistencia a tracción [MPa] y Vp [m/s] (precorte y VPPc = RT·Vp/E, F2). */
+    tensileMPa?: number;
+    vp?: number;
+  };
+  /** Costo de perforación [US$/m] (`R1` F28). */
+  drillingCostPerMeter?: number;
   /** Grupo de cada fila (RM-18): precorte, buffer, producción… */
   groups?: (row: number, rows: number) => { name: string; kind: HoleGroupKind };
   /** Estado de agua de cada fila (P-09). */
@@ -214,6 +224,10 @@ export function buildExample(spec: ExampleSpec): Project {
       ...base,
       name: spec.blastName,
       bench,
+      calcParams: {
+        ...base.calcParams,
+        drillingCostPerMeter: spec.drillingCostPerMeter ?? base.calcParams.drillingCostPerMeter,
+      },
       boundaries: [boundary],
       groups: [...groups.values()],
       patterns: [pattern],
@@ -242,6 +256,8 @@ export function buildExample(spec: ExampleSpec): Project {
         density: spec.rock.density,
         ucs: spec.rock.ucsMPa * 1e6,
         youngModulus: spec.rock.eGPa * 1e9,
+        ...(spec.rock.tensileMPa ? { tensileStrength: spec.rock.tensileMPa * 1e6 } : {}),
+        ...(spec.rock.vp ? { vp: spec.rock.vp } : {}),
       },
     ],
     monitoringPoints: spec.monitoring.map((m) => ({
@@ -325,7 +341,9 @@ function applyTiming(blast: Blast, pattern: Pattern, t: ExampleTiming, lib: Prod
 // ------------------------------------------------------------------ Proyectos de ejemplo
 
 const ORIGIN = { x: 345_200, y: 8_512_400 };
-const ROCK = { name: 'Pórfido', density: 2650, ucsMPa: 120, eGPa: 45 };
+// RT y Vp típicos de un pórfido competente (valores de ejemplo): VPPc = 8 MPa · 4500 m/s / 45 GPa
+// = 0,8 m/s, dentro de los 700–1000 mm/s de roca dura (P-17). Perforación 9 US$/m (`R1` F28).
+const ROCK = { name: 'Pórfido', density: 2650, ucsMPa: 120, eGPa: 45, tensileMPa: 8, vp: 4500 };
 
 /**
  * Rectángulo w × h con la esquina Noreste recortada. Aristas: 0 Sur, 1 Este, 2 chaflán, 3 Norte, 4 Oeste.
@@ -352,6 +370,7 @@ export interface ExampleInfo {
 /** Recetas de los ejemplos (exportadas para tests y variantes). */
 export const EXAMPLE_SPECS = {
   production: {
+    drillingCostPerMeter: 9,
     projectName: 'Demo · Producción estándar',
     blastName: 'Banco 3435 · Fase 2',
     origin: ORIGIN,

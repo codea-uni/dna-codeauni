@@ -147,6 +147,12 @@ export const en = {
   'demo.sequence': 'Simulation of the firing sequence, hole by hole, in slow motion.',
   'demo.burden':
     'Effective burden: distance from each hole to the free face at the moment it fires, counting the relief from holes already fired.',
+  'demo.sdob':
+    'Flyrock traffic light: each hole’s scaled depth of burial by band (cratering, uncontrolled, controlled, very controlled).',
+  'demo.displacement':
+    'Displacement: burden velocity (Zhang 2021) and throw toward the opening face, hole by hole.',
+  'demo.damage':
+    'Rock damage: Holmberg–Persson near the charge, with contours at ¼, 1, 4 and 8 times the rock’s critical velocity.',
   'demo.vibration':
     'Vibration: PPV by scaled distance at the monitoring points, with limits per structure type and the admissible charge per delay.',
   'demo.scenarios':

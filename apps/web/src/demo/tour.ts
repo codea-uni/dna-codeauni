@@ -115,19 +115,48 @@ export const DEMO_STEPS: DemoStep[] = [
     },
   },
   {
+    caption: 'demo.sdob',
+    ms: 8000,
+    run: () => {
+      view().set({ colorBy: 'sdob' });
+    },
+  },
+  {
+    caption: 'demo.displacement',
+    ms: 9000,
+    run: () => {
+      view().set({ colorBy: 'none' });
+      view().setLayer('displacement', true);
+    },
+  },
+  {
     caption: 'demo.vibration',
     ms: 9000,
     run: () => {
+      view().setLayer('displacement', false);
       view().set({ colorBy: 'none', vibEnabled: true, vibMetric: 'ppv' });
       useUiStore.setState({ leftTab: 'vibration' });
       getEngine()?.zoomToFit();
     },
   },
   {
+    caption: 'demo.damage',
+    ms: 9000,
+    run: () => {
+      view().set({
+        vibEnabled: false,
+        energyEnabled: true,
+        energyMetric: 'nearFieldPpv',
+        energyDamage: true,
+      });
+      useUiStore.setState({ leftTab: 'energy' });
+    },
+  },
+  {
     caption: 'demo.scenarios',
     ms: 10000,
     run: async () => {
-      view().set({ vibEnabled: false });
+      view().set({ vibEnabled: false, energyEnabled: false, energyDamage: false });
       useUiStore.setState({ leftTab: 'scenarios' });
       await actions.compareScenarios();
     },

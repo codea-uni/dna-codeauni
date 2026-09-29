@@ -151,6 +151,12 @@ export const es = {
     'Simulación de la secuencia de detonación, taladro por taladro, en cámara lenta.',
   'demo.burden':
     'Burden efectivo: distancia de cada taladro a la cara libre en el momento en que sale, contando el alivio de los que ya salieron.',
+  'demo.sdob':
+    'Semáforo de proyección: la profundidad escalada de enterramiento de cada taladro por bandas (cráter, incontrolada, controlada, muy controlada).',
+  'demo.displacement':
+    'Desplazamiento: velocidad del burden (Zhang 2021) y alcance hacia la cara que se abre, taladro por taladro.',
+  'demo.damage':
+    'Daño en la roca: Holmberg–Persson cerca de la carga, con contornos en ¼, 1, 4 y 8 veces la velocidad crítica de la roca.',
   'demo.vibration':
     'Vibración: PPV por distancia escalada en los puntos de monitoreo, con límites por tipo de estructura y la carga admisible por retardo.',
   'demo.scenarios':
