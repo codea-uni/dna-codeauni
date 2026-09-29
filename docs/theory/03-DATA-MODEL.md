@@ -1,6 +1,6 @@
 # 03 — Modelo de datos e importación (borrador para que el dev lo ajuste)
 
-Punto de partida del modelo de datos, de los catálogos y de los formatos de entrada y salida de la Fase 1. El dev lo corrige y lo cierra en el hito G1 con una nota en `docs/decisiones/`. Nombres en español aquí; en el código, los que el dev decida (los indicadores tienen nombres fijos, ver `02`, sección 0).
+Punto de partida del modelo de datos, de los catálogos y de los formatos de entrada y salida de la Fase 1. El dev lo corrige y lo cierra en el hito G1 con una nota en `docs/DECISIONS.md`. Nombres en español aquí; en el código, los que el dev decida (los indicadores tienen nombres fijos, ver `02`, sección 0).
 
 ## 1. Principios
 

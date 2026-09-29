@@ -1,5 +1,5 @@
 /**
- * Presupuestos de rendimiento (docs/PLAN.md). Corren en el proyecto `perf`, después del resto
+ * Presupuestos de rendimiento (docs/ROADMAP.md). Corren en el proyecto `perf`, después del resto
  * y sin paralelismo, para medir el algoritmo y no la contención con otros tests.
  * Se toma el mínimo de varias corridas (descarta JIT en frío y ruido del sistema).
  */
@@ -94,7 +94,7 @@ describe('rendimiento con 5.000 taladros', () => {
     expect(ms).toBeLessThan(20);
 
     // Burden efectivo y revisión de tiempos (G5), O(n²) en el worker: presupuesto de 300 ms, el
-    // mismo que la energía (criterio de docs/PLAN.md: actualizar en < 300 ms tras una edición).
+    // mismo que la energía (criterio de docs/ROADMAP.md: actualizar en < 300 ms tras una edición).
     const withFace = {
       ...blast,
       freeFaces: [

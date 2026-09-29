@@ -1,5 +1,5 @@
 /**
- * CR-05: mini-malla de tiempos (2 × 3 taladros), `docs/theory/04 - Casos de referencia.md`.
+ * CR-05: mini-malla de tiempos (2 × 3 taladros), `docs/theory/04-REFERENCE-CASES.md`.
  * A1–A3 en N = 3 m, B1–B3 en N = 6 m, E = 0 / 3,5 / 7 m. Retardo de fondo 500 ms y 100 kg por
  * taladro; ventana de MIC 8 ms semiabierta. Valores esperados tal como en la fuente (ms, kg).
  */

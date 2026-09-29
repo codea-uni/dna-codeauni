@@ -161,7 +161,7 @@ Las metas numéricas son **propuestas** que se validan en los spikes (sección 7
 | NF-08 | Integridad de datos | Autoguardado, historial de versiones por proyecto y migración entre versiones del formato. | Pruebas de recuperación y de migración |
 | NF-09 | Idiomas y unidades | Español e inglés completos. SI interno; visualización configurable (m/ft, mm/in). | Cambio de idioma sin textos sin traducir |
 | NF-10 | Interoperabilidad | Importar y exportar CSV, DXF y GeoJSON; formato de proyecto propio, versionado y portable. | Casos de importación con datos anonimizados |
-| NF-11 | Calidad de cálculo | Cada fórmula en el registro `reglas.md` con fuente, caso de referencia y prueba. | Indicadores I3 a I5 |
+| NF-11 | Calidad de cálculo | Cada fórmula en el registro `RULES.md` con fuente, caso de referencia y prueba. | Indicadores I3 a I5 |
 | NF-12 | Mantenibilidad | Motor de cálculo separado de la interfaz y de la base de datos; cobertura ≥ 85 %. | Reporte de cobertura |
 | NF-13 | Observabilidad | Registros de errores y de versión para diagnosticar problemas. | Revisión de los registros |
 | NF-14 | Usabilidad | Ayudas en pantalla, atajos y flujo guiado; un ingeniero nuevo completa el caso CR-04 sin ayuda. | Indicador I6 |
@@ -186,10 +186,10 @@ Propuesta para que la corrijas. No impone un stack: fija lo estructural y te dej
 2. Unidades del SI internas y un **sistema de coordenadas declarado por proyecto** (código EPSG).
 3. El formato del proyecto tiene número de versión y migraciones.
 4. Español e inglés desde el primer día.
-5. Ninguna regla minera sin fuente: las constantes viven en un registro (`reglas.md`).
+5. Ninguna regla minera sin fuente: las constantes viven en un registro (`RULES.md`).
 
 ### 7.3 Decisiones que toma el dev
-Cada una se cierra con una nota corta en `docs/decisiones/` (contexto, opciones, decisión).
+Cada una se cierra con una nota corta en `docs/DECISIONS.md` (contexto, opciones, decisión).
 
 | ID | Decisión | Nota |
 |---|---|---|
@@ -225,7 +225,7 @@ Cada hito se cierra cuando cumple su **criterio de salida**. Un hito no empieza 
 
 | Hito | Qué se construye | Criterio de salida (medible) | Épicas |
 |---|---|---|---|
-| **G0 Comprensión y base** | Ejercicio de comprensión (sección 18) y repositorio con `engine/`, `web/`, `server/`, `docs/`, `tests/`, más `reglas.md`, `preguntas.md` y `decisiones/`; spikes S1–S3 | 6 de 6 respuestas aprobadas por el ingeniero de minas. Un tercero clona el repo y corre las pruebas con un solo comando. | E0 |
+| **G0 Comprensión y base** | Ejercicio de comprensión (sección 18) y repositorio con `engine/`, `web/`, `server/`, `docs/`, `tests/`, más `RULES.md`, `QUESTIONS.md` y `DECISIONS.md`; spikes S1–S3 | 6 de 6 respuestas aprobadas por el ingeniero de minas. Un tercero clona el repo y corre las pruebas con un solo comando. | E0 |
 | **G1 Modelo de datos y unidades** | Proyecto, escenario, polígono, taladro, decks, explosivo, accesorio; unidades SI; guardado versionado | Guardar y abrir un proyecto en JSON sin perder nada (prueba de ida y vuelta). Sin unidades mezcladas. | E1 |
 | **G2 Importación** | Polígonos, taladros y topografía desde CSV, DXF y GeoJSON con detección de separador, decimal, codificación y aviso ante Norte/Este intercambiados | CR-04 (o su versión sintética) se importa y los taladros caen en su posición sobre un mapa. Las trampas de `03`, sección 5, se detectan o se rechazan con mensaje claro. | E2 |
 | **G3 Diseño de malla** | Malla dentro de un polígono con **cara libre** definida por el usuario; tres tipos; burden y espaciamiento desde la cara libre; grupos | CR-01 y CR-04: conteo, área y burden coinciden con el cálculo a mano dentro de la tolerancia | E3 |
@@ -237,7 +237,7 @@ Cada hito se cierra cuando cumple su **criterio de salida**. Un hito no empieza 
 | **G9 Cierre de Fase 1** | Revisión conjunta y demo | Indicadores de la sección 10 cumplidos y tarea de punta a punta (I6) medida | Todas |
 
 ### 8.1 Ciclo de trabajo dentro de cada hito
-1. Ubicar o escribir el **caso de referencia** (con su fuente) y anotar las reglas en `reglas.md` con su estado.
+1. Ubicar o escribir el **caso de referencia** (con su fuente) y anotar las reglas en `RULES.md` con su estado.
 2. Escribir la **prueba** con el valor de la fuente.
 3. Implementar (la IA está permitida, sección 11).
 4. Contestar por escrito dos preguntas de comprensión sobre lo construido.
@@ -257,7 +257,7 @@ Qué no pude verificar y por qué: _
 
 ## 9. Estados de una regla de dominio
 
-Toda regla (una fórmula, un rango, una validación) vive en `reglas.md` del repo y avanza así. El punto de partida de `reglas.md` es el documento `05`.
+Toda regla (una fórmula, un rango, una validación) vive en `RULES.md` del repo y avanza así. El punto de partida de `RULES.md` es el documento `05`.
 
 | Estado | Significa | Evidencia |
 |---|---|---|
@@ -270,7 +270,7 @@ Toda regla (una fórmula, un rango, una validación) vive en `reglas.md` del rep
 Consecuencias:
 - Una regla que **bloquea** al usuario (impide una acción) necesita al menos R3. En R0 o R1 es, a lo sumo, una **advertencia configurable**.
 - Una constante o rango sin fuente (R0) no entra al código como valor fijo: se deja como parámetro del usuario.
-- Si una fuente contradice la regla, gana la fuente y se anota en `docs/preguntas.md`.
+- Si una fuente contradice la regla, gana la fuente y se anota en `docs/QUESTIONS.md`.
 
 ## 10. Cómo se mide el avance
 
@@ -310,8 +310,8 @@ Formato: *Como [rol], quiero [algo], para [beneficio].* Los criterios son compro
 ### E0 — Comprensión y base (G0)
 | ID | Historia | Criterios de aceptación |
 |---|---|---|
-| H-001 | Como dev, quiero un repositorio con la estructura de la sección 14 para trabajar ordenado. | Un tercero clona, corre un comando y pasan las pruebas. Existen `reglas.md`, `preguntas.md` y `decisiones/`. |
-| H-002 | Como dev, quiero resolver el ejercicio de comprensión para demostrar que entiendo el dominio. | Las 6 respuestas de la sección 18 están en `docs/comprension.md` y aprobadas por el ingeniero de minas. |
+| H-001 | Como dev, quiero un repositorio con la estructura de la sección 14 para trabajar ordenado. | Un tercero clona, corre un comando y pasan las pruebas. Existen `RULES.md`, `QUESTIONS.md` y `DECISIONS.md`. |
+| H-002 | Como dev, quiero resolver el ejercicio de comprensión para demostrar que entiendo el dominio. | Las 6 respuestas de la sección 18 están en `docs/QUESTIONS.md` y aprobadas por el ingeniero de minas. |
 | H-003 | Como dev, quiero cerrar los spikes S1–S3 para fijar el stack. | Cada spike cumple su criterio de éxito (7.4) y hay nota de decisión D-01 a D-05. |
 
 ### E1 — Modelo de datos y guardado (G1)
@@ -379,7 +379,7 @@ Formato: *Como [rol], quiero [algo], para [beneficio].* Los criterios son compro
 ## 13. Definición de "hecho" (para cualquier historia)
 
 1. Sus criterios de aceptación se cumplen y hay prueba automática de cada uno.
-2. Las reglas mineras que toca están en `reglas.md` con fuente y estado.
+2. Las reglas mineras que toca están en `RULES.md` con fuente y estado.
 3. Los casos de referencia aplicables se reproducen dentro de tolerancia.
 4. La documentación afectada está actualizada.
 5. Se revisó el código y se puede explicar cada módulo entregado.
@@ -396,9 +396,9 @@ cronos/
   server/        API, control de acceso y persistencia
   docs/
     decisiones/  registro de decisiones (una nota corta por decisión)
-    reglas.md    registro de reglas mineras con fuente y estado
-    preguntas.md dudas para el ingeniero de minas
-    comprension.md ejercicio de la sección 18
+    RULES.md    registro de reglas mineras con fuente y estado
+    QUESTIONS.md dudas para el ingeniero de minas
+    QUESTIONS.md ejercicio de la sección 18
   tests/         pruebas y casos de referencia (datos de fuentes externas)
   README.md      cómo levantar el proyecto y correr las pruebas con un solo comando
 ```
@@ -420,8 +420,8 @@ cronos/
 - Se anota el origen de cada constante y de cada tabla semilla.
 
 **Comunicación**
-- Las dudas de dominio se escriben en `docs/preguntas.md`; el ingeniero de minas (Nilson Garrido) responde en bloque. Las llamadas se hacen cuando un hito las necesita, no por calendario. **Mientras esperas una respuesta, avanza con el valor por defecto de la sección 17**, marcado como parámetro configurable.
-- Las decisiones estructurales se registran en `docs/decisiones/`.
+- Las dudas de dominio se escriben en `docs/QUESTIONS.md`; el ingeniero de minas (Nilson Garrido) responde en bloque. Las llamadas se hacen cuando un hito las necesita, no por calendario. **Mientras esperas una respuesta, avanza con el valor por defecto de la sección 17**, marcado como parámetro configurable.
+- Las decisiones estructurales se registran en `docs/DECISIONS.md`.
 - El avance se muestra con capturas o un video corto, además del código.
 - El ingeniero de minas valida el dominio (estado R4) y prioriza; **no es un oráculo**: si duda, lo dice; si una fuente lo contradice, gana la fuente.
 
@@ -461,7 +461,7 @@ Funcionalidades que conviene tener bien resueltas por experiencia en otros progr
 
 ## 17. Decisiones por defecto y preguntas abiertas
 
-Para que **no frenes** por una duda de dominio: cada punto trae el **valor por defecto con el que avanzas** (siempre como parámetro configurable, nunca como constante fija) y quién lo resuelve. Cuando llegue la respuesta, se actualiza `reglas.md`.
+Para que **no frenes** por una duda de dominio: cada punto trae el **valor por defecto con el que avanzas** (siempre como parámetro configurable, nunca como constante fija) y quién lo resuelve. Cuando llegue la respuesta, se actualiza `RULES.md`.
 
 | # | Duda | Defecto para avanzar | Estado |
 |---|---|---|---|
@@ -494,7 +494,7 @@ Para que **no frenes** por una duda de dominio: cada punto trae el **valor por d
 
 ## 18. Ejercicio de comprensión (hito G0)
 
-Responde por escrito en `docs/comprension.md`. El ingeniero de minas lo revisa contigo.
+Responde por escrito en `docs/QUESTIONS.md`. El ingeniero de minas lo revisa contigo.
 
 1. Explica por qué el taco confina y qué pasa si el confinamiento es insuficiente. Investiga si existe algún caso en que el agua se use como taco y anota la fuente.
 2. Dibuja la cadena detonador → booster → granel y explica qué pasaría si faltara el booster.

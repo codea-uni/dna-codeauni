@@ -15,7 +15,7 @@ import type {
 
 /**
  * Precorte y voladura amortiguada (buffer), `docs/theory/references/R1` F26 y el ejemplo A.2/A.3
- * (CR-01 de `docs/theory/04`); FC-31 y FC-32 en `docs/reglas.md`. La fórmula de Pb es empírica y
+ * (CR-01 de `docs/theory/04`); FC-31 y FC-32 en `docs/RULES.md`. La fórmula de Pb es empírica y
  * trae sus unidades (MPa, g/cc, km/s): aquí se convierte en la entrada y en la salida, sin tocar
  * el 110 de la fuente.
  */

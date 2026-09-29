@@ -3,7 +3,7 @@ import type { KgPerM3, Meters, Radians, Ratio, SubdrillConvention } from '../mod
 /**
  * Burden teórico y reglas de malla (`docs/theory/02 §1`; fichas F03, F04 y F09 de R1). Son una
  * referencia para que el usuario elija el burden operativo: no bloquean (reglas R1–R2 en
- * `docs/reglas.md`). Todo en SI; las fórmulas de la fuente en ft/in se reescriben sin cambiar su
+ * `docs/RULES.md`). Todo en SI; las fórmulas de la fuente en ft/in se reescriben sin cambiar su
  * valor (1 ft = 12 in).
  */
 

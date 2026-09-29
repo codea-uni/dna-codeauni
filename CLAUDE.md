@@ -2,20 +2,22 @@
 
 Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab»; paquetes `@cronos/*`, D-09). Prioridades: **cálculos correctos y verificables**, **fluidez de la interfaz** y **cobertura progresiva de herramientas de simulación**.
 
-**Norte y máxima prioridad:** `docs/theory/`, la guía del ingeniero de minas. Está por encima de `docs/PLAN.md`, `docs/ARCHITECTURE.md` y este archivo: si algo la contradice, gana la guía y la diferencia se corrige o se anota en `docs/preguntas.md`. Hoja de ruta y estado en `docs/PLAN.md`; arquitectura y vocabulario en `docs/ARCHITECTURE.md`.
+**Leer primero `docs/ROADMAP.md`:** todas las fases, el hito en curso (▶) y cómo trabajar.
+
+**Norte y máxima prioridad:** `docs/theory/`, la guía del ingeniero de minas. Está por encima de `docs/ROADMAP.md`, `docs/ARCHITECTURE.md` y este archivo: si algo la contradice, gana la guía y la diferencia se corrige o se anota en `docs/QUESTIONS.md`.
 
 ## Dónde buscar
 
-| Necesito                                                                | Documento                                                                                                                            |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Requisito, historia o criterio de aceptación (R-xx, H-xxx)              | `docs/theory/01 - Guia del desarrollador.md` §5 y §12                                                                                |
-| Fórmula, unidades o verificación                                        | `docs/theory/02 - Especificacion de calculo.md`; fichas F01–F30 de `docs/theory/references/R1 - Primer minero a desarrollador.md` §3 |
-| Valor esperado de un test (CR-xx)                                       | `docs/theory/04 - Casos de referencia.md`                                                                                            |
-| Entidad, catálogo o trampa de importación                               | `docs/theory/03 - Modelo de datos e importacion.md`                                                                                  |
-| Estado de una regla (RM, FC, CK, DF, CT)                                | `docs/reglas.md` (semilla: `docs/theory/05`)                                                                                         |
-| Término minero ES/EN                                                    | `R1` §2 (glosario) y la tabla de vocabulario de `docs/ARCHITECTURE.md`                                                               |
-| Cómo lo hacen JKSimBlast o I-Blast (al diseñar una pantalla o un flujo) | `docs/theory/references/R3` (flujo en 12 pasos en §3) y `R2`; referencia de funciones, **no** para copiar                            |
-| Subterráneo (frentes, anillos)                                          | `docs/theory/references/R4`                                                                                                          |
+| Necesito                                                                | Documento                                                                                                 |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Requisito, historia o criterio de aceptación (R-xx, H-xxx)              | `docs/theory/01-DEVELOPER-GUIDE.md` §5 y §12                                                              |
+| Fórmula, unidades o verificación                                        | `docs/theory/02-CALCULATION-SPEC.md`; fichas F01–F30 de `docs/theory/references/R1-MINING-PRIMER.md` §3   |
+| Valor esperado de un test (CR-xx)                                       | `docs/theory/04-REFERENCE-CASES.md`                                                                       |
+| Entidad, catálogo o trampa de importación                               | `docs/theory/03-DATA-MODEL.md`                                                                            |
+| Estado de una regla (RM, FC, CK, DF, CT)                                | `docs/RULES.md` (semilla: `docs/theory/05`)                                                               |
+| Término minero ES/EN                                                    | `R1` §2 (glosario) y la tabla de vocabulario de `docs/ARCHITECTURE.md`                                    |
+| Cómo lo hacen JKSimBlast o I-Blast (al diseñar una pantalla o un flujo) | `docs/theory/references/R3` (flujo en 12 pasos en §3) y `R2`; referencia de funciones, **no** para copiar |
+| Subterráneo (frentes, anillos)                                          | `docs/theory/references/R4`                                                                               |
 
 ## Stack
 
@@ -60,20 +62,17 @@ Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab�
 
 ## Reglas de dominio (guía §9–§11, no negociables)
 
-1. **Ninguna fórmula, constante o rango minero sin fuente humana verificable.** Se registra en `docs/reglas.md` con su estado (R0–R4) antes de programarla. La IA no es fuente.
+1. **Ninguna fórmula, constante o rango minero sin fuente humana verificable.** Se registra en `docs/RULES.md` con su estado (R0–R4) antes de programarla. La IA no es fuente.
 2. **El valor esperado de un test sale de un caso de referencia (CR-xx) o de la fuente citada**, nunca de la misma fórmula del código (prueba circular). El test cita el caso y el paso en un comentario.
 3. **Por debajo de R3, una regla es a lo sumo una advertencia configurable**, nunca un bloqueo. Una constante en R0 es un parámetro del usuario, no un valor fijo.
 4. **Constantes exactas** (π/4, no 0,507 ni 0,7854). El motor no redondea; solo la presentación.
 5. **Nombres honestos y separados.** La profundidad escalada de enterramiento (SDOB, raíz cúbica) y la distancia escalada de vibración (raíz cuadrada) son dos modelos con dos nombres (RM-08). No se llama «energía» ni «daño» a un valor normalizado.
 6. **Terminología del glosario** (`R1` §2) en la UI, y los identificadores de la tabla de `docs/ARCHITECTURE.md` en el código.
 7. **Sin copiar** interfaz, textos ni constantes propietarias de JKSimBlast, I-Blast, SHOTPlus ni BlastLogic.
-8. **Dudas de dominio:** se avanza con el valor por defecto de `docs/theory/01 §17` como parámetro y se anota en `docs/preguntas.md`.
+8. **Dudas de dominio (D-12):** no se detiene el trabajo para preguntar. Se busca la fuente (web, `docs/theory/`); si no aparece, se usa el valor por defecto de `docs/theory/01 §17` o un supuesto razonable como parámetro editable, y se anota en `docs/QUESTIONS.md` §2.
 
-## Hitos (uno a la vez; no avanzar sin aprobación)
+## Hitos
 
-**Estado actual y cómo retomar: `docs/ESTADO.md` (leer primero).** Detalle, tareas y criterios de salida en `docs/PLAN.md §4`. Cada hito sigue el ciclo de `docs/PLAN.md §5` y se cierra con su reporte en `docs/hitos/`.
-
-- **F1** (G0–G9): código completo; cierre formal pendiente de I1, I6 y P-15 (`docs/hitos/cierre-fase-1.md`).
-- **F2** (A0–A6): análisis avanzado (precorte y buffer, daño, fragmentación, proyección, desplazamiento). Luego F3 subterráneo, F4 datos de campo, F5 distribución + backend.
+Uno a la vez, con el ciclo de `docs/ROADMAP.md`. Fases: **F1** diseño y simulación (G0–G9, código completo) · **F2** análisis avanzado (A0–A6, en curso) · **F3** subterráneo (S0–S6) · **F4** datos de campo (C0–C5) · **F5** distribución y backend (D0–D4). El detalle y el hito en curso están solo en `docs/ROADMAP.md`.
 
 El prototipo BlastLab ya implementó las fases 0–9 (malla, carguío, tiempos, CSV, energía, fragmentación, vibración, DXF/PDF, 3D). Se reutilizan y se regularizan hito a hito (D-07).

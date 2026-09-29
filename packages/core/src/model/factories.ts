@@ -31,7 +31,7 @@ export const DEFAULT_HOLE_TEMPLATE: HoleTemplate = {
 };
 
 /**
- * Parámetros de cálculo por defecto (`docs/reglas.md`, `docs/preguntas.md`): ventana de MIC de
+ * Parámetros de cálculo por defecto (`docs/RULES.md`, `docs/QUESTIONS.md`): ventana de MIC de
  * 8 ms (DF-12, P-10), γ = 3 (DF-02), alivio 3 ms/m de burden (P-02), sobreperforación vertical
  * (P-05), taco mínimo 0,7·B y 20·Ø (DF-09, P-04), SDOB 0,4/1,2 (DF-20), A 0,8–22 (P-08).
  * Duplicado y vecindad son ⚙.

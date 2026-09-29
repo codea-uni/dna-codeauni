@@ -37,24 +37,16 @@ Detalle en `docs/ARCHITECTURE.md`.
 
 ## Documentación
 
-Orden de lectura sugerido (adaptado de la guía, `docs/theory/01 §2`):
+**Para saber en qué fase va el proyecto, o para retomarlo en otro chat: `docs/ROADMAP.md`.** Tiene todas las fases (F1 a F5), sus hitos y el hito en curso marcado con ▶.
 
-1. `docs/theory/01 - Guia del desarrollador.md`: qué se construye, requisitos, hitos y reglas de trabajo. **Es el norte del proyecto.**
-2. `docs/theory/references/R1 - Primer minero a desarrollador.md`, §1, §2 y §5: ciclo de voladura, glosario ES/EN y ejemplos resueltos.
-3. `docs/theory/02 - Especificacion de calculo.md` y `04 - Casos de referencia.md`: fórmulas y valores esperados.
-4. `docs/theory/03 - Modelo de datos e importacion.md`.
-5. `docs/theory/05 - Reglas mineras y su verificacion.md`.
-6. `docs/theory/references/R2` (I-Blast) y `R3` (JKSimBlast), como consulta al construir cada pantalla; `R4` para subterráneo.
-
-Documentos de trabajo del repositorio:
-
-| Documento              | Para qué                                                    |
-| ---------------------- | ----------------------------------------------------------- |
-| `docs/PLAN.md`         | Estado, trazabilidad de requisitos y hoja de ruta por hitos |
-| `docs/ARCHITECTURE.md` | Arquitectura, flujo de datos, vocabulario minero ↔ código   |
-| `docs/reglas.md`       | Registro de reglas y fórmulas con estado R0–R4              |
-| `docs/preguntas.md`    | Dudas para el ingeniero de minas, con el valor por defecto  |
-| `docs/decisiones/`     | Notas de decisión (D-01…)                                   |
-| `docs/comprension.md`  | Ejercicio de comprensión (G0) y preguntas por hito          |
-| `docs/hitos/`          | Reportes de hito y cierre de la Fase 1                      |
-| `CLAUDE.md`            | Reglas del proyecto para asistentes de IA                   |
+| Documento              | Para qué                                                                                                                                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/ROADMAP.md`      | Todas las fases y hitos, estado actual, cómo trabajar                                                                                                                                    |
+| `docs/RULES.md`        | Cada fórmula y regla minera con su fuente y estado (R0–R4)                                                                                                                               |
+| `docs/QUESTIONS.md`    | Decisiones del ingeniero, supuestos tomados y examen de comprensión                                                                                                                      |
+| `docs/DECISIONS.md`    | Decisiones técnicas (D-01…)                                                                                                                                                              |
+| `docs/REPORTS.md`      | Reportes de cada hito e indicadores de cierre de fase                                                                                                                                    |
+| `docs/ARCHITECTURE.md` | Arquitectura, flujo de datos, vocabulario minero ↔ código                                                                                                                                |
+| `docs/DEPLOY.md`       | Despliegue en el servidor                                                                                                                                                                |
+| `docs/theory/`         | Guía del ingeniero de minas (**el norte del proyecto**): empezar por `01-DEVELOPER-GUIDE.md`, luego `references/R1-MINING-PRIMER.md`, `02-CALCULATION-SPEC.md` y `04-REFERENCE-CASES.md` |
+| `CLAUDE.md`            | Reglas del proyecto para asistentes de IA                                                                                                                                                |

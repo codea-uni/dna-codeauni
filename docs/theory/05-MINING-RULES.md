@@ -1,6 +1,6 @@
 # 05 — Reglas mineras y su verificación
 
-Cada regla de dominio que el producto necesita, con su **estado** y con lo que dicen las fuentes. Es el semillero del registro `reglas.md` del repositorio.
+Cada regla de dominio que el producto necesita, con su **estado** y con lo que dicen las fuentes. Es el semillero del registro `RULES.md` del repositorio.
 
 Regla del proyecto: **ninguna afirmación técnica es verdadera por haberse dicho**, venga de un ingeniero, de un curso, de una hoja de cálculo o de una IA. Toda regla nace como hipótesis y sube de estado (guía, sección 9). Donde una fuente contradice una regla, gana la fuente y se registra la diferencia.
 
@@ -59,4 +59,4 @@ Las fuentes marcadas *(secundaria)* son blogs, proveedores o informes ambientale
 
 - Una regla con marca ○, ? o ⚙ **no** se programa como bloqueo para el usuario; a lo sumo, como advertencia configurable.
 - Antes de cerrar un hito, las reglas que lo tocan pasan a ✔ o ◐ con una fuente citada, o se dejan explícitamente como configurables.
-- Si encuentras una fuente que contradiga una regla de esta tabla, anótalo aquí (y en `docs/preguntas.md`) y se resuelve con el ingeniero de minas; gana la fuente.
+- Si encuentras una fuente que contradiga una regla de esta tabla, anótalo aquí (y en `docs/QUESTIONS.md`) y se resuelve con el ingeniero de minas; gana la fuente.

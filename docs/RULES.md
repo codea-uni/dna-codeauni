@@ -1,6 +1,6 @@
 # Registro de reglas mineras
 
-Registro vivo de cada regla, fórmula, rango o constante de dominio, con su **estado** (guía `docs/theory/01 §9`). Parte de `docs/theory/05` y de `02`. Se actualiza en cada hito (paso 1 del ciclo, `docs/PLAN.md §5`).
+Registro vivo de cada regla, fórmula, rango o constante de dominio, con su **estado** (guía `docs/theory/01 §9`). Parte de `docs/theory/05` y de `02`. Se actualiza en cada hito (paso 1 del ciclo, `docs/ROADMAP.md («Ciclo de trabajo»)`).
 
 | Estado                     | Significa                                          | Evidencia                          |
 | -------------------------- | -------------------------------------------------- | ---------------------------------- |
@@ -14,7 +14,7 @@ Registro vivo de cada regla, fórmula, rango o constante de dominio, con su **es
 
 - Solo una regla en R3 o más puede **bloquear** al usuario; por debajo es, a lo sumo, una advertencia configurable.
 - Una constante en R0 no entra al código como valor fijo: queda como parámetro.
-- Si una fuente contradice una regla, gana la fuente y se anota en `docs/preguntas.md`.
+- Si una fuente contradice una regla, gana la fuente y se anota en `docs/QUESTIONS.md`.
 
 **Criterio de este registro:**
 

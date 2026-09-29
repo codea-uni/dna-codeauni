@@ -96,7 +96,7 @@ const es = {
       `Atención: ${count} explosivo(s) con valores genéricos sin ficha técnica (${names}); reemplazar por la ficha del fabricante.`,
     allCited: 'Todos los explosivos citan su ficha técnica.',
     rules:
-      'Las reglas por debajo del estado R3 (docs/reglas.md) solo avisan; no bloquean el diseño.',
+      'Las reglas por debajo del estado R3 (docs/RULES.md) solo avisan; no bloquean el diseño.',
   },
   /** Títulos de observaciones por `check.id`; el núcleo ya los da en español. */
   checks: {} as Record<string, string>,
@@ -181,7 +181,7 @@ const en = {
     generic: (count: number, names: string) =>
       `Warning: ${count} explosive(s) with generic values and no datasheet (${names}); replace with the manufacturer's datasheet.`,
     allCited: 'All explosives cite their datasheet.',
-    rules: 'Rules below status R3 (docs/reglas.md) only warn; they do not block the design.',
+    rules: 'Rules below status R3 (docs/RULES.md) only warn; they do not block the design.',
   },
   checks: {
     // diagnostics/designChecks.ts

@@ -164,7 +164,7 @@ export interface Blast {
 
 /**
  * Parámetros de cálculo guardados con la voladura (`docs/theory/03 §2`, «parametros_calculo»).
- * Las reglas por debajo de R3 son parámetros, no constantes (`docs/reglas.md`).
+ * Las reglas por debajo de R3 son parámetros, no constantes (`docs/RULES.md`).
  */
 export interface CalcParams {
   /** Ventana de la carga máxima por retardo [s], semiabierta [t, t + w) (DF-12: 8 ms). */

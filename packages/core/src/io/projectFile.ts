@@ -83,7 +83,7 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
     };
   },
   /**
-   * v3 → v4 (respuestas del ingeniero, `docs/preguntas.md`): `reliefTime` pasa a `reliefRate`
+   * v3 → v4 (respuestas del ingeniero, `docs/QUESTIONS.md`): `reliefTime` pasa a `reliefRate`
    * (P-02) y se agregan la convención de sobreperforación (P-05) y los umbrales nuevos.
    */
   3: fillCalcParams,

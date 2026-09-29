@@ -2,7 +2,7 @@
 
 Qué calcula el motor, con qué fórmula, en qué unidades y con qué ejemplo se comprueba. Cada bloque indica su **estado de regla** (R0–R4, guía sección 9) y el **caso de referencia** que lo prueba (`04 - Casos de referencia`).
 
-**Lo que no está aquí no es una fórmula aceptada.** Si necesitas otra, se registra en `reglas.md` con fuente y pasa por los estados de la guía antes de usarse como bloqueo.
+**Lo que no está aquí no es una fórmula aceptada.** Si necesitas otra, se registra en `RULES.md` con fuente y pasa por los estados de la guía antes de usarse como bloqueo.
 
 ## 0. Convenciones
 

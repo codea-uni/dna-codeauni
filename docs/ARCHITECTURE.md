@@ -1,6 +1,6 @@
 # Arquitectura de Cronos
 
-Las decisiones de fondo están en `docs/decisiones/` (D-01…D-11), y la hoja de ruta en `docs/PLAN.md`.
+Las decisiones de fondo están en `docs/DECISIONS.md` (D-01…D-11), y la hoja de ruta en `docs/ROADMAP.md`.
 
 ## Flujo de datos
 
@@ -97,7 +97,7 @@ La fuente de verdad es `packages/core/src/model/types.ts` (esquema en `model/sch
 
 ## Vocabulario: término minero ↔ identificador
 
-Terminología según `docs/theory/references/R1 - Primer minero a desarrollador.md` §2 (glosario). La UI y los documentos usan el término en español; el código usa el identificador. Las filas marcadas «(G_)» todavía no existen en el código y se crean en ese hito con ese nombre.
+Terminología según `docs/theory/references/R1-MINING-PRIMER.md` §2 (glosario). La UI y los documentos usan el término en español; el código usa el identificador. Las filas marcadas «(G_)» todavía no existen en el código y se crean en ese hito con ese nombre.
 
 | Término (ES)                                 | EN                               | Identificador                                            | Unidad interna             |
 | -------------------------------------------- | -------------------------------- | -------------------------------------------------------- | -------------------------- |

@@ -4,7 +4,7 @@ import type { ProductLibrary } from './types';
 /**
  * Librería inicial con valores típicos de referencia (catálogos genéricos, no de un fabricante).
  * El usuario debe reemplazarlos por los datos de sus productos. Sin ficha técnica son R0 (CT-01 en
- * docs/reglas.md): cada producto lo declara en `source` (DF-22).
+ * docs/RULES.md): cada producto lo declara en `source` (DF-22).
  * Energías en J/kg (AWS); RWS relativo a ANFO = 1.0. Los agentes de voladura (ANFO, ANFO pesado y
  * emulsión a granel) necesitan booster (RM-05; glosario de R1, «agente de voladura»).
  */
