@@ -171,7 +171,7 @@ function GroupDesign({ group, blast }: { group: HoleGroup; blast: Blast }) {
       );
     if (p.chargeDiameterForUcs !== null)
       lines.push(
-        t('groups.presplit.suggest', { d: fmt(dia.show(p.chargeDiameterForUcs), 2), u: dia.unit }),
+        t('groups.presplit.suggest', { d: fmt(dia.show(p.chargeDiameterForUcs), 1), u: dia.unit }),
       );
   } else {
     const productionGroups = new Set(

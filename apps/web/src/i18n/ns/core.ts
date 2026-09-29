@@ -73,7 +73,7 @@ export const es = {
   'check.invertedOrder.title': 'Orden invertido respecto de la cara libre',
   'check.invertedOrder.detail':
     'Detonan antes que un vecino que está más cerca de la cara libre: salen contra roca sin alivio (CK-10).',
-  'check.presplitPressure.title': 'Presión del precorte sobre la resistencia de la roca',
+  'check.presplitPressure.title': 'Precorte con Pb mayor que la UCS',
   'check.presplitPressure.detail':
     'Pb = 110·f^n·ρ·VOD² supera la UCS: tritura la pared en vez de abrir el plano (R1 F26). Desacopla más la carga.',
   'check.presplitSpacing.title': 'Precorte con espaciamiento mayor que el máximo',
@@ -231,7 +231,7 @@ export const en = {
   'check.invertedOrder.title': 'Firing order reversed relative to the free face',
   'check.invertedOrder.detail':
     'They fire before a neighbour closer to the free face: they break against unrelieved rock (CK-10).',
-  'check.presplitPressure.title': 'Presplit pressure above the rock strength',
+  'check.presplitPressure.title': 'Presplit Pb above the UCS',
   'check.presplitPressure.detail':
     'Pb = 110·f^n·ρ·VOD² exceeds the UCS: it crushes the wall instead of opening the plane (R1 F26). Decouple the charge further.',
   'check.presplitSpacing.title': 'Presplit spacing above the maximum',

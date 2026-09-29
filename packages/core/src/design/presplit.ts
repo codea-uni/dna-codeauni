@@ -234,7 +234,7 @@ export function presplitChecks(
   add({
     id: 'presplitPressure',
     severity: 'warning',
-    title: 'Presión del precorte sobre la resistencia de la roca',
+    title: 'Precorte con Pb mayor que la UCS',
     detail:
       'Pb = 110·f^n·ρ·VOD² supera la UCS: tritura la pared en vez de abrir el plano (R1 F26). Desacopla más la carga.',
     holes: highPressure,
