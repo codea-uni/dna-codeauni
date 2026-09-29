@@ -17,7 +17,7 @@
 | ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
 | **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
 | Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                            | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
-| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · **▶ A5** · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
+| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · A5 · **▶ A6**                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
 | Evaluación 2                  | Ingenieros externos                              | E2.1 manual · E2.2 comentarios · E2.3 sesión                                                                                 | Hallazgos críticos resueltos                           | —                        |
 | **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                 | Ronda completa dentro de sección; casos de referencia  | —                        |
 | **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                               | Un diseño calibrado con datos reales                   | —                        |
@@ -101,7 +101,7 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 - Lundborg: se agrega el tamaño de fragmento T = 0,1·d^(2/3) (d en pulgadas, P-20). Sobrepresión con su fuente (USBM RI 8485, FC-30 en R1), k y β del sitio (β 1,2–1,5). Ambos siguen como estimaciones sin CR, rotulados así en la interfaz y el PDF. Traducir los textos que faltan (`VibrationPanel.tsx`, PDF).
 - **Salida:** FC-34 en R3 con los valores frontera. Hecho: `sdobBand` y color «Semáforo de proyección (SDOB)» en la vista; avisos de SDOB con los cortes de F12 (S-08); taco sugerido para SD = 0,92 en el editor de columna (CR-02 fila 13: 7,30 m); nota de eyección del taco con < 35 ms (S-07); tamaño de fragmento de Lundborg; fuente de la sobrepresión en la interfaz. Esquema v9 (`sdobBands`, `minInterRowDelay`).
 
-### A5: desplazamiento y verificaciones
+### A5: desplazamiento y verificaciones ✅
 
 - **Velocidad de burden** (FC-36, Zhang, Chi & Yi 2021; P-21) por taladro con su burden efectivo: v_B = √[π·c_B·ρ_e·e_e·c_e/(2·ρ_r·tan θ)]·(d/B), c_B = 0,12 y θ = 45° como parámetros; aviso si la carga está desacoplada (fuera de validez). Tests: Malmberget 57,6 m/s; Tabla 2: 16,5; 19,5; 16,7; 10,6 m/s (±1 %).
 - **Alcance** (FC-37): tiro parabólico del centroide con α = 90° − ángulo de cara y h = H/2 (ejemplo de P-21: 14,1 m/s → 22,7 m, solo regresión); filas posteriores con v·k^(n−1), k = 0,7 como parámetro de calibración (R0).
@@ -109,7 +109,7 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 - Costo por taladro y por tonelada (CR-02 #16 = 321,40 US$/taladro, #17 = 144; `R1` F28 = 0,1836 US$/t) con precios como datos del catálogo.
 - Doble cebado: dispersión entre detonadores < L_columna/VOD (`R1` F19), como aviso.
 - Se aplazan: Monte Carlo de dispersión (DF-15) y JKMRC de finos (sin constantes públicas).
-- **Salida:** FC-36 en R3; FC-37 en R0 hasta calibrar k con perfiles de pila reales (F4).
+- **Salida:** FC-36 en R3; FC-37 en R0 hasta calibrar k con perfiles de pila reales (F4). Hecho: `analysis/displacement.ts` (en el análisis del worker), dirección desde `effectiveBurden.toward`, capa de flechas en la vista con c_B y k editables; costo de perforación y US$/t en Resultados (CR-02 #16, #17 y 0,1836 US$/t); aviso de doble cebado (F19); VOD(D) con los ejemplos de `R2` F02 (FC-20 en R3). Esquema v10.
 
 ### A6: cierre de F2
 

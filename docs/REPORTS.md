@@ -163,4 +163,9 @@ Indicadores: I4 235 + 6 pruebas en verde · No verificado: CR-07 (no hay ejemplo
 Hito: A4 · Reglas: FC-34 (R1 → R3), FC-29 y FC-30 con fuente (R1) · CR: valores frontera de R1 F12; CR-02 fila 13
 (taco inverso 7,30 m) · Supuestos: S-07, S-08
 Indicadores: I4 237 + 6 pruebas en verde · No verificado: Lundborg y sobrepresión no tienen caso de referencia
+
+Hito: A5 · Reglas: FC-36 (R1 → R3), FC-37 (R0), FC-35 (→ R3), FC-38 nueva (R3), FC-20 (R1 → R3), RM-20 (R0 → R1) · CR:
+Zhang 2021 (57,6; 16,5; 19,5; 16,7; 10,6 m/s), P-21 (14,1 m/s; 22,7 m), CR-02 #16/#17 (321,40; 144; 0,1836 US$/t),
+R1 F19 (doble cebado), R2 F02 (4029,6; 4548,1 m/s)
+Indicadores: I4 245 + 6 pruebas en verde · No verificado: k por fila (calibración de sitio, S-01)
 ```
