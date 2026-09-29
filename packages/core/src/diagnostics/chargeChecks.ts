@@ -33,6 +33,7 @@ export function chargeChecks(
   const noBooster: HoleId[] = [];
   const water: HoleId[] = [];
   const critical: HoleId[] = [];
+  const doublePriming: HoleId[] = [];
   const sdobSevere: HoleId[] = [];
   const sdobLow: HoleId[] = [];
   for (const h of blast.holes) {
@@ -63,6 +64,30 @@ export function chargeChecks(
     for (const iv of intervals) {
       if (iv.deck.kind !== 'explosive') {
         if (closeColumn()) boosterMissing = true;
+        // Doble cebado (`R1` F19): la diferencia de tiempos entre dos detonadores de la misma carga
+        // (retardos nominales + dispersión de ambos) debe ser menor que lo que tarda la detonación en
+        // recorrer la columna (L/VOD); si no, el segundo inicia contra una carga ya detonada.
+        const inCharge = h.initiators.filter((init) =>
+          charges.some((iv) => init.depth >= iv.top - TOL && init.depth <= iv.bottom + TOL),
+        );
+        if (inCharge.length >= 2) {
+          const dets = inCharge.map((init) => ({
+            delay: init.delay,
+            scatter: lib.detonators.get(init.detonatorId)?.delayScatter ?? 0,
+          }));
+          const delays = dets.map((d) => d.delay);
+          const scatters = dets.map((d) => d.scatter).sort((a, b) => b - a);
+          const spread =
+            Math.max(...delays) - Math.min(...delays) + (scatters[0] ?? 0) + (scatters[1] ?? 0);
+          let length = 0;
+          let vod = Infinity;
+          for (const iv of charges) {
+            if (iv.deck.kind !== 'explosive') continue;
+            length += iv.bottom - iv.top;
+            vod = Math.min(vod, lib.explosives.get(iv.deck.explosiveId)?.vod ?? Infinity);
+          }
+          if (Number.isFinite(vod) && spread >= length / vod) doublePriming.push(h.id);
+        }
         continue;
       }
       const product = lib.explosives.get(iv.deck.explosiveId);
@@ -114,6 +139,14 @@ export function chargeChecks(
       title: 'Diámetro de carga menor que el crítico',
       detail: 'Por debajo del diámetro crítico el explosivo no detona de forma estable (CK-09).',
       holes: critical,
+    },
+    {
+      id: 'doublePrimingScatter',
+      severity: 'warning',
+      title: 'Doble cebado con dispersión mayor que el tiempo de la columna',
+      detail:
+        'La diferencia de tiempos entre los detonadores (retardos y dispersión) supera L/VOD de la carga: el segundo cebo no aporta y puede fallar (R1 F19).',
+      holes: doublePriming,
     },
     {
       id: 'sdobSevere',

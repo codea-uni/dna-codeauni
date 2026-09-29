@@ -204,6 +204,16 @@ describe('CR-05: burden efectivo según la secuencia (P-02: alivio a 3 ms/m de b
     expect(byId.invertedOrder).toBeUndefined();
   });
 
+  it('dirección de salida (A5): hacia la cara libre (−y) en toda la malla del amarre 1', () => {
+    const blast = cr05('A1', AMARRE_1);
+    const r = computeTiming(blast, lib, { coincidenceWindow: WINDOW }, KG);
+    const eb = effectiveBurden(blast, r.fireTime, blast.calcParams.reliefRate);
+    for (let i = 0; i < 6; i++) {
+      expect(eb.toward[2 * i]).toBeCloseTo(0, 9);
+      expect(eb.toward[2 * i + 1]).toBeCloseTo(-1, 9);
+    }
+  });
+
   it('amarre 2 (en V desde A2): todos 3,0 m', () => {
     const blast = cr05('A2', [
       ['A2', 'A1', 17],

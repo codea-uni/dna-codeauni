@@ -9,6 +9,11 @@ export interface EffectiveBurden {
   nominal: Float64Array;
   /** Distancia a la cara libre original [m] (Infinity si la voladura no tiene cara libre). */
   faceDistance: Float64Array;
+  /**
+   * Dirección unitaria en planta desde la boca hacia la superficie libre más cercana al detonar
+   * [x0, y0, x1, y1, …]: hacia donde sale el material (A5). (0, 0) si no hay superficie libre.
+   */
+  toward: Float64Array;
 }
 
 /** Segmentos de cara libre en planta: aristas marcadas del perímetro y líneas de cresta. */
@@ -28,12 +33,13 @@ export function freeFaceSegments(blast: Pick<Blast, 'boundaries' | 'freeFaces'>)
   return segs;
 }
 
-function segmentDistance(x: number, y: number, [a, b]: [Vec2, Vec2]): number {
+/** Punto del segmento más cercano a (x, y). */
+function closestOnSegment(x: number, y: number, [a, b]: [Vec2, Vec2]): Vec2 {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len2 = dx * dx + dy * dy;
   const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / len2)) : 0;
-  return Math.hypot(a.x + dx * t - x, a.y + dy * t - y);
+  return { x: a.x + dx * t, y: a.y + dy * t };
 }
 
 const FRONT_TOL = 1e-3; // m
@@ -78,6 +84,8 @@ export function effectiveBurden(
   const effective = new Float64Array(n).fill(NaN);
   const nominal = new Float64Array(n).fill(NaN);
   const faceDistance = new Float64Array(n).fill(Infinity);
+  const toward = new Float64Array(2 * n);
+  const facePoint: (Vec2 | null)[] = new Array<Vec2 | null>(n).fill(null);
   const patternOf = new Map(blast.patterns.map((p) => [p.id, p]));
   const segs = freeFaceSegments(blast);
   const reach = new Float64Array(n).fill(Infinity);
@@ -87,12 +95,23 @@ export function effectiveBurden(
       nominal[i] = p.burden;
       reach[i] = 2 * Math.max(p.burden, p.spacing);
     }
-    for (const s of segs)
-      faceDistance[i] = Math.min(
-        faceDistance[i] ?? Infinity,
-        segmentDistance(h.collar.x, h.collar.y, s),
-      );
+    for (const s of segs) {
+      const q = closestOnSegment(h.collar.x, h.collar.y, s);
+      const d = Math.hypot(q.x - h.collar.x, q.y - h.collar.y);
+      if (d < (faceDistance[i] ?? Infinity)) {
+        faceDistance[i] = d;
+        facePoint[i] = q;
+      }
+    }
   });
+  const setToward = (i: number, from: Vec2, to: Vec2 | null) => {
+    if (!to) return;
+    const d = Math.hypot(to.x - from.x, to.y - from.y);
+    if (d > 0) {
+      toward[2 * i] = (to.x - from.x) / d;
+      toward[2 * i + 1] = (to.y - from.y) / d;
+    }
+  };
   const index = holeIndex(blast.holes);
   blast.holes.forEach((hi, i) => {
     const ti = fireTime[i] ?? NaN;
@@ -107,6 +126,7 @@ export function effectiveBurden(
     const near = index.nearest(x, y, di, (j) => !relieving(j));
     if (!near) {
       effective[i] = di;
+      setToward(i, hi.collar, facePoint[i] ?? null);
       return;
     }
     const pair = index.nearest(
@@ -115,7 +135,9 @@ export function effectiveBurden(
       reach[i] ?? Infinity,
       (j) => j === near.id || !relieving(j),
     );
-    effective[i] = pair ? segmentDistance(x, y, [near, pair]) : Math.hypot(x - near.x, y - near.y);
+    const target = pair ? closestOnSegment(x, y, [near, pair]) : near;
+    effective[i] = Math.hypot(x - target.x, y - target.y);
+    setToward(i, hi.collar, target);
   });
-  return { effective, nominal, faceDistance };
+  return { effective, nominal, faceDistance, toward };
 }

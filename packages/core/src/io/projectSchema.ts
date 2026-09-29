@@ -178,6 +178,8 @@ const blast: z.ZodType<M.Blast> = z.object({
     reliefRate: nonNeg,
     drillDeviation: nonNeg,
     sdobBands: z.array(nonNeg),
+    drillingCostPerMeter: nonNeg,
+    displacement: z.object({ cB: pos, theta: pos, rowFactor: pos }),
     subdrillConvention: z.enum(['vertical', 'lopezJimeno']),
     delayGuide: z.object({ interHole: range, interRow: range }),
     checks: z.object({
@@ -377,7 +379,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
   format: z.literal('cronos-project'),
-  schemaVersion: z.literal(9),
+  schemaVersion: z.literal(10),
   savedAt: z.string(),
   appVersion: z.string(),
   project: projectSchema,

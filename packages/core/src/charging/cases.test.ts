@@ -11,7 +11,7 @@ import type { Blast, Deck, Explosive, Hole, Pattern, ProductLibrary } from '../m
 import { degToRad } from '../units/units';
 import { holeCharge, indexLibrary, linearChargeDensity } from './charge';
 import { computeCharges } from './chargeAnalysis';
-import { boreholePressure, detonationPressure } from './pressures';
+import { boreholePressure, detonationPressure, vodAtDiameter } from './pressures';
 import { scaledDepthOfBurial } from './sdob';
 
 const rel = (value: number, expected: number, tol: number) => {
@@ -151,6 +151,51 @@ describe('CR-02 «MEQ73 11 pulg»: emulsión gasificada con esponjamiento (filas
   });
 });
 
+describe('CR-02 filas 16 y 17: costo por taladro (R1 F28, X-DP)', () => {
+  // Mezcla 0,4313 US$/kg; accesorios 36,603 US$ (Exsanel 1,71 + booster 5,34 + cable 0,37 × 5,1 m
+  // + detonador electrónico 23,80 + Taponex 3,866); perforación 9 US$/m × 16 m.
+  const emulsion = { ...explosive('Emulsión gasificada', 1380, 5400, 3.036e6), costPerKg: 0.4313 };
+  const det = {
+    id: newId<'Detonator'>(),
+    name: 'Electrónico + Exsanel + cable',
+    type: 'electronic' as const,
+    nominalDelay: 0,
+    delayScatter: 0,
+    costPerUnit: 23.8 + 1.71 + 0.37 * 5.1,
+  };
+  const primer = { id: newId<'Primer'>(), name: 'Booster', mass: 0, costPerUnit: 5.34 };
+  const lib: ProductLibrary = {
+    ...library(emulsion),
+    detonators: [det],
+    primers: [primer],
+  };
+  const D = 11 * 0.0254;
+  const plug: Deck = { id: newId<'Deck'>(), kind: 'plug', length: 0, cost: 3.866 };
+  const hole: Hole = {
+    ...baseHole(D, 16, [exp(emulsion, 8.7, { swell: 0.9 }), plug, stem(7.3)], 1),
+    initiators: [
+      {
+        id: newId<'InHoleInitiator'>(),
+        detonatorId: det.id,
+        primerId: primer.id,
+        depth: 15.5,
+        delay: 0,
+      },
+    ],
+  };
+  const blast = oneHole(15, 8.5 / 1.15, 8.5, hole);
+  blast.calcParams = { ...blast.calcParams, drillingCostPerMeter: 9 };
+  const r = computeCharges(blast, lib, 2690);
+
+  it('fila 16: voladura 321,40 US$/taladro (±0,1 %); fila 17: perforación 144 US$ (exacto)', () => {
+    rel(r.cost, 321.4, 0.001);
+    expect(r.drillingCost).toBe(144);
+  });
+  it('R1 F28: total 0,1836 US$/t (±0,1 %)', () => {
+    rel((r.cost + r.drillingCost) / ((r.nominal.volume * 2690) / 1000), 0.1836, 0.001);
+  });
+});
+
 describe('CR-02, variantes con decks («SD corregido» por tramo)', () => {
   const emulsion = explosive('Emulsión gasificada', 1380, 5400, 3.036e6);
   const lib = library(emulsion);
@@ -242,5 +287,12 @@ describe('CR-03 pequeño diámetro: inclinado 20°, encartuchado + granel (±2 %
   it('consumo específico CE = Q/V_R = 0,387 kg/m³ (sin redondeo 0,380) y 10,9 m³/m', () => {
     rel(r.nominal.explosive / r.nominal.volume, 0.38, 0.02);
     rel(r.nominal.volume / r.nominal.drilledLength, 10.9, 0.02);
+  });
+});
+
+describe('VOD(D) (FC-20, R2 F02: capturas de I-Blast)', () => {
+  it('Ibenite 70/30 (5200 m/s, Dc 102 mm, D 215 mm) = 4029,6 m/s; Ibegel (5100, 25, 76) = 4548,1 m/s', () => {
+    rel(vodAtDiameter(5200, 0.102, 0.215), 4029.6, 1e-4);
+    rel(vodAtDiameter(5100, 0.025, 0.076), 4548.1, 1e-4);
   });
 });

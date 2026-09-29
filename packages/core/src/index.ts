@@ -65,6 +65,7 @@ export * from './io/geojson';
 export * from './io/catalogCsv';
 export * from './design/burden';
 export * from './design/presplit';
+export * from './analysis/displacement';
 export * from './charging/sdob';
 export * from './charging/pressures';
 export * from './diagnostics/chargeChecks';

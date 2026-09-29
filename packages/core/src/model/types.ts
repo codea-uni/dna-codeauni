@@ -177,6 +177,13 @@ export interface CalcParams {
    * el caso límite optimista.
    */
   reliefRate: number;
+  /**
+   * Desplazamiento (A5, Zhang et al. 2021, P-21): fracción de energía cinética c_B (0,12 voladura
+   * ordinaria), semiángulo de rotura θ [rad] (45°) y reducción por fila k (0,6–0,8, calibración; S-01).
+   */
+  displacement: { cB: Ratio; theta: Radians; rowFactor: Ratio };
+  /** Costo de perforación [US$/m] (`R1` F28; 0 = sin dato). */
+  drillingCostPerMeter: number;
   /** Cortes ascendentes de las bandas de SDOB [m/kg^(1/3)] (`R1` F12, P-20). */
   sdobBands: number[];
   /** Desviación de perforación W de Kuz-Ram [m] (término 1 − W/B de n; CT-08, parámetro). */

@@ -116,4 +116,34 @@ describe('revisión de la carga (G4)', () => {
     expect(r.sdobSevere).toEqual([severe.id]);
     expect(r.sdobLow).toEqual([low.id]);
   });
+
+  it('doble cebado (R1 F19): 1000 ms al 0,005 % pasa; 20 000 ms no (columna 7,8 m, VOD 5400 → 1,45 ms)', () => {
+    const e = { ...emulsion, vod: 5400 };
+    const check2 = (nominal: number) => {
+      const det = {
+        id: newId<'Detonator'>(),
+        name: 'Pirotécnico',
+        type: 'nonel' as const,
+        nominalDelay: nominal,
+        delayScatter: nominal * 0.00005,
+      };
+      const lib2: ProductLibrary = { ...lib, explosives: [e], detonators: [det] };
+      const h = {
+        ...hole([exp(e, 7.8), stem(8.7)], []),
+        initiators: [16, 10].map((depth) => ({
+          id: newId<'InHoleInitiator'>(),
+          detonatorId: det.id,
+          primerId,
+          depth,
+          delay: nominal,
+        })),
+      };
+      const blast: Blast = { ...createBlast('C', newId<'RockMass'>()), holes: [h] };
+      return chargeChecks(blast, lib2, checkOptionsOf(blast)).some(
+        (c) => c.id === 'doublePrimingScatter',
+      );
+    };
+    expect(check2(1)).toBe(false); // 0,1 ms < 1,45 ms
+    expect(check2(20)).toBe(true); // 2 ms > 1,45 ms
+  });
 });

@@ -1,6 +1,7 @@
 import { indexLibrary } from '../charging/charge';
 import { computeCharges, type ChargeResult } from '../charging/chargeAnalysis';
 import { scaledDepthOfBurial } from '../charging/sdob';
+import { computeDisplacement, type Displacement } from './displacement';
 import { chargeChecks } from '../diagnostics/chargeChecks';
 import { checkOptionsOf, designChecks, type DesignCheck } from '../diagnostics/designChecks';
 import type { BlastId, Project } from '../model/types';
@@ -27,6 +28,8 @@ export interface BlastAnalysis {
   effectiveBurden: EffectiveBurden;
   /** Profundidad escalada de enterramiento por taladro [m/kg^(1/3)] (NaN sin carga). */
   sdob: Float64Array;
+  /** Velocidad de burden, alcance y fila por taladro (A5). */
+  displacement: Displacement;
   /** Revisión del diseño (reglas prácticas). */
   checks: DesignCheck[];
   /** Duración del cálculo [ms]. */
@@ -70,6 +73,13 @@ export function analyzeBlast(
     isochrones,
     effectiveBurden: eb,
     sdob,
+    displacement: computeDisplacement(
+      blast,
+      project.library,
+      rock?.density ?? DEFAULT_ROCK_DENSITY,
+      eb,
+      blast.calcParams.displacement,
+    ),
     checks: [
       ...designChecks(blast, timing),
       ...chargeChecks(blast, project.library, checkOptions),

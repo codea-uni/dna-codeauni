@@ -53,6 +53,8 @@ export interface ChargeResult {
   byRow: (ChargeSummary & { patternId: PatternId; row: number })[];
   /** Costo total de productos (explosivos, taco, primas, detonadores). */
   cost: number;
+  /** Costo de perforación [US$]: metros perforados × `calcParams.drillingCostPerMeter` (`R1` F28). */
+  drillingCost: number;
   loadedHoles: number;
   /** Contorno automático usado para taladros fuera de todo perímetro (null si no hizo falta). */
   autoBoundary: Vec2[] | null;
@@ -174,6 +176,7 @@ export function computeCharges(
     byGroup: [...byGroup.values()],
     byRow: [...byRow.values()].sort((a, b) => a.row - b.row),
     cost,
+    drillingCost: drilledLength * blast.calcParams.drillingCostPerMeter,
     loadedHoles,
     autoBoundary: influence.autoBoundary,
   };

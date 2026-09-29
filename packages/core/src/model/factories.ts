@@ -42,6 +42,8 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
   reliefRate: 0.003,
   drillDeviation: 0.1,
   sdobBands: [0.62, 0.92, 1.44, 1.84],
+  drillingCostPerMeter: 0,
+  displacement: { cB: 0.12, theta: Math.PI / 4, rowFactor: 0.7 },
   subdrillConvention: 'vertical',
   delayGuide: {
     interHole: { min: 0.003, max: 0.008 },

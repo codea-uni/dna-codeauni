@@ -97,6 +97,8 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
   7: fillCalcParams,
   /** v8 → v9 (F2, A4): bandas de SDOB e intervalo mínimo entre filas. */
   8: fillCalcParams,
+  /** v9 → v10 (F2, A5): parámetros de desplazamiento y costo de perforación. */
+  9: fillCalcParams,
 };
 
 /** Completa `calcParams` de cada voladura con los valores por defecto de los campos que falten. */

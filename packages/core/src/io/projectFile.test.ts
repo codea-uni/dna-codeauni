@@ -71,7 +71,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(9);
+    expect(parsed.file.schemaVersion).toBe(10);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -179,7 +179,7 @@ describe('archivo de proyecto', () => {
     });
   });
 
-  it('migra v5 → v9: parámetros nuevos de F2 con sus valores por defecto', () => {
+  it('migra v5 → v10: parámetros nuevos de F2 con sus valores por defecto', () => {
     const v6 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
       project: { blasts: { calcParams: { checks: Record<string, unknown> } }[] };
     };
@@ -191,6 +191,7 @@ describe('archivo de proyecto', () => {
     delete (blast.calcParams as Record<string, unknown>).drillDeviation;
     delete (blast.calcParams as Record<string, unknown>).sdobBands;
     delete blast.calcParams.checks.minInterRowDelay;
+    delete (blast.calcParams as Record<string, unknown>).displacement;
     const r = parseProjectFile(JSON.stringify({ ...v6, schemaVersion: 5 }));
     if (!r.ok) throw new Error(r.error);
     expect(r.file.project.blasts[0]?.calcParams.checks.presplitLead).toBe(0.1);
@@ -202,5 +203,10 @@ describe('archivo de proyecto', () => {
       min: 0.7,
       max: 2,
     });
+    // v8 → v9: bandas de SDOB e intervalo mínimo entre filas
+    expect(r.file.project.blasts[0]?.calcParams.sdobBands).toEqual([0.62, 0.92, 1.44, 1.84]);
+    expect(r.file.project.blasts[0]?.calcParams.checks.minInterRowDelay).toBe(0.035);
+    // v9 → v10: desplazamiento
+    expect(r.file.project.blasts[0]?.calcParams.displacement.cB).toBe(0.12);
   });
 });
