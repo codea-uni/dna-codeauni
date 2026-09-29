@@ -229,15 +229,64 @@ Se conservan los IDs de la guía (G, H, R, RM, CR). **Un hito a la vez; no se av
 - [ ] I7: paridad con JKSimBlast o I-Blast si hay demo.
 - Luego **Evaluación 1**: el ingeniero usa el producto y se resuelven los hallazgos críticos.
 
-### Después de la Fase 1
+### Fase 2: análisis avanzado (A0–A6)
 
-| Fase                          | Contenido                                                                                                                                                                                                                                                                                                                              | Punto de partida                                                                     |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| **F2 Análisis avanzado**      | Regularizar lo ya hecho con fuente y CR: Kuz-Ram (variantes, P-08; CR-07 publicado), Swebrec (Ouchterlony 2005), Holmberg–Persson y criterio de daño ¼·VPPc, sobrepresión y Lundborg. Nuevo: precorte y buffer (CR-01), semáforo de proyección por SDOB, desplazamiento del material (buscar fuente, RM-20), Monte Carlo de dispersión | `02 §5`, `R1` F23–F27, `R3` F12–F15                                                  |
-| **Evaluación 2**              | Ingenieros externos                                                                                                                                                                                                                                                                                                                    | —                                                                                    |
-| **F3 Subterráneo**            | Frentes (método sueco, Langefors–Holmberg) y anillos (abanicos). El modelo se amplía con perfil de excavación, roles de taladro (arranque, alivio, ayuda, contorno, zapatera) y planos de anillo                                                                                                                                       | `R4 §4`; verificar cada fórmula `[GENERAL]` con Holmberg (1982) antes de programarla |
-| **F4 Datos de campo**         | As-drilled (`Hole.actual` ya existe), sismógrafos (CSV ISO-8859-1 con `;`) y ajuste de K/β con r², diseño frente a realidad                                                                                                                                                                                                            | `R2` F07, F10; `03 §1` principio 2                                                   |
-| **F5 Distribución + backend** | Usuarios y roles, comentarios del revisor, auditoría, historial en servidor, manual de usuario, empaquetado                                                                                                                                                                                                                            | D-08                                                                                 |
+Guía `01 §3` y `§19`: energía y daño, fragmentación, onda aérea, desplazamiento y proyección. **Salida: el caso de referencia de cada modelo reproducido.** Primero se especifica cada modelo con fuente y caso; lo que no tiene fuente numérica queda como aviso configurable (regla de dominio 3). F2 no tiene R-xx ni H-xxx propios: las tareas salen de `02 §5`, `R1` F12 y F23–F28, `04` (CR-01, CR-02 #15–#17) y `reglas.md` (FC-26…FC-35). Estado al día en `docs/ESTADO.md`.
+
+**Migración v5→v6** (en A1, con test, igual que `fillCalcParams` en `core/src/io/projectFile.ts`): `calcParams.fragmentation`, `calcParams.damage`, `calcParams.sdobBands` y `RockMass.vppc`, a medida que cada hito los necesite.
+
+#### A0: especificación y preguntas ✅
+
+- `reglas.md`: FC-26…FC-32 completadas; nuevas FC-33 (daño H-P), FC-34 (bandas SDOB), FC-35 (costo).
+- `preguntas.md`: P-17…P-22 con su valor por defecto. Ninguna bloquea A1 ni A2.
+
+#### A1: precorte y buffer (CR-01)
+
+- Núcleo `core/src/design/presplit.ts` (`R1` F26): f = (D_carga/D_pozo)², Pb = 110·f^n·ρ·VOD² (MPa, g/cc, km/s; n = 1,25 seco, 0,9 con agua), diámetro de carga imponiendo Pb = UCS·R, E ≤ D_pozo·(Pb + RT)/RT y factor de carga γ.
+- Núcleo `core/src/design/buffer.ts` (`R1` A.2): B_buf, S_buf = 1,15·B_buf y DST.
+- Tests: CR-01 precorte (f 0,0664 → 1,80"; con 1¾": f 0,0628, Pb 46,6 MPa, E 1,12–1,13 m, γ ≤ 1,53–1,54 kg/m²); `X-PRE` (E 2,229 m, 1,54 kg/m, Pb 100 MPa); CR-01 buffer (5,9; 6,9; 3,4 m).
+- Interfaz: el panel de grupos muestra el cálculo sugerido para grupos de precorte y buffer, con aviso si el diseño se sale; aviso en la revisión si el precorte no sale ≥ 100 ms antes que la producción. La roca muestra UCS, RT, E y A (hoy solo entran por archivo).
+- **Salida:** FC-31 y FC-32 en R3.
+
+#### A2: Holmberg–Persson y criterio de daño
+
+- Forma puntual de `R1` F25 (Δθ con la profundidad del geófono) junto al integrador de `energy/energy.ts`; mapa de daño PPV/VPPc por bandas ¼, 1, 4 y 8 (`R3` F14) en el worker.
+- Test con el ejemplo de `R1` F25 (q = 75,75 kg/m, K = 982, α = 1,2068): 36 mm/s a 100 m; 184 a 50 m; 6,9 a 200 m; 2,6 a 300 m.
+- Interfaz: conmutador PPV / daño; sin VPPc de la roca no hay mapa de daño (P-17).
+- **Salida:** FC-28 en R3; FC-33 en R1 hasta P-17. Fixture de 5.000 taladros.
+
+#### A3: Kuz-Ram y Swebrec regularizados
+
+- Tests con CR-02 #15 (RWS 80,67): X50 25,5 cm, n 1,04, Xc 36,4 cm (±1 %); X80 ≈ 57,5 cm; pasante 23/49/75/94 % en 10/25/50/100 cm; cruce `X-D1` (29,5 cm; 1,056; 41,7 cm).
+- CT-08 a parámetros (`calcParams.fragmentation`): desviación de perforación, respaldo, sobretamaño y finos (hoy se pierden en `analysisStore`); el piso n ≥ 0,3 pasa a aviso. Usar `RockMass.swebrecB` si está.
+- **Salida:** FC-26 en R2 (regresión) hasta CR-07, visible en la interfaz y el PDF.
+
+#### A4: proyección y onda aérea
+
+- Semáforo de proyección por SDOB con las bandas de `R1` F12 en `calcParams.sdobBands` y capa de color en planta; aviso con SD < 0,92 (`R1` F27).
+- Aviso de eyección del taco con intervalo entre filas < 35 ms (`P5 p77`); taco sugerido por diseño inverso T = SD·W^(1/3) − Ø/200 (`R1` F06).
+- Lundborg y sobrepresión siguen como estimaciones con su estado R0/R1 visible y parámetros del sitio (P-20). Traducir los textos que faltan (`VibrationPanel.tsx`, PDF).
+- **Salida:** FC-34 en R3 con los valores frontera de F12.
+
+#### A5: desplazamiento y verificaciones
+
+- Dirección del desplazamiento: flechas perpendiculares a las isócronas (`R1` F21), sin magnitud hasta tener fuente (RM-20, P-21).
+- Costo por taladro y por tonelada (CR-02 #16 = 321,40 US$/taladro, #17 = 144; `R1` F28 = 0,1836 US$/t) con precios como datos del catálogo.
+- Doble cebado: dispersión entre detonadores < L_columna/VOD (`R1` F19), como aviso.
+- Se aplazan: Monte Carlo de dispersión (DF-15) y JKMRC de finos (sin constantes públicas).
+
+#### A6: cierre de F2
+
+- Reporte `docs/hitos/cierre-fase-2.md`; demostración y ejemplos con precorte, daño y semáforo. Luego **Evaluación 2** con ingenieros externos.
+
+### Después de la Fase 2
+
+| Fase                          | Contenido                                                                                                                                                                                        | Punto de partida                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| **Evaluación 2**              | Ingenieros externos                                                                                                                                                                              | —                                                                                    |
+| **F3 Subterráneo**            | Frentes (método sueco, Langefors–Holmberg) y anillos (abanicos). El modelo se amplía con perfil de excavación, roles de taladro (arranque, alivio, ayuda, contorno, zapatera) y planos de anillo | `R4 §4`; verificar cada fórmula `[GENERAL]` con Holmberg (1982) antes de programarla |
+| **F4 Datos de campo**         | As-drilled (`Hole.actual` ya existe), sismógrafos (CSV ISO-8859-1 con `;`) y ajuste de K/β con r², diseño frente a realidad                                                                      | `R2` F07, F10; `03 §1` principio 2                                                   |
+| **F5 Distribución + backend** | Usuarios y roles, comentarios del revisor, auditoría, historial en servidor, manual de usuario, empaquetado                                                                                      | D-08                                                                                 |
 
 ## 5. Ciclo de trabajo por hito (guía §8.1)
 

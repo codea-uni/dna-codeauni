@@ -71,17 +71,9 @@ Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab�
 
 ## Hitos (uno a la vez; no avanzar sin aprobación)
 
-Detalle, tareas y criterios de salida en `docs/PLAN.md §4`. Cada hito sigue el ciclo de `docs/PLAN.md §5` y se cierra con su reporte en `docs/hitos/Gx.md`.
+**Estado actual y cómo retomar: `docs/ESTADO.md` (leer primero).** Detalle, tareas y criterios de salida en `docs/PLAN.md §4`. Cada hito sigue el ciclo de `docs/PLAN.md §5` y se cierra con su reporte en `docs/hitos/`.
 
-- **Tramo 0 / G0:** base y correcciones críticas ✅; `docs/comprension.md` 5/6 aprobadas (falta resolver CR-01 a mano) ⏳; respuestas del ingeniero aplicadas (`docs/preguntas.md`)
-- **G1:** modelo de datos y unidades (esquema v3, CRS, autoguardado, unidades) ✅
-- **G2:** importación (trampas de CSV, GeoJSON, fixture CR-04) ✅
-- **G3:** diseño de malla (cara libre, grupos, modelos de burden) ✅
-- **G4:** explosivos y carga (catálogo con fuente, SDOB, PD/PB, CR-01..03) ✅ (CR-04 espera las fichas de HA73/HA64, P-15)
-- **G5:** amarre y tiempos (escalón, ciclos, burden efectivo, CR-05) ✅
-- **G6:** MIC y PPV (límites, K/β por punto, CR-06) ✅
-- **G7:** reporte y escenarios ✅ (CR-04 espera P-15)
-- **G8:** idiomas (usuarios y roles diferidos, D-08) ✅
-- **G9:** cierre de la Fase 1 🟡 código listo (`docs/hitos/cierre-fase-1.md`); faltan I1, I6 con el ingeniero y los datos de CR-04 (P-15). Luego F2 análisis avanzado, F3 subterráneo, F4 datos de campo, F5 distribución + backend
+- **F1** (G0–G9): código completo; cierre formal pendiente de I1, I6 y P-15 (`docs/hitos/cierre-fase-1.md`).
+- **F2** (A0–A6): análisis avanzado (precorte y buffer, daño, fragmentación, proyección, desplazamiento). Luego F3 subterráneo, F4 datos de campo, F5 distribución + backend.
 
 El prototipo BlastLab ya implementó las fases 0–9 (malla, carguío, tiempos, CSV, energía, fragmentación, vibración, DXF/PDF, 3D). Se reutilizan y se regularizan hito a hito (D-07).
