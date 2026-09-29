@@ -12,6 +12,8 @@ import {
   Timer,
 } from 'lucide-react';
 import type { MessageKey } from '../i18n';
+import type { TabRequirement } from '../hooks/useWorkflow';
+import { FirstSteps } from './FirstSteps';
 import { BlastPanel } from './BlastPanel';
 import { ChargePanel } from './ChargePanel';
 import { EnergyPanel } from './EnergyPanel';
@@ -32,28 +34,49 @@ interface TabDef {
   label: MessageKey;
   icon: typeof Layers;
   title?: MessageKey;
+  /** Dato previo que necesita (observación 2 del ingeniero); sin él la pestaña se deshabilita. */
+  requires?: TabRequirement;
+  /** Grupo visual: flujo de diseño, análisis (Fase 2) o catálogo. */
+  group?: 'flow' | 'analysis' | 'catalog';
 }
 
 /** Pestañas del panel izquierdo (flujo de diseño). */
 export const LEFT_TABS = [
-  { id: 'design', label: 'app.tab.design', icon: LayoutGrid },
-  { id: 'charge', label: 'app.tab.charge', icon: Layers },
-  { id: 'timing', label: 'app.tab.timing', icon: Timer },
-  { id: 'energy', label: 'app.tab.energy', icon: Flame },
+  { id: 'design', label: 'app.tab.design', icon: LayoutGrid, group: 'flow', requires: null },
+  { id: 'charge', label: 'app.tab.charge', icon: Layers, group: 'flow', requires: 'holes' },
+  { id: 'timing', label: 'app.tab.timing', icon: Timer, group: 'flow', requires: 'holes' },
+  { id: 'energy', label: 'app.tab.energy', icon: Flame, group: 'analysis', requires: 'charged' },
   {
     id: 'fragmentation',
     label: 'app.tab.fragmentation',
     icon: Shapes,
     title: 'app.tab.fragmentation.title',
+    group: 'analysis',
+    requires: 'charged',
   },
-  { id: 'vibration', label: 'app.tab.vibration', icon: Activity },
+  {
+    id: 'vibration',
+    label: 'app.tab.vibration',
+    icon: Activity,
+    group: 'analysis',
+    requires: 'charged',
+  },
   {
     id: 'scenarios',
     label: 'app.tab.scenarios',
     icon: GitCompare,
     title: 'app.tab.scenarios.title',
+    group: 'analysis',
+    requires: 'holes',
   },
-  { id: 'library', label: 'app.tab.library', icon: Library, title: 'app.tab.library.title' },
+  {
+    id: 'library',
+    label: 'app.tab.library',
+    icon: Library,
+    title: 'app.tab.library.title',
+    group: 'catalog',
+    requires: null,
+  },
 ] as const satisfies readonly TabDef[];
 
 /** Pestañas del panel derecho: la selección, la vista y los resultados. */
@@ -76,6 +99,7 @@ export function PanelContent({ id }: { id: PanelId }) {
     case 'design':
       return (
         <>
+          <FirstSteps />
           <BlastPanel />
           <PatternPanel />
           <GroupsPanel />
