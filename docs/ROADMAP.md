@@ -17,7 +17,7 @@
 | ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
 | **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
 | Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                            | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
-| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · **▶ A1b** · A2 · A3 · A4 · A5 · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
+| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · **▶ A2** · A3 · A4 · A5 · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
 | Evaluación 2                  | Ingenieros externos                              | E2.1 manual · E2.2 comentarios · E2.3 sesión                                                                                 | Hallazgos críticos resueltos                           | —                        |
 | **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                 | Ronda completa dentro de sección; casos de referencia  | —                        |
 | **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                               | Un diseño calibrado con datos reales                   | —                        |
@@ -68,7 +68,7 @@ Guía `01 §3` y `§19`: energía y daño, fragmentación, onda aérea, desplaza
 - Interfaz: el panel de grupos muestra el cálculo sugerido para grupos de precorte y buffer, con aviso si el diseño se sale; aviso en la revisión si el precorte no sale ≥ 100 ms antes que la producción. La roca muestra UCS, RT, E y A (hoy solo entran por archivo).
 - **Salida:** FC-31 y FC-32 en R3. Hecho: `design/presplit.ts` (fórmulas, `presplitHole`, `presplitChecks` en la revisión con `calcParams.checks.presplitLead` = 100 ms, esquema v6), sugerencia en el panel de grupos y UCS, RT y E editables en Carguío. El γ de CR-01 del documento (1,53–1,54) no se reproduce; el ingeniero confirma que el valor comparable es 1,514 kg/m² (P-18); DST está en el núcleo pero no en el panel (necesita la quebradura Q_b).
 
-### A1b: burden efectivo por isócronas (respuesta P-16)
+### A1b: burden efectivo por isócronas (respuesta P-16) ✅
 
 Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálculo de F1 que ya está en R3.
 
@@ -76,7 +76,7 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 - Aviso intermedio con B_ef ≥ 1,5·B (nuevo umbral en `calcParams.checks`, migración a v7) además del de ≥ 2·B.
 - Tests: CR-05 amarres 1, 2 y 5 siguen dando lo mismo (B_ef = 6,0 m con el mismo retardo); caso nuevo con salida en V o escalón donde B2 se alivia con B1 (≈ 3,5 m o menos, P-16).
 - Rendimiento: el cálculo corre en el worker; fixture de 5.000 taladros por debajo de 300 ms (`performance.perf.test.ts`).
-- **Salida:** FC-22 con la regla de P-16, sin cambiar ningún valor de CR-05.
+- **Salida:** FC-22 con la regla de P-16. Hecho: alivio por cualquier taladro previo con la distancia al segmento del frente detonado; aviso `partialRelief` (≥ 1,5·B, esquema v7). CR-05 amarre 5 da 6,0 m con 8 ms/m y 3,5 m en B2 y B3 con 3 ms/m (S-06). El ejemplo «Cerca de infraestructura» pasó a chaflán de 6 m.
 
 ### A2: Holmberg–Persson y criterio de daño
 

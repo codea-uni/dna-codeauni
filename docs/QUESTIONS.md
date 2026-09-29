@@ -39,13 +39,14 @@ El ingeniero fija decisiones de producto; la regla conserva su estado R0–R3 en
 
 Se toman sin preguntar cuando no aparece la fuente. Cada uno es un parámetro que el usuario puede cambiar.
 
-| ID   | Supuesto                                                                                           | Por qué                                                                     | Dónde                          |
-| ---- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------ |
-| S-01 | Factor de reducción de velocidad por fila k = 0,7                                                  | Centro del rango 0,6–0,8 que da el ingeniero; no hay fuente publicada       | `calcParams.displacement` (A5) |
-| S-02 | En el precorte, ρ y VOD del tramo de explosivo más largo del taladro                               | La fórmula es para un solo producto; los precortes usan uno solo            | `design/presplit.ts`           |
-| S-03 | CR-04 valida solo importación y conteo; la carga y el reporte esperan las fichas de HA73/HA64      | No hay ficha pública (se buscó); el ingeniero pidió no inventar la densidad | `io/csvTraps.test.ts`          |
-| S-04 | CR-07 (ejemplo publicado de Kuz-Ram) no existe todavía: Kuz-Ram queda como regresión con CR-02 #15 | Se revisó Cunningham (2005) y no trae un ejemplo numérico completo          | `fragmentation.test.ts` (A3)   |
-| S-05 | Ángulo de cara por defecto 75° para el ángulo de lanzamiento (α = 90° − cara)                      | Valor de los ejemplos del proyecto y del ingeniero (P-21)                   | `blast.bench.faceAngle`        |
+| ID   | Supuesto                                                                                                                                                     | Por qué                                                                                                 | Dónde                          |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| S-01 | Factor de reducción de velocidad por fila k = 0,7                                                                                                            | Centro del rango 0,6–0,8 que da el ingeniero; no hay fuente publicada                                   | `calcParams.displacement` (A5) |
+| S-02 | En el precorte, ρ y VOD del tramo de explosivo más largo del taladro                                                                                         | La fórmula es para un solo producto; los precortes usan uno solo                                        | `design/presplit.ts`           |
+| S-03 | CR-04 valida solo importación y conteo; la carga y el reporte esperan las fichas de HA73/HA64                                                                | No hay ficha pública (se buscó); el ingeniero pidió no inventar la densidad                             | `io/csvTraps.test.ts`          |
+| S-04 | CR-07 (ejemplo publicado de Kuz-Ram) no existe todavía: Kuz-Ram queda como regresión con CR-02 #15                                                           | Se revisó Cunningham (2005) y no trae un ejemplo numérico completo                                      | `fragmentation.test.ts` (A3)   |
+| S-06 | CR-05 amarre 5 (B = 6,0 m) se reproduce con el alivio típico de 8 ms/m; con el valor por defecto de 3 ms/m, B2 y B3 se alivian con su vecino de fila (3,5 m) | Con la regla de P-16 el vecino de fila alivia si detonó ≥ k·B antes; 17 ms bastan con 3 ms/m y no con 8 | `timing/cr05.test.ts`          |
+| S-05 | Ángulo de cara por defecto 75° para el ángulo de lanzamiento (α = 90° − cara)                                                                                | Valor de los ejemplos del proyecto y del ingeniero (P-21)                                               | `blast.bench.faceAngle`        |
 
 ## 3. Datos pendientes de entrega
 

@@ -147,4 +147,8 @@ E 1,127 m) y buffer (5,92; 6,9; 3,42 m); X-PRE (2,229 m; 42,2 mm; 1,54 kg/m; 0,6
 Indicadores: I3 CR-01 completo salvo γ · I4 227 + 6 pruebas en verde · Preguntas: P-18 (γ de CR-01), P-22
 γ de CR-01: el ingeniero confirma 1,514 kg/m² (P-18); falta corregir `04`. Interfaz revisada en el navegador sin interfaz
 (buffer sugerido B 5,6 m y S 6,5 m en el ejemplo de producción; precorte con Pb, Ø sugerido y avisos)
+
+Hito: A1b · Reglas: FC-22 (regla de P-16) · CR: CR-05 amarres 1, 2 y 5 (el 5 con 8 ms/m = 6,0 m; con 3 ms/m
+B2 y B3 = 3,5 m, S-06); isócrona detonada a 3,0 m frente a 3,47 m al taladro
+Indicadores: I4 229 + 6 pruebas en verde · No verificado: —
 ```
