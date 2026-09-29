@@ -17,7 +17,7 @@
 | ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
 | **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
 | Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                            | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
-| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · **▶ A3** · A4 · A5 · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
+| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · **▶ A4** · A5 · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
 | Evaluación 2                  | Ingenieros externos                              | E2.1 manual · E2.2 comentarios · E2.3 sesión                                                                                 | Hallazgos críticos resueltos                           | —                        |
 | **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                 | Ronda completa dentro de sección; casos de referencia  | —                        |
 | **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                               | Un diseño calibrado con datos reales                   | —                        |
@@ -87,12 +87,12 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 - Interfaz: conmutador PPV / daño en el panel de energía.
 - **Salida:** FC-28 en R3; FC-33 en R1 (sin CR). Hecho: `holmbergPerssonPpv` (F25 ±1 %), la grilla coincide con la forma cerrada en campo cercano (±1 %), `criticalPpv` y `RockMass.vppc` (opcional, sin cambio de versión), contornos de daño con sus bandas en Energía, Vp y VPPc editables. Rendimiento sin cambios (la grilla es la misma).
 
-### A3: Kuz-Ram y Swebrec regularizados
+### A3: Kuz-Ram y Swebrec regularizados ✅
 
 - Tests con CR-02 #15 (RWS 80,67): X50 25,5 cm, n 1,04, Xc 36,4 cm (±1 %); X80 ≈ 57,5 cm; pasante 23/49/75/94 % en 10/25/50/100 cm; cruce `X-D1` (29,5 cm; 1,056; 41,7 cm).
 - P-19: Xc al 63,2 %, X80 = X50·(ln 5/ln 2)^(1/n), A = 0,06·(…) (ya es así en el código); RWS del proveedor si la ficha lo trae, si no desde energías con 3,7 MJ/kg.
 - CT-08 a parámetros (`calcParams.fragmentation`): desviación de perforación, respaldo, sobretamaño y finos (hoy se pierden en `analysisStore`); el piso n ≥ 0,3 pasa a aviso. Usar `RockMass.swebrecB` si está.
-- **Salida:** FC-26 en R2 (regresión) hasta CR-07, visible en la interfaz y el PDF.
+- **Salida:** FC-26 en R2 (regresión) hasta CR-07, visible en la interfaz y el PDF. Hecho: tests con CR-02 #15 (X50, n, Xc, X80, pasantes) y `X-D1`; f_m con 1,15 para la equilátera; `calcParams.drillDeviation` y `checks.uniformityRange` (esquema v8); `RockMass.swebrecB` se usa; sin el piso n ≥ 0,3. Sobretamaño y finos siguen como preferencia de pantalla (no se guardan).
 
 ### A4: proyección y onda aérea
 

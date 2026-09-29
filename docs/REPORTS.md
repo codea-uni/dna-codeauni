@@ -155,4 +155,8 @@ Indicadores: I4 229 + 6 pruebas en verde · No verificado: —
 Hito: A2 · Reglas: FC-28 (R1 → R3), FC-33 (R1, implementada) · CR: ejemplo de R1 F25 (36,3; 183,9; 6,89; 2,60 mm/s
 frente a 36; 184; 6,9; 2,6); grilla contra forma cerrada a 5, 10 y 20 m (±1 %); γ de CR-01 = 1,514 kg/m² (P-18)
 Indicadores: I4 234 + 6 pruebas en verde · No verificado: FC-33 no tiene caso de referencia
+
+Hito: A3 · Reglas: FC-26 (R0 → R2, regresión), CT-08 a parámetro · CR: CR-02 #15 (X50 25,5 cm; n 1,04; Xc 36,4 cm;
+X80 57,5 cm; pasantes 23/49/75/94 % ± 1 punto) y X-D1 (X50 29,5 cm), todo ≤ 1 %
+Indicadores: I4 235 + 6 pruebas en verde · No verificado: CR-07 (no hay ejemplo publicado, S-04)
 ```
