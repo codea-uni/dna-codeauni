@@ -17,7 +17,7 @@
 | ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
 | **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
 | Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                            | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
-| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · **▶ A2** · A3 · A4 · A5 · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
+| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · **▶ A3** · A4 · A5 · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
 | Evaluación 2                  | Ingenieros externos                              | E2.1 manual · E2.2 comentarios · E2.3 sesión                                                                                 | Hallazgos críticos resueltos                           | —                        |
 | **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                 | Ronda completa dentro de sección; casos de referencia  | —                        |
 | **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                               | Un diseño calibrado con datos reales                   | —                        |
@@ -78,14 +78,14 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 - Rendimiento: el cálculo corre en el worker; fixture de 5.000 taladros por debajo de 300 ms (`performance.perf.test.ts`).
 - **Salida:** FC-22 con la regla de P-16. Hecho: alivio por cualquier taladro previo con la distancia al segmento del frente detonado; aviso `partialRelief` (≥ 1,5·B, esquema v7). CR-05 amarre 5 da 6,0 m con 8 ms/m y 3,5 m en B2 y B3 con 3 ms/m (S-06). El ejemplo «Cerca de infraestructura» pasó a chaflán de 6 m.
 
-### A2: Holmberg–Persson y criterio de daño
+### A2: Holmberg–Persson y criterio de daño ✅
 
 - Forma puntual de `R1` F25 (Δθ con la profundidad del geófono) junto al integrador de `energy/energy.ts`; mapa de daño PPV/VPPc por bandas ¼, 1, 4 y 8 (`R3` F14) en el worker.
 - VPPc de la roca (P-17): dato del usuario (retroanálisis) o, si faltan, **VPPc = RT·Vp/E** calculada y rotulada como tal. Sin VPPc no hay mapa de daño. La roca gana Vp editable en Carguío.
 - Validez (P-17): H-P solo con R ≲ 3·L_carga; más lejos, aviso de que manda la distancia escalada. K, α de H-P separados de los de la ley de PPV y rotulados «calibrar con mediciones cercanas».
 - Test con el ejemplo de `R1` F25 (q = 75,75 kg/m, K = 982, α = 1,2068): 36 mm/s a 100 m; 184 a 50 m; 6,9 a 200 m; 2,6 a 300 m. Test de VPPc = RT·Vp/E con los datos de una roca de la fuente.
 - Interfaz: conmutador PPV / daño en el panel de energía.
-- **Salida:** FC-28 en R3; FC-33 en R1 (sin CR). Fixture de 5.000 taladros.
+- **Salida:** FC-28 en R3; FC-33 en R1 (sin CR). Hecho: `holmbergPerssonPpv` (F25 ±1 %), la grilla coincide con la forma cerrada en campo cercano (±1 %), `criticalPpv` y `RockMass.vppc` (opcional, sin cambio de versión), contornos de daño con sus bandas en Energía, Vp y VPPc editables. Rendimiento sin cambios (la grilla es la misma).
 
 ### A3: Kuz-Ram y Swebrec regularizados
 

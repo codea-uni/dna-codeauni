@@ -151,4 +151,8 @@ Indicadores: I3 CR-01 completo salvo γ · I4 227 + 6 pruebas en verde · Pregun
 Hito: A1b · Reglas: FC-22 (regla de P-16) · CR: CR-05 amarres 1, 2 y 5 (el 5 con 8 ms/m = 6,0 m; con 3 ms/m
 B2 y B3 = 3,5 m, S-06); isócrona detonada a 3,0 m frente a 3,47 m al taladro
 Indicadores: I4 229 + 6 pruebas en verde · No verificado: —
+
+Hito: A2 · Reglas: FC-28 (R1 → R3), FC-33 (R1, implementada) · CR: ejemplo de R1 F25 (36,3; 183,9; 6,89; 2,60 mm/s
+frente a 36; 184; 6,9; 2,6); grilla contra forma cerrada a 5, 10 y 20 m (±1 %); γ de CR-01 = 1,514 kg/m² (P-18)
+Indicadores: I4 234 + 6 pruebas en verde · No verificado: FC-33 no tiene caso de referencia
 ```
