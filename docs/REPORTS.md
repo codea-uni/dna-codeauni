@@ -159,4 +159,8 @@ Indicadores: I4 234 + 6 pruebas en verde · No verificado: FC-33 no tiene caso d
 Hito: A3 · Reglas: FC-26 (R0 → R2, regresión), CT-08 a parámetro · CR: CR-02 #15 (X50 25,5 cm; n 1,04; Xc 36,4 cm;
 X80 57,5 cm; pasantes 23/49/75/94 % ± 1 punto) y X-D1 (X50 29,5 cm), todo ≤ 1 %
 Indicadores: I4 235 + 6 pruebas en verde · No verificado: CR-07 (no hay ejemplo publicado, S-04)
+
+Hito: A4 · Reglas: FC-34 (R1 → R3), FC-29 y FC-30 con fuente (R1) · CR: valores frontera de R1 F12; CR-02 fila 13
+(taco inverso 7,30 m) · Supuestos: S-07, S-08
+Indicadores: I4 237 + 6 pruebas en verde · No verificado: Lundborg y sobrepresión no tienen caso de referencia
 ```

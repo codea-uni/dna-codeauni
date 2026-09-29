@@ -17,7 +17,7 @@
 | ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
 | **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
 | Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                            | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
-| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · **▶ A4** · A5 · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
+| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · **▶ A5** · A6                                                                                 | Caso de referencia de cada modelo reproducido          | ⏳ en curso              |
 | Evaluación 2                  | Ingenieros externos                              | E2.1 manual · E2.2 comentarios · E2.3 sesión                                                                                 | Hallazgos críticos resueltos                           | —                        |
 | **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                 | Ronda completa dentro de sección; casos de referencia  | —                        |
 | **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                               | Un diseño calibrado con datos reales                   | —                        |
@@ -94,12 +94,12 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 - CT-08 a parámetros (`calcParams.fragmentation`): desviación de perforación, respaldo, sobretamaño y finos (hoy se pierden en `analysisStore`); el piso n ≥ 0,3 pasa a aviso. Usar `RockMass.swebrecB` si está.
 - **Salida:** FC-26 en R2 (regresión) hasta CR-07, visible en la interfaz y el PDF. Hecho: tests con CR-02 #15 (X50, n, Xc, X80, pasantes) y `X-D1`; f_m con 1,15 para la equilátera; `calcParams.drillDeviation` y `checks.uniformityRange` (esquema v8); `RockMass.swebrecB` se usa; sin el piso n ≥ 0,3. Sobretamaño y finos siguen como preferencia de pantalla (no se guardan).
 
-### A4: proyección y onda aérea
+### A4: proyección y onda aérea ✅
 
 - Semáforo de proyección por SDOB con cortes en **0,62, 0,92, 1,44 y 1,84** (P-20) en `calcParams.sdobBands` y capa de color en planta; aviso con SD < 0,92 (`R1` F27).
 - Aviso de eyección del taco con intervalo entre filas < 35 ms (`P5 p77`); taco sugerido por diseño inverso T = SD·W^(1/3) − Ø/200 (`R1` F06).
 - Lundborg: se agrega el tamaño de fragmento T = 0,1·d^(2/3) (d en pulgadas, P-20). Sobrepresión con su fuente (USBM RI 8485, FC-30 en R1), k y β del sitio (β 1,2–1,5). Ambos siguen como estimaciones sin CR, rotulados así en la interfaz y el PDF. Traducir los textos que faltan (`VibrationPanel.tsx`, PDF).
-- **Salida:** FC-34 en R3 con los valores frontera.
+- **Salida:** FC-34 en R3 con los valores frontera. Hecho: `sdobBand` y color «Semáforo de proyección (SDOB)» en la vista; avisos de SDOB con los cortes de F12 (S-08); taco sugerido para SD = 0,92 en el editor de columna (CR-02 fila 13: 7,30 m); nota de eyección del taco con < 35 ms (S-07); tamaño de fragmento de Lundborg; fuente de la sobrepresión en la interfaz. Esquema v9 (`sdobBands`, `minInterRowDelay`).
 
 ### A5: desplazamiento y verificaciones
 
