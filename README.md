@@ -12,7 +12,7 @@ Controles: **← →** paso anterior o siguiente, **espacio** pausa, **Esc** sal
 
 ## Ventanas flotantes
 
-Cada pestaña de las barras laterales tiene un botón para abrirla en una **ventana flotante** que se arrastra por el título y se agranda desde la esquina (útil en pantallas chicas o con tablas anchas, como Escenarios, Librería o Resultados). La barra muestra un aviso con «Traer al frente» y «Volver a la barra lateral»; las posiciones se recuerdan en el navegador. Durante la demostración las ventanas se ocultan.
+Las barras laterales no cambian. Los módulos con tablas o muchos campos juntos tienen un botón de expandir (⤢) en su título que los abre en una **ventana flotante**: se arrastra por el título, se agranda desde la esquina y se cierra con ✕ (vuelve a la barra). Están en la Librería (explosivos, detonadores, conectores, primas y tacos), el editor de columna, los grupos, el burden teórico, la fragmentación (con su gráfico), los puntos de monitoreo, los límites de PPV y los escenarios. Las posiciones se recuerdan en el navegador; durante la demostración todo vuelve a la barra.
 
 ## Requisitos
 

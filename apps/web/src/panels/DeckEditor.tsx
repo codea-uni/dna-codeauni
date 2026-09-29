@@ -18,6 +18,7 @@ import { NumberCell } from '../components/CellInput';
 import { session } from '../session';
 import { useUnits } from '../hooks/useUnits';
 import { useFormat, useT } from '../i18n';
+import { Floatable } from '../components/Floatable';
 
 type T = ReturnType<typeof useT>;
 
@@ -175,185 +176,188 @@ export function DeckEditor({ hole }: { hole: Hole }) {
 
   return (
     <section className="panel">
-      <h2>{t('deck.title')}</h2>
-      <p className="muted">
-        {t('deck.summary', {
-          kg: fmt(charge.explosive + charge.primers, 1),
-          charge: `${fmt(len.show(charge.chargeLength), 2)} ${len.unit}`,
-          stemming: `${fmt(len.show(charge.stemmingLength), 2)} ${len.unit}`,
-        })}
-        {charge.emptyLength > 0.005 && (
-          <span className="warn">
-            {' '}
-            ·{' '}
-            {t('deck.unassigned', {
-              length: `${fmt(len.show(charge.emptyLength), 2)} ${len.unit}`,
-            })}
-          </span>
-        )}
-      </p>
-      {sdob && (
-        <p className="muted" title={t('deck.sdobTitle')}>
-          {t('deck.sdob', {
-            sdob: fmt(sdob.sdob, 2),
-            d: `${fmt(len.show(sdob.depth), 2)} ${len.unit}`,
-            w: fmt(sdob.mass, 1),
+      <Floatable id="deck" title={t('deck.title')} width={760}>
+        <p className="muted">
+          {t('deck.summary', {
+            kg: fmt(charge.explosive + charge.primers, 1),
+            charge: `${fmt(len.show(charge.chargeLength), 2)} ${len.unit}`,
+            stemming: `${fmt(len.show(charge.stemmingLength), 2)} ${len.unit}`,
           })}
-          {` · ${t('deck.sdobStemming', {
-            sd: fmt(sdobTarget, 2),
-            t: `${fmt(len.show(stemmingForSdob(sdobTarget, sdob.mass, sdob.length / 10)), 2)} ${len.unit}`,
-          })}`}
-          {Math.abs(sdob.sdobFromCollar - sdob.sdob) > 0.005 &&
-            ` · ${t('deck.sdobCollar', { v: fmt(sdob.sdobFromCollar, 2) })}`}
-          {pressure &&
-            ` · ${t('deck.pressure', {
-              rho: fmt(pressure.density / 1000, 3),
-              pd: fmt(pressure.pd / 1e9, 2),
-              pb: fmt(pressure.pd / 2e9, 2),
-            })}`}
+          {charge.emptyLength > 0.005 && (
+            <span className="warn">
+              {' '}
+              ·{' '}
+              {t('deck.unassigned', {
+                length: `${fmt(len.show(charge.emptyLength), 2)} ${len.unit}`,
+              })}
+            </span>
+          )}
         </p>
-      )}
-      {hole.decks.length > 0 && <ColumnDiagram hole={hole} lib={lib} masses={charge.deckMasses} />}
-      <table className="grid-table">
-        <thead>
-          <tr>
-            <th>{t('deck.type')}</th>
-            <th>{t('deck.product')}</th>
-            <th title={t('deck.lengthTitle', { unit: len.unit })}>{len.unit}</th>
-            <th title={t('deck.swellTitle', { unit: len.unit })}>{t('deck.swell')}</th>
-            <th title={t('deck.effectiveDiameterTitle', { unit: dia.unit })}>
-              {t('deck.effectiveDiameter')}
-            </th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ deck, index }) => (
-            <tr key={deck.id}>
-              <td>
-                <select
-                  className="cell"
-                  value={deck.kind}
-                  onChange={(e) => {
-                    changeKind(index, e.target.value as Deck['kind']);
-                  }}
-                >
-                  {KINDS
-                    // RM-01: el agua no se ofrece como taco en superficie (solo se conserva si ya estaba).
-                    .filter((k) => k !== 'water' || deck.kind === 'water')
-                    .map((k) => (
-                      <option key={k} value={k}>
-                        {t(`deck.kind.${k}`)}
-                      </option>
-                    ))}
-                </select>
-              </td>
-              <td>
-                {deck.kind === 'explosive' ? (
+        {sdob && (
+          <p className="muted" title={t('deck.sdobTitle')}>
+            {t('deck.sdob', {
+              sdob: fmt(sdob.sdob, 2),
+              d: `${fmt(len.show(sdob.depth), 2)} ${len.unit}`,
+              w: fmt(sdob.mass, 1),
+            })}
+            {` · ${t('deck.sdobStemming', {
+              sd: fmt(sdobTarget, 2),
+              t: `${fmt(len.show(stemmingForSdob(sdobTarget, sdob.mass, sdob.length / 10)), 2)} ${len.unit}`,
+            })}`}
+            {Math.abs(sdob.sdobFromCollar - sdob.sdob) > 0.005 &&
+              ` · ${t('deck.sdobCollar', { v: fmt(sdob.sdobFromCollar, 2) })}`}
+            {pressure &&
+              ` · ${t('deck.pressure', {
+                rho: fmt(pressure.density / 1000, 3),
+                pd: fmt(pressure.pd / 1e9, 2),
+                pb: fmt(pressure.pd / 2e9, 2),
+              })}`}
+          </p>
+        )}
+        {hole.decks.length > 0 && (
+          <ColumnDiagram hole={hole} lib={lib} masses={charge.deckMasses} />
+        )}
+        <table className="grid-table">
+          <thead>
+            <tr>
+              <th>{t('deck.type')}</th>
+              <th>{t('deck.product')}</th>
+              <th title={t('deck.lengthTitle', { unit: len.unit })}>{len.unit}</th>
+              <th title={t('deck.swellTitle', { unit: len.unit })}>{t('deck.swell')}</th>
+              <th title={t('deck.effectiveDiameterTitle', { unit: dia.unit })}>
+                {t('deck.effectiveDiameter')}
+              </th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ deck, index }) => (
+              <tr key={deck.id}>
+                <td>
                   <select
                     className="cell"
-                    value={deck.explosiveId}
+                    value={deck.kind}
                     onChange={(e) => {
-                      replace(index, {
-                        ...deck,
-                        explosiveId: e.target.value as typeof deck.explosiveId,
-                      });
+                      changeKind(index, e.target.value as Deck['kind']);
                     }}
                   >
-                    {lib.explosives.map((x) => (
-                      <option key={x.id} value={x.id}>
-                        {x.name}
-                      </option>
-                    ))}
+                    {KINDS
+                      // RM-01: el agua no se ofrece como taco en superficie (solo se conserva si ya estaba).
+                      .filter((k) => k !== 'water' || deck.kind === 'water')
+                      .map((k) => (
+                        <option key={k} value={k}>
+                          {t(`deck.kind.${k}`)}
+                        </option>
+                      ))}
                   </select>
-                ) : deck.kind === 'stemming' ? (
-                  <select
-                    className="cell"
-                    value={deck.materialId}
-                    onChange={(e) => {
-                      replace(index, {
-                        ...deck,
-                        materialId: e.target.value as typeof deck.materialId,
-                      });
-                    }}
-                  >
-                    {lib.stemmingMaterials.map((x) => (
-                      <option key={x.id} value={x.id}>
-                        {x.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="muted">—</span>
-                )}
-              </td>
-              <td>
-                <NumberCell
-                  value={len.show(deck.length)}
-                  decimals={2}
-                  min={0}
-                  onCommit={(v) => {
-                    replace(index, { ...deck, length: len.parse(v) });
-                  }}
-                />
-              </td>
-              <td>
-                {deck.kind === 'explosive' ? (
+                </td>
+                <td>
+                  {deck.kind === 'explosive' ? (
+                    <select
+                      className="cell"
+                      value={deck.explosiveId}
+                      onChange={(e) => {
+                        replace(index, {
+                          ...deck,
+                          explosiveId: e.target.value as typeof deck.explosiveId,
+                        });
+                      }}
+                    >
+                      {lib.explosives.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : deck.kind === 'stemming' ? (
+                    <select
+                      className="cell"
+                      value={deck.materialId}
+                      onChange={(e) => {
+                        replace(index, {
+                          ...deck,
+                          materialId: e.target.value as typeof deck.materialId,
+                        });
+                      }}
+                    >
+                      {lib.stemmingMaterials.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {x.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+                <td>
                   <NumberCell
-                    value={len.show(deck.swell ?? 0)}
+                    value={len.show(deck.length)}
                     decimals={2}
                     min={0}
                     onCommit={(v) => {
-                      const next: typeof deck = { ...deck };
-                      if (v > 0) next.swell = len.parse(v);
-                      else delete next.swell;
-                      replace(index, next);
+                      replace(index, { ...deck, length: len.parse(v) });
                     }}
                   />
-                ) : (
-                  <span className="muted">—</span>
-                )}
-              </td>
-              <td>
-                {deck.kind === 'explosive' ? (
-                  <NumberCell
-                    value={
-                      deck.effectiveDiameter === undefined ? 0 : dia.show(deck.effectiveDiameter)
-                    }
-                    decimals={dia.unit === 'in' ? 2 : 1}
-                    min={0}
-                    onCommit={(v) => {
-                      const next: typeof deck = { ...deck };
-                      if (v > 0) next.effectiveDiameter = dia.parse(v);
-                      else delete next.effectiveDiameter;
-                      replace(index, next);
+                </td>
+                <td>
+                  {deck.kind === 'explosive' ? (
+                    <NumberCell
+                      value={len.show(deck.swell ?? 0)}
+                      decimals={2}
+                      min={0}
+                      onCommit={(v) => {
+                        const next: typeof deck = { ...deck };
+                        if (v > 0) next.swell = len.parse(v);
+                        else delete next.swell;
+                        replace(index, next);
+                      }}
+                    />
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+                <td>
+                  {deck.kind === 'explosive' ? (
+                    <NumberCell
+                      value={
+                        deck.effectiveDiameter === undefined ? 0 : dia.show(deck.effectiveDiameter)
+                      }
+                      decimals={dia.unit === 'in' ? 2 : 1}
+                      min={0}
+                      onCommit={(v) => {
+                        const next: typeof deck = { ...deck };
+                        if (v > 0) next.effectiveDiameter = dia.parse(v);
+                        else delete next.effectiveDiameter;
+                        replace(index, next);
+                      }}
+                    />
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+                <td>
+                  <button
+                    className="icon danger"
+                    title={t('deck.remove')}
+                    onClick={() => {
+                      setDecks(
+                        hole.decks.filter((_, i) => i !== index),
+                        t('deck.remove'),
+                      );
                     }}
-                  />
-                ) : (
-                  <span className="muted">—</span>
-                )}
-              </td>
-              <td>
-                <button
-                  className="icon danger"
-                  title={t('deck.remove')}
-                  onClick={() => {
-                    setDecks(
-                      hole.decks.filter((_, i) => i !== index),
-                      t('deck.remove'),
-                    );
-                  }}
-                >
-                  ×
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <button onClick={addDeck}>{t('deck.addButton')}</button>
-      <p className="hint">{t('deck.hint')}</p>
-      <InitiatorEditor hole={hole} />
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button onClick={addDeck}>{t('deck.addButton')}</button>
+        <p className="hint">{t('deck.hint')}</p>
+        <InitiatorEditor hole={hole} />
+      </Floatable>
     </section>
   );
 }

@@ -1098,24 +1098,43 @@ kbd {
   }
 }
 
-/* Paneles en ventanas flotantes: se arrastran por el título y se agrandan desde la esquina. */
-.tabs .tab-popout {
-  flex: 0 0 auto;
-  align-self: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin: 0 4px;
-  padding: 0;
-  border-radius: 6px;
+/* Módulos en ventanas flotantes: se arrastran por el título y se agrandan desde la esquina. */
+.floatable-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.tabs .tab-popout:hover {
+.floatable-title span {
+  flex: 1;
+}
+
+.floatable-open {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.floatable-open:hover {
+  opacity: 1;
   color: var(--accent);
-  background: rgba(255, 255, 255, 0.06);
+}
+
+button.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
 }
 
 .floating-window {
+  /* border-box: el tamaño medido es el aplicado (sin esto la ventana crecía sola). */
+  box-sizing: border-box;
   position: fixed;
   display: flex;
   flex-direction: column;
@@ -1166,8 +1185,4 @@ kbd {
 .floating-body .panel {
   padding-left: 1rem;
   padding-right: 1rem;
-}
-
-.floating-placeholder .row {
-  gap: 0.4rem;
 }

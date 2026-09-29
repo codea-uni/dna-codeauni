@@ -15,6 +15,7 @@ import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
+import { Floatable } from '../components/Floatable';
 
 const dB = (pa: number) => (pa > 0 ? 20 * Math.log10(pa / 20e-6) : 0);
 
@@ -412,63 +413,64 @@ function PointSettings() {
   };
   return (
     <>
-      <h3>{t('vib.pointSettings')}</h3>
-      <table className="grid-table compact">
-        <thead>
-          <tr>
-            <th>{t('vib.point')}</th>
-            <th title={t('vib.structureTitle')}>{t('vib.structure')}</th>
-            <th title={t('vib.ownLimitTitle')}>{t('vib.ownLimit')}</th>
-            <th title={t('vib.ownKTitle')}>K</th>
-            <th title={t('vib.ownBetaTitle')}>β</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(project.monitoringPoints ?? []).map((p) => (
-            <tr key={p.id}>
-              <td className="muted">{p.name}</td>
-              <td>
-                <TextCell
-                  value={p.structure ?? ''}
-                  onCommit={(v) => {
-                    update(p.id, { structure: v.trim() || undefined }, 'vib.undoStructure');
-                  }}
-                />
-              </td>
-              <td>
-                <NumberCell
-                  value={(p.ppvLimit ?? 0) * 1000}
-                  decimals={1}
-                  min={0}
-                  onCommit={(v) => {
-                    update(p.id, { ppvLimit: v > 0 ? v / 1000 : undefined }, 'vib.undoLimit');
-                  }}
-                />
-              </td>
-              <td>
-                <NumberCell
-                  value={(p.k ?? 0) * 1000}
-                  decimals={0}
-                  min={0}
-                  onCommit={(v) => {
-                    update(p.id, { k: v > 0 ? v / 1000 : undefined }, 'vib.undoK');
-                  }}
-                />
-              </td>
-              <td>
-                <NumberCell
-                  value={p.beta ?? 0}
-                  decimals={2}
-                  min={0}
-                  onCommit={(v) => {
-                    update(p.id, { beta: v > 0 ? v : undefined }, 'vib.undoBeta');
-                  }}
-                />
-              </td>
+      <Floatable id="vib.points" title={t('vib.pointSettings')} width={820}>
+        <table className="grid-table compact">
+          <thead>
+            <tr>
+              <th>{t('vib.point')}</th>
+              <th title={t('vib.structureTitle')}>{t('vib.structure')}</th>
+              <th title={t('vib.ownLimitTitle')}>{t('vib.ownLimit')}</th>
+              <th title={t('vib.ownKTitle')}>K</th>
+              <th title={t('vib.ownBetaTitle')}>β</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {(project.monitoringPoints ?? []).map((p) => (
+              <tr key={p.id}>
+                <td className="muted">{p.name}</td>
+                <td>
+                  <TextCell
+                    value={p.structure ?? ''}
+                    onCommit={(v) => {
+                      update(p.id, { structure: v.trim() || undefined }, 'vib.undoStructure');
+                    }}
+                  />
+                </td>
+                <td>
+                  <NumberCell
+                    value={(p.ppvLimit ?? 0) * 1000}
+                    decimals={1}
+                    min={0}
+                    onCommit={(v) => {
+                      update(p.id, { ppvLimit: v > 0 ? v / 1000 : undefined }, 'vib.undoLimit');
+                    }}
+                  />
+                </td>
+                <td>
+                  <NumberCell
+                    value={(p.k ?? 0) * 1000}
+                    decimals={0}
+                    min={0}
+                    onCommit={(v) => {
+                      update(p.id, { k: v > 0 ? v / 1000 : undefined }, 'vib.undoK');
+                    }}
+                  />
+                </td>
+                <td>
+                  <NumberCell
+                    value={p.beta ?? 0}
+                    decimals={2}
+                    min={0}
+                    onCommit={(v) => {
+                      update(p.id, { beta: v > 0 ? v : undefined }, 'vib.undoBeta');
+                    }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Floatable>
     </>
   );
 }
@@ -493,109 +495,110 @@ function PpvLimitsTable() {
   };
   return (
     <section className="panel">
-      <h2>{t('vib.limits')}</h2>
-      <p className="hint">{t('vib.limitsHint')}</p>
-      <table className="grid-table compact">
-        <thead>
-          <tr>
-            <th>{t('vib.structure')}</th>
-            <th>{t('vib.from')}</th>
-            <th>{t('vib.to')}</th>
-            <th>mm/s</th>
-            <th>{t('vib.source')}</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {limits.map((l, i) => (
-            <tr key={i}>
-              <td>
-                <TextCell
-                  value={l.structure ?? ''}
-                  title={t('vib.allStructures')}
-                  onCommit={(v) => {
-                    const next = { ...l };
-                    if (v.trim()) next.structure = v.trim();
-                    else delete next.structure;
-                    set(
-                      limits.map((x, k) => (k === i ? next : x)),
-                      t('vib.editLimit'),
-                    );
-                  }}
-                />
-              </td>
-              <td>
-                <NumberCell
-                  value={l.from}
-                  decimals={0}
-                  min={0}
-                  onCommit={(v) => {
-                    patch(i, { from: v });
-                  }}
-                />
-              </td>
-              <td>
-                <NumberCell
-                  value={l.to ?? 0}
-                  decimals={0}
-                  min={0}
-                  onCommit={(v) => {
-                    const next = { ...l };
-                    if (v > 0) next.to = v;
-                    else delete next.to;
-                    set(
-                      limits.map((x, k) => (k === i ? next : x)),
-                      t('vib.editLimit'),
-                    );
-                  }}
-                />
-              </td>
-              <td>
-                <NumberCell
-                  value={l.ppvMax * 1000}
-                  decimals={1}
-                  min={0.1}
-                  onCommit={(v) => {
-                    patch(i, { ppvMax: v / 1000 });
-                  }}
-                />
-              </td>
-              <td>
-                <TextCell
-                  value={l.source}
-                  onCommit={(v) => {
-                    if (v.trim()) patch(i, { source: v.trim() });
-                  }}
-                />
-              </td>
-              <td>
-                <button
-                  className="icon danger"
-                  title={t('vib.removeRow')}
-                  onClick={() => {
-                    set(
-                      limits.filter((_, k) => k !== i),
-                      t('vib.removeLimit'),
-                    );
-                  }}
-                >
-                  ×
-                </button>
-              </td>
+      <Floatable id="vib.limits" title={t('vib.limits')} width={640}>
+        <p className="hint">{t('vib.limitsHint')}</p>
+        <table className="grid-table compact">
+          <thead>
+            <tr>
+              <th>{t('vib.structure')}</th>
+              <th>{t('vib.from')}</th>
+              <th>{t('vib.to')}</th>
+              <th>mm/s</th>
+              <th>{t('vib.source')}</th>
+              <th />
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <button
-        onClick={() => {
-          set(
-            [...limits, { from: 0, ppvMax: 0.01, source: t('vib.newSource') }],
-            t('vib.addLimit'),
-          );
-        }}
-      >
-        {t('vib.addLimitButton')}
-      </button>
+          </thead>
+          <tbody>
+            {limits.map((l, i) => (
+              <tr key={i}>
+                <td>
+                  <TextCell
+                    value={l.structure ?? ''}
+                    title={t('vib.allStructures')}
+                    onCommit={(v) => {
+                      const next = { ...l };
+                      if (v.trim()) next.structure = v.trim();
+                      else delete next.structure;
+                      set(
+                        limits.map((x, k) => (k === i ? next : x)),
+                        t('vib.editLimit'),
+                      );
+                    }}
+                  />
+                </td>
+                <td>
+                  <NumberCell
+                    value={l.from}
+                    decimals={0}
+                    min={0}
+                    onCommit={(v) => {
+                      patch(i, { from: v });
+                    }}
+                  />
+                </td>
+                <td>
+                  <NumberCell
+                    value={l.to ?? 0}
+                    decimals={0}
+                    min={0}
+                    onCommit={(v) => {
+                      const next = { ...l };
+                      if (v > 0) next.to = v;
+                      else delete next.to;
+                      set(
+                        limits.map((x, k) => (k === i ? next : x)),
+                        t('vib.editLimit'),
+                      );
+                    }}
+                  />
+                </td>
+                <td>
+                  <NumberCell
+                    value={l.ppvMax * 1000}
+                    decimals={1}
+                    min={0.1}
+                    onCommit={(v) => {
+                      patch(i, { ppvMax: v / 1000 });
+                    }}
+                  />
+                </td>
+                <td>
+                  <TextCell
+                    value={l.source}
+                    onCommit={(v) => {
+                      if (v.trim()) patch(i, { source: v.trim() });
+                    }}
+                  />
+                </td>
+                <td>
+                  <button
+                    className="icon danger"
+                    title={t('vib.removeRow')}
+                    onClick={() => {
+                      set(
+                        limits.filter((_, k) => k !== i),
+                        t('vib.removeLimit'),
+                      );
+                    }}
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button
+          onClick={() => {
+            set(
+              [...limits, { from: 0, ppvMax: 0.01, source: t('vib.newSource') }],
+              t('vib.addLimit'),
+            );
+          }}
+        >
+          {t('vib.addLimitButton')}
+        </button>
+      </Floatable>
     </section>
   );
 }

@@ -12,7 +12,6 @@ import {
   Timer,
 } from 'lucide-react';
 import type { MessageKey } from '../i18n';
-import type { FloatingPanel } from '../stores/uiStore';
 import { BlastPanel } from './BlastPanel';
 import { ChargePanel } from './ChargePanel';
 import { EnergyPanel } from './EnergyPanel';
@@ -28,10 +27,8 @@ import { TimingPanel } from './TimingPanel';
 import { VibrationPanel } from './VibrationPanel';
 import { ViewPanel } from './ViewPanel';
 
-export type PanelId = FloatingPanel['id'];
-
 interface TabDef {
-  id: PanelId;
+  id: string;
   label: MessageKey;
   icon: typeof Layers;
   title?: MessageKey;
@@ -71,7 +68,7 @@ export const RIGHT_TABS = [
   { id: 'results', label: 'sidebar.results', icon: ChartColumn, title: 'sidebar.resultsTitle' },
 ] as const satisfies readonly TabDef[];
 
-export const PANEL_TABS: readonly TabDef[] = [...LEFT_TABS, ...RIGHT_TABS];
+export type PanelId = (typeof LEFT_TABS)[number]['id'] | (typeof RIGHT_TABS)[number]['id'];
 
 /** Contenido de un panel: el mismo en la barra lateral y en una ventana flotante. */
 export function PanelContent({ id }: { id: PanelId }) {

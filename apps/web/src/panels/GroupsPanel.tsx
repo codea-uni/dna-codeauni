@@ -16,6 +16,7 @@ import { IconButton } from '../components/IconButton';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';
 import { useUnits } from '../hooks/useUnits';
 import { useFormat, useT } from '../i18n';
+import { Floatable } from '../components/Floatable';
 
 const KINDS: HoleGroupKind[] = ['presplit', 'buffer', 'production', 'other'];
 
@@ -31,99 +32,100 @@ export function GroupsPanel() {
 
   return (
     <section className="panel">
-      <h2>{t('groups.title')}</h2>
-      <p className="hint">{t('groups.hint')}</p>
-      {blast.groups.length === 0 && <p className="muted">{t('groups.none')}</p>}
-      {blast.groups.length > 0 && (
-        <table className="grid-table">
-          <tbody>
-            {blast.groups.map((g) => (
-              <Fragment key={g.id}>
-                <tr>
-                  <td>
-                    <input
-                      type="color"
-                      value={g.color}
-                      aria-label={g.name}
-                      onChange={(e) => {
-                        actions.updateGroup(g.id, { color: e.target.value });
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <TextCell
-                      value={g.name}
-                      onCommit={(name) => {
-                        if (name.trim()) actions.updateGroup(g.id, { name: name.trim() });
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      className="cell"
-                      value={g.kind}
-                      onChange={(e) => {
-                        actions.updateGroup(g.id, { kind: e.target.value as HoleGroupKind });
-                      }}
-                    >
-                      {KINDS.map((k) => (
-                        <option key={k} value={k}>
-                          {t(`groups.kind.${k}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="num muted">{t('groups.holes', { n: count.get(g.id) ?? 0 })}</td>
-                  <td>
-                    <IconButton
-                      icon={UserPlus}
-                      label={t('groups.assign')}
-                      disabled={!hasSelection}
-                      onClick={() => {
-                        actions.assignSelectionToGroup(g.id);
-                      }}
-                    />
-                    <IconButton
-                      icon={Crosshair}
-                      label={t('groups.select')}
-                      onClick={() => {
-                        actions.selectGroup(g.id);
-                      }}
-                    />
-                    <IconButton
-                      icon={Trash2}
-                      label={t('groups.remove')}
-                      onClick={() => {
-                        actions.removeGroup(g.id);
-                      }}
-                    />
-                  </td>
-                </tr>
-                {(g.kind === 'presplit' || g.kind === 'buffer') && (
+      <Floatable id="groups" title={t('groups.title')} width={640}>
+        <p className="hint">{t('groups.hint')}</p>
+        {blast.groups.length === 0 && <p className="muted">{t('groups.none')}</p>}
+        {blast.groups.length > 0 && (
+          <table className="grid-table">
+            <tbody>
+              {blast.groups.map((g) => (
+                <Fragment key={g.id}>
                   <tr>
-                    <td colSpan={5}>
-                      <GroupDesign group={g} blast={blast} />
+                    <td>
+                      <input
+                        type="color"
+                        value={g.color}
+                        aria-label={g.name}
+                        onChange={(e) => {
+                          actions.updateGroup(g.id, { color: e.target.value });
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <TextCell
+                        value={g.name}
+                        onCommit={(name) => {
+                          if (name.trim()) actions.updateGroup(g.id, { name: name.trim() });
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        className="cell"
+                        value={g.kind}
+                        onChange={(e) => {
+                          actions.updateGroup(g.id, { kind: e.target.value as HoleGroupKind });
+                        }}
+                      >
+                        {KINDS.map((k) => (
+                          <option key={k} value={k}>
+                            {t(`groups.kind.${k}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="num muted">{t('groups.holes', { n: count.get(g.id) ?? 0 })}</td>
+                    <td>
+                      <IconButton
+                        icon={UserPlus}
+                        label={t('groups.assign')}
+                        disabled={!hasSelection}
+                        onClick={() => {
+                          actions.assignSelectionToGroup(g.id);
+                        }}
+                      />
+                      <IconButton
+                        icon={Crosshair}
+                        label={t('groups.select')}
+                        onClick={() => {
+                          actions.selectGroup(g.id);
+                        }}
+                      />
+                      <IconButton
+                        icon={Trash2}
+                        label={t('groups.remove')}
+                        onClick={() => {
+                          actions.removeGroup(g.id);
+                        }}
+                      />
                     </td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <div className="row">
-        <button disabled={!hasSelection} onClick={actions.createGroupFromSelection}>
-          {t('groups.new')}
-        </button>
-        <IconButton
-          icon={UserMinus}
-          label={t('groups.unassign')}
-          disabled={!hasSelection}
-          onClick={() => {
-            actions.assignSelectionToGroup(null);
-          }}
-        />
-      </div>
+                  {(g.kind === 'presplit' || g.kind === 'buffer') && (
+                    <tr>
+                      <td colSpan={5}>
+                        <GroupDesign group={g} blast={blast} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div className="row">
+          <button disabled={!hasSelection} onClick={actions.createGroupFromSelection}>
+            {t('groups.new')}
+          </button>
+          <IconButton
+            icon={UserMinus}
+            label={t('groups.unassign')}
+            disabled={!hasSelection}
+            onClick={() => {
+              actions.assignSelectionToGroup(null);
+            }}
+          />
+        </div>
+      </Floatable>
     </section>
   );
 }

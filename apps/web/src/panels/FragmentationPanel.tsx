@@ -8,6 +8,7 @@ import { useUnits } from '../hooks/useUnits';
 import { useActiveBlast } from '../hooks/useDocument';
 import { useFormat, useT, type MessageKey } from '../i18n';
 import { session } from '../session';
+import { Floatable } from '../components/Floatable';
 
 const SizeCurve = lazy(() => import('../charts/SizeCurve'));
 
@@ -62,67 +63,68 @@ export function FragmentationPanel() {
   return (
     <>
       <section className="panel">
-        <h2>{t('frag.title')}</h2>
-        {!r ? (
-          <p className="hint">{t('frag.needCharge')}</p>
-        ) : (
-          <>
-            <div className="kpis">
-              <div className="kpi">
-                <span>P50</span>
-                <strong>{cm(r.p50.swebrec)}</strong>
-                <small>cm</small>
+        <Floatable id="frag" title={t('frag.title')} width={760}>
+          {!r ? (
+            <p className="hint">{t('frag.needCharge')}</p>
+          ) : (
+            <>
+              <div className="kpis">
+                <div className="kpi">
+                  <span>P50</span>
+                  <strong>{cm(r.p50.swebrec)}</strong>
+                  <small>cm</small>
+                </div>
+                <div className="kpi">
+                  <span>P80</span>
+                  <strong>{cm(r.p80.swebrec)}</strong>
+                  <small>cm</small>
+                </div>
+                <div className="kpi" title={t('frag.oversizeTitle', { size: cm(r.oversize.size) })}>
+                  <span>&gt; {cm(r.oversize.size)} cm</span>
+                  <strong>{fmt(r.oversize.swebrec * 100)}</strong>
+                  <small>%</small>
+                </div>
+                <div className="kpi" title={t('frag.finesTitle', { size: cm(r.fines.size) })}>
+                  <span>&lt; {cm(r.fines.size)} cm</span>
+                  <strong>{fmt(r.fines.swebrec * 100)}</strong>
+                  <small>%</small>
+                </div>
               </div>
-              <div className="kpi">
-                <span>P80</span>
-                <strong>{cm(r.p80.swebrec)}</strong>
-                <small>cm</small>
-              </div>
-              <div className="kpi" title={t('frag.oversizeTitle', { size: cm(r.oversize.size) })}>
-                <span>&gt; {cm(r.oversize.size)} cm</span>
-                <strong>{fmt(r.oversize.swebrec * 100)}</strong>
-                <small>%</small>
-              </div>
-              <div className="kpi" title={t('frag.finesTitle', { size: cm(r.fines.size) })}>
-                <span>&lt; {cm(r.fines.size)} cm</span>
-                <strong>{fmt(r.fines.swebrec * 100)}</strong>
-                <small>%</small>
-              </div>
-            </div>
-            <ErrorBoundary>
-              <Suspense fallback={<div className="chart tall muted">…</div>}>
-                <SizeCurve result={r} />
-              </Suspense>
-            </ErrorBoundary>
-            <table className="grid-table compact">
-              <thead>
-                <tr>
-                  <th>cm</th>
-                  <th>P20</th>
-                  <th>P50</th>
-                  <th>P80</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Swebrec</td>
-                  <td className="num">{cm(r.p20.swebrec)}</td>
-                  <td className="num">{cm(r.p50.swebrec)}</td>
-                  <td className="num">{cm(r.p80.swebrec)}</td>
-                </tr>
-                <tr>
-                  <td>Rosin-Rammler</td>
-                  <td className="num">{cm(r.p20.rosinRammler)}</td>
-                  <td className="num">{cm(r.p50.rosinRammler)}</td>
-                  <td className="num">{cm(r.p80.rosinRammler)}</td>
-                </tr>
-              </tbody>
-            </table>
-            <p className="muted small">
-              n = {fmt(r.n, 2)} · b = {fmt(r.b, 2)} · x<sub>max</sub> = {cm(r.xmax)} cm
-            </p>
-          </>
-        )}
+              <ErrorBoundary>
+                <Suspense fallback={<div className="chart tall muted">…</div>}>
+                  <SizeCurve result={r} />
+                </Suspense>
+              </ErrorBoundary>
+              <table className="grid-table compact">
+                <thead>
+                  <tr>
+                    <th>cm</th>
+                    <th>P20</th>
+                    <th>P50</th>
+                    <th>P80</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Swebrec</td>
+                    <td className="num">{cm(r.p20.swebrec)}</td>
+                    <td className="num">{cm(r.p50.swebrec)}</td>
+                    <td className="num">{cm(r.p80.swebrec)}</td>
+                  </tr>
+                  <tr>
+                    <td>Rosin-Rammler</td>
+                    <td className="num">{cm(r.p20.rosinRammler)}</td>
+                    <td className="num">{cm(r.p50.rosinRammler)}</td>
+                    <td className="num">{cm(r.p80.rosinRammler)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="muted small">
+                n = {fmt(r.n, 2)} · b = {fmt(r.b, 2)} · x<sub>max</sub> = {cm(r.xmax)} cm
+              </p>
+            </>
+          )}
+        </Floatable>
       </section>
 
       <section className="panel">

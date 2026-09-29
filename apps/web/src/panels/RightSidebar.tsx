@@ -3,8 +3,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useT } from '../i18n';
 import { useSelectionIds } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
-import { PopOutButton, SidebarBody } from '../components/FloatingWindows';
-import { RIGHT_TABS } from './registry';
+import { PanelContent, RIGHT_TABS } from './registry';
 
 /**
  * Panel derecho: la selección (lo específico) separada de los ajustes generales y los resultados.
@@ -44,10 +43,9 @@ export function RightSidebar() {
             </span>
           </button>
         ))}
-        <PopOutButton id={tab} />
       </nav>
       <ErrorBoundary>
-        <SidebarBody id={tab} />
+        <PanelContent id={tab} />
       </ErrorBoundary>
     </aside>
   );

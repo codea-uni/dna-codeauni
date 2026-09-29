@@ -21,8 +21,7 @@ import { restoreLatestAutosave } from './actions';
 import { getCompute } from './session';
 import { useUiStore } from './stores/uiStore';
 import { useT } from './i18n';
-import { FloatingWindows, PopOutButton, SidebarBody } from './components/FloatingWindows';
-import { LEFT_TABS } from './panels/registry';
+import { LEFT_TABS, PanelContent } from './panels/registry';
 import { Viewport } from './viewport/Viewport';
 
 export function App() {
@@ -74,9 +73,8 @@ export function App() {
                 <span>{tr(t.label)}</span>
               </button>
             ))}
-            <PopOutButton id={tab} />
           </nav>
-          <SidebarBody id={tab} />
+          <PanelContent id={tab} />
         </ErrorBoundary>
       </aside>
       <main className="viewport-host">
@@ -84,7 +82,6 @@ export function App() {
       </main>
       <RightSidebar />
       <StatusBar />
-      <FloatingWindows />
       <DemoOverlay />
       {shortcutsOpen && (
         <ShortcutsDialog

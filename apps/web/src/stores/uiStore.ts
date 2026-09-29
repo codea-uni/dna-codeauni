@@ -25,14 +25,15 @@ import type { DxfPreview } from '../dialogs/DxfImportDialog';
  */
 /** Panel abierto en una ventana flotante (posición y tamaño en px de la pantalla). */
 export interface FloatingPanel {
-  id: UiState['leftTab'] | UiState['rightTab'];
+  /** Módulo (p. ej. «lib.explosives»). */
+  id: string;
   x: number;
   y: number;
   w: number;
   h: number;
 }
 
-const FLOATING_KEY = 'cronos.floating';
+const FLOATING_KEY = 'cronos.floating.v2';
 
 /** Ventanas recordadas entre sesiones (preferencia local; si el almacenamiento falla, ninguna). */
 function loadFloating(): FloatingPanel[] {
@@ -115,9 +116,9 @@ interface UiState {
   setHover: (hover: HoleId | null) => void;
   notify: (text: string, kind?: 'info' | 'error') => void;
   setBusy: (busy: string | null) => void;
-  /** Paneles abiertos como ventanas flotantes; el último está encima. */
+  /** Módulos abiertos como ventanas flotantes; el último está encima. */
   floating: FloatingPanel[];
-  floatPanel: (id: FloatingPanel['id']) => void;
+  floatPanel: (id: FloatingPanel['id'], width?: number) => void;
   dockPanel: (id: FloatingPanel['id']) => void;
   updateFloating: (id: FloatingPanel['id'], patch: Partial<Omit<FloatingPanel, 'id'>>) => void;
   raiseFloating: (id: FloatingPanel['id']) => void;
@@ -130,11 +131,11 @@ export const useUiStore = create<UiState>()((set) => ({
   tieConnectorId: undefined,
   leftTab: 'design',
   floating: loadFloating(),
-  floatPanel: (id) => {
+  floatPanel: (id, width = 720) => {
     set((s) => {
       if (s.floating.some((f) => f.id === id)) return {};
       const n = s.floating.length;
-      const w = Math.min(560, window.innerWidth - 40);
+      const w = Math.min(width, window.innerWidth - 40);
       const h = Math.min(Math.round(window.innerHeight * 0.72), window.innerHeight - 80);
       const x = Math.max(20, Math.round((window.innerWidth - w) / 2) + n * 28);
       const y = 70 + n * 28;

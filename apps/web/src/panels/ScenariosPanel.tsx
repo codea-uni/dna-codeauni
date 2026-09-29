@@ -7,6 +7,7 @@ import { formatNumber, useLocale, useT, type MessageKey } from '../i18n';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import * as actions from '../actions';
+import { Floatable } from '../components/Floatable';
 
 const fmt = (v: number | null, d = 0) => (v === null ? '—' : formatNumber(v, d));
 
@@ -71,103 +72,104 @@ export function ScenariosPanel() {
 
   return (
     <section className="panel">
-      <h2>{t('scenarios.title')}</h2>
-      <p className="hint">{t('scenarios.hint')}</p>
-      <button className="primary" onClick={save}>
-        {t('scenarios.save')}
-      </button>
-      {scenarios.length === 0 ? (
-        <p className="muted">{t('scenarios.none')}</p>
-      ) : (
-        <table className="grid-table compact">
-          <tbody>
-            {scenarios.map((s) => (
-              <tr key={s.id}>
-                <td>{s.name}</td>
-                <td className="muted">
-                  {new Date(s.savedAt).toLocaleString(locale === 'en' ? 'en-US' : 'es-ES')}
-                </td>
-                <td className="num">{s.blast.holes.length}</td>
-                <td>
-                  <IconButton
-                    icon={Upload}
-                    label={t('scenarios.load')}
-                    onClick={() => {
-                      if (!window.confirm(t('scenarios.loadConfirm', { name: s.name }))) return;
-                      session.document.dispatch(
-                        commands.loadScenario(session.document, blast.id, s.id),
-                        `${t('scenarios.load')}: ${s.name}`,
-                      );
-                      setKpis(null);
-                    }}
-                  />
-                  <IconButton
-                    icon={Trash2}
-                    label={t('scenarios.remove')}
-                    onClick={() => {
-                      session.document.dispatch(
-                        commands.removeScenario(session.document, s.id),
-                        `${t('scenarios.remove')}: ${s.name}`,
-                      );
-                      setKpis(null);
-                    }}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      <button disabled={busy || scenarios.length === 0} onClick={() => void compare()}>
-        <GitCompare size={14} aria-hidden />{' '}
-        {busy ? t('scenarios.computing') : t('scenarios.compare')}
-      </button>
-      {kpis && (
-        <button
-          onClick={() => {
-            // Tabla copiable a hoja de cálculo (03 §4)
-            const rows = [
-              ['', ...kpis.map((k) => k.name)],
-              ...ROWS.map(([label, value]) => [t(label), ...kpis.map(value)]),
-            ];
-            void navigator.clipboard.writeText(rows.map((r) => r.join('\t')).join('\n'));
-          }}
-        >
-          <ClipboardCopy size={14} aria-hidden /> {t('scenarios.copy')}
+      <Floatable id="scenarios" title={t('scenarios.title')} width={820}>
+        <p className="hint">{t('scenarios.hint')}</p>
+        <button className="primary" onClick={save}>
+          {t('scenarios.save')}
         </button>
-      )}
-      {kpis && (
-        <div className="table-scroll">
+        {scenarios.length === 0 ? (
+          <p className="muted">{t('scenarios.none')}</p>
+        ) : (
           <table className="grid-table compact">
-            <thead>
-              <tr>
-                <th />
-                {kpis.map((k, i) => (
-                  <th key={i}>{k.name}</th>
-                ))}
-              </tr>
-            </thead>
             <tbody>
-              {ROWS.map(([label, value]) => {
-                const base = kpis[0] ? value(kpis[0]) : '';
-                return (
-                  <tr key={label}>
-                    <td>{t(label)}</td>
-                    {kpis.map((k, i) => {
-                      const v = value(k);
-                      return (
-                        <td key={i} className={`num${i > 0 && v !== base ? ' warn' : ''}`}>
-                          {v}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
+              {scenarios.map((s) => (
+                <tr key={s.id}>
+                  <td>{s.name}</td>
+                  <td className="muted">
+                    {new Date(s.savedAt).toLocaleString(locale === 'en' ? 'en-US' : 'es-ES')}
+                  </td>
+                  <td className="num">{s.blast.holes.length}</td>
+                  <td>
+                    <IconButton
+                      icon={Upload}
+                      label={t('scenarios.load')}
+                      onClick={() => {
+                        if (!window.confirm(t('scenarios.loadConfirm', { name: s.name }))) return;
+                        session.document.dispatch(
+                          commands.loadScenario(session.document, blast.id, s.id),
+                          `${t('scenarios.load')}: ${s.name}`,
+                        );
+                        setKpis(null);
+                      }}
+                    />
+                    <IconButton
+                      icon={Trash2}
+                      label={t('scenarios.remove')}
+                      onClick={() => {
+                        session.document.dispatch(
+                          commands.removeScenario(session.document, s.id),
+                          `${t('scenarios.remove')}: ${s.name}`,
+                        );
+                        setKpis(null);
+                      }}
+                    />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+        <button disabled={busy || scenarios.length === 0} onClick={() => void compare()}>
+          <GitCompare size={14} aria-hidden />{' '}
+          {busy ? t('scenarios.computing') : t('scenarios.compare')}
+        </button>
+        {kpis && (
+          <button
+            onClick={() => {
+              // Tabla copiable a hoja de cálculo (03 §4)
+              const rows = [
+                ['', ...kpis.map((k) => k.name)],
+                ...ROWS.map(([label, value]) => [t(label), ...kpis.map(value)]),
+              ];
+              void navigator.clipboard.writeText(rows.map((r) => r.join('\t')).join('\n'));
+            }}
+          >
+            <ClipboardCopy size={14} aria-hidden /> {t('scenarios.copy')}
+          </button>
+        )}
+        {kpis && (
+          <div className="table-scroll">
+            <table className="grid-table compact">
+              <thead>
+                <tr>
+                  <th />
+                  {kpis.map((k, i) => (
+                    <th key={i}>{k.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ROWS.map(([label, value]) => {
+                  const base = kpis[0] ? value(kpis[0]) : '';
+                  return (
+                    <tr key={label}>
+                      <td>{t(label)}</td>
+                      {kpis.map((k, i) => {
+                        const v = value(k);
+                        return (
+                          <td key={i} className={`num${i > 0 && v !== base ? ' warn' : ''}`}>
+                            {v}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Floatable>
     </section>
   );
 }
