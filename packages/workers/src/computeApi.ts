@@ -33,6 +33,23 @@ import {
   type BuiltSurvey,
   type SurveyInput,
   type SurveyParts,
+  assembleTopography,
+  contoursFromTin,
+  hillshade,
+  inspectTopography,
+  readTopography,
+  SurfaceIndex,
+  type AssembleOptions,
+  type AssembleResult,
+  type ContourOptions,
+  type ContourSet,
+  type HillshadeOptions,
+  type HillshadeRaster,
+  type TinData,
+  type TopoFile,
+  type TopoInspection,
+  type TopoReadOptions,
+  type VectorTopoFormat,
   diffProjects,
   diffMarkers,
   type DiffMarker,
@@ -288,6 +305,54 @@ export const computeApi = {
     );
   },
 
+  /** Qué hay en los archivos de topografía elegidos (formato, capas, columnas, EPSG). */
+  topographyInspect(files: TopoFile[]): TopoInspection {
+    return inspectTopography(files);
+  },
+
+  /**
+   * Lee, transforma (Norte/Este, grilla local, reproyección) y triangula la topografía: las
+   * partes del levantamiento para la vista previa y para `buildSurvey`. O(n log n).
+   */
+  topographyImport(
+    files: TopoFile[],
+    format: VectorTopoFormat,
+    read: TopoReadOptions,
+    options: AssembleOptions,
+  ): AssembleResult {
+    const result = assembleTopography(readTopography(files, format, read), options);
+    const { tin, lines } = result.parts;
+    return transfer(
+      result,
+      uniqueBuffers([
+        tin?.vertices,
+        tin?.triangles,
+        lines?.coords,
+        lines?.offsets,
+        lines?.roles,
+        lines?.closed,
+      ]),
+    );
+  },
+
+  /** Curvas de nivel de un TIN, como segmentos para el motor. */
+  topographyContours(tin: TinData, options: ContourOptions): ContourSet {
+    const c = contoursFromTin(tin, options);
+    return transfer(c, uniqueBuffers([c.segments, c.levels, c.major]));
+  },
+
+  /** Sombreado del TIN (textura RGBA georreferenciada). */
+  topographyHillshade(tin: TinData, options?: HillshadeOptions): HillshadeRaster | null {
+    const r = hillshade(tin, options);
+    return r ? transfer(r, uniqueBuffers([r.rgba])) : null;
+  },
+
+  /** Índice espacial del TIN: su buffer viaja al hilo principal (`SurfaceIndex.fromData`). */
+  topographyIndex(tin: TinData): ArrayBuffer | null {
+    const data = SurfaceIndex.build(tin).data;
+    return data ? transfer(data, [data]) : null;
+  },
+
   /** Assets binarios → base64, para embeberlos en un `.cronos.json` exportado. */
   embedAssets(assets: Record<string, Uint8Array>): Record<string, string> {
     return Object.fromEntries(Object.entries(assets).map(([h, b]) => [h, bytesToBase64(b)]));
@@ -321,3 +386,10 @@ export const computeApi = {
 };
 
 export type ComputeApi = typeof computeApi;
+
+/** Buffers distintos de los arreglos dados (Comlink falla si uno se repite en la lista). */
+function uniqueBuffers(arrays: readonly (ArrayBufferView | undefined)[]): ArrayBuffer[] {
+  const set = new Set<ArrayBuffer>();
+  for (const a of arrays) if (a && a.buffer instanceof ArrayBuffer) set.add(a.buffer);
+  return [...set];
+}

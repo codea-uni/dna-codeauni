@@ -7,6 +7,23 @@ describe('computeApi', () => {
     expect(computeApi.ping('hola')).toBe('pong: hola');
   });
 
+  it('topografía: puntos → TIN, curvas e índice', () => {
+    // Pirámide de base 20 × 20 m y cima a 10 m: la curva de cota 5 existe y en la cima no hay curva.
+    const csv = 'E,N,Z\n0,0,0\n20,0,0\n20,20,0\n0,20,0\n10,10,10\n';
+    const files = [{ name: 'p.csv', bytes: new TextEncoder().encode(csv) }];
+    expect(computeApi.topographyInspect(files).format).toBe('points');
+    const r = computeApi.topographyImport(files, 'points', {}, {});
+    expect(r.stats).toMatchObject({ points: 5, triangles: 4 });
+    const tin = r.parts.tin;
+    if (!tin) throw new Error('sin TIN');
+    const c = computeApi.topographyContours(tin, { interval: 5 });
+    expect(Array.from(new Set(c.levels))).toContain(5);
+    expect(Array.from(c.levels)).not.toContain(10); // la cima es un solo punto
+    const index = computeApi.topographyIndex(tin);
+    expect(index).not.toBeNull();
+    expect(computeApi.topographyHillshade(tin, { maxSize: 32 })?.width).toBeGreaterThan(0);
+  });
+
   it('genera un patrón', () => {
     const holes = computeApi.generatePattern(
       {

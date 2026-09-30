@@ -218,7 +218,8 @@ export interface DxfInspection {
   bounds: { minX: number; minY: number; maxX: number; maxY: number } | null;
 }
 
-function parse(text: string): IEntity[] {
+/** Entidades de un DXF (para otros lectores, p. ej. topografía). */
+export function parseDxfEntities(text: string): IEntity[] {
   const dxf = new DxfParser().parseSync(text);
   if (!dxf) throw new Error('No se pudo leer el DXF');
   return dxf.entities;
@@ -245,7 +246,7 @@ function suggestRole(name: string, counts: Record<string, number>): DxfLayerRole
 
 /** Capas del DXF, entidades por tipo y un rol sugerido para cada una. */
 export function inspectDxf(text: string): DxfInspection {
-  const entities = parse(text);
+  const entities = parseDxfEntities(text);
   const layers = new Map<string, Record<string, number>>();
   let minX = Infinity,
     minY = Infinity,
@@ -273,7 +274,7 @@ export function inspectDxf(text: string): DxfInspection {
   };
 }
 
-function entityPoints(e: IEntity): Vec3[] {
+export function entityPoints(e: IEntity): Vec3[] {
   const z = (p: { x: number; y: number; z?: number }): Vec3 => ({ x: p.x, y: p.y, z: p.z ?? 0 });
   switch (e.type) {
     case 'LINE':
@@ -321,7 +322,7 @@ export function importDxf(
   roles: Readonly<Record<string, DxfLayerRole>>,
   defaults: DxfImportDefaults,
 ): DxfImport {
-  const entities = parse(text);
+  const entities = parseDxfEntities(text);
   const role = (e: IEntity) => roles[e.layer] ?? 'ignore';
   const warnings: string[] = [];
   const radius = defaults.matchRadius ?? 1;
