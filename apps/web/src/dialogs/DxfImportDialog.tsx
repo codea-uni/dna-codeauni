@@ -72,8 +72,9 @@ export function DxfImportDialog({
       ];
       ops.push(...boundaryOps(blast, r.boundaries));
       // La topografía del DXF se guarda como levantamiento (D-16) y se usa en el banco.
+      let surveys = document.project.topography;
       for (const [i, surf] of r.surfaces.entries()) {
-        const { ops: surveyOps } = await createSurveyOps(
+        const { ops: surveyOps, survey } = await createSurveyOps(
           {
             name: `${preview.fileName}${r.surfaces.length > 1 ? ` ${i + 1}` : ''}`,
             surveyDate: new Date().toISOString().slice(0, 10),
@@ -90,7 +91,9 @@ export function DxfImportDialog({
             },
           },
           i === 0 ? blast.id : undefined,
+          surveys,
         );
+        surveys = [...surveys, survey];
         ops.push(...surveyOps);
       }
       if (ops.length === 0) {

@@ -3,6 +3,7 @@ import {
   newId,
   SurfaceIndex,
   type BlastId,
+  type Bounds3,
   type LineSetData,
   type Op,
   type Project,
@@ -30,6 +31,8 @@ interface LoadedSurvey {
 }
 
 const loaded = new Map<string, LoadedSurvey>();
+/** Vista previa del asistente de importación (aún no está en el proyecto). */
+let preview: TopographyViewData | null = null;
 const loading = new Set<string>();
 const listeners = new Set<() => void>();
 
@@ -58,11 +61,33 @@ export function applyTopographyToEngine(): void {
   for (const [id, s] of loaded) if (s.tin) tins.set(id, s.tin);
   engine.setTopographyTins(tins);
   // El más reciente arriba: se dibujan en orden de fecha.
-  engine.setTopography(
-    [...loaded.values()]
-      .sort((a, b) => a.survey.surveyDate.localeCompare(b.survey.surveyDate))
-      .map((s) => s.view),
-  );
+  const views = [...loaded.values()]
+    .sort((a, b) => a.survey.surveyDate.localeCompare(b.survey.surveyDate))
+    .map((s) => s.view);
+  engine.setTopography(preview ? [...views, preview] : views);
+}
+
+/**
+ * Muestra en el mapa lo que se va a importar (regla de `03 §5`: vista previa antes de aceptar) y
+ * encuadra su extensión.
+ */
+export async function showTopographyPreview(parts: SurveyParts, bounds: Bounds3): Promise<void> {
+  const api = getCompute().api;
+  const { tin, lines } = parts;
+  const interval = contourIntervalFor(bounds);
+  const [shade, contours] = tin
+    ? await Promise.all([api.topographyHillshade(tin), api.topographyContours(tin, { interval })])
+    : [null, null];
+  preview = { id: 'preview', bounds, shade, contours, lines: lines ?? null };
+  applyTopographyToEngine();
+  getEngine()?.fitBounds(bounds);
+}
+
+/** Quita la vista previa del mapa. */
+export function clearTopographyPreview(): void {
+  if (!preview) return;
+  preview = null;
+  applyTopographyToEngine();
 }
 
 /**
@@ -92,8 +117,11 @@ export function autoContourInterval(zMin: number, zMax: number): number {
 }
 
 function contourInterval(survey: TopographySurvey): number {
+  return contourIntervalFor(survey.bounds);
+}
+
+function contourIntervalFor({ minZ, maxZ }: Bounds3): number {
   const fixed = useAnalysisStore.getState().topoContourInterval;
-  const { minZ, maxZ } = survey.bounds;
   // Tope de 500 curvas: un intervalo muy chico en un tajo alto congelaría el dibujo.
   return fixed > 0 ? Math.max(fixed, (maxZ - minZ) / 500) : autoContourInterval(minZ, maxZ);
 }
@@ -192,14 +220,14 @@ export async function createSurveyOps(
   input: SurveyInput,
   parts: SurveyParts,
   useInBlast?: BlastId,
+  /** Levantamientos a los que se suma (los del proyecto; al crear varios juntos, los acumulados). */
+  existing: readonly TopographySurvey[] = session.document.project.topography,
 ): Promise<{ ops: Op[]; survey: TopographySurvey }> {
   const built = await getCompute().api.buildSurvey(input, parts);
   await Promise.all(built.assets.map((a) => putAsset(a.hash, a.bytes)));
   const survey: TopographySurvey = { ...built.survey, id: newId<'TopographySurvey'>() };
   const project = session.document.project;
-  const ops: Op[] = [
-    { type: 'project/patch', patch: { topography: [...project.topography, survey] } },
-  ];
+  const ops: Op[] = [{ type: 'project/patch', patch: { topography: [...existing, survey] } }];
   const blast = useInBlast ? project.blasts.find((b) => b.id === useInBlast) : undefined;
   if (blast)
     ops.push({
@@ -208,6 +236,11 @@ export async function createSurveyOps(
       patch: { bench: { ...blast.bench, topographyId: survey.id } },
     });
   return { ops, survey };
+}
+
+/** ¿Están en este navegador los datos del levantamiento? */
+export function isTopographyLoaded(surveyId: string): boolean {
+  return loaded.has(surveyId);
 }
 
 /** Binarios de los assets que usa el proyecto (para exportar un `.cronos.json` autocontenido). */

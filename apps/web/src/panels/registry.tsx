@@ -26,6 +26,7 @@ import { PropertiesPanel } from './PropertiesPanel';
 import { ResultsPanel } from './ResultsPanel';
 import { ScenariosPanel } from './ScenariosPanel';
 import { TimingPanel } from './TimingPanel';
+import { TopographyPanel } from './TopographyPanel';
 import { VibrationPanel } from './VibrationPanel';
 import { ViewPanel } from './ViewPanel';
 
@@ -101,6 +102,7 @@ export function PanelContent({ id }: { id: PanelId }) {
         <>
           <FirstSteps />
           <BlastPanel />
+          <TopographyPanel />
           <PatternPanel />
           <GroupsPanel />
         </>

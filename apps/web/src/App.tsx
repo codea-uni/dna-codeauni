@@ -14,12 +14,13 @@ import { useShortcuts } from './hooks/useShortcuts';
 import { RightSidebar } from './panels/RightSidebar';
 import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { DxfImportDialog } from './dialogs/DxfImportDialog';
+import { TopographyImportDialog } from './dialogs/TopographyImportDialog';
 import { ProjectSettingsDialog } from './dialogs/ProjectSettingsDialog';
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
 import { VersionsDialog } from './dialogs/VersionsDialog';
 import { startAutosave } from './persistence/autosave';
 import { startTopographySync } from './topography/session';
-import { restoreLatestAutosave } from './actions';
+import { openTopography, requireCrs, restoreLatestAutosave } from './actions';
 import { getCompute } from './session';
 import { useUiStore } from './stores/uiStore';
 import { useT } from './i18n';
@@ -49,6 +50,8 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
   const setVersionsOpen = useUiStore((s) => s.setVersionsOpen);
   const dxfPreview = useUiStore((s) => s.dxfPreview);
   const setDxfPreview = useUiStore((s) => s.setDxfPreview);
+  const topoImport = useUiStore((s) => s.topoImport);
+  const setTopoImport = useUiStore((s) => s.setTopoImport);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
   useEffect(() => {
     if (!currentAvailable) setTab('design');
@@ -107,7 +110,19 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
           <PanelContent id={tab} />
         </ErrorBoundary>
       </aside>
-      <main className="viewport-host">
+      <main
+        className="viewport-host"
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          // Archivos de topografía soltados sobre el visor abren el asistente.
+          const files = [...e.dataTransfer.files];
+          if (files.length === 0) return;
+          e.preventDefault();
+          if (requireCrs()) void openTopography(files);
+        }}
+      >
         <Viewport />
       </main>
       <RightSidebar />
@@ -139,6 +154,14 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
           preview={dxfPreview}
           onClose={() => {
             setDxfPreview(null);
+          }}
+        />
+      )}
+      {topoImport && (
+        <TopographyImportDialog
+          request={topoImport}
+          onClose={() => {
+            setTopoImport(null);
           }}
         />
       )}

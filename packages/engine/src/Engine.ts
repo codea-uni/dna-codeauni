@@ -493,6 +493,28 @@ export class Engine {
     });
   }
 
+  /** Encuadra una caja en coordenadas de proyecto (p. ej. la vista previa de una topografía). */
+  fitBounds(b: { minX: number; minY: number; maxX: number; maxY: number }): void {
+    if (this.viewMode === '3d') return;
+    const inset = this.decorations.rulerInset;
+    const fit = fitBounds(
+      {
+        minX: b.minX - this.origin.x,
+        minY: b.minY - this.origin.y,
+        maxX: b.maxX - this.origin.x,
+        maxY: b.maxY - this.origin.y,
+      },
+      this.width - inset.left,
+      this.height - inset.top,
+      0.05,
+    );
+    this.setView({
+      ...fit,
+      centerX: fit.centerX - (inset.left / 2) * fit.metersPerPixel,
+      centerY: fit.centerY + (inset.top / 2) * fit.metersPerPixel,
+    });
+  }
+
   get currentViewMode(): ViewMode {
     return this.viewMode;
   }

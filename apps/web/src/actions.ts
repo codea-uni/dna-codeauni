@@ -622,6 +622,32 @@ function download(data: string | Uint8Array, fileName: string, type: string): vo
   }, 1000);
 }
 
+// ------------------------------------------------------------------ Topografía (D-16)
+
+/** Extensiones que abre el asistente de topografía (también al arrastrar archivos al visor). */
+export const TOPOGRAPHY_ACCEPT = '.dxf,.str,.dtm,.xml,.landxml,.csv,.txt,.xyz,.pts,.asc';
+
+/** Lee los archivos elegidos y abre el asistente de importación de topografía. */
+export async function openTopography(files: readonly File[]): Promise<void> {
+  if (files.length === 0) return;
+  await withBusy(t('topo.import.processing'), async () => {
+    const topoFiles = await Promise.all(
+      files.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })),
+    );
+    const inspection = await getCompute().api.topographyInspect(topoFiles);
+    if (!inspection.format) {
+      const dwg = files.find((f) => /\.dwg$/i.test(f.name));
+      notify(dwg ? t('topo.import.dwg', { file: dwg.name }) : t('topo.import.unknown'), 'error');
+      return;
+    }
+    if (inspection.format === 'surpac' && !files.some((f) => /\.str$/i.test(f.name))) {
+      notify(t('topo.import.dtmAlone'), 'error');
+      return;
+    }
+    useUiStore.getState().setTopoImport({ files: topoFiles, inspection });
+  });
+}
+
 // ------------------------------------------------------------------ DXF y PDF
 
 export async function openDxf(file: File): Promise<void> {

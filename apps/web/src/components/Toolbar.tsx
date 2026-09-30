@@ -170,6 +170,7 @@ export function Toolbar() {
   const dxfInput = useRef<HTMLInputElement>(null);
   const geoJsonInput = useRef<HTMLInputElement>(null);
   const boundariesInput = useRef<HTMLInputElement>(null);
+  const topographyInput = useRef<HTMLInputElement>(null);
 
   return (
     <header className="toolbar">
@@ -243,6 +244,13 @@ export function Toolbar() {
               },
             },
             {
+              icon: Mountain,
+              label: tr('topo.importMenu'),
+              onSelect: () => {
+                if (actions.requireCrs()) topographyInput.current?.click();
+              },
+            },
+            {
               icon: MapIcon,
               label: tr('toolbar.importGeoJson'),
               onSelect: () => {
@@ -309,6 +317,18 @@ export function Toolbar() {
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) void actions.openDxf(file);
+            e.target.value = '';
+          }}
+        />
+        <input
+          ref={topographyInput}
+          type="file"
+          accept={actions.TOPOGRAPHY_ACCEPT}
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            if (files.length > 0) void actions.openTopography(files);
             e.target.value = '';
           }}
         />

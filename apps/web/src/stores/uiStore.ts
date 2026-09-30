@@ -18,6 +18,7 @@ import {
 import { create } from 'zustand';
 import type { CsvPreview } from '../dialogs/CsvImportDialog';
 import type { DxfPreview } from '../dialogs/DxfImportDialog';
+import type { TopoImportRequest } from '../dialogs/TopographyImportDialog';
 
 /**
  * Estado de UI. Nunca contiene el diseño (ver CLAUDE.md: React no renderiza el diseño).
@@ -98,6 +99,9 @@ interface UiState {
   setRadiusScale: (scale: number) => void;
   dxfPreview: DxfPreview | null;
   setDxfPreview: (preview: DxfPreview | null) => void;
+  /** Asistente de importación de topografía abierto con estos archivos. */
+  topoImport: TopoImportRequest | null;
+  setTopoImport: (request: TopoImportRequest | null) => void;
   setShortcutsOpen: (open: boolean) => void;
   setCsvPreview: (preview: CsvPreview | null) => void;
   setActiveBoundary: (id: BoundaryId | null) => void;
@@ -196,6 +200,10 @@ export const useUiStore = create<UiState>()((set) => ({
   dxfPreview: null,
   setDxfPreview: (dxfPreview) => {
     set({ dxfPreview });
+  },
+  topoImport: null,
+  setTopoImport: (topoImport) => {
+    set({ topoImport });
   },
   setShortcutsOpen: (shortcutsOpen) => {
     set({ shortcutsOpen });

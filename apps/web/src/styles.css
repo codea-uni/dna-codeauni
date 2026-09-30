@@ -1272,3 +1272,125 @@ button.link {
   outline: 2px solid var(--accent-2);
   outline-offset: 2px;
 }
+
+/* ------------------------------------------------------------------ Topografía (D-16) */
+.survey-list {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.survey-list li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+.survey-list li.in-use {
+  border-left-color: var(--accent);
+}
+
+.survey-list li > button {
+  justify-self: start;
+  margin-top: 0.2rem;
+}
+
+.survey-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.survey-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.survey-head .icon-btn {
+  margin-left: auto;
+}
+
+.survey-badge {
+  justify-self: start;
+  margin-top: 0.2rem;
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.modal.topo-import .modal-cols {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.modal.topo-import .field {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+}
+
+.modal.topo-import .field > select,
+.modal.topo-import .field > input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+/* El sistema del archivo lleva nombres largos: etiqueta arriba, selector a lo ancho. */
+.modal.topo-import .field.wide {
+  grid-template-columns: 1fr;
+  gap: 0.2rem;
+}
+
+.modal.topo-import h3 {
+  margin: 0.8rem 0 0.4rem;
+  font-size: 13px;
+}
+
+.modal.topo-import h4 {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 12px;
+}
+
+.topo-sample {
+  max-height: 140px;
+  margin: 0.4rem 0 0.6rem;
+  padding: 0.4rem 0.5rem;
+  overflow: auto;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.control-points input {
+  width: 100%;
+  min-width: 0;
+}
+
+.topo-result {
+  margin: 0.6rem 0 0;
+}
+
+/* Vista previa en el mapa: el asistente se pliega a una barra sobre el visor. */
+.topo-peek {
+  position: fixed;
+  left: 50%;
+  bottom: 44px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  max-width: calc(100vw - 32px);
+  padding: 0.5rem 0.8rem;
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 8px 28px #0008;
+}
