@@ -76,3 +76,16 @@ export function useFormat(): (v: number, decimals?: number) => string {
   const locale = useLocale((s) => s.locale);
   return (v, decimals = 0) => formatNumber(v, decimals, locale);
 }
+
+/** Fecha y hora en el idioma activo («30/09/2026, 10:05» / «9/30/2026, 10:05 AM»). */
+export function formatDateTime(iso: string, locale: Locale = useLocale.getState().locale): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString(NUMBER_LOCALE[locale], { dateStyle: 'short', timeStyle: 'short' });
+}
+
+/** `formatDateTime` para componentes: se vuelven a renderizar al cambiar el idioma. */
+export function useFormatDate(): (iso: string) => string {
+  const locale = useLocale((s) => s.locale);
+  return (iso) => formatDateTime(iso, locale);
+}
