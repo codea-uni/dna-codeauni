@@ -56,6 +56,14 @@ export function workspaceErrorKey(err: unknown): MessageKey {
       return 'workspace.error.notFound';
     case 'crs_mismatch':
       return 'projects.error.crsMismatch';
+    case 'missing_assets':
+    case 'asset_local_missing':
+      return 'topo.error.missingAssets';
+    case 'survey_other_mine':
+      return 'topo.error.otherMine';
+    case 'asset_hash_mismatch':
+    case 'invalid_asset':
+      return 'topo.error.invalidAsset';
     case 'invalid_project':
       return 'projects.error.invalid';
     case 'version_conflict':

@@ -7,7 +7,7 @@ import { parseErrorText } from '../i18n/coreText';
 import { latestDraft, loadWithoutSaving, readVersion, setDraftBase } from '../persistence/autosave';
 import type { VersionInfo } from '../persistence/history';
 import { getCompute, session } from '../session';
-import { storeEmbeddedAssets } from '../topography/session';
+import { setRemoteAssetSource, storeEmbeddedAssets } from '../topography/session';
 import { workspaceErrorKey } from '../stores/workspaceStore';
 import { api } from './api';
 
@@ -95,6 +95,9 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
       session.document.setReadOnly(false);
       setDraftBase(editable ? base.id : null);
       if (parsed.file.embeddedAssets) await storeEmbeddedAssets(parsed.file.embeddedAssets);
+      // La topografía que no esté en este navegador se baja de la mina (D-16).
+      const mineId = detail.mine.id;
+      setRemoteAssetSource((hash) => api.asset(mineId, hash));
       loadWithoutSaving(parsed.file.project);
       session.document.setReadOnly(!editable);
       set({
@@ -156,6 +159,7 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
   },
 
   close: () => {
+    setRemoteAssetSource(null);
     session.document.setReadOnly(false);
     setDraftBase(null);
     set({ status: 'idle', current: null, baseProject: null, draft: null, error: null });

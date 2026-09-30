@@ -4,6 +4,7 @@ import * as organizations from './2026_09_30_02_organizations';
 import * as projects from './2026_09_30_03_projects';
 import * as platform from './2026_09_30_04_platform';
 import * as superadminAlone from './2026_09_30_05_superadmin_without_organization';
+import * as topography from './2026_09_30_06_topography';
 
 /**
  * Migraciones en orden de nombre (`AAAA_MM_DD_NN_tema`). Se importan de forma estática para que el
@@ -15,4 +16,5 @@ export const migrations: Record<string, Migration> = {
   '2026_09_30_03_projects': projects,
   '2026_09_30_04_platform': platform,
   '2026_09_30_05_superadmin_without_organization': superadminAlone,
+  '2026_09_30_06_topography': topography,
 };

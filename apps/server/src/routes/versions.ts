@@ -14,6 +14,7 @@ import { sendError } from '../http/errors';
 import { requireUser, type SessionUser } from '../http/session';
 import { visibleMine } from '../services/access';
 import { recordAudit } from '../services/audit';
+import { syncProjectTopography } from '../services/topography';
 import { decodeContent, encodeContent, selectVersions, toVersion } from '../services/versions';
 import { validateProjectFile, visibleProject } from './projects';
 
@@ -191,13 +192,15 @@ export function versionRoutes(app: FastifyInstance, deps: VersionRouteDeps): voi
     if (!body.success) return sendError(reply, 400, 'invalid_body', body.error.message);
     const parsed = validateProjectFile(body.data.file);
     if (!parsed.ok) return sendError(reply, 400, 'invalid_project', parsed.error);
-    const file: ProjectFile = {
-      ...parsed.file,
-      project: { ...parsed.file.project, id: found.project.id as ProjectFile['project']['id'] },
-    };
-    const epsg = file.project.coordinateSystem.epsg;
+    const epsg = parsed.file.project.coordinateSystem.epsg;
     if (found.mine.epsg && epsg && epsg !== found.mine.epsg)
       return sendError(reply, 409, 'crs_mismatch', 'Project CRS differs from the mine');
+    // La topografía vive en la mina (D-16): assets y levantamientos se registran aparte.
+    const synced = await syncProjectTopography(db, found.mine, parsed.file, user.id);
+    const file: ProjectFile = {
+      ...synced,
+      project: { ...synced.project, id: found.project.id as ProjectFile['project']['id'] },
+    };
 
     const id = await insertNextVersion(db, reply, {
       projectId: found.project.id,

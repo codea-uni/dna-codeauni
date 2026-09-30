@@ -718,6 +718,12 @@ a.button-link.primary:hover {
   max-width: 22rem;
 }
 
+.mine-side {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
 .activity {
   display: grid;
   gap: 0.8rem;

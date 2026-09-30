@@ -53,6 +53,13 @@ import {
   type Timeline,
   type TimelineQuery,
 } from './projects';
+import {
+  assetInfoSchema,
+  missingAssetsResultSchema,
+  mineSurveyListSchema,
+  type AssetInfo,
+  type MineSurvey,
+} from './topography';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
 export class ApiError extends Error {
@@ -119,18 +126,7 @@ export class ApiClient {
     if (options.signal) init.signal = options.signal;
     const res = await this.fetchImpl(`${this.baseUrl}${path}`, init);
     const text = await res.text();
-    if (!res.ok) {
-      let body: unknown;
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = undefined;
-      }
-      const parsed = apiErrorSchema.safeParse(body);
-      throw parsed.success
-        ? new ApiError(res.status, parsed.data.code, parsed.data.message)
-        : new ApiError(res.status, 'http_error', `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw errorFrom(res.status, text);
     return text;
   }
 
@@ -330,6 +326,49 @@ export class ApiClient {
     return this.request(`/mines/${enc(mineId)}/versions${qs}`, timelineSchema);
   }
 
+  // Topografía de la mina (D-16)
+
+  /** Hashes que el servidor aún no tiene (para subir solo esos antes de publicar). */
+  async missingAssets(mineId: string, hashes: readonly string[]): Promise<string[]> {
+    if (hashes.length === 0) return [];
+    const r = await this.request(
+      `/mines/${enc(mineId)}/assets/missing`,
+      missingAssetsResultSchema,
+      {
+        method: 'POST',
+        body: { hashes },
+      },
+    );
+    return r.missing;
+  }
+
+  /** Sube un asset `CRTS`; el servidor verifica que el hash coincida con el contenido. */
+  async uploadAsset(mineId: string, hash: string, bytes: Uint8Array): Promise<AssetInfo> {
+    const res = await this.fetchImpl(`${this.baseUrl}/mines/${enc(mineId)}/assets/${enc(hash)}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'content-type': 'application/octet-stream' },
+      body: bytes as BodyInit,
+    });
+    const text = await res.text();
+    if (!res.ok) throw errorFrom(res.status, text);
+    return assetInfoSchema.parse(JSON.parse(text));
+  }
+
+  /** Binario de un asset (inmutable: el navegador lo puede guardar en caché). */
+  async asset(mineId: string, hash: string): Promise<Uint8Array> {
+    const res = await this.fetchImpl(`${this.baseUrl}/mines/${enc(mineId)}/assets/${enc(hash)}`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw errorFrom(res.status, await res.text());
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
+  /** Levantamientos de la mina, del más nuevo al más viejo. */
+  async surveys(mineId: string): Promise<MineSurvey[]> {
+    return (await this.request(`/mines/${enc(mineId)}/surveys`, mineSurveyListSchema)).surveys;
+  }
+
   /** URL para descargar el `.cronos.json` de una versión (mismo origen: la cookie viaja sola). */
   versionDownloadUrl(projectId: string, number: number): string {
     return `${this.baseUrl}/projects/${enc(projectId)}/versions/${number}/content?download=1`;
@@ -348,3 +387,17 @@ export class ApiClient {
 }
 
 const enc = encodeURIComponent;
+
+/** `ApiError` a partir de una respuesta de error (cuerpo `ApiErrorBody` o cualquier otro). */
+function errorFrom(status: number, text: string): ApiError {
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = undefined;
+  }
+  const parsed = apiErrorSchema.safeParse(body);
+  return parsed.success
+    ? new ApiError(status, parsed.data.code, parsed.data.message)
+    : new ApiError(status, 'http_error', `HTTP ${String(status)}`);
+}

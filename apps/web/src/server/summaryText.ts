@@ -23,6 +23,7 @@ const FIELD_KEYS: Record<string, MessageKey> = {
   rockMasses: 'history.field.rockMasses',
   siteModels: 'history.field.siteModels',
   surfaces: 'history.field.surfaces',
+  topography: 'history.field.topography',
   monitoringPoints: 'history.field.monitoringPoints',
   ppvLimits: 'history.field.ppvLimits',
   scenarios: 'history.field.scenarios',

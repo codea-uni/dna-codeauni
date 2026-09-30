@@ -9,6 +9,7 @@ import { sendError } from '../http/errors';
 import { requireUser } from '../http/session';
 import { visibleMine } from '../services/access';
 import { recordAudit } from '../services/audit';
+import { syncProjectTopography } from '../services/topography';
 import { decodeContent, encodeContent, selectVersions, toVersion } from '../services/versions';
 import { toMine } from './organizations';
 
@@ -97,11 +98,7 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
 
     // Un id nuevo siempre: importar dos veces el mismo archivo da dos proyectos distintos.
     const projectId = newId<'Project'>() satisfies ProjectId;
-    const file: ProjectFile = {
-      ...parsed.file,
-      project: { ...parsed.file.project, id: projectId },
-    };
-    const epsg = file.project.coordinateSystem.epsg;
+    const epsg = parsed.file.project.coordinateSystem.epsg;
     if (found.mine.epsg && epsg && epsg !== found.mine.epsg)
       return sendError(
         reply,
@@ -109,6 +106,9 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
         'crs_mismatch',
         `Project CRS EPSG:${epsg} differs from the mine (EPSG:${found.mine.epsg})`,
       );
+    // La topografía vive en la mina (D-16): assets y levantamientos se registran aparte.
+    const synced = await syncProjectTopography(db, found.mine, parsed.file, user.id);
+    const file: ProjectFile = { ...synced, project: { ...synced.project, id: projectId } };
 
     const content = await encodeContent(file);
     const row = await db.transaction().execute(async (tx) => {

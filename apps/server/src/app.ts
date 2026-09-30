@@ -7,6 +7,7 @@ import { healthRoutes } from './routes/health';
 import { organizationRoutes } from './routes/organizations';
 import { platformRoutes } from './routes/platform';
 import { projectRoutes } from './routes/projects';
+import { topographyRoutes } from './routes/topography';
 import { versionRoutes } from './routes/versions';
 
 export interface AppDeps {
@@ -47,6 +48,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       platformRoutes(api, deps);
       projectRoutes(api, deps);
       versionRoutes(api, deps);
+      topographyRoutes(api, deps);
       done();
     },
     { prefix: '/api' },

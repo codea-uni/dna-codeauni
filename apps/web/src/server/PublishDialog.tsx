@@ -11,6 +11,7 @@ import { workspaceErrorKey } from '../stores/workspaceStore';
 import { api } from './api';
 import { useProjectSession } from './projectSession';
 import { summaryParts } from './summaryText';
+import { uploadMissingAssets } from './topographyAssets';
 
 type Phase = 'diff' | 'ready' | 'publishing' | 'conflict';
 
@@ -52,6 +53,7 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
     setPhase('publishing');
     setError(null);
     try {
+      await uploadMissingAssets(current.mine.id, project);
       const text = await getCompute().api.serializeProject(project, { appVersion: APP_VERSION });
       const version = await api.publishVersionFromText(
         current.projectId,
@@ -76,6 +78,7 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
     setError(null);
     try {
       const copy = { ...project, name: t('history.copyName', { name: project.name }) };
+      await uploadMissingAssets(current.mine.id, copy);
       const text = await getCompute().api.serializeProject(copy, { appVersion: APP_VERSION });
       const created = await api.createProjectFromText(
         current.mine.id,

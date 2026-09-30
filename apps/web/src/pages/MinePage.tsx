@@ -1,6 +1,7 @@
 import {
   permissions,
   type MineDetail,
+  type MineSurvey,
   type ProjectSummary,
   type ProjectVersion,
 } from '@cronos/api';
@@ -22,6 +23,7 @@ interface Loaded {
   detail?: MineDetail;
   projects?: ProjectSummary[];
   recent?: ProjectVersion[];
+  surveys?: MineSurvey[];
   error?: MessageKey;
 }
 
@@ -49,9 +51,10 @@ export function MinePage() {
       api.mine(mineId),
       api.projects(mineId),
       api.timeline(mineId, { limit: RECENT }),
+      api.surveys(mineId),
     ]).then(
-      ([d, p, tl]) => {
-        if (alive) setLoaded({ mineId, detail: d, projects: p, recent: tl.versions });
+      ([d, p, tl, surveys]) => {
+        if (alive) setLoaded({ mineId, detail: d, projects: p, recent: tl.versions, surveys });
       },
       (err: unknown) => {
         if (alive) setLoaded({ mineId, error: workspaceErrorKey(err) });
@@ -202,7 +205,10 @@ export function MinePage() {
               )}
             </section>
 
-            <RecentActivity mineId={mineId} versions={current?.recent ?? []} />
+            <div className="mine-side">
+              <RecentActivity mineId={mineId} versions={current?.recent ?? []} />
+              <MineSurveys surveys={current?.surveys ?? []} />
+            </div>
           </div>
         </>
       )}
@@ -262,6 +268,47 @@ function RecentActivity({ mineId, versions }: { mineId: string; versions: Projec
         </ol>
       )}
       <Link to={`/mines/${mineId}/history`}>{t('history.seeAll')}</Link>
+    </aside>
+  );
+}
+
+/**
+ * Levantamientos topográficos de la mina (D-16), del más nuevo al más viejo: los proyectos los
+ * usan como referencia y se suben una sola vez.
+ */
+function MineSurveys({ surveys }: { surveys: MineSurvey[] }) {
+  const t = useT();
+  const fmt = useFormat();
+  const fmtDate = useFormatDate();
+  return (
+    <aside className="activity" aria-labelledby="surveys-title">
+      <h2 id="surveys-title">{t('topo.section')}</h2>
+      {surveys.length === 0 ? (
+        <p className="muted">{t('topo.mine.empty')}</p>
+      ) : (
+        <ol>
+          {surveys.map(({ survey: s, createdAt, createdBy }) => (
+            <li key={s.id}>
+              <span>
+                <strong>{s.name}</strong> <span className="row-meta">{s.surveyDate}</span>
+              </span>
+              <p className="muted">
+                {t('topo.panel.stats', {
+                  points: fmt(s.stats.points),
+                  triangles: fmt(s.stats.triangles),
+                  lines: fmt(s.stats.lines),
+                })}
+              </p>
+              <p className="muted">
+                {t('topo.mine.uploaded', {
+                  date: fmtDate(createdAt),
+                  author: createdBy?.name ?? '—',
+                })}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
     </aside>
   );
 }

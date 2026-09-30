@@ -59,6 +59,7 @@ export type { HoleEdit } from './document/commands';
 
 // IO
 export * from './io/projectFile';
+export { topographySurveySchema } from './io/projectSchema';
 export * from './io/csv';
 export * from './io/dxf';
 export * from './io/geojson';

@@ -108,6 +108,17 @@ export const es = {
   'topo.import.done': 'Topografía «{name}» agregada.',
   'topo.import.peek': 'Vista previa de «{name}»',
 
+  // Página de la mina
+  'topo.mine.empty':
+    'Todavía no hay levantamientos. Se agregan desde el editor (Importar → Topografía) y quedan para todos los proyectos de la mina.',
+  'topo.mine.uploaded': 'Subido el {date} por {author}',
+
+  // Errores del servidor (D-16)
+  'topo.error.missingAssets':
+    'Faltan los datos de un levantamiento: ábrelo en el navegador donde se importó o vuelve a importarlo.',
+  'topo.error.otherMine': 'El proyecto usa un levantamiento de otra mina.',
+  'topo.error.invalidAsset': 'Los datos de un levantamiento están dañados: vuelve a importarlo.',
+
   // Avisos del núcleo (TopoWarning.code)
   'topo.warn.points.noColumns': 'No se reconocieron las columnas Este, Norte y Cota: elígelas.',
   'topo.warn.points.badRows': '{n} filas sin números válidos se ignoraron.',
@@ -234,6 +245,15 @@ export const en = {
   'topo.import.undo': 'Import topography “{name}”',
   'topo.import.done': 'Topography “{name}” added.',
   'topo.import.peek': 'Preview of “{name}”',
+
+  'topo.mine.empty':
+    'No surveys yet. Add them from the editor (Import → Topography); every project of the mine can use them.',
+  'topo.mine.uploaded': 'Uploaded {date} by {author}',
+
+  'topo.error.missingAssets':
+    'A survey’s data is missing: open it in the browser where it was imported or import it again.',
+  'topo.error.otherMine': 'The project uses a survey from another mine.',
+  'topo.error.invalidAsset': 'A survey’s data is damaged: import it again.',
 
   'topo.warn.points.noColumns':
     'The East, North and Elevation columns were not recognized: choose them.',

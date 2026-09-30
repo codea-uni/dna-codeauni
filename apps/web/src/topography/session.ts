@@ -31,6 +31,8 @@ interface LoadedSurvey {
 }
 
 const loaded = new Map<string, LoadedSurvey>();
+/** De dónde bajar un asset que no está en el navegador (el servidor de la mina, D-16). */
+let remoteAssets: ((hash: string) => Promise<Uint8Array>) | null = null;
 /** Vista previa del asistente de importación (aún no está en el proyecto). */
 let preview: TopographyViewData | null = null;
 const loading = new Set<string>();
@@ -126,11 +128,34 @@ function contourIntervalFor({ minZ, maxZ }: Bounds3): number {
   return fixed > 0 ? Math.max(fixed, (maxZ - minZ) / 500) : autoContourInterval(minZ, maxZ);
 }
 
+/**
+ * Fuente remota de assets: al abrir un proyecto de la mina, los levantamientos que no están en
+ * este navegador se bajan del servidor y se guardan. `null` = solo lo local.
+ */
+export function setRemoteAssetSource(source: ((hash: string) => Promise<Uint8Array>) | null): void {
+  remoteAssets = source;
+}
+
+/** Binario de un asset: del navegador o, si falta, del servidor (y queda guardado). */
+async function assetBytes(hash: string): Promise<Uint8Array | undefined> {
+  const local = await getAsset(hash);
+  if (local) return local;
+  if (!remoteAssets) return undefined;
+  try {
+    const bytes = await remoteAssets(hash);
+    await putAsset(hash, bytes);
+    return bytes;
+  } catch (err) {
+    console.warn(`[topografía] no se pudo bajar el asset ${hash}`, err);
+    return undefined;
+  }
+}
+
 async function decode(
   hash: string | undefined,
 ): Promise<ReturnType<typeof decodeAsset> | undefined> {
   if (!hash) return undefined;
-  const bytes = await getAsset(hash);
+  const bytes = await assetBytes(hash);
   if (!bytes) {
     console.warn(`[topografía] falta el asset ${hash}`);
     return undefined;

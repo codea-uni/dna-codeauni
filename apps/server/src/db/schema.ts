@@ -14,6 +14,8 @@ export interface Database {
   audit_event: AuditEventTable;
   project: ProjectTable;
   project_version: ProjectVersionTable;
+  topography_asset: TopographyAssetTable;
+  topography_survey: TopographySurveyTable;
   session: SessionTable;
 }
 
@@ -96,6 +98,28 @@ export interface ProjectVersionTable {
   contentHash: string;
   content: Buffer;
   summary: JSONColumnType<Record<string, unknown> | null, string | null, never>;
+}
+
+/** Binario `CRTS` de topografía (D-16), por empresa y hash; inmutable. */
+export interface TopographyAssetTable {
+  organizationId: string;
+  hash: string;
+  kind: 'tin' | 'lines' | 'image';
+  sizeBytes: number;
+  content: Buffer;
+  createdBy: string | null;
+  createdAt: CreatedAt;
+}
+
+/** Levantamiento topográfico de una mina; `meta` es el `TopographySurvey` del núcleo. */
+export interface TopographySurveyTable {
+  id: string;
+  mineId: string;
+  name: string;
+  surveyDate: string;
+  meta: JSONColumnType<Record<string, unknown>>;
+  createdBy: string | null;
+  createdAt: CreatedAt;
 }
 
 /** Sesiones de Better Auth: el servidor solo las lee (última actividad) y las borra al desactivar. */

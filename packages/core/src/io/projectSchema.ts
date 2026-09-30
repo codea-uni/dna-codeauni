@@ -302,7 +302,7 @@ const siteModels: z.ZodType<M.SiteModels> = z.object({
 
 const hash = z.string().regex(/^[0-9a-f]{64}$/);
 
-const topographySurvey: z.ZodType<M.TopographySurvey> = z.object({
+export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
   id: id<'TopographySurvey'>(),
   name: z.string(),
   surveyDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -364,7 +364,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
   }),
   rockMasses: z.array(rockMass),
   siteModels,
-  topography: z.array(topographySurvey),
+  topography: z.array(topographySurveySchema),
   blasts: z.array(blast),
   monitoringPoints: z
     .array(
