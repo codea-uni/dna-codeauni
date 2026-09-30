@@ -9,6 +9,7 @@ import {
 } from 'three';
 import {
   DEFAULT_HOLE_TEMPLATE,
+  LineSnapIndex,
   snapPoint,
   type Blast,
   type BlastId,
@@ -123,6 +124,8 @@ export interface SnapSettings {
   gridSize: number;
   holes: boolean;
   pattern: boolean;
+  /** Líneas de referencia de la topografía (cresta, pie, curvas). */
+  topography: boolean;
   /** Radio de captura en px CSS. */
   tolerancePx: number;
 }
@@ -158,6 +161,9 @@ export class Engine {
   /** Topografía en planta: sombreado, curvas y líneas de referencia. */
   private readonly topography = new TopographyLayer();
   private topographyData: readonly TopographyViewData[] = [];
+  private lineSnaps: LineSnapIndex[] = [];
+  /** Cota del terreno bajo un punto (la da la web con el índice del worker), para medir ΔZ. */
+  private elevationAt: ((x: number, y: number) => number | null) | null = null;
   private options3d: Scene3DOptions = DEFAULT_3D_OPTIONS;
   private readonly loop: RenderLoop;
   private readonly input: InputRouter;
@@ -257,6 +263,7 @@ export class Engine {
     gridSize: 1,
     holes: true,
     pattern: true,
+    topography: true,
     tolerancePx: 10,
   };
   private template: HoleTemplate = DEFAULT_HOLE_TEMPLATE;
@@ -650,6 +657,9 @@ export class Engine {
   setTopography(data: readonly TopographyViewData[]): void {
     const first = this.topographyData.length === 0 && data.length > 0;
     this.topographyData = data;
+    this.lineSnaps = data.flatMap((d) =>
+      d.lines ? [LineSnapIndex.fromData(d.lines, d.lineIndex ?? null)] : [],
+    );
     if (this.needsRebase([])) {
       this.rebase();
     } else {
@@ -657,6 +667,15 @@ export class Engine {
       this.applyView();
     }
     if (first && this.designEmpty()) this.zoomToFit();
+  }
+
+  /**
+   * Cota del terreno bajo un punto (O(log n) con el índice del worker); la medición suma ΔZ y
+   * pendiente cuando ambos extremos caen sobre la topografía. `null` la quita.
+   */
+  setElevationSource(source: ((x: number, y: number) => number | null) | null): void {
+    this.elevationAt = source;
+    this.positionMeasure();
   }
 
   /** Opacidad del relieve sombreado (0–1). */
@@ -838,7 +857,14 @@ export class Engine {
   private positionMeasure(): void {
     const a = this.measureA;
     const b = this.measureB;
-    this.decorations.setMeasure(a, b, b ? this.projectToScreen(b.x, b.y) : null);
+    const za = a && this.elevationAt ? this.elevationAt(a.x, a.y) : null;
+    const zb = b && this.elevationAt ? this.elevationAt(b.x, b.y) : null;
+    this.decorations.setMeasure(
+      a,
+      b,
+      b ? this.projectToScreen(b.x, b.y) : null,
+      za !== null && zb !== null ? zb - za : null,
+    );
   }
 
   private rebuild3d(): void {
@@ -1389,6 +1415,7 @@ export class Engine {
       gridSize: this.snap.gridSize,
       holes: this.snap.holes && !ignoreHoles,
       pattern: this.snap.pattern,
+      topography: this.snap.topography,
       tolerance: toleranceM,
     };
     const patterns: Pattern[] = [];
@@ -1396,6 +1423,22 @@ export class Engine {
     return snapPoint(x, y, options, {
       nearestHole: (px, py, maxDistance) => this.picker.current.nearest(px, py, maxDistance),
       patterns,
+      nearestLinePoint: (px, py, maxDistance) => {
+        let best: ReturnType<LineSnapIndex['nearest']> = null;
+        for (const idx of this.lineSnaps) {
+          const p = idx.nearest(px, py, maxDistance);
+          // Un vértice gana a un borde; entre iguales, el más cercano.
+          if (
+            p &&
+            (!best ||
+              (p.kind === 'lineVertex' && best.kind === 'lineEdge') ||
+              (p.kind === best.kind &&
+                Math.hypot(p.x - px, p.y - py) < Math.hypot(best.x - px, best.y - py)))
+          )
+            best = p;
+        }
+        return best;
+      },
     });
   }
 

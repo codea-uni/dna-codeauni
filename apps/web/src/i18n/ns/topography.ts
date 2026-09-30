@@ -108,6 +108,35 @@ export const es = {
   'topo.import.done': 'Topografía «{name}» agregada.',
   'topo.import.peek': 'Vista previa de «{name}»',
 
+  // Diseño sobre la topografía
+  'topo.design.title': 'Diseño sobre la topografía',
+  'topo.design.using': 'Con el levantamiento «{name}».',
+  'topo.design.drapeAll': 'Collares sobre la topografía',
+  'topo.design.drapeSelected': 'Collares sobre la topografía ({n} seleccionados)',
+  'topo.design.drapeUndo': 'Collares sobre la topografía ({n})',
+  'topo.design.drapeDone':
+    '{n} collares ajustados al terreno; el largo llega a piso + sobreperforación.',
+  'topo.design.drapeOutside':
+    '{n} collares ajustados; {out} taladros quedan fuera de la topografía y no cambiaron.',
+  'topo.design.noHoles': 'No hay taladros que ajustar.',
+  'topo.design.bench': 'Cota del banco desde la topografía',
+  'topo.design.benchConfirm':
+    'La mediana del terreno dentro del perímetro es {top} m. ¿Usarla como superficie del banco? El piso queda a {floor} m (altura {height} m).',
+  'topo.design.benchUndo': 'Cota del banco desde la topografía',
+  'topo.design.needBoundary': 'Dibuja o elige un perímetro primero',
+  'topo.design.outsideBoundary': 'El perímetro está fuera de la topografía.',
+  'topo.design.tolerance': 'Tolerancia a la cresta',
+  'topo.design.freeFace': 'Cara libre desde la cresta en «{name}»',
+  'topo.design.freeFaceUndo': 'Cara libre desde la cresta',
+  'topo.design.freeFaceDone': '{n} aristas de «{name}» marcadas como cara libre.',
+  'topo.design.noCrestEdges':
+    'Ninguna arista del perímetro sigue una cresta a menos de {m} m: revisa la tolerancia o dibuja el perímetro ajustándote a la cresta.',
+  'topo.design.fromLine': 'Perímetro desde una línea',
+  'topo.design.lineOption': '{role} · cota {z} m · {length} m',
+  'topo.design.createBoundary': 'Crear perímetro',
+  'topo.design.boundaryUndo': 'Perímetro {name} desde la topografía',
+  'topo.design.boundaryDone': '{name} creado desde la línea de la topografía.',
+
   // Página de la mina
   'topo.mine.empty':
     'Todavía no hay levantamientos. Se agregan desde el editor (Importar → Topografía) y quedan para todos los proyectos de la mina.',
@@ -245,6 +274,33 @@ export const en = {
   'topo.import.undo': 'Import topography “{name}”',
   'topo.import.done': 'Topography “{name}” added.',
   'topo.import.peek': 'Preview of “{name}”',
+
+  'topo.design.title': 'Design on the topography',
+  'topo.design.using': 'Using survey “{name}”.',
+  'topo.design.drapeAll': 'Collars on the topography',
+  'topo.design.drapeSelected': 'Collars on the topography ({n} selected)',
+  'topo.design.drapeUndo': 'Collars on the topography ({n})',
+  'topo.design.drapeDone': '{n} collars set on the ground; lengths reach floor + subdrill.',
+  'topo.design.drapeOutside':
+    '{n} collars set; {out} holes are outside the topography and did not change.',
+  'topo.design.noHoles': 'There are no holes to adjust.',
+  'topo.design.bench': 'Bench elevation from the topography',
+  'topo.design.benchConfirm':
+    'The median ground elevation inside the boundary is {top} m. Use it as the bench surface? The floor becomes {floor} m (height {height} m).',
+  'topo.design.benchUndo': 'Bench elevation from the topography',
+  'topo.design.needBoundary': 'Draw or choose a boundary first',
+  'topo.design.outsideBoundary': 'The boundary is outside the topography.',
+  'topo.design.tolerance': 'Crest tolerance',
+  'topo.design.freeFace': 'Free face from the crest on “{name}”',
+  'topo.design.freeFaceUndo': 'Free face from the crest',
+  'topo.design.freeFaceDone': '{n} edges of “{name}” marked as free face.',
+  'topo.design.noCrestEdges':
+    'No boundary edge follows a crest within {m} m: check the tolerance or draw the boundary snapping to the crest.',
+  'topo.design.fromLine': 'Boundary from a line',
+  'topo.design.lineOption': '{role} · elevation {z} m · {length} m',
+  'topo.design.createBoundary': 'Create boundary',
+  'topo.design.boundaryUndo': 'Boundary {name} from the topography',
+  'topo.design.boundaryDone': '{name} created from the topography line.',
 
   'topo.mine.empty':
     'No surveys yet. Add them from the editor (Import → Topography); every project of the mine can use them.',

@@ -1394,3 +1394,29 @@ button.link {
   border-radius: 6px;
   box-shadow: 0 8px 28px #0008;
 }
+
+.topo-tools {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0.8rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--border);
+}
+
+.topo-tools > button {
+  justify-self: start;
+}
+
+.topo-tools .row.wrap {
+  flex-wrap: wrap;
+}
+
+.topo-tools .field.wide-select {
+  grid-template-columns: 1fr;
+  gap: 0.2rem;
+}
+
+.topo-tools .field.wide-select select {
+  width: 100%;
+  min-width: 0;
+}

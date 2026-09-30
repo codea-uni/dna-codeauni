@@ -7,11 +7,13 @@ export interface SnapOptions {
   gridSize: Meters;
   holes: boolean;
   pattern: boolean;
+  /** Vértices y bordes de las líneas de referencia de la topografía (cresta, pie, curvas). */
+  topography?: boolean;
   /** Distancia máxima de captura para taladros y nodos de patrón [m]. */
   tolerance: Meters;
 }
 
-export type SnapKind = 'none' | 'grid' | 'hole' | 'pattern';
+export type SnapKind = 'none' | 'grid' | 'hole' | 'pattern' | 'lineVertex' | 'lineEdge';
 
 export interface SnapResult extends Vec2 {
   kind: SnapKind;
@@ -20,10 +22,17 @@ export interface SnapResult extends Vec2 {
 export interface SnapContext {
   nearestHole: (x: number, y: number, maxDistance: number) => Vec2 | null;
   patterns: readonly Pattern[];
+  /** Punto más cercano de una línea de referencia (vértice antes que borde), o `null`. */
+  nearestLinePoint?: (
+    x: number,
+    y: number,
+    maxDistance: number,
+  ) => (Vec2 & { kind: 'lineVertex' | 'lineEdge' }) | null;
 }
 
 /**
- * Ajusta un punto con prioridad: taladro existente > nodo de patrón > grilla.
+ * Ajusta un punto con prioridad: taladro existente > nodo de patrón > vértice de línea de
+ * referencia > borde de línea > grilla.
  * Taladros y nodos solo capturan dentro de la tolerancia; la grilla captura siempre.
  */
 export function snapPoint(
@@ -48,6 +57,10 @@ export function snapPoint(
       }
     }
     if (best) return { x: best.x, y: best.y, kind: 'pattern' };
+  }
+  if (options.topography && ctx.nearestLinePoint) {
+    const p = ctx.nearestLinePoint(x, y, options.tolerance);
+    if (p) return { x: p.x, y: p.y, kind: p.kind };
   }
   if (options.grid && options.gridSize > 0) {
     return {

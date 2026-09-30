@@ -18,6 +18,8 @@ export const ENGINE_TEXT = {
   'map.west': 'O',
   'map.rulerCorner': 'Coordenadas del proyecto: Este (arriba) y Norte (izquierda)',
   'map.grid': 'grilla',
+  /** Pendiente entre los extremos de una medición sobre la topografía. */
+  'map.slope': 'pendiente {deg}°',
   /** Separador decimal de los números del mapa. */
   'map.decimal': ',',
 };

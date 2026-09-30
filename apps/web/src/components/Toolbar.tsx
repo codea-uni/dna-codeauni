@@ -447,6 +447,14 @@ export function Toolbar() {
           }}
         />
         <IconButton
+          icon={Mountain}
+          label={tr('tools.snapTopography')}
+          active={snap.topography}
+          onClick={() => {
+            setSnap({ topography: !snap.topography });
+          }}
+        />
+        <IconButton
           icon={Grid3x3}
           label={tr('tools.snapGrid')}
           active={snap.grid}

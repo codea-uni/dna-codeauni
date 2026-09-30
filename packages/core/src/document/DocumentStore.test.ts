@@ -16,6 +16,7 @@ import {
   addBoundary,
   makeBoundary,
   removeBoundary,
+  setFreeFaceEdges,
   toggleFreeFaceEdge,
 } from './commands';
 import { DocumentStore } from './DocumentStore';
@@ -119,6 +120,14 @@ describe('DocumentStore', () => {
     store.dispatch(toggleFreeFaceEdge(store, blastId, b2.id, 0), 'Cara libre');
     expect(blast()?.boundaries[1]?.freeFaceEdges).toEqual([0, 2]);
     store.dispatch(toggleFreeFaceEdge(store, blastId, b2.id, 2), 'Cara libre');
+    expect(blast()?.boundaries[1]?.freeFaceEdges).toEqual([0]);
+    // Desde la cresta: reemplaza las aristas (ordenadas, sin repetir) y se deshace.
+    store.dispatch(
+      setFreeFaceEdges(store, blastId, b2.id, [2, 1, 2]),
+      'Cara libre desde la cresta',
+    );
+    expect(blast()?.boundaries[1]?.freeFaceEdges).toEqual([1, 2]);
+    store.undo();
     expect(blast()?.boundaries[1]?.freeFaceEdges).toEqual([0]);
     store.dispatch(removeBoundary(store, blastId, b1.id), 'Borrar');
     expect(blast()?.boundaries.map((b) => b.id)).toEqual([b2.id]);

@@ -187,7 +187,13 @@ export class MapDecorations {
   }
 
   /** Etiqueta de medición junto a `screen`; null la oculta. */
-  setMeasure(a: Vec2 | null, b: Vec2 | null, screen: { x: number; y: number } | null): void {
+  /** `dz`: diferencia de cota del terreno de A a B [m] (si ambos caen sobre la topografía). */
+  setMeasure(
+    a: Vec2 | null,
+    b: Vec2 | null,
+    screen: { x: number; y: number } | null,
+    dz: number | null = null,
+  ): void {
     if (!a || !b || !screen) {
       this.measureLabel.hidden = true;
       return;
@@ -196,7 +202,13 @@ export class MapDecorations {
     const az = (m.azimuth * 180) / Math.PI;
     const c = (v: number, d: number) => this.num(v.toFixed(d).replace('.', ',').replace('-', '−'));
     const dir = cardinal(m.azimuth).replace('O', this.text('map.west'));
-    this.measureLabel.innerHTML = `<b>${this.num(formatDistance(m.distance))}</b> · ${c(az, 1)}° ${dir} · ΔE ${c(m.dx, 2)} · ΔN ${c(m.dy, 2)}`;
+    const slope =
+      dz === null
+        ? ''
+        : ` · ΔZ ${c(dz, 2)} · ${this.text('map.slope', {
+            deg: c((Math.atan2(dz, m.distance) * 180) / Math.PI, 1),
+          })}`;
+    this.measureLabel.innerHTML = `<b>${this.num(formatDistance(m.distance))}</b> · ${c(az, 1)}° ${dir} · ΔE ${c(m.dx, 2)} · ΔN ${c(m.dy, 2)}${slope}`;
     this.measureLabel.style.left = `${screen.x}px`;
     this.measureLabel.style.top = `${screen.y}px`;
     this.measureLabel.hidden = false;

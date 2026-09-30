@@ -130,7 +130,14 @@ interface UiState {
 
 export const useUiStore = create<UiState>()((set) => ({
   tool: 'select',
-  snap: { grid: false, gridSize: 1, holes: true, pattern: true, tolerancePx: 10 },
+  snap: {
+    grid: false,
+    gridSize: 1,
+    holes: true,
+    pattern: true,
+    topography: true,
+    tolerancePx: 10,
+  },
   holeTemplate: DEFAULT_HOLE_TEMPLATE,
   tieConnectorId: undefined,
   leftTab: 'design',

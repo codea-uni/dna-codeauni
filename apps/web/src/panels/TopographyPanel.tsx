@@ -7,6 +7,7 @@ import { useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
 import { session } from '../session';
 import { isTopographyLoaded, onTopographyChange } from '../topography/session';
+import { TopographyDesignTools } from './TopographyDesignTools';
 
 const FORMAT_KEY = {
   dxf: 'topo.format.dxf',
@@ -123,6 +124,7 @@ export function TopographyPanel() {
           })}
         </ul>
       )}
+      {blast && surveys.length > 0 && <TopographyDesignTools blast={blast} />}
       <button
         onClick={() => {
           if (actions.requireCrs()) input.current?.click();

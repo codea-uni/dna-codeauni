@@ -166,6 +166,7 @@ export const es = {
   'engine.map.west': 'O',
   'engine.map.rulerCorner': 'Coordenadas del proyecto: Este (arriba) y Norte (izquierda)',
   'engine.map.grid': 'grilla',
+  'engine.map.slope': 'pendiente {deg}°',
   'engine.map.decimal': ',',
 };
 
@@ -324,5 +325,6 @@ export const en = {
   'engine.map.west': 'W',
   'engine.map.rulerCorner': 'Project coordinates: Easting (top) and Northing (left)',
   'engine.map.grid': 'grid',
+  'engine.map.slope': 'slope {deg}°',
   'engine.map.decimal': '.',
 } satisfies Record<keyof typeof es, string>;

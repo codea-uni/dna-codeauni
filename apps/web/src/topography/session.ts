@@ -5,6 +5,7 @@ import {
   type BlastId,
   type Bounds3,
   type LineSetData,
+  type LineSummary,
   type Op,
   type Project,
   type SurveyInput,
@@ -26,6 +27,8 @@ interface LoadedSurvey {
   survey: TopographySurvey;
   tin?: TinData;
   lines?: LineSetData;
+  /** Resumen de cada línea (rol, largo, cota), para elegirlas como perímetro. */
+  lineSummaries?: LineSummary[];
   index?: SurfaceIndex;
   view: TopographyViewData;
 }
@@ -62,6 +65,11 @@ export function applyTopographyToEngine(): void {
   const tins = new Map<string, TinData>();
   for (const [id, s] of loaded) if (s.tin) tins.set(id, s.tin);
   engine.setTopographyTins(tins);
+  engine.setElevationSource(
+    loaded.size > 0
+      ? (x, y) => topographyElevation(x, y, session.document.project.blasts[0]?.bench.topographyId)
+      : null,
+  );
   // El más reciente arriba: se dibujan en orden de fecha.
   const views = [...loaded.values()]
     .sort((a, b) => a.survey.surveyDate.localeCompare(b.survey.surveyDate))
@@ -174,18 +182,29 @@ async function load(survey: TopographySurvey): Promise<boolean> {
     const tin = tinAsset?.kind === 'tin' ? tinAsset.tin : undefined;
     const lines = linesAsset?.kind === 'lines' ? linesAsset.lines : undefined;
     const api = getCompute().api;
-    const [shade, contours, indexData] = tin
-      ? await Promise.all([
-          api.topographyHillshade(tin),
-          api.topographyContours(tin, { interval: contourInterval(survey) }),
-          api.topographyIndex(tin),
-        ])
-      : [null, null, null];
+    const [[shade, contours, indexData], lineInfo] = await Promise.all([
+      tin
+        ? Promise.all([
+            api.topographyHillshade(tin),
+            api.topographyContours(tin, { interval: contourInterval(survey) }),
+            api.topographyIndex(tin),
+          ])
+        : Promise.resolve([null, null, null] as const),
+      lines ? api.topographyLineInfo(lines) : Promise.resolve(null),
+    ]);
     loaded.set(survey.id, {
       survey,
       ...(tin ? { tin, index: SurfaceIndex.fromData(tin, indexData) } : {}),
       ...(lines ? { lines } : {}),
-      view: { id: survey.id, bounds: survey.bounds, shade, contours, lines: lines ?? null },
+      ...(lineInfo ? { lineSummaries: lineInfo.summaries } : {}),
+      view: {
+        id: survey.id,
+        bounds: survey.bounds,
+        shade,
+        contours,
+        lines: lines ?? null,
+        lineIndex: lineInfo?.index ?? null,
+      },
     });
     return true;
   } finally {
@@ -261,6 +280,29 @@ export async function createSurveyOps(
       patch: { bench: { ...blast.bench, topographyId: survey.id } },
     });
   return { ops, survey };
+}
+
+/** Levantamientos cargados con sus datos (para las herramientas de diseño). */
+export function loadedSurveys(): readonly {
+  survey: TopographySurvey;
+  tin?: TinData;
+  lines?: LineSetData;
+  lineSummaries?: LineSummary[];
+}[] {
+  return [...loaded.values()];
+}
+
+/**
+ * El levantamiento para diseñar: el que usa el banco de la voladura y, si no hay, el más reciente
+ * con triangulación.
+ */
+export function designSurvey(): (LoadedSurvey & { tin: TinData }) | undefined {
+  const preferred = session.document.project.blasts[0]?.bench.topographyId;
+  const all = [...loaded.values()].filter((s): s is LoadedSurvey & { tin: TinData } => !!s.tin);
+  return (
+    all.find((s) => s.survey.id === preferred) ??
+    all.sort((a, b) => b.survey.surveyDate.localeCompare(a.survey.surveyDate))[0]
+  );
 }
 
 /** ¿Están en este navegador los datos del levantamiento? */

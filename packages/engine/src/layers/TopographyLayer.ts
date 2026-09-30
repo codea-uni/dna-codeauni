@@ -36,6 +36,8 @@ export interface TopographyViewData {
   } | null;
   contours: ContourSet | null;
   lines: LineSetData | null;
+  /** Índice de las líneas para el ajuste del cursor, armado en el worker (`LineSnapIndex`). */
+  lineIndex?: ArrayBuffer | null;
 }
 
 /** Colores de las líneas de referencia por rol. */

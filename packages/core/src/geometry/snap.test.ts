@@ -43,6 +43,22 @@ describe('snapping', () => {
     expect(r.y).toBeCloseTo(5);
   });
 
+  it('línea de la topografía antes que la grilla y después del patrón', () => {
+    const ctx = {
+      ...noHoles,
+      nearestLinePoint: () => ({ x: 12.3, y: 7.9, kind: 'lineEdge' as const }),
+    };
+    expect(snapPoint(12.2, 8.1, { ...all, topography: true }, ctx)).toEqual({
+      x: 12.3,
+      y: 7.9,
+      kind: 'lineEdge',
+    });
+    // Sin el modo activo, la grilla.
+    expect(snapPoint(12.2, 8.1, all, ctx).kind).toBe('grid');
+    // Un nodo de patrón dentro de la tolerancia gana.
+    expect(snapPoint(5.1, 0.1, { ...all, topography: true }, ctx).kind).toBe('pattern');
+  });
+
   it('grilla cuando nada más captura', () => {
     const r = snapPoint(12.4, 7.6, all, noHoles);
     expect(r).toEqual({ x: 12, y: 8, kind: 'grid' });

@@ -39,6 +39,15 @@ import {
   inspectTopography,
   readTopography,
   SurfaceIndex,
+  drapeHoles,
+  freeFaceEdgesFromLines,
+  LineSnapIndex,
+  summarizeLines,
+  type LineSummary,
+  medianElevationInPolygon,
+  type DrapeResult,
+  type LineSetData,
+  type Vec2,
   type AssembleOptions,
   type AssembleResult,
   type ContourOptions,
@@ -351,6 +360,37 @@ export const computeApi = {
   topographyIndex(tin: TinData): ArrayBuffer | null {
     const data = SurfaceIndex.build(tin).data;
     return data ? transfer(data, [data]) : null;
+  },
+
+  /**
+   * Líneas de referencia: su índice para el ajuste del cursor (`LineSnapIndex.fromData`) y un
+   * resumen de cada una (rol, largo, cota) para elegirlas como perímetro.
+   */
+  topographyLineInfo(lines: LineSetData): { index: ArrayBuffer | null; summaries: LineSummary[] } {
+    const index = LineSnapIndex.build(lines).data;
+    const out = { index, summaries: summarizeLines(lines) };
+    return index ? transfer(out, [index]) : out;
+  },
+
+  /** Aristas del perímetro que siguen la cresta dentro de la tolerancia (S-15). */
+  topographyFreeFaces(lineSets: LineSetData[], polygon: Vec2[], tolerance: number): number[] {
+    return freeFaceEdgesFromLines(polygon, lineSets, tolerance);
+  },
+
+  /** Collares sobre la topografía: cota de boca del terreno y largo hasta piso + J (O(n log m)). */
+  topographyDrape(
+    tin: TinData,
+    holes: Hole[],
+    blast: Pick<Blast, 'bench' | 'calcParams'>,
+  ): DrapeResult {
+    const index = SurfaceIndex.build(tin);
+    return drapeHoles(holes, (x, y) => index.elevationAt(x, y), blast);
+  },
+
+  /** Mediana de la cota del terreno dentro del perímetro (cota del banco), o `null`. */
+  topographyBenchElevation(tin: TinData, polygon: Vec2[]): number | null {
+    const index = SurfaceIndex.build(tin);
+    return medianElevationInPolygon(polygon, (x, y) => index.elevationAt(x, y));
   },
 
   /** Assets binarios → base64, para embeberlos en un `.cronos.json` exportado. */

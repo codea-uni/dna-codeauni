@@ -258,6 +258,19 @@ export function toggleFreeFaceEdge(
   );
 }
 
+/** Reemplaza las aristas de cara libre de un perímetro (p. ej. las que siguen la cresta). */
+export function setFreeFaceEdges(
+  doc: DocumentReader,
+  blastId: BlastId,
+  id: BoundaryId,
+  edges: readonly number[],
+): Op[] {
+  const freeFaceEdges = [...new Set(edges)].sort((x, y) => x - y);
+  return patchBoundaries(doc, blastId, (list) =>
+    list.map((b) => (b.id === id ? { ...b, freeFaceEdges } : b)),
+  );
+}
+
 /** Nombre libre "Perímetro N" para un perímetro nuevo. */
 export function nextBoundaryName(blast: Pick<Blast, 'boundaries'>): string {
   const used = new Set(blast.boundaries.map((b) => b.name));
