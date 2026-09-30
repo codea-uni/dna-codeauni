@@ -45,7 +45,7 @@ import { useUiStore } from '../stores/uiStore';
 import { IconButton } from './IconButton';
 import { MenuButton } from './MenuButton';
 import { UserMenu } from '../auth/UserMenu';
-import { BackToMine, ProjectContext } from '../server/ProjectContext';
+import { BackToMine, ProjectActions, ProjectContext } from '../server/ProjectContext';
 import { serverMode } from '../server/api';
 import { t as translate, useT, type MessageKey } from '../i18n';
 import { exampleText } from '../i18n/coreText';
@@ -482,6 +482,7 @@ export function Toolbar() {
       </div>
       {serverMode && (
         <div className="toolbar-group toolbar-account">
+          <ProjectActions />
           <BackToMine />
           <UserMenu />
         </div>

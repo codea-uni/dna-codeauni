@@ -3,25 +3,40 @@ import { useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 import { App } from '../App';
 import { AuthShell } from '../auth/AuthGate';
-import { useT } from '../i18n';
-import { useProjectSession } from '../server/projectSession';
+import { useFormatDate, useT } from '../i18n';
+import { PublishDialog } from '../server/PublishDialog';
+import { useServerDialogs } from '../server/ProjectContext';
+import { hasUnpublished, useProjectSession } from '../server/projectSession';
+import { VersionHistoryDialog } from '../server/VersionHistoryDialog';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 
-/** Editor de un proyecto de la mina: carga su última versión y monta el editor de siempre. */
+/**
+ * Editor de un proyecto de la mina: carga la última versión (o, con `:number`, una anterior en
+ * solo lectura) y monta el editor de siempre.
+ */
 export function ProjectEditor() {
   const t = useT();
-  const { projectId = '' } = useParams();
+  const { projectId = '', number } = useParams();
+  const version = number === undefined ? undefined : Number(number);
   const status = useProjectSession((s) => s.status);
   const current = useProjectSession((s) => s.current);
   const error = useProjectSession((s) => s.error);
   const open = useProjectSession((s) => s.open);
   const close = useProjectSession((s) => s.close);
+  const dialog = useServerDialogs((s) => s.open);
+  const showDialog = useServerDialogs((s) => s.show);
 
   useEffect(() => {
-    void open(projectId);
-  }, [projectId, open]);
-  useEffect(() => close, [close]);
+    void open(projectId, version);
+  }, [projectId, version, open]);
+  useEffect(
+    () => () => {
+      close();
+      showDialog(null);
+    },
+    [close, showDialog],
+  );
   // El revisor intenta editar: se le explica en vez de fallar en silencio (H-801).
   useEffect(
     () =>
@@ -30,6 +45,16 @@ export function ProjectEditor() {
       }),
     [t],
   );
+  // Cerrar la pestaña con cambios sin publicar: el navegador pide confirmar (quedan en borrador).
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnpublished()) e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, []);
 
   if (status === 'error')
     return (
@@ -44,7 +69,51 @@ export function ProjectEditor() {
         </Link>
       </AuthShell>
     );
-  if (status !== 'ready' || current?.projectId !== projectId)
-    return <AuthShell>{t('projects.loading')}</AuthShell>;
-  return <App restoreLocalDraft={false} />;
+  const loaded =
+    status === 'ready' &&
+    current?.projectId === projectId &&
+    (version === undefined ? !current.viewingOld : current.base.number === version);
+  if (!loaded) return <AuthShell>{t('projects.loading')}</AuthShell>;
+
+  const closeDialog = () => {
+    showDialog(null);
+  };
+  return (
+    <>
+      <App restoreLocalDraft={false} />
+      <EditorBanner />
+      {dialog === 'publish' && <PublishDialog onClose={closeDialog} />}
+      {dialog === 'history' && <VersionHistoryDialog onClose={closeDialog} />}
+    </>
+  );
+}
+
+/** Aviso flotante: consulta de una versión anterior, o borrador local sin publicar. */
+function EditorBanner() {
+  const t = useT();
+  const fmtDate = useFormatDate();
+  const current = useProjectSession((s) => s.current);
+  const draft = useProjectSession((s) => s.draft);
+  const recover = useProjectSession((s) => s.recoverDraft);
+  const dismiss = useProjectSession((s) => s.dismissDraft);
+  if (!current) return null;
+  if (current.viewingOld)
+    return (
+      <div className="editor-banner" role="status">
+        {t('history.viewingOld', { n: current.base.number })}
+        <Link to={`/projects/${current.projectId}`}>
+          {t('history.backToLatest', { n: current.latestNumber })}
+        </Link>
+      </div>
+    );
+  if (!draft) return null;
+  return (
+    <div className="editor-banner" role="status">
+      {t('history.draftFound', { date: fmtDate(draft.savedAt) })}
+      <button className="primary-inline" onClick={() => void recover()}>
+        {t('history.recoverDraft')}
+      </button>
+      <button onClick={dismiss}>{t('history.dismissDraft')}</button>
+    </div>
+  );
 }

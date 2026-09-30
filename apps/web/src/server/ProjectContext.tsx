@@ -1,17 +1,30 @@
-import { Building2, Eye } from 'lucide-react';
+import { permissions } from '@cronos/api';
+import { Building2, CloudUpload, Eye, History } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { create } from 'zustand';
 import { IconButton } from '../components/IconButton';
 import { useProject } from '../hooks/useDocument';
-import { useT } from '../i18n';
-import { useProjectSession } from './projectSession';
+import { t as translate, useT } from '../i18n';
+import { hasUnpublished, useProjectSession, useUnpublished } from './projectSession';
 
-/** Mina, proyecto y versión base en la barra del editor; «Solo lectura» para el revisor. */
+/** Diálogos del modo servidor dentro del editor. */
+export const useServerDialogs = create<{
+  open: 'publish' | 'history' | null;
+  show: (d: 'publish' | 'history' | null) => void;
+}>((set) => ({
+  open: null,
+  show: (open) => {
+    set({ open });
+  },
+}));
+
+/** Mina, proyecto y versión en la barra del editor, con avisos de solo lectura y sin publicar. */
 export function ProjectContext() {
   const t = useT();
   const current = useProjectSession((s) => s.current);
   const project = useProject();
+  const unpublished = useUnpublished();
   if (!current) return null;
-  const readOnly = current.role === 'reviewer';
   return (
     <div className="toolbar-context">
       <span className="muted">
@@ -21,13 +34,56 @@ export function ProjectContext() {
           n: current.base.number,
         })}
       </span>
-      {readOnly && (
+      {current.viewingOld ? (
+        <span className="badge">
+          <Eye size={12} aria-hidden /> {t('history.viewingOld', { n: current.base.number })}
+        </span>
+      ) : current.role === 'reviewer' ? (
         <span className="badge" title={t('projects.readOnlyHint')}>
           <Eye size={12} aria-hidden /> {t('projects.readOnly')}
         </span>
+      ) : (
+        unpublished && <span className="badge unpublished">{t('history.unpublished')}</span>
       )}
     </div>
   );
+}
+
+/** Historial del proyecto y «Guardar versión» (solo quien puede editar y sobre la última). */
+export function ProjectActions() {
+  const t = useT();
+  const current = useProjectSession((s) => s.current);
+  const unpublished = useUnpublished();
+  const show = useServerDialogs((s) => s.show);
+  if (!current) return null;
+  const canPublish = permissions.editDesign(current.role) && !current.viewingOld;
+  return (
+    <>
+      <IconButton
+        icon={History}
+        label={t('history.title')}
+        onClick={() => {
+          show('history');
+        }}
+      />
+      {canPublish && (
+        <IconButton
+          icon={CloudUpload}
+          label={t('history.publish')}
+          active={unpublished}
+          disabled={!unpublished}
+          onClick={() => {
+            show('publish');
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/** Confirma salir del editor si hay cambios sin publicar (quedan como borrador local). */
+export function confirmLeave(): boolean {
+  return !hasUnpublished() || window.confirm(translate('history.unpublishedConfirm'));
 }
 
 /** Vuelve del editor a la mina del proyecto (o a las minas si no hay proyecto abierto). */
@@ -40,7 +96,7 @@ export function BackToMine() {
       icon={Building2}
       label={mineId ? t('projects.backToMine') : t('workspace.backToMines')}
       onClick={() => {
-        void navigate(mineId ? `/mines/${mineId}` : '/');
+        if (confirmLeave()) void navigate(mineId ? `/mines/${mineId}` : '/');
       }}
     />
   );

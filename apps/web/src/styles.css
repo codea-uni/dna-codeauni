@@ -1542,3 +1542,69 @@ a.button-link {
 a.button-link:hover {
   border-color: var(--accent);
 }
+
+.badge.unpublished {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.editor-banner {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  z-index: 15;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.6rem;
+  align-items: center;
+  max-width: calc(100vw - 32px);
+  padding: 0.45rem 0.8rem;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px #0008;
+  transform: translateX(-50%);
+}
+
+.editor-banner a {
+  color: var(--accent);
+}
+
+.editor-banner > button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.change-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.publish-modal textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.page-table tr.current td {
+  background: #1f293766;
+}
+
+.page-table td.actions {
+  white-space: nowrap;
+}
+
+.page-table td.actions button + button {
+  margin-left: 0.4rem;
+}

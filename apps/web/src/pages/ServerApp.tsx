@@ -21,6 +21,7 @@ export function ServerApp() {
           <Route path="/mines/:mineId" element={<MinePage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/projects/:projectId" element={<ProjectEditor />} />
+          <Route path="/projects/:projectId/versions/:number" element={<ProjectEditor />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthGate>

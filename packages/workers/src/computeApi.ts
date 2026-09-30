@@ -27,6 +27,9 @@ import {
   parseCsv,
   generatePatternHoles,
   parseProjectFile,
+  diffProjects,
+  type DiffOptions,
+  type ProjectDiff,
   ping,
   serializeProject,
   type AnalysisOptions,
@@ -264,6 +267,11 @@ export const computeApi = {
   /** Parsea, migra y valida un archivo de proyecto. */
   parseProject(text: string): ParseResult {
     return parseProjectFile(text);
+  },
+
+  /** Diferencias entre dos versiones de un proyecto (historial de la mina, D-14). */
+  diffProjects(before: Project, after: Project, options?: DiffOptions): ProjectDiff {
+    return diffProjects(before, after, options);
   },
 };
 

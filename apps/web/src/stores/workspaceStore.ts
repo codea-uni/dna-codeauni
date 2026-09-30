@@ -61,6 +61,10 @@ export function workspaceErrorKey(err: unknown): MessageKey {
       return 'projects.error.crsMismatch';
     case 'invalid_project':
       return 'projects.error.invalid';
+    case 'version_conflict':
+      return 'history.error.conflict';
+    case 'no_changes':
+      return 'history.error.noChanges';
     default:
       return err.status >= 500 ? 'auth.error.unreachable' : 'auth.error.unexpected';
   }

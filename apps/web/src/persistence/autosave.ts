@@ -62,6 +62,20 @@ export async function readVersion(id: number): Promise<SavedVersion | undefined>
   return info && text !== undefined ? { ...info, text } : undefined;
 }
 
+let draftBase: string | null = null;
+/**
+ * Modo servidor: versión base del proyecto abierto. Cada borrador la guarda para saber, al volver
+ * a abrir el proyecto, si el borrador se hizo sobre la última versión publicada.
+ */
+export function setDraftBase(versionId: string | null): void {
+  draftBase = versionId;
+}
+
+/** Último borrador local del proyecto, si hay. */
+export async function latestDraft(projectId: string): Promise<VersionInfo | undefined> {
+  return (await listVersions()).find((v) => v.projectId === projectId);
+}
+
 /** Guarda el JSON ya serializado como versión del proyecto, según `planWrite`. */
 export async function saveVersion(project: Project, text: string, now = new Date()): Promise<void> {
   const plan = planWrite(await listVersions(), project.id, now);
@@ -71,6 +85,7 @@ export async function saveVersion(project: Project, text: string, now = new Date
     name: project.name,
     savedAt: now.toISOString(),
     holes: project.blasts.reduce((n, b) => n + b.holes.length, 0),
+    ...(draftBase === null ? {} : { baseVersionId: draftBase }),
     ...(plan.overwriteId === null ? {} : { id: plan.overwriteId }),
   };
   const id = await request(meta.put(info));
@@ -87,10 +102,15 @@ async function write(project: Project): Promise<void> {
   await saveVersion(project, text);
 }
 
-let suppressNext = false;
-/** Carga una versión sin volver a guardarla como nueva. */
+/**
+ * Versión del documento que no hay que guardar: la de una carga (restaurar, abrir de la mina).
+ * Se marca la versión exacta y no «el próximo cambio», porque el autoguardado puede no estar
+ * suscrito en ese momento (el editor se está montando) y se saltaría un cambio real después.
+ */
+let skipVersion = -1;
+/** Carga un proyecto sin volver a guardarlo como versión nueva. */
 export function loadWithoutSaving(project: Project): void {
-  suppressNext = true;
+  skipVersion = session.document.version + 1;
   session.document.load(project);
 }
 
@@ -110,11 +130,8 @@ export function startAutosave(): () => void {
       console.error('[autoguardado]', err);
     });
   };
-  const off = session.document.subscribe(() => {
-    if (suppressNext) {
-      suppressNext = false;
-      return;
-    }
+  const off = session.document.subscribe((_changes, store) => {
+    if (store.version === skipVersion) return;
     dirty = true;
     if (timer) clearTimeout(timer);
     timer = setTimeout(flush, DEBOUNCE_MS);

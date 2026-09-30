@@ -4,6 +4,7 @@ import type { Messages } from './es';
 import * as app from './ns/app';
 import * as auth from './ns/auth';
 import * as core from './ns/core';
+import * as history from './ns/history';
 import * as panelsA from './ns/panelsA';
 import * as panelsB from './ns/panelsB';
 import * as projects from './ns/projects';
@@ -13,6 +14,7 @@ export const en = {
   ...app.en,
   ...auth.en,
   ...core.en,
+  ...history.en,
   ...panelsA.en,
   ...panelsB.en,
   ...projects.en,

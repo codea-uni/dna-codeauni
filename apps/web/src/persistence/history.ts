@@ -6,6 +6,8 @@ export interface VersionInfo {
   /** ISO 8601. */
   savedAt: string;
   holes: number;
+  /** Modo servidor: versión de la mina sobre la que se hizo este borrador (D-14). */
+  baseVersionId?: string;
 }
 
 /** Versiones que se conservan por proyecto (H-102). */

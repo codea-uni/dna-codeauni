@@ -5,6 +5,7 @@
 import * as app from './ns/app';
 import * as auth from './ns/auth';
 import * as core from './ns/core';
+import * as history from './ns/history';
 import * as panelsA from './ns/panelsA';
 import * as panelsB from './ns/panelsB';
 import * as projects from './ns/projects';
@@ -14,6 +15,7 @@ export const es = {
   ...app.es,
   ...auth.es,
   ...core.es,
+  ...history.es,
   ...panelsA.es,
   ...panelsB.es,
   ...projects.es,

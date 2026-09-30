@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { createEmptyProject } from '@cronos/core';
 import { describe, expect, it } from 'vitest';
-import { listVersions, readVersion, saveVersion } from './autosave';
+import { latestDraft, listVersions, readVersion, saveVersion, setDraftBase } from './autosave';
 import { KEEP_VERSIONS } from './history';
 
 const at = (min: number) => new Date(Date.UTC(2026, 8, 28, 12, min));
@@ -26,5 +26,15 @@ describe('autoguardado en IndexedDB', () => {
     const oldest = list[list.length - 1];
     expect((await readVersion(newest?.id ?? -1))?.text).toBe(`{"v":${String(KEEP_VERSIONS + 3)}}`);
     expect(oldest?.savedAt).toBe(at(6).toISOString());
+  });
+
+  it('en modo servidor cada borrador recuerda su versión base (D-14)', async () => {
+    const project = createEmptyProject('Banco 3400');
+    setDraftBase('version-1');
+    await saveVersion(project, '{"v":"a"}', at(40));
+    setDraftBase(null);
+    const draft = await latestDraft(project.id);
+    expect(draft).toMatchObject({ projectId: project.id, baseVersionId: 'version-1' });
+    expect(await latestDraft('otro-proyecto')).toBeUndefined();
   });
 });
