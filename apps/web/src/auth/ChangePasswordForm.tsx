@@ -33,6 +33,7 @@ export function ChangePasswordForm({ onDone }: { onDone?: () => void }) {
         <span>{t('auth.currentPassword')}</span>
         <input
           type="password"
+          name="current-password"
           autoComplete="current-password"
           required
           value={current}
@@ -45,6 +46,7 @@ export function ChangePasswordForm({ onDone }: { onDone?: () => void }) {
         <span>{t('auth.newPassword')}</span>
         <input
           type="password"
+          name="new-password"
           autoComplete="new-password"
           required
           minLength={10}
@@ -58,6 +60,7 @@ export function ChangePasswordForm({ onDone }: { onDone?: () => void }) {
         <span>{t('auth.repeatPassword')}</span>
         <input
           type="password"
+          name="repeat-password"
           autoComplete="new-password"
           required
           minLength={10}
@@ -67,7 +70,7 @@ export function ChangePasswordForm({ onDone }: { onDone?: () => void }) {
           }}
         />
       </label>
-      <p className="muted">{t('auth.passwordHint')}</p>
+      <p className="auth-note">{t('auth.passwordHint')}</p>
       {error && (
         <p className="auth-error" role="alert">
           {t(error)}

@@ -38,4 +38,12 @@ describe('summaryParts', () => {
     expect(summaryParts(EMPTY, t)).toEqual(['no design changes']);
     useLocale.getState().setLocale('es');
   });
+
+  it('usa el singular con uno solo', () => {
+    useLocale.getState().setLocale('es');
+    expect(summaryParts({ ...EMPTY, holesMoved: 1, holesAdded: 2 }, t)).toEqual([
+      '+2 taladros',
+      '1 movido',
+    ]);
+  });
 });

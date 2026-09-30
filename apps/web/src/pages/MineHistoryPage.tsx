@@ -135,45 +135,51 @@ export function MineHistoryPage() {
       <Link to={`/mines/${mineId}`} className="back-link">
         <ArrowLeft size={14} aria-hidden /> {t('projects.backToMine')}
       </Link>
-      <h1>{mine ? t('history.mineTitle', { mine: mine.mine.name }) : t('history.mineLink')}</h1>
-      <p className="muted">{t('history.mineHint')}</p>
+      <header className="page-head">
+        <h1>{mine ? t('history.mineTitle', { mine: mine.mine.name }) : t('history.mineLink')}</h1>
+        <p className="lede">{t('history.mineHint')}</p>
+      </header>
       {error && (
-        <p className="auth-error" role="alert">
+        <p className="form-error" role="alert">
           {t(error)}
         </p>
       )}
 
-      <div className="inline-form filters">
-        <select
-          aria-label={t('history.filterProject')}
-          value={filters.projectId}
-          onChange={(e) => {
-            set({ projectId: e.target.value });
-          }}
-        >
-          <option value="">{t('history.allProjects')}</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label={t('history.filterAuthor')}
-          value={filters.authorId}
-          onChange={(e) => {
-            set({ authorId: e.target.value });
-          }}
-        >
-          <option value="">{t('history.allAuthors')}</option>
-          {members.map((m) => (
-            <option key={m.userId} value={m.userId}>
-              {m.name}
-            </option>
-          ))}
-        </select>
+      <div className="filters">
         <label>
-          <span className="muted">{t('history.from')}</span>
+          {t('history.filterProject')}
+          <select
+            value={filters.projectId}
+            onChange={(e) => {
+              set({ projectId: e.target.value });
+            }}
+          >
+            <option value="">{t('history.allProjects')}</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t('history.filterAuthor')}
+          <select
+            value={filters.authorId}
+            onChange={(e) => {
+              set({ authorId: e.target.value });
+            }}
+          >
+            <option value="">{t('history.allAuthors')}</option>
+            {members.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t('history.from')}
           <input
             type="date"
             value={filters.from}
@@ -183,7 +189,7 @@ export function MineHistoryPage() {
           />
         </label>
         <label>
-          <span className="muted">{t('history.to')}</span>
+          {t('history.to')}
           <input
             type="date"
             value={filters.to}
@@ -195,25 +201,35 @@ export function MineHistoryPage() {
       </div>
 
       {!versions && !error && <p className="muted">{t('workspace.loading')}</p>}
-      {versions?.length === 0 && <p className="muted">{t('history.empty')}</p>}
+      {versions?.length === 0 && (
+        <p className="empty">
+          <strong>{t('history.empty')}</strong>
+          {t('history.emptyHint')}
+        </p>
+      )}
       <ol className="timeline">
         {days.map((d) => (
-          <li key={d.day}>
+          <li key={d.day} className="timeline-day">
             <h3>{d.day}</h3>
-            <ul>
+            <ol>
               {d.items.map((v) => (
                 <li key={v.id} className="timeline-entry">
-                  <span className="muted timeline-time" title={fmtDate(v.createdAt)}>
+                  <time dateTime={v.createdAt} title={fmtDate(v.createdAt)}>
                     {timeFormat.format(new Date(v.createdAt))}
-                  </span>
-                  <div>
-                    <div>
-                      <strong>{v.projectName}</strong> <span className="badge">v{v.number}</span>{' '}
-                      <span className="muted">· {v.authorName}</span>
+                  </time>
+                  <div className="what">
+                    <div className="who">
+                      <strong>{v.projectName}</strong>
+                      <span className="version-tag">v{v.number}</span>
+                      <span>{v.authorName}</span>
                     </div>
-                    <div>{v.message || (v.number === 1 ? t('history.initial') : '')}</div>
+                    <p>{v.message || (v.number === 1 ? t('history.initial') : '')}</p>
                     {v.summary && (
-                      <div className="muted">{summaryParts(v.summary, t).join(' · ')}</div>
+                      <ul className="chips">
+                        {summaryParts(v.summary, t).map((part) => (
+                          <li key={part}>{part}</li>
+                        ))}
+                      </ul>
                     )}
                   </div>
                   <div className="timeline-actions">
@@ -226,21 +242,24 @@ export function MineHistoryPage() {
                     <a
                       className="button-link"
                       href={api.versionDownloadUrl(v.projectId, v.number)}
-                      title={t('history.download')}
+                      aria-label={t('history.downloadVersion', { n: v.number })}
+                      title={t('history.downloadVersion', { n: v.number })}
                     >
-                      <Download size={13} aria-hidden /> {t('history.download')}
+                      <Download size={15} aria-hidden />
                     </a>
                   </div>
                 </li>
               ))}
-            </ul>
+            </ol>
           </li>
         ))}
       </ol>
       {page?.key === key && page.hasMore && (
-        <button disabled={loadingMore} onClick={() => void loadMore()}>
-          {t('history.loadMore')}
-        </button>
+        <div>
+          <button disabled={loadingMore} onClick={() => void loadMore()}>
+            {t('history.loadMore')}
+          </button>
+        </div>
       )}
     </PageShell>
   );

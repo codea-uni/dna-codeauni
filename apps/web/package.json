@@ -14,6 +14,8 @@
     "@cronos/core": "workspace:*",
     "@cronos/engine": "workspace:*",
     "@cronos/workers": "workspace:*",
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-semi-condensed": "^5.3.0",
     "echarts": "^6.1.0",
     "lucide-react": "^1.47.0",
     "react": "^19.3.0",

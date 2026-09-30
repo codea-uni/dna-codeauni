@@ -94,7 +94,7 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div
-        className="modal auth-modal publish-modal"
+        className="modal dialog-narrow"
         onClick={(e) => {
           e.stopPropagation();
         }}
@@ -107,7 +107,7 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
         </header>
 
         {phase === 'conflict' ? (
-          <>
+          <div className="dialog-body">
             <p>{t('history.conflict')}</p>
             <div className="stack">
               <button className="primary-inline" onClick={() => void saveAsNew()}>
@@ -126,10 +126,10 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
                 {t('history.discardAndReload')}
               </button>
             </div>
-          </>
+          </div>
         ) : (
           <form
-            className="auth-form"
+            className="auth-form dialog-body"
             onSubmit={(e) => {
               e.preventDefault();
               void publish();
@@ -151,6 +151,7 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
             <label>
               <span>{t('history.message')}</span>
               <textarea
+                name="version-message"
                 required
                 maxLength={500}
                 rows={3}

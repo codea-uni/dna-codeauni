@@ -27,13 +27,10 @@ export function ProjectContext() {
   if (!current) return null;
   return (
     <div className="toolbar-context">
-      <span className="muted">
-        {t('projects.context', {
-          mine: current.mine.name,
-          project: project.name,
-          n: current.base.number,
-        })}
+      <span className="crumbs" title={`${current.mine.name} / ${project.name}`}>
+        {current.mine.name} / <strong>{project.name}</strong>
       </span>
+      <span className="version-tag">v{current.base.number}</span>
       {current.viewingOld ? (
         <span className="badge">
           <Eye size={12} aria-hidden /> {t('history.viewingOld', { n: current.base.number })}

@@ -1,4 +1,9 @@
-import { permissions, type MineDetail, type ProjectSummary } from '@cronos/api';
+import {
+  permissions,
+  type MineDetail,
+  type ProjectSummary,
+  type ProjectVersion,
+} from '@cronos/api';
 import { createEmptyProject } from '@cronos/core';
 import { ArrowLeft, FilePlus, FileUp, History } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -6,6 +11,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
 import { parseErrorText } from '../i18n/coreText';
 import { api } from '../server/api';
+import { summaryParts } from '../server/summaryText';
 import { APP_VERSION, getCompute } from '../session';
 import { workspaceErrorKey } from '../stores/workspaceStore';
 import { PageShell } from './PageShell';
@@ -15,14 +21,15 @@ interface Loaded {
   mineId: string;
   detail?: MineDetail;
   projects?: ProjectSummary[];
+  recent?: ProjectVersion[];
   error?: MessageKey;
 }
 
-/** Una mina: sus proyectos con la última versión de cada uno, y alta de proyectos nuevos. */
+const RECENT = 6;
+
+/** Una mina: sus proyectos con la última versión de cada uno y lo último que cambió en ella. */
 export function MinePage() {
   const t = useT();
-  const fmt = useFormat();
-  const fmtDate = useFormatDate();
   const navigate = useNavigate();
   const { mineId = '' } = useParams();
   // El resultado guarda su mina: al cambiar de mina, lo anterior deja de mostrarse sin reiniciar
@@ -38,9 +45,13 @@ export function MinePage() {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([api.mine(mineId), api.projects(mineId)]).then(
-      ([d, p]) => {
-        if (alive) setLoaded({ mineId, detail: d, projects: p });
+    Promise.all([
+      api.mine(mineId),
+      api.projects(mineId),
+      api.timeline(mineId, { limit: RECENT }),
+    ]).then(
+      ([d, p, tl]) => {
+        if (alive) setLoaded({ mineId, detail: d, projects: p, recent: tl.versions });
       },
       (err: unknown) => {
         if (alive) setLoaded({ mineId, error: workspaceErrorKey(err) });
@@ -99,81 +110,56 @@ export function MinePage() {
         <ArrowLeft size={14} aria-hidden /> {t('workspace.backToMines')}
       </Link>
       {error && (
-        <p className="auth-error" role="alert">
+        <p className="form-error" role="alert">
           {t(error)}
         </p>
       )}
       {!detail && !error && <p className="muted">{t('workspace.loading')}</p>}
       {detail && (
         <>
-          <h1>{detail.mine.name}</h1>
-          <p className="muted">
-            {detail.mine.epsg
-              ? t('workspace.epsg', { code: detail.mine.epsg })
-              : t('workspace.noEpsg')}{' '}
-            · {t('workspace.yourRole', { role: t(roleKey(detail.role)) })}
-          </p>
+          <header className="page-head">
+            <div className="page-head-row">
+              <h1>{detail.mine.name}</h1>
+              <Link className="button-link" to={`/mines/${mineId}/history`}>
+                <History size={15} aria-hidden /> {t('history.mineLink')}
+              </Link>
+            </div>
+            <ul className="chips">
+              <li>
+                {detail.mine.epsg
+                  ? t('workspace.epsg', { code: detail.mine.epsg })
+                  : t('workspace.noEpsg')}
+              </li>
+              <li>{t('workspace.yourRole', { role: t(roleKey(detail.role)) })}</li>
+            </ul>
+          </header>
 
-          <Link className="button-link" to={`/mines/${mineId}/history`}>
-            <History size={14} aria-hidden /> {t('history.mineLink')}
-          </Link>
-
-          <section className="page-section">
-            <h2>{t('projects.title')}</h2>
-            {projects?.length === 0 && <p className="muted">{t('projects.empty')}</p>}
-            {projects && projects.length > 0 && (
-              <table className="grid-table page-table">
-                <thead>
-                  <tr>
-                    <th>{t('projects.name')}</th>
-                    <th>{t('projects.lastVersion')}</th>
-                    <th />
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
+          <div className="mine-layout">
+            <section className="section" aria-labelledby="projects-title">
+              <div className="section-head">
+                <h2 id="projects-title">{t('projects.title')}</h2>
+              </div>
+              {projects?.length === 0 && (
+                <div className="empty">
+                  <strong>{t('projects.empty')}</strong>
+                  {canEdit ? t('projects.emptyHint') : t('projects.emptyReviewer')}
+                </div>
+              )}
+              {projects && projects.length > 0 && (
+                <ul className="rows">
                   {projects.map((p) => (
-                    <tr key={p.id}>
-                      <td>
-                        <strong>{p.name}</strong>
-                        <div className="muted">
-                          {t('projects.holes', { n: fmt(p.latest.holeCount) })}
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge">
-                          {t('projects.versionN', { n: p.latest.number })}
-                        </span>{' '}
-                        {p.latest.message}
-                        <div className="muted">
-                          {t('projects.by', {
-                            date: fmtDate(p.latest.createdAt),
-                            author: p.latest.authorName,
-                          })}
-                        </div>
-                      </td>
-                      <td className="muted">
-                        {t('projects.versions')}: {p.versionCount}
-                      </td>
-                      <td>
-                        <Link className="button-link" to={`/projects/${p.id}`}>
-                          {t('projects.open')}
-                        </Link>
-                      </td>
-                    </tr>
+                    <ProjectRow key={p.id} project={p} />
                   ))}
-                </tbody>
-              </table>
-            )}
-            {actionError && (
-              <p className="auth-error" role="alert">
-                {actionError}
-              </p>
-            )}
-            {canEdit && (
-              <div className="inline-form">
+                </ul>
+              )}
+              {actionError && (
+                <p className="form-error" role="alert">
+                  {actionError}
+                </p>
+              )}
+              {canEdit && (
                 <form
-                  className="inline-form"
+                  className="new-project"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void createEmpty();
@@ -181,6 +167,8 @@ export function MinePage() {
                 >
                   <input
                     required
+                    name="project-name"
+                    autoComplete="off"
                     placeholder={t('projects.newName')}
                     aria-label={t('projects.newName')}
                     value={name}
@@ -189,33 +177,91 @@ export function MinePage() {
                     }}
                   />
                   <button className="primary" type="submit" disabled={busy}>
-                    <FilePlus size={14} aria-hidden /> {t('projects.new')}
+                    <FilePlus size={15} aria-hidden /> {t('projects.new')}
                   </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    title={t('projects.importHint')}
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    <FileUp size={15} aria-hidden /> {t('projects.import')}
+                  </button>
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    accept=".json,application/json"
+                    hidden
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void importFile(file);
+                      e.target.value = '';
+                    }}
+                  />
                 </form>
-                <button
-                  type="button"
-                  disabled={busy}
-                  title={t('projects.importHint')}
-                  onClick={() => fileInput.current?.click()}
-                >
-                  <FileUp size={14} aria-hidden /> {t('projects.import')}
-                </button>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept=".json,application/json"
-                  hidden
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void importFile(file);
-                    e.target.value = '';
-                  }}
-                />
-              </div>
-            )}
-          </section>
+              )}
+            </section>
+
+            <RecentActivity mineId={mineId} versions={current?.recent ?? []} />
+          </div>
         </>
       )}
     </PageShell>
+  );
+}
+
+function ProjectRow({ project: p }: { project: ProjectSummary }) {
+  const t = useT();
+  const fmt = useFormat();
+  const fmtDate = useFormatDate();
+  return (
+    <li className="project-row">
+      <span className="row-title">
+        <strong>{p.name}</strong>
+        <span className="row-meta">{t('projects.holes', { n: fmt(p.latest.holeCount) })}</span>
+      </span>
+      <span className="latest">
+        <span>
+          <span className="version-tag">v{p.latest.number}</span>{' '}
+          <span className="row-meta">
+            {t('projects.by', { date: fmtDate(p.latest.createdAt), author: p.latest.authorName })}
+          </span>
+        </span>
+        <p title={p.latest.message}>{p.latest.message}</p>
+      </span>
+      <Link className="button-link" to={`/projects/${p.id}`}>
+        {t('projects.open')}
+      </Link>
+    </li>
+  );
+}
+
+/** Lo último que cambió en la mina (historial resumido, D-14). */
+function RecentActivity({ mineId, versions }: { mineId: string; versions: ProjectVersion[] }) {
+  const t = useT();
+  const fmtDate = useFormatDate();
+  return (
+    <aside className="activity" aria-labelledby="activity-title">
+      <h2 id="activity-title">{t('history.recent')}</h2>
+      {versions.length === 0 ? (
+        <p className="muted">{t('history.recentEmpty')}</p>
+      ) : (
+        <ol>
+          {versions.map((v) => (
+            <li key={v.id}>
+              <span>
+                <strong>{v.projectName}</strong> <span className="version-tag">v{v.number}</span>
+              </span>
+              <p>{v.message || t('history.initial')}</p>
+              {v.summary && <p className="muted">{summaryParts(v.summary, t).join(', ')}</p>}
+              <p className="muted">
+                {t('projects.by', { date: fmtDate(v.createdAt), author: v.authorName })}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
+      <Link to={`/mines/${mineId}/history`}>{t('history.seeAll')}</Link>
+    </aside>
   );
 }

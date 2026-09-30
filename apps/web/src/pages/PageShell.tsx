@@ -1,12 +1,15 @@
 import { permissions } from '@cronos/api';
 import { useEffect, type ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router';
+import { Link, NavLink, useLocation } from 'react-router';
 import { UserMenu } from '../auth/UserMenu';
 import { useT } from '../i18n';
 import { useAuth, useWorkspace } from '../server/api';
 import { activeRole } from '../stores/workspaceStore';
 
-/** Marco de las páginas fuera del editor: marca, empresa activa, navegación y cuenta. */
+/**
+ * Marco de las páginas fuera del editor: marca, empresa del usuario (fija, D-15), navegación y
+ * cuenta. `children` va en una columna de contenido centrada.
+ */
 export function PageShell({ children }: { children: ReactNode }) {
   const t = useT();
   const organization = useWorkspace((s) => s.organization);
@@ -21,13 +24,17 @@ export function PageShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="page">
-      <header className="page-bar">
-        <strong className="brand">Cronos</strong>
-        {organization && <span className="page-org">{organization.name}</span>}
-        <nav className="page-nav">
-          <NavLink to="/" end>
-            {t('workspace.mines')}
-          </NavLink>
+      <header className="topbar">
+        <Link to="/" className="wordmark" translate="no">
+          Cronos
+        </Link>
+        {organization && <span className="org-name">{organization.name}</span>}
+        <nav aria-label={t('workspace.navigation')}>
+          {organization && (
+            <NavLink to="/" end>
+              {t('workspace.mines')}
+            </NavLink>
+          )}
           {role && permissions.manageMembers(role) && (
             <NavLink to="/admin">{t('workspace.admin')}</NavLink>
           )}
@@ -37,7 +44,9 @@ export function PageShell({ children }: { children: ReactNode }) {
           <UserMenu />
         </div>
       </header>
-      <main className="page-body">{children}</main>
+      <main className="page-body">
+        <div className="page-content">{children}</div>
+      </main>
     </div>
   );
 }
@@ -48,7 +57,7 @@ export function ErrorLine() {
   const error = useWorkspace((s) => s.error);
   if (!error) return null;
   return (
-    <p className="auth-error" role="alert">
+    <p className="form-error" role="alert">
       {t(error)}
     </p>
   );

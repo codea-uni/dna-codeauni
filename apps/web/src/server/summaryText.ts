@@ -1,17 +1,18 @@
 import type { DiffSummary } from '@cronos/core';
 import type { MessageKey, t as translate } from '../i18n';
 
+/** Campo del resumen, texto en plural y en singular (n = 1). */
 const COUNTS = [
-  ['blastsAdded', 'history.s.blastsAdded'],
-  ['blastsRemoved', 'history.s.blastsRemoved'],
-  ['holesAdded', 'history.s.holesAdded'],
-  ['holesRemoved', 'history.s.holesRemoved'],
-  ['holesMoved', 'history.s.holesMoved'],
-  ['holesGeometry', 'history.s.holesGeometry'],
-  ['holesCharge', 'history.s.holesCharge'],
-  ['holesTiming', 'history.s.holesTiming'],
-  ['holesOther', 'history.s.holesOther'],
-] as const satisfies readonly (readonly [keyof DiffSummary, MessageKey])[];
+  ['blastsAdded', 'history.s.blastsAdded', 'history.s.blastsAddedOne'],
+  ['blastsRemoved', 'history.s.blastsRemoved', 'history.s.blastsRemovedOne'],
+  ['holesAdded', 'history.s.holesAdded', 'history.s.holesAddedOne'],
+  ['holesRemoved', 'history.s.holesRemoved', 'history.s.holesRemovedOne'],
+  ['holesMoved', 'history.s.holesMoved', 'history.s.holesMovedOne'],
+  ['holesGeometry', 'history.s.holesGeometry', 'history.s.holesGeometryOne'],
+  ['holesCharge', 'history.s.holesCharge', 'history.s.holesChargeOne'],
+  ['holesTiming', 'history.s.holesTiming', 'history.s.holesTimingOne'],
+  ['holesOther', 'history.s.holesOther', 'history.s.holesOtherOne'],
+] as const satisfies readonly (readonly [keyof DiffSummary, MessageKey, MessageKey])[];
 
 const FIELD_KEYS: Record<string, MessageKey> = {
   name: 'history.field.name',
@@ -40,7 +41,9 @@ const FIELD_KEYS: Record<string, MessageKey> = {
 
 /** Resumen de cambios en frases cortas («+3 taladros», «2 movidos», «cambió: banco, amarre»). */
 export function summaryParts(s: DiffSummary, t: typeof translate): string[] {
-  const parts: string[] = COUNTS.filter(([k]) => s[k] > 0).map(([k, key]) => t(key, { n: s[k] }));
+  const parts: string[] = COUNTS.filter(([k]) => s[k] > 0).map(([k, many, one]) =>
+    t(s[k] === 1 ? one : many, { n: s[k] }),
+  );
   const fields = [...new Set([...s.projectFields, ...s.blastFields])];
   if (fields.length)
     parts.push(

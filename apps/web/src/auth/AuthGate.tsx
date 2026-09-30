@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { useLocale, useT } from '../i18n';
 import { useAuth } from '../server/api';
+import { BlastSequence } from './BlastSequence';
 import { ChangePasswordForm } from './ChangePasswordForm';
 import { LoginPage } from './LoginPage';
 
@@ -35,10 +36,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
     [],
   );
 
-  if (status === 'loading') return <AuthShell>{t('auth.loading')}</AuthShell>;
+  if (status === 'loading')
+    return (
+      <AuthShell>
+        <p className="auth-note">{t('auth.loading')}</p>
+      </AuthShell>
+    );
   if (status === 'unreachable')
     return (
       <AuthShell>
+        <h1 className="auth-title">{t('auth.unreachableTitle')}</h1>
         <p className="auth-error" role="alert">
           {t('auth.error.unreachable')}
         </p>
@@ -51,7 +58,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (user.mustChangePassword)
     return (
       <AuthShell>
-        <p>{t('auth.mustChange')}</p>
+        <h1 className="auth-title">{t('auth.mustChangeTitle')}</h1>
+        <p className="auth-note">{t('auth.mustChange')}</p>
         <ChangePasswordForm />
       </AuthShell>
     );
@@ -67,17 +75,23 @@ export function AuthGate({ children }: { children: ReactNode }) {
   return children;
 }
 
-/** Tarjeta centrada con la marca, común a login, carga y cambio de contraseña. */
+/**
+ * Marco del login y de las pantallas previas al editor: a la izquierda la marca con la malla que
+ * se enciende en secuencia; a la derecha el formulario o el mensaje.
+ */
 export function AuthShell({ children }: { children: ReactNode }) {
   const t = useT();
   return (
     <main className="auth-page">
-      <section className="auth-card">
-        <header>
-          <strong className="brand">Cronos</strong>
-          <span className="muted">{t('auth.subtitle')}</span>
-        </header>
-        {children}
+      <section className="auth-hero">
+        <span className="wordmark" translate="no">
+          Cronos
+        </span>
+        <BlastSequence />
+        <p className="claim">{t('auth.claim')}</p>
+      </section>
+      <section className="auth-panel">
+        <div className="auth-card">{children}</div>
       </section>
     </main>
   );

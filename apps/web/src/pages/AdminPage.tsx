@@ -1,46 +1,78 @@
 import { ROLES, permissions, type AuditEvent, type Mine, type Role } from '@cronos/api';
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useFormatDate, useT, type MessageKey } from '../i18n';
 import { api, useAuth, useWorkspace } from '../server/api';
-import { activeRole, workspaceErrorKey } from '../stores/workspaceStore';
+import { workspaceErrorKey } from '../stores/workspaceStore';
 import { ErrorLine, PageShell } from './PageShell';
 import { roleHintKey, roleKey } from './roles';
 
 const AUDIT_KEYS: Record<string, MessageKey> = {
   'organization.create': 'audit.organization.create',
-  'member.add': 'audit.member.add',
-  'member.role_change': 'audit.member.role_change',
-  'member.remove': 'audit.member.remove',
-  'mine.create': 'audit.mine.create',
-  'mine.update': 'audit.mine.update',
-  'mine.access_change': 'audit.mine.access_change',
   'organization.rename': 'audit.organization.rename',
   'organization.disable': 'audit.organization.disable',
   'organization.enable': 'audit.organization.enable',
+  'member.add': 'audit.member.add',
+  'member.role_change': 'audit.member.role_change',
+  'member.remove': 'audit.member.remove',
   'user.disable': 'audit.user.disable',
   'user.enable': 'audit.user.enable',
+  'mine.create': 'audit.mine.create',
+  'mine.update': 'audit.mine.update',
+  'mine.access_change': 'audit.mine.access_change',
   'project.create': 'audit.project.create',
   'version.create': 'audit.version.create',
   'version.restore': 'audit.version.restore',
 };
 
-/** Administración de la empresa activa: usuarios y roles, minas y su acceso, auditoría. */
+const TABS = [
+  ['people', 'admin.members'],
+  ['mines', 'admin.mines'],
+  ['audit', 'admin.audit'],
+] as const satisfies readonly (readonly [string, MessageKey])[];
+type Tab = (typeof TABS)[number][0];
+
+/** Administración de la empresa: personas y roles, minas y su acceso, y auditoría. */
 export function AdminPage() {
-  const role = useWorkspace(activeRole);
+  const t = useT();
+  // El rol sale de la sesión (llega antes que el espacio de trabajo al recargar la página).
+  const organization = useAuth((s) => s.organization);
+  const role = organization?.role ?? null;
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const tab: Tab = TABS.find(([id]) => id === requested)?.[0] ?? 'people';
   if (!role || !permissions.manageMembers(role)) return <Navigate to="/" replace />;
+
   return (
     <PageShell>
+      <header className="page-head">
+        <h1>{t('admin.title', { org: organization?.name ?? '' })}</h1>
+        <p className="lede">{t('admin.lede')}</p>
+      </header>
+      <div className="admin-tabs" role="tablist">
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => {
+              setParams(id === 'people' ? {} : { tab: id }, { replace: true });
+            }}
+          >
+            {t(label)}
+          </button>
+        ))}
+      </div>
       <ErrorLine />
-      <Members />
-      <Mines />
-      <Audit />
+      {tab === 'people' && <People />}
+      {tab === 'mines' && <Mines />}
+      {tab === 'audit' && <Audit />}
     </PageShell>
   );
 }
 
-function Members() {
+function People() {
   const t = useT();
   const fmtDate = useFormatDate();
   const me = useAuth((s) => s.user);
@@ -54,11 +86,10 @@ function Members() {
   }, [orgId, load]);
 
   return (
-    <section className="page-section">
-      <h2>{t('admin.members')}</h2>
+    <section className="section">
       <p className="muted">{t('admin.membersHint')}</p>
       {members && (
-        <table className="grid-table page-table">
+        <table className="page-table">
           <thead>
             <tr>
               <th>{t('workspace.name')}</th>
@@ -77,7 +108,7 @@ function Members() {
                 <td>{m.email}</td>
                 <td>
                   <select
-                    aria-label={t('admin.role')}
+                    aria-label={t('admin.roleOf', { name: m.name })}
                     value={m.role}
                     onChange={(e) => {
                       void updateRole(m.userId, e.target.value as Role);
@@ -91,16 +122,18 @@ function Members() {
                   </select>
                 </td>
                 <td>{fmtDate(m.createdAt)}</td>
-                <td>
-                  <button
-                    className="danger"
-                    onClick={() => {
-                      if (window.confirm(t('admin.removeConfirm', { name: m.name })))
-                        void remove(m.userId);
-                    }}
-                  >
-                    {t('admin.remove')}
-                  </button>
+                <td className="actions">
+                  {m.userId !== me?.id && (
+                    <button
+                      className="danger"
+                      onClick={() => {
+                        if (window.confirm(t('admin.removeConfirm', { name: m.name })))
+                          void remove(m.userId);
+                      }}
+                    >
+                      {t('admin.remove')}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -123,7 +156,7 @@ function AddMember() {
 
   return (
     <form
-      className="inline-form wrap"
+      className="form-panel"
       onSubmit={(e) => {
         e.preventDefault();
         void add({
@@ -140,54 +173,71 @@ function AddMember() {
         });
       }}
     >
-      <strong>{t('admin.addMember')}</strong>
-      <input
-        type="email"
-        required
-        placeholder={t('admin.email')}
-        aria-label={t('admin.email')}
-        value={email}
-        onChange={(e) => {
-          setEmail(e.target.value);
-        }}
-      />
-      <input
-        required
-        placeholder={t('workspace.name')}
-        aria-label={t('workspace.name')}
-        value={name}
-        onChange={(e) => {
-          setName(e.target.value);
-        }}
-      />
-      <select
-        aria-label={t('admin.role')}
-        value={role}
-        onChange={(e) => {
-          setRole(e.target.value as Role);
-        }}
-      >
-        {ROLES.map((r) => (
-          <option key={r} value={r}>
-            {t(roleKey(r))}
-          </option>
-        ))}
-      </select>
-      <input
-        type="text"
-        autoComplete="off"
-        minLength={10}
-        placeholder={t('admin.tempPassword')}
-        aria-label={t('admin.tempPassword')}
-        title={t('admin.tempPasswordHint')}
-        value={password}
-        onChange={(e) => {
-          setPassword(e.target.value);
-        }}
-      />
-      <button className="primary" type="submit" disabled={busy}>
-        {t('workspace.create')}
-      </button>
+      <h2>{t('admin.addMember')}</h2>
+      <div className="form-grid">
+        <label>
+          {t('workspace.name')}
+          <input
+            required
+            name="member-name"
+            autoComplete="off"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+            }}
+          />
+        </label>
+        <label>
+          {t('admin.email')}
+          <input
+            type="email"
+            required
+            name="member-email"
+            autoComplete="off"
+            spellCheck={false}
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+            }}
+          />
+        </label>
+        <label>
+          {t('admin.role')}
+          <select
+            value={role}
+            onChange={(e) => {
+              setRole(e.target.value as Role);
+            }}
+          >
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {t(roleKey(r))}
+              </option>
+            ))}
+          </select>
+          <small>{t(roleHintKey(role))}</small>
+        </label>
+        <label>
+          {t('admin.tempPassword')}
+          <input
+            type="text"
+            name="member-password"
+            autoComplete="new-password"
+            spellCheck={false}
+            minLength={10}
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+            }}
+          />
+          <small>{t('admin.tempPasswordHint')}</small>
+        </label>
+      </div>
+      <div>
+        <button className="primary" type="submit" disabled={busy}>
+          {t('admin.addMemberAction')}
+        </button>
+      </div>
     </form>
   );
 }
@@ -202,11 +252,10 @@ function Mines() {
   const [editing, setEditing] = useState<Mine | null>(null);
 
   return (
-    <section className="page-section">
-      <h2>{t('admin.mines')}</h2>
+    <section className="section">
       <p className="muted">{t('admin.minesHint')}</p>
       {mines && mines.length > 0 && (
-        <table className="grid-table page-table">
+        <table className="page-table">
           <thead>
             <tr>
               <th>{t('workspace.name')}</th>
@@ -225,7 +274,7 @@ function Mines() {
                     ? t('workspace.usersCount', { n: m.accessUserIds.length })
                     : t('workspace.everyone')}
                 </td>
-                <td>
+                <td className="actions">
                   <button
                     onClick={() => {
                       setEditing(m);
@@ -240,7 +289,7 @@ function Mines() {
         </table>
       )}
       <form
-        className="inline-form"
+        className="form-panel"
         onSubmit={(e) => {
           e.preventDefault();
           const code = Number(epsg);
@@ -255,30 +304,41 @@ function Mines() {
           });
         }}
       >
-        <strong>{t('admin.newMine')}</strong>
-        <input
-          required
-          placeholder={t('workspace.name')}
-          aria-label={t('workspace.name')}
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-          }}
-        />
-        <input
-          type="number"
-          min={1}
-          step={1}
-          placeholder="EPSG"
-          aria-label="EPSG"
-          value={epsg}
-          onChange={(e) => {
-            setEpsg(e.target.value);
-          }}
-        />
-        <button className="primary" type="submit" disabled={busy}>
-          {t('workspace.create')}
-        </button>
+        <h2>{t('admin.newMine')}</h2>
+        <div className="form-grid">
+          <label>
+            {t('workspace.name')}
+            <input
+              required
+              name="mine-name"
+              autoComplete="off"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+              }}
+            />
+          </label>
+          <label>
+            EPSG
+            <input
+              type="number"
+              inputMode="numeric"
+              name="mine-epsg"
+              min={1}
+              step={1}
+              value={epsg}
+              onChange={(e) => {
+                setEpsg(e.target.value);
+              }}
+            />
+            <small>{t('admin.epsgHint')}</small>
+          </label>
+        </div>
+        <div>
+          <button className="primary" type="submit" disabled={busy}>
+            {t('admin.createMine')}
+          </button>
+        </div>
       </form>
       {editing && (
         <AccessDialog
@@ -294,17 +354,22 @@ function Mines() {
 
 function AccessDialog({ mine, onClose }: { mine: Mine; onClose: () => void }) {
   const t = useT();
-  const members = useWorkspace((s) => s.members) ?? [];
+  const orgId = useWorkspace((s) => s.organization?.id);
+  const members = useWorkspace((s) => s.members);
+  const loadMembers = useWorkspace((s) => s.loadMembers);
   const setAccess = useWorkspace((s) => s.setMineAccess);
   const busy = useWorkspace((s) => s.busy);
   const [selected, setSelected] = useState(() => new Set(mine.accessUserIds));
+  useEffect(() => {
+    if (orgId && !members) void loadMembers();
+  }, [orgId, members, loadMembers]);
   // Los administradores ven todas las minas: no hace falta listarlos.
-  const candidates = members.filter((m) => m.role !== 'admin');
+  const candidates = (members ?? []).filter((m) => m.role !== 'admin');
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div
-        className="modal auth-modal"
+        className="modal dialog-narrow"
         onClick={(e) => {
           e.stopPropagation();
         }}
@@ -315,23 +380,25 @@ function AccessDialog({ mine, onClose }: { mine: Mine; onClose: () => void }) {
             <X size={16} />
           </button>
         </header>
-        <p className="muted">{t('admin.accessHint')}</p>
-        <div className="access-list">
-          {candidates.map((m) => (
-            <label key={m.userId} className="check">
-              <input
-                type="checkbox"
-                checked={selected.has(m.userId)}
-                onChange={(e) => {
-                  const next = new Set(selected);
-                  if (e.target.checked) next.add(m.userId);
-                  else next.delete(m.userId);
-                  setSelected(next);
-                }}
-              />
-              {m.name} <span className="muted">· {t(roleKey(m.role))}</span>
-            </label>
-          ))}
+        <div className="dialog-body">
+          <p className="muted">{t('admin.accessHint')}</p>
+          <div className="access-list">
+            {candidates.map((m) => (
+              <label key={m.userId}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(m.userId)}
+                  onChange={(e) => {
+                    const next = new Set(selected);
+                    if (e.target.checked) next.add(m.userId);
+                    else next.delete(m.userId);
+                    setSelected(next);
+                  }}
+                />
+                {m.name} <span className="muted">({t(roleKey(m.role))})</span>
+              </label>
+            ))}
+          </div>
         </div>
         <footer>
           <button onClick={onClose}>{t('workspace.cancel')}</button>
@@ -344,7 +411,7 @@ function AccessDialog({ mine, onClose }: { mine: Mine; onClose: () => void }) {
               });
             }}
           >
-            {t('workspace.save')}
+            {t('admin.saveAccess')}
           </button>
         </footer>
       </div>
@@ -356,9 +423,6 @@ function Audit() {
   const t = useT();
   const fmtDate = useFormatDate();
   const orgId = useWorkspace((s) => s.organization?.id);
-  // Se recarga cuando cambian miembros o minas, para mostrar los eventos recién creados.
-  const members = useWorkspace((s) => s.members);
-  const mines = useWorkspace((s) => s.mines);
   const [events, setEvents] = useState<AuditEvent[] | null>(null);
   const [error, setError] = useState<MessageKey | null>(null);
   useEffect(() => {
@@ -375,43 +439,51 @@ function Audit() {
     return () => {
       alive = false;
     };
-  }, [orgId, members, mines]);
+  }, [orgId]);
 
-  const describe = (e: AuditEvent): string => {
-    const name = typeof e.data.name === 'string' ? e.data.name : null;
-    const email = typeof e.data.email === 'string' ? e.data.email : null;
-    const to = typeof e.data.to === 'string' ? e.data.to : null;
-    const detail = [name, email, to && ROLES.includes(to as Role) ? t(roleKey(to as Role)) : null]
+  const detail = (e: AuditEvent): string => {
+    const pick = (k: string) => {
+      const v = e.data[k];
+      return typeof v === 'string' ? v : null;
+    };
+    const to = pick('to');
+    return [
+      pick('name') ?? pick('project'),
+      pick('email'),
+      to && ROLES.includes(to as Role) ? t(roleKey(to as Role)) : null,
+      typeof e.data.number === 'number' ? `v${e.data.number}` : null,
+    ]
       .filter(Boolean)
-      .join(' · ');
-    const key = AUDIT_KEYS[e.action];
-    const label = key ? t(key) : e.action;
-    return detail ? `${label}: ${detail}` : label;
+      .join(', ');
   };
 
   return (
-    <section className="page-section">
-      <h2>{t('admin.audit')}</h2>
+    <section className="section">
       <p className="muted">{t('admin.auditHint')}</p>
-      {error && <p className="auth-error">{t(error)}</p>}
-      {events?.length === 0 && <p className="muted">{t('admin.auditEmpty')}</p>}
+      {error && <p className="form-error">{t(error)}</p>}
+      {events?.length === 0 && <p className="empty">{t('admin.auditEmpty')}</p>}
       {events && events.length > 0 && (
-        <table className="grid-table page-table">
+        <table className="page-table">
           <thead>
             <tr>
               <th>{t('admin.when')}</th>
               <th>{t('admin.who')}</th>
               <th>{t('admin.what')}</th>
+              <th>{t('admin.detail')}</th>
             </tr>
           </thead>
           <tbody>
-            {events.map((e) => (
-              <tr key={e.id}>
-                <td>{fmtDate(e.at)}</td>
-                <td>{e.actorName ?? '—'}</td>
-                <td>{describe(e)}</td>
-              </tr>
-            ))}
+            {events.map((e) => {
+              const key = AUDIT_KEYS[e.action];
+              return (
+                <tr key={e.id}>
+                  <td>{fmtDate(e.at)}</td>
+                  <td>{e.actorName ?? '—'}</td>
+                  <td>{key ? t(key) : e.action}</td>
+                  <td className="muted">{detail(e)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

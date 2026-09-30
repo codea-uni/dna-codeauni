@@ -24,12 +24,14 @@ export function LoginPage() {
           });
         }}
       >
-        <h1>{t('auth.title')}</h1>
+        <h1 className="auth-title">{t('auth.title')}</h1>
         <label>
           <span>{t('auth.email')}</span>
           <input
             type="email"
+            name="email"
             autoComplete="username"
+            spellCheck={false}
             required
             autoFocus
             value={email}
@@ -42,6 +44,7 @@ export function LoginPage() {
           <span>{t('auth.password')}</span>
           <input
             type="password"
+            name="password"
             autoComplete="current-password"
             required
             value={password}
@@ -58,7 +61,7 @@ export function LoginPage() {
         <button className="primary" type="submit" disabled={busy}>
           {busy ? t('auth.signingIn') : t('auth.signIn')}
         </button>
-        <p className="muted">{t('auth.noAccount')}</p>
+        <p className="auth-note">{t('auth.noAccount')}</p>
         <div className="auth-locale">
           {(['es', 'en'] as const).map((l) => (
             <button

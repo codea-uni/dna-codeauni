@@ -80,7 +80,12 @@ export function ProjectEditor() {
     status === 'ready' &&
     current?.projectId === projectId &&
     (version === undefined ? !current.viewingOld : current.base.number === version);
-  if (!loaded) return <AuthShell>{t('projects.loading')}</AuthShell>;
+  if (!loaded)
+    return (
+      <div className="loading-screen" role="status">
+        {t('projects.loading')}
+      </div>
+    );
 
   const closeDialog = () => {
     showDialog(null);

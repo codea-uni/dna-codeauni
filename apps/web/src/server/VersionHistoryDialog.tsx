@@ -67,7 +67,7 @@ export function VersionHistoryDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
       <div
-        className="modal"
+        className="modal dialog-wide"
         onClick={(e) => {
           e.stopPropagation();
         }}
@@ -78,79 +78,85 @@ export function VersionHistoryDialog({ onClose }: { onClose: () => void }) {
             <X size={16} />
           </button>
         </header>
-        <p className="muted">{t('history.titleHint')}</p>
-        {error && (
-          <p className="auth-error" role="alert">
-            {t(error)}
-          </p>
-        )}
-        {!versions && !error && <p className="muted">{t('workspace.loading')}</p>}
-        {versions && (
-          <table className="grid-table page-table">
-            <thead>
-              <tr>
-                <th>{t('history.version')}</th>
-                <th>{t('history.date')}</th>
-                <th>{t('history.author')}</th>
-                <th>{t('history.changes')}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {versions.map((v) => {
-                const isOpen = v.number === current.base.number;
-                return (
-                  <tr key={v.id} className={isOpen ? 'current' : undefined}>
-                    <td>
-                      <span className="badge">v{v.number}</span>{' '}
-                      {v.number === latest?.number && (
-                        <span className="muted">{t('history.current')}</span>
-                      )}
-                    </td>
-                    <td>{fmtDate(v.createdAt)}</td>
-                    <td>{v.authorName}</td>
-                    <td>
-                      <div>{v.message || (v.number === 1 ? t('history.initial') : '')}</div>
-                      {v.summary && (
-                        <div className="muted">{summaryParts(v.summary, t).join(' · ')}</div>
-                      )}
-                    </td>
-                    <td className="actions">
-                      <button
-                        disabled={isOpen}
-                        onClick={() => {
-                          onClose();
-                          void navigate(
-                            v.number === latest?.number
-                              ? `/projects/${current.projectId}`
-                              : `/projects/${current.projectId}/versions/${v.number}`,
-                          );
-                        }}
-                      >
-                        {t('history.view')}
-                      </button>
-                      {!isOpen && (
+        <div className="dialog-body">
+          <p className="muted">{t('history.titleHint')}</p>
+          {error && (
+            <p className="auth-error" role="alert">
+              {t(error)}
+            </p>
+          )}
+          {!versions && !error && <p className="muted">{t('workspace.loading')}</p>}
+          {versions && (
+            <table className="page-table">
+              <thead>
+                <tr>
+                  <th>{t('history.version')}</th>
+                  <th>{t('history.date')}</th>
+                  <th>{t('history.author')}</th>
+                  <th>{t('history.changes')}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {versions.map((v) => {
+                  const isOpen = v.number === current.base.number;
+                  return (
+                    <tr key={v.id} className={isOpen ? 'current' : undefined}>
+                      <td>
+                        <span className="version-tag">v{v.number}</span>{' '}
+                        {v.number === latest?.number && (
+                          <span className="muted">{t('history.current')}</span>
+                        )}
+                      </td>
+                      <td>{fmtDate(v.createdAt)}</td>
+                      <td>{v.authorName}</td>
+                      <td>
+                        <div>{v.message || (v.number === 1 ? t('history.initial') : '')}</div>
+                        {v.summary && (
+                          <ul className="chips">
+                            {summaryParts(v.summary, t).map((part) => (
+                              <li key={part}>{part}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </td>
+                      <td className="actions">
                         <button
+                          disabled={isOpen}
                           onClick={() => {
                             onClose();
-                            void useCompare.getState().start(current.projectId, v.number);
+                            void navigate(
+                              v.number === latest?.number
+                                ? `/projects/${current.projectId}`
+                                : `/projects/${current.projectId}/versions/${v.number}`,
+                            );
                           }}
                         >
-                          {t('history.compare')}
+                          {t('history.view')}
                         </button>
-                      )}
-                      {canRestore && v.number !== latest?.number && (
-                        <button disabled={busy} onClick={() => void restore(v)}>
-                          {t('history.restore')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+                        {!isOpen && (
+                          <button
+                            onClick={() => {
+                              onClose();
+                              void useCompare.getState().start(current.projectId, v.number);
+                            }}
+                          >
+                            {t('history.compare')}
+                          </button>
+                        )}
+                        {canRestore && v.number !== latest?.number && (
+                          <button disabled={busy} onClick={() => void restore(v)}>
+                            {t('history.restore')}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

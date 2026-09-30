@@ -38,7 +38,7 @@ export function UserMenu() {
       {changing && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={close}>
           <div
-            className="modal auth-modal"
+            className="modal dialog-narrow"
             onClick={(e) => {
               e.stopPropagation();
             }}

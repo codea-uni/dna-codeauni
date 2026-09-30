@@ -62,7 +62,7 @@ export function PlatformPage() {
         </p>
       )}
 
-      <section className="page-section">
+      <section className="section">
         <div className="section-head">
           <h2>{t('platform.companies')}</h2>
           {orgs && orgs.length > 0 && (
@@ -73,7 +73,12 @@ export function PlatformPage() {
           )}
         </div>
         {!orgs && !error && <p className="muted">{t('workspace.loading')}</p>}
-        {orgs?.length === 0 && <p className="empty">{t('platform.empty')}</p>}
+        {orgs?.length === 0 && (
+          <p className="empty">
+            <strong>{t('platform.emptyTitle')}</strong>
+            {t('platform.empty')}
+          </p>
+        )}
         <ul className="company-list">
           {orgs?.map((o) => (
             <CompanyRow
@@ -135,7 +140,7 @@ function CompanyRow({
           {org.admins.length > 0 ? (
             <p className="muted">{org.admins.map((a) => `${a.name} <${a.email}>`).join(', ')}</p>
           ) : (
-            <p className="warn">{t('platform.noAdmin')}</p>
+            <p className="warn-text">{t('platform.noAdmin')}</p>
           )}
         </div>
         <dl className="company-stats">
@@ -162,10 +167,10 @@ function CompanyRow({
         </div>
       </div>
       {expanded && (
-        <>
+        <div className="company-detail">
           <CompanyUsers key={org.admins.length} orgId={org.id} onError={onError} />
           <AddAdmin orgId={org.id} onAdded={onUpdated} onError={onError} />
-        </>
+        </div>
       )}
     </li>
   );
@@ -202,8 +207,9 @@ function CompanyUsers({ orgId, onError }: { orgId: string; onError: (e: MessageK
   };
 
   if (!users) return <p className="muted company-users">{t('workspace.loading')}</p>;
+  if (users.length === 0) return <p className="muted">{t('platform.noPeople')}</p>;
   return (
-    <table className="grid-table page-table company-users">
+    <table className="page-table company-users">
       <thead>
         <tr>
           <th>{t('workspace.name')}</th>
@@ -253,11 +259,9 @@ function NewCompany({ onCreated }: { onCreated: (org: PlatformOrganization) => v
   });
 
   return (
-    <section className="page-section">
-      <h2>{t('platform.newCompany')}</h2>
-      <p className="muted">{t('platform.newCompanyHint')}</p>
+    <section className="section">
       <form
-        className="stacked-form"
+        className="form-panel"
         onSubmit={(e) => {
           e.preventDefault();
           setBusy(true);
@@ -287,36 +291,46 @@ function NewCompany({ onCreated }: { onCreated: (org: PlatformOrganization) => v
             });
         }}
       >
-        <label>
-          <span>{t('platform.companyName')}</span>
-          <input required maxLength={120} {...field('name')} />
-        </label>
-        <label>
-          <span>{t('platform.adminName')}</span>
-          <input required maxLength={120} autoComplete="off" {...field('adminName')} />
-        </label>
-        <label>
-          <span>{t('platform.adminEmail')}</span>
-          <input
-            required
-            type="email"
-            autoComplete="off"
-            spellCheck={false}
-            {...field('adminEmail')}
-          />
-        </label>
-        <label>
-          <span>{t('platform.adminPassword')}</span>
-          <input
-            minLength={10}
-            autoComplete="new-password"
-            spellCheck={false}
-            {...field('password')}
-          />
-          <small className="muted">{t('admin.tempPasswordHint')}</small>
-        </label>
+        <h2>{t('platform.newCompany')}</h2>
+        <p>{t('platform.newCompanyHint')}</p>
+        <div className="form-grid">
+          <label>
+            {t('platform.companyName')}
+            <input
+              required
+              maxLength={120}
+              name="company-name"
+              autoComplete="off"
+              {...field('name')}
+            />
+          </label>
+          <label>
+            {t('platform.adminName')}
+            <input required maxLength={120} autoComplete="off" {...field('adminName')} />
+          </label>
+          <label>
+            {t('platform.adminEmail')}
+            <input
+              required
+              type="email"
+              autoComplete="off"
+              spellCheck={false}
+              {...field('adminEmail')}
+            />
+          </label>
+          <label>
+            {t('platform.adminPassword')}
+            <input
+              minLength={10}
+              autoComplete="new-password"
+              spellCheck={false}
+              {...field('password')}
+            />
+            <small>{t('admin.tempPasswordHint')}</small>
+          </label>
+        </div>
         {error && (
-          <p className="auth-error" role="alert">
+          <p className="form-error" role="alert">
             {t(error)}
           </p>
         )}
@@ -326,7 +340,7 @@ function NewCompany({ onCreated }: { onCreated: (org: PlatformOrganization) => v
           </p>
         )}
         <div>
-          <button className="primary-inline" type="submit" disabled={busy}>
+          <button className="primary" type="submit" disabled={busy}>
             {t('platform.create')}
           </button>
         </div>
@@ -355,8 +369,7 @@ function AddAdmin({
   });
   return (
     <form
-      className="inline-form add-admin"
-      title={t('platform.addAdminHint')}
+      className="section"
       onSubmit={(e) => {
         e.preventDefault();
         setBusy(true);
@@ -380,31 +393,39 @@ function AddAdmin({
           });
       }}
     >
-      <strong>{t('platform.addAdmin')}</strong>
-      <input
-        required
-        placeholder={t('workspace.name')}
-        aria-label={t('workspace.name')}
-        {...field('name')}
-      />
-      <input
-        required
-        type="email"
-        spellCheck={false}
-        placeholder={t('admin.email')}
-        aria-label={t('admin.email')}
-        {...field('email')}
-      />
-      <input
-        minLength={10}
-        autoComplete="new-password"
-        placeholder={t('admin.tempPassword')}
-        aria-label={t('admin.tempPassword')}
-        {...field('password')}
-      />
-      <button className="primary-inline" type="submit" disabled={busy}>
-        {t('platform.assign')}
-      </button>
+      <h3>{t('platform.addAdmin')}</h3>
+      <p className="muted">{t('platform.addAdminHint')}</p>
+      <div className="form-grid">
+        <label>
+          {t('workspace.name')}
+          <input required name="admin-name" autoComplete="off" {...field('name')} />
+        </label>
+        <label>
+          {t('admin.email')}
+          <input
+            required
+            type="email"
+            name="admin-email"
+            autoComplete="off"
+            spellCheck={false}
+            {...field('email')}
+          />
+        </label>
+        <label>
+          {t('admin.tempPassword')}
+          <input
+            minLength={10}
+            name="admin-password"
+            autoComplete="new-password"
+            {...field('password')}
+          />
+        </label>
+        <div>
+          <button className="primary" type="submit" disabled={busy}>
+            {t('platform.assign')}
+          </button>
+        </div>
+      </div>
     </form>
   );
 }

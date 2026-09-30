@@ -4,7 +4,15 @@ import { App } from './App';
 import { ServerApp } from './pages/ServerApp';
 import { serverMode } from './server/api';
 import { getCompute, getEngine, session } from './session';
+import '@fontsource/barlow/latin-400.css';
+import '@fontsource/barlow/latin-500.css';
+import '@fontsource/barlow/latin-600.css';
+import '@fontsource/barlow/latin-700.css';
+import '@fontsource/barlow-semi-condensed/latin-500.css';
+import '@fontsource/barlow-semi-condensed/latin-600.css';
+import '@fontsource/barlow-semi-condensed/latin-700.css';
 import './styles.css';
+import './server.css';
 
 if (import.meta.env.DEV) {
   // Gancho de depuración y medición (solo en desarrollo).

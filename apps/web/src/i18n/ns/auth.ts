@@ -3,7 +3,11 @@
  */
 export const es = {
   'auth.title': 'Iniciar sesión',
-  'auth.subtitle': 'Diseño y simulación de voladuras',
+  'auth.claim':
+    'Malla, carguío, tiempos y resultados de cada voladura, con el historial de versiones de cada mina.',
+  'auth.heroAlt': 'Malla de voladura en planta que se enciende siguiendo su secuencia de disparo',
+  'auth.unreachableTitle': 'Sin conexión con el servidor',
+  'auth.mustChangeTitle': 'Elige tu contraseña',
   'auth.email': 'Correo',
   'auth.password': 'Contraseña',
   'auth.signIn': 'Entrar',
@@ -21,7 +25,6 @@ export const es = {
   'auth.passwordHint': 'Al menos 10 caracteres.',
   'auth.save': 'Guardar',
   'auth.saving': 'Guardando…',
-  'auth.passwordChanged': 'Contraseña cambiada',
   'auth.error.invalidCredentials': 'Correo o contraseña incorrectos.',
   'auth.error.tooManyAttempts': 'Demasiados intentos. Espera un minuto y vuelve a intentar.',
   'auth.error.unreachable': 'No se pudo conectar con el servidor.',
@@ -38,7 +41,11 @@ export const es = {
 
 export const en = {
   'auth.title': 'Sign in',
-  'auth.subtitle': 'Blast design and simulation',
+  'auth.claim':
+    'Pattern, charging, timing and results of every blast, with the version history of each mine.',
+  'auth.heroAlt': 'Blast pattern in plan view lighting up in its firing sequence',
+  'auth.unreachableTitle': 'Cannot reach the server',
+  'auth.mustChangeTitle': 'Choose your password',
   'auth.email': 'Email',
   'auth.password': 'Password',
   'auth.signIn': 'Sign in',
@@ -56,7 +63,6 @@ export const en = {
   'auth.passwordHint': 'At least 10 characters.',
   'auth.save': 'Save',
   'auth.saving': 'Saving…',
-  'auth.passwordChanged': 'Password changed',
   'auth.error.invalidCredentials': 'Wrong email or password.',
   'auth.error.tooManyAttempts': 'Too many attempts. Wait a minute and try again.',
   'auth.error.unreachable': 'Could not reach the server.',

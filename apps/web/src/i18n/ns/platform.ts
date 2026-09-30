@@ -10,14 +10,13 @@ export const es = {
   'platform.activeCount': '{n} activas',
   'platform.disabledCount': '{n} desactivadas',
   'platform.empty': 'Todavía no hay empresas. Crea la primera abajo.',
-  'platform.company': 'Empresa',
+  'platform.emptyTitle': 'Todavía no hay empresas',
   'platform.people': 'Personas',
   'platform.mines': 'Minas',
   'platform.projects': 'Proyectos',
   'platform.versions': 'Versiones',
   'platform.lastActivity': 'Última versión',
   'platform.never': 'Sin versiones',
-  'platform.admins': 'Administradores',
   'platform.status.active': 'Activa',
   'platform.status.disabled': 'Desactivada',
   'platform.showUsers': 'Ver personas',
@@ -48,6 +47,7 @@ export const es = {
   'platform.addAdminHint':
     'Una cuenta nueva (con contraseña temporal) o una existente que no pertenezca a otra empresa.',
   'platform.assign': 'Asignar',
+  'platform.noPeople': 'Esta empresa todavía no tiene personas.',
 };
 
 export const en = {
@@ -58,14 +58,13 @@ export const en = {
   'platform.activeCount': '{n} active',
   'platform.disabledCount': '{n} disabled',
   'platform.empty': 'No companies yet. Create the first one below.',
-  'platform.company': 'Company',
+  'platform.emptyTitle': 'No companies yet',
   'platform.people': 'People',
   'platform.mines': 'Mines',
   'platform.projects': 'Projects',
   'platform.versions': 'Versions',
   'platform.lastActivity': 'Latest version',
   'platform.never': 'No versions',
-  'platform.admins': 'Administrators',
   'platform.status.active': 'Active',
   'platform.status.disabled': 'Disabled',
   'platform.showUsers': 'Show people',
@@ -96,4 +95,5 @@ export const en = {
   'platform.addAdminHint':
     'A new account (with a temporary password) or an existing one that does not belong to another company.',
   'platform.assign': 'Assign',
+  'platform.noPeople': 'This company has no people yet.',
 } satisfies Record<keyof typeof es, string>;
