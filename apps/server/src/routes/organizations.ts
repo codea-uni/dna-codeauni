@@ -59,7 +59,7 @@ function parse<S extends z.ZodType>(
   return null;
 }
 
-async function toMine(db: Kysely<Database>, row: MineRow): Promise<Mine> {
+export async function toMine(db: Kysely<Database>, row: MineRow): Promise<Mine> {
   const access = await db
     .selectFrom('mine_access')
     .select('userId')

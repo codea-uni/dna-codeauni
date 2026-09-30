@@ -31,6 +31,14 @@ import {
   type UpdateMember,
   type UpdateMine,
 } from './organizations';
+import {
+  projectDetailSchema,
+  projectListSchema,
+  projectSummarySchema,
+  type CreateProject,
+  type ProjectDetail,
+  type ProjectSummary,
+} from './projects';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
 export class ApiError extends Error {
@@ -75,6 +83,15 @@ export class ApiClient {
     schema: S,
     options: RequestOptions = {},
   ): Promise<z.infer<S>> {
+    const text = await this.requestText(path, options);
+    return schema.parse(text === '' ? undefined : JSON.parse(text));
+  }
+
+  /**
+   * Respuesta como texto, sin parsear. Para el contenido de un proyecto: el JSON grande se parsea
+   * y valida en el worker (CLAUDE.md, regla 2), no en el hilo principal.
+   */
+  async requestText(path: string, options: RequestOptions = {}): Promise<string> {
     const init: RequestInit = {
       method: options.method ?? 'GET',
       credentials: 'include',
@@ -84,14 +101,19 @@ export class ApiClient {
     if (options.signal) init.signal = options.signal;
     const res = await this.fetchImpl(`${this.baseUrl}${path}`, init);
     const text = await res.text();
-    const json: unknown = text === '' ? undefined : JSON.parse(text);
     if (!res.ok) {
-      const parsed = apiErrorSchema.safeParse(json);
+      let body: unknown;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = undefined;
+      }
+      const parsed = apiErrorSchema.safeParse(body);
       throw parsed.success
         ? new ApiError(res.status, parsed.data.code, parsed.data.message)
         : new ApiError(res.status, 'http_error', `HTTP ${res.status}`);
     }
-    return schema.parse(json);
+    return text;
   }
 
   health(signal?: AbortSignal): Promise<Health> {
@@ -171,6 +193,28 @@ export class ApiClient {
 
   setMineAccess(mineId: string, body: MineAccess): Promise<Mine> {
     return this.request(`/mines/${enc(mineId)}/access`, mineSchema, { method: 'PUT', body });
+  }
+
+  // Proyectos y versiones (D-14)
+
+  async projects(mineId: string): Promise<ProjectSummary[]> {
+    return (await this.request(`/mines/${enc(mineId)}/projects`, projectListSchema)).projects;
+  }
+
+  createProject(mineId: string, body: CreateProject): Promise<ProjectSummary> {
+    return this.request(`/mines/${enc(mineId)}/projects`, projectSummarySchema, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  project(projectId: string): Promise<ProjectDetail> {
+    return this.request(`/projects/${enc(projectId)}`, projectDetailSchema);
+  }
+
+  /** JSON del ProjectFile de una versión (`'latest'` = la última), sin parsear. */
+  versionContent(projectId: string, version: number | 'latest'): Promise<string> {
+    return this.requestText(`/projects/${enc(projectId)}/versions/${version}/content`);
   }
 
   async audit(orgId: string, limit = 100): Promise<AuditEvent[]> {

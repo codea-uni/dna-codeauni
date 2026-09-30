@@ -5,6 +5,7 @@ import type { Db } from './db/db';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
 import { organizationRoutes } from './routes/organizations';
+import { projectRoutes } from './routes/projects';
 
 export interface AppDeps {
   db: Db;
@@ -17,7 +18,8 @@ export interface AppDeps {
 
 /** Arma la app sin escuchar un puerto: `main.ts` la inicia y las pruebas usan `app.inject`. */
 export function buildApp(deps: AppDeps): FastifyInstance {
-  const app = Fastify({ logger: deps.logger ?? false });
+  // Un proyecto con miles de taladros pesa varios MB de JSON (nginx admite hasta 50 MB).
+  const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 50 * 1024 * 1024 });
 
   app.setErrorHandler((error: unknown, _req, reply) => {
     const e =
@@ -40,6 +42,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       healthRoutes(api, deps);
       authRoutes(api, deps);
       organizationRoutes(api, deps);
+      projectRoutes(api, deps);
       done();
     },
     { prefix: '/api' },

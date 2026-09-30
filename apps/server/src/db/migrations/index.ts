@@ -1,6 +1,7 @@
 import type { Migration } from 'kysely/migration';
 import * as auth from './2026_09_30_01_auth';
 import * as organizations from './2026_09_30_02_organizations';
+import * as projects from './2026_09_30_03_projects';
 
 /**
  * Migraciones en orden de nombre (`AAAA_MM_DD_NN_tema`). Se importan de forma estática para que el
@@ -9,4 +10,5 @@ import * as organizations from './2026_09_30_02_organizations';
 export const migrations: Record<string, Migration> = {
   '2026_09_30_01_auth': auth,
   '2026_09_30_02_organizations': organizations,
+  '2026_09_30_03_projects': projects,
 };

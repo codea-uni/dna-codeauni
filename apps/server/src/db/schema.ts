@@ -12,6 +12,8 @@ export interface Database {
   mine: MineTable;
   mine_access: MineAccessTable;
   audit_event: AuditEventTable;
+  project: ProjectTable;
+  project_version: ProjectVersionTable;
 }
 
 type CreatedAt = ColumnType<Date, never, never>;
@@ -62,4 +64,32 @@ export interface AuditEventTable {
   targetType: string;
   targetId: string | null;
   data: JSONColumnType<Record<string, unknown>>;
+}
+
+export interface ProjectTable {
+  id: string;
+  mineId: string;
+  name: string;
+  versionCount: Generated<number>;
+  createdBy: string | null;
+  createdAt: CreatedAt;
+  updatedAt: ColumnType<Date, never, Date>;
+}
+
+export interface ProjectVersionTable {
+  id: string;
+  projectId: string;
+  number: number;
+  parentVersionId: string | null;
+  restoredFromVersionId: string | null;
+  authorId: string;
+  createdAt: CreatedAt;
+  message: string;
+  projectName: string;
+  schemaVersion: number;
+  holeCount: number;
+  sizeBytes: number;
+  contentHash: string;
+  content: Buffer;
+  summary: JSONColumnType<Record<string, unknown> | null, string | null, never>;
 }
