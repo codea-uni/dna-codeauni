@@ -1,4 +1,4 @@
-import type { ProjectVersion } from '@cronos/api';
+import { diffSummarySchema, type ProjectVersion } from '@cronos/api';
 import type { ProjectFile } from '@cronos/core';
 import type { Kysely, Selectable } from 'kysely';
 import { createHash } from 'node:crypto';
@@ -32,7 +32,7 @@ export async function decodeContent(gz: Buffer): Promise<string> {
   return (await gunzipAsync(gz)).toString('utf8');
 }
 
-type VersionRow = Omit<Selectable<ProjectVersionTable>, 'content' | 'summary'> & {
+type VersionRow = Omit<Selectable<ProjectVersionTable>, 'content'> & {
   authorName: string;
 };
 
@@ -56,9 +56,14 @@ export function selectVersions(db: Kysely<Database>) {
       'project_version.holeCount',
       'project_version.sizeBytes',
       'project_version.contentHash',
+      'project_version.summary',
     ]);
 }
 
 export function toVersion(row: VersionRow): ProjectVersion {
-  return { ...row, createdAt: row.createdAt.toISOString() };
+  return {
+    ...row,
+    createdAt: row.createdAt.toISOString(),
+    summary: diffSummarySchema.nullable().parse(row.summary),
+  };
 }

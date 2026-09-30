@@ -6,6 +6,7 @@ import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
 import { organizationRoutes } from './routes/organizations';
 import { projectRoutes } from './routes/projects';
+import { versionRoutes } from './routes/versions';
 
 export interface AppDeps {
   db: Db;
@@ -43,6 +44,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       authRoutes(api, deps);
       organizationRoutes(api, deps);
       projectRoutes(api, deps);
+      versionRoutes(api, deps);
       done();
     },
     { prefix: '/api' },

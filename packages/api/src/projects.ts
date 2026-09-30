@@ -1,9 +1,25 @@
+import type { DiffSummary } from '@cronos/core';
 import { z } from 'zod';
 import { mineSchema } from './organizations';
 import { roleSchema } from './roles';
 
 const id = z.string().min(1);
 const isoDate = z.string();
+
+/** Resumen de cambios respecto de la versión anterior (`diffProjects` del núcleo). */
+export const diffSummarySchema = z.object({
+  blastsAdded: z.number().int(),
+  blastsRemoved: z.number().int(),
+  holesAdded: z.number().int(),
+  holesRemoved: z.number().int(),
+  holesMoved: z.number().int(),
+  holesGeometry: z.number().int(),
+  holesCharge: z.number().int(),
+  holesTiming: z.number().int(),
+  holesOther: z.number().int(),
+  blastFields: z.array(z.string()),
+  projectFields: z.array(z.string()),
+}) satisfies z.ZodType<DiffSummary>;
 
 /** Metadatos de una versión (`ProjectVersion`); el contenido se pide aparte. */
 export const versionSchema = z.object({
@@ -25,8 +41,11 @@ export const versionSchema = z.object({
   sizeBytes: z.number().int().nonnegative(),
   /** SHA-256 del JSON: dos versiones con el mismo hash tienen el mismo contenido. */
   contentHash: z.string(),
+  /** Cambios respecto de la versión anterior; `null` en la versión 1. */
+  summary: diffSummarySchema.nullable(),
 });
 export type ProjectVersion = z.infer<typeof versionSchema>;
+export const versionListSchema = z.object({ versions: z.array(versionSchema) });
 
 /** Proyecto de una mina con su última versión. */
 export const projectSummarySchema = z.object({
@@ -58,3 +77,21 @@ export const createProjectSchema = z.object({
   message: z.string().trim().max(500).optional(),
 });
 export type CreateProject = z.infer<typeof createProjectSchema>;
+
+/**
+ * Publicar una versión (D-14): `parentVersionId` es la versión sobre la que se trabajó. Si otro
+ * publicó después, el servidor responde 409 `version_conflict` (concurrencia optimista).
+ */
+export const publishVersionSchema = z.object({
+  parentVersionId: id,
+  message: z.string().trim().min(1).max(500),
+  file: z.unknown(),
+});
+export type PublishVersion = z.infer<typeof publishVersionSchema>;
+
+/** Restaurar una versión anterior: crea una versión nueva con ese contenido; no borra nada. */
+export const restoreVersionSchema = z.object({
+  parentVersionId: id,
+  message: z.string().trim().min(1).max(500),
+});
+export type RestoreVersion = z.infer<typeof restoreVersionSchema>;

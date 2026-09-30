@@ -61,6 +61,7 @@ describe('ApiClient', () => {
         holeCount: 0,
         sizeBytes: 2,
         contentHash: 'h',
+        summary: null,
       },
     };
     const api = new ApiClient({ baseUrl: '/api', fetch: fakeFetch(201, summary, seen) });

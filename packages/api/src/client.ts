@@ -35,9 +35,13 @@ import {
   projectDetailSchema,
   projectListSchema,
   projectSummarySchema,
+  versionListSchema,
+  versionSchema,
   type CreateProject,
   type ProjectDetail,
   type ProjectSummary,
+  type ProjectVersion,
+  type RestoreVersion,
 } from './projects';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
@@ -230,6 +234,31 @@ export class ApiClient {
 
   project(projectId: string): Promise<ProjectDetail> {
     return this.request(`/projects/${enc(projectId)}`, projectDetailSchema);
+  }
+
+  async versions(projectId: string): Promise<ProjectVersion[]> {
+    return (await this.request(`/projects/${enc(projectId)}/versions`, versionListSchema)).versions;
+  }
+
+  /** Publica el ProjectFile (ya serializado por el worker) como versión nueva. */
+  publishVersionFromText(
+    projectId: string,
+    parentVersionId: string,
+    message: string,
+    fileJson: string,
+  ): Promise<ProjectVersion> {
+    const rawBody = `{"parentVersionId":${JSON.stringify(parentVersionId)},"message":${JSON.stringify(message)},"file":${fileJson}}`;
+    return this.request(`/projects/${enc(projectId)}/versions`, versionSchema, {
+      method: 'POST',
+      rawBody,
+    });
+  }
+
+  restoreVersion(projectId: string, number: number, body: RestoreVersion): Promise<ProjectVersion> {
+    return this.request(`/projects/${enc(projectId)}/versions/${number}/restore`, versionSchema, {
+      method: 'POST',
+      body,
+    });
   }
 
   /** JSON del ProjectFile de una versión (`'latest'` = la última), sin parsear. */
