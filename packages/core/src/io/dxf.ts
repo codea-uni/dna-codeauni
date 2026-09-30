@@ -12,7 +12,13 @@ import { holeToe, lengthToFloor } from '../geometry/hole';
 import { polygonEdge } from '../geometry/boundary';
 import { unitToAzimuth } from '../geometry/vec';
 import { newId } from '../model/ids';
-import type { Bench, Blast, Hole, Polygon2, Surface, Vec2, Vec3 } from '../model/types';
+import type { Bench, Blast, Hole, Polygon2, Vec2, Vec3 } from '../model/types';
+
+/** Triangulación como listas de números (vértices x, y, z intercalados e índices). */
+export interface DxfTin {
+  vertices: ArrayLike<number>;
+  triangles: ArrayLike<number>;
+}
 
 // ------------------------------------------------------------------ Escritura (DXF R12 ASCII)
 
@@ -130,7 +136,7 @@ export interface DxfExportOptions {
   /** Incluir amarres de superficie como líneas. */
   ties?: boolean;
   /** Superficies (topografía) a exportar como 3DFACE. */
-  surfaces?: readonly Surface[];
+  surfaces?: readonly DxfTin[];
   /** Altura de texto de etiquetas [m]. */
   textHeight?: number;
 }
@@ -302,7 +308,7 @@ export interface DxfImportDefaults {
 export interface DxfImport {
   holes: Hole[];
   boundaries: { polygon: Polygon2; freeFaceEdges: number[] }[];
-  surfaces: Omit<Surface, 'id' | 'name' | 'kind'>[];
+  surfaces: { vertices: number[]; triangles: number[] }[];
   warnings: string[];
 }
 

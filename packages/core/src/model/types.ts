@@ -30,7 +30,7 @@ export type SurfaceConnectorId = Id<'SurfaceConnector'>;
 export type PrimerId = Id<'Primer'>;
 export type StemmingMaterialId = Id<'StemmingMaterial'>;
 export type RockMassId = Id<'RockMass'>;
-export type SurfaceId = Id<'Surface'>;
+export type TopographySurveyId = Id<'TopographySurvey'>;
 export type SurfaceNodeId = Id<'SurfaceNode'>;
 export type ConnectionId = Id<'Connection'>;
 export type InitiationPointId = Id<'InitiationPoint'>;
@@ -64,6 +64,11 @@ export interface ProjectFile {
   savedAt: string; // ISO 8601
   appVersion: string;
   project: Project;
+  /**
+   * Assets de topografía embebidos (hash SHA-256 → base64 del binario `CRTS`), para que un
+   * `.cronos.json` exportado sea autocontenido (D-16). Sin ellos, los assets se piden a la mina.
+   */
+  embeddedAssets?: Record<string, string>;
 }
 
 export interface Project {
@@ -77,7 +82,8 @@ export interface Project {
   library: ProductLibrary;
   rockMasses: RockMass[];
   siteModels: SiteModels;
-  surfaces: Surface[];
+  /** Levantamientos topográficos que usa el proyecto (referencias a los de la mina, D-16). */
+  topography: TopographySurvey[];
   blasts: Blast[];
   /** Puntos de control (monitoreo de vibración y sobrepresión). */
   monitoringPoints?: MonitoringPoint[];
@@ -271,10 +277,8 @@ export interface Bench {
   floorElevation: Meters;
   /** Altura nominal de banco [m]. */
   height: Meters;
-  /** Topografía de la superficie superior (opcional; si falta, plano en floorElevation + height). */
-  topSurfaceId?: SurfaceId;
-  /** Superficie de piso de diseño (opcional; si falta, plano en floorElevation). */
-  floorSurfaceId?: SurfaceId;
+  /** Levantamiento topográfico de la superficie del banco (opcional; si falta, plano en floorElevation + height). */
+  topographyId?: TopographySurveyId;
   /** Ángulo de la cara del banco medido desde la horizontal [rad]. */
   faceAngle: Radians;
 }
@@ -287,15 +291,44 @@ export interface FreeFace {
   toe?: Vec3[];
 }
 
-/** Topografía como TIN. Los buffers grandes se guardan en OPFS y aquí solo la referencia. */
-export interface Surface {
-  id: SurfaceId;
+/** Formato de origen de un levantamiento topográfico. */
+export type TopographyFormat =
+  'dxf' | 'surpac' | 'points' | 'landxml' | 'geotiff' | 'image' | 'las' | 'legacy';
+
+/** Caja envolvente 3D [m]. */
+export interface Bounds3 {
+  minX: number;
+  minY: number;
+  minZ: number;
+  maxX: number;
+  maxY: number;
+  maxZ: number;
+}
+
+/**
+ * Levantamiento topográfico de la mina (D-16), inmutable: TIN, líneas de referencia (curvas,
+ * cresta, pie) y ortofoto guardados como assets binarios por hash (`topography/asset.ts`). El
+ * proyecto guarda estos metadatos (livianos), no los datos.
+ */
+export interface TopographySurvey {
+  id: TopographySurveyId;
   name: string;
-  kind: 'topography' | 'floor' | 'other';
-  /** Vértices [x0,y0,z0, x1,...] en m (coordenadas de proyecto). */
-  vertices: number[];
-  /** Índices de triángulos. */
-  triangles: number[];
+  /** Fecha del levantamiento (AAAA-MM-DD). */
+  surveyDate: string;
+  /** EPSG de las coordenadas guardadas (el del proyecto tras reproyectar). */
+  epsg?: number;
+  source: {
+    format: TopographyFormat;
+    files: string[];
+    /** EPSG del archivo original, si se reproyectó. */
+    sourceEpsg?: number;
+    /** Transformación aplicada, en texto (p. ej. «PSAD56 / UTM 18S → WGS 84 / UTM 18S»). */
+    transform?: string;
+  };
+  bounds: Bounds3;
+  stats: { points: number; triangles: number; lines: number };
+  /** Hash SHA-256 de cada asset `CRTS`. */
+  assets: { tin?: string; lines?: string; image?: string };
 }
 
 // ===================== Malla / patrón =====================

@@ -92,7 +92,7 @@ const PROJECT_FIELDS = [
   'library',
   'rockMasses',
   'siteModels',
-  'surfaces',
+  'topography',
   'monitoringPoints',
   'ppvLimits',
   'scenarios',

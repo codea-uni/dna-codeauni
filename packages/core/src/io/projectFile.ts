@@ -3,10 +3,13 @@ import { uuidv7 } from '../model/ids';
 import { SCHEMA_VERSION } from '../model/schema';
 import type { Project, ProjectFile } from '../model/types';
 import { projectFileSchema } from './projectSchema';
+import { assetHash, bytesToBase64, encodeAsset } from '../topography/asset';
 
 export interface SerializeOptions {
   appVersion: string;
   now?: Date;
+  /** Assets de topografía a embeber (hash → base64), para un archivo autocontenido (D-16). */
+  embeddedAssets?: Record<string, string>;
 }
 
 export function toProjectFile(project: Project, options: SerializeOptions): ProjectFile {
@@ -17,6 +20,9 @@ export function toProjectFile(project: Project, options: SerializeOptions): Proj
     savedAt,
     appVersion: options.appVersion,
     project: { ...project, updatedAt: savedAt },
+    ...(options.embeddedAssets && Object.keys(options.embeddedAssets).length
+      ? { embeddedAssets: options.embeddedAssets }
+      : {}),
   };
 }
 
@@ -99,7 +105,87 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
   8: fillCalcParams,
   /** v9 → v10 (F2, A5): parámetros de desplazamiento y costo de perforación. */
   9: fillCalcParams,
+  /**
+   * v10 → v11 (D-16): las superficies en línea (`project.surfaces`, TIN como JSON) pasan a ser
+   * levantamientos topográficos con su TIN como asset `CRTS` embebido; `bench.topSurfaceId` pasa
+   * a `bench.topographyId` y se descarta `floorSurfaceId` (no se usaba).
+   */
+  10: (data) => {
+    const project = data.project;
+    if (!isObject(project)) return data;
+    const embedded: Json = isObject(data.embeddedAssets) ? { ...data.embeddedAssets } : {};
+    const date = (typeof project.updatedAt === 'string' ? project.updatedAt : '').slice(0, 10);
+    const surveys: Json[] = [];
+    for (const raw of Array.isArray(project.surfaces) ? (project.surfaces as unknown[]) : []) {
+      if (!isObject(raw) || !Array.isArray(raw.vertices) || !Array.isArray(raw.triangles)) continue;
+      const vertices = Float64Array.from(raw.vertices as number[]);
+      const triangles = Uint32Array.from(raw.triangles as number[]);
+      const bytes = encodeAsset({ kind: 'tin', tin: { vertices, triangles } });
+      const hash = assetHash(bytes);
+      embedded[hash] = bytesToBase64(bytes);
+      surveys.push({
+        id: raw.id,
+        name: typeof raw.name === 'string' ? raw.name : 'Topografía',
+        surveyDate: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '2026-01-01',
+        source: { format: 'legacy', files: [] },
+        bounds: tinBounds(vertices),
+        stats: { points: vertices.length / 3, triangles: triangles.length / 3, lines: 0 },
+        assets: { tin: hash },
+      });
+    }
+    const bench = (b: unknown) => {
+      if (!isObject(b) || !isObject(b.bench)) return b;
+      const { topSurfaceId, ...rest } = b.bench;
+      delete rest.floorSurfaceId;
+      return { ...b, bench: { ...rest, ...(topSurfaceId ? { topographyId: topSurfaceId } : {}) } };
+    };
+    const blasts = Array.isArray(project.blasts) ? (project.blasts as unknown[]).map(bench) : [];
+    const scenarios = Array.isArray(project.scenarios)
+      ? (project.scenarios as unknown[]).map((sc) =>
+          isObject(sc) ? { ...sc, blast: bench(sc.blast) } : sc,
+        )
+      : undefined;
+    const projectRest: Json = { ...project };
+    delete projectRest.surfaces;
+    return {
+      ...data,
+      ...(Object.keys(embedded).length ? { embeddedAssets: embedded } : {}),
+      project: {
+        ...projectRest,
+        topography: [
+          ...(Array.isArray(project.topography) ? (project.topography as unknown[]) : []),
+          ...surveys,
+        ],
+        blasts,
+        ...(scenarios ? { scenarios } : {}),
+      },
+    };
+  },
 };
+
+/** Caja envolvente de vértices x, y, z intercalados. */
+function tinBounds(v: Float64Array) {
+  const b = {
+    minX: Infinity,
+    minY: Infinity,
+    minZ: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+    maxZ: -Infinity,
+  };
+  for (let i = 0; i + 2 < v.length; i += 3) {
+    const x = v[i] ?? 0;
+    const y = v[i + 1] ?? 0;
+    const z = v[i + 2] ?? 0;
+    b.minX = Math.min(b.minX, x);
+    b.minY = Math.min(b.minY, y);
+    b.minZ = Math.min(b.minZ, z);
+    b.maxX = Math.max(b.maxX, x);
+    b.maxY = Math.max(b.maxY, y);
+    b.maxZ = Math.max(b.maxZ, z);
+  }
+  return v.length ? b : { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 };
+}
 
 /** Completa `calcParams` de cada voladura con los valores por defecto de los campos que falten. */
 function fillCalcParams(data: Json): Json {

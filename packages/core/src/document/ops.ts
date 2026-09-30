@@ -13,7 +13,7 @@ export type ProjectFields = Pick<
   | 'monitoringPoints'
   | 'ppvLimits'
   | 'scenarios'
-  | 'surfaces'
+  | 'topography'
   | 'name'
   | 'description'
   | 'currency'

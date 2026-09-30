@@ -152,7 +152,7 @@ export function createEmptyProject(name = 'Proyecto sin título', now = new Date
     library: createDefaultLibrary(),
     rockMasses: [rock],
     siteModels: createDefaultSiteModels(),
-    surfaces: [],
+    topography: [],
     blasts: [createBlast('Voladura 1', rock.id)],
     ppvLimits: createCoursePpvLimits(),
     displayUnits: {

@@ -114,8 +114,7 @@ const hole: z.ZodType<M.Hole> = z.object({
 const bench: z.ZodType<M.Bench> = z.object({
   floorElevation: num,
   height: pos,
-  topSurfaceId: id<'Surface'>().exactOptional(),
-  floorSurfaceId: id<'Surface'>().exactOptional(),
+  topographyId: id<'TopographySurvey'>().exactOptional(),
   faceAngle: num,
 });
 
@@ -301,12 +300,30 @@ const siteModels: z.ZodType<M.SiteModels> = z.object({
   flyrock: z.object({ k: pos, safetyFactor: pos }),
 });
 
-const surface: z.ZodType<M.Surface> = z.object({
-  id: id<'Surface'>(),
+const hash = z.string().regex(/^[0-9a-f]{64}$/);
+
+const topographySurvey: z.ZodType<M.TopographySurvey> = z.object({
+  id: id<'TopographySurvey'>(),
   name: z.string(),
-  kind: z.enum(['topography', 'floor', 'other']),
-  vertices: z.array(num),
-  triangles: z.array(z.int().nonnegative()),
+  surveyDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  epsg: z.int().positive().exactOptional(),
+  source: z.object({
+    format: z.enum(['dxf', 'surpac', 'points', 'landxml', 'geotiff', 'image', 'las', 'legacy']),
+    files: z.array(z.string()),
+    sourceEpsg: z.int().positive().exactOptional(),
+    transform: z.string().exactOptional(),
+  }),
+  bounds: z.object({ minX: num, minY: num, minZ: num, maxX: num, maxY: num, maxZ: num }),
+  stats: z.object({
+    points: z.int().nonnegative(),
+    triangles: z.int().nonnegative(),
+    lines: z.int().nonnegative(),
+  }),
+  assets: z.object({
+    tin: hash.exactOptional(),
+    lines: hash.exactOptional(),
+    image: hash.exactOptional(),
+  }),
 });
 
 const displayUnits: z.ZodType<M.DisplayUnits> = z.object({
@@ -347,7 +364,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
   }),
   rockMasses: z.array(rockMass),
   siteModels,
-  surfaces: z.array(surface),
+  topography: z.array(topographySurvey),
   blasts: z.array(blast),
   monitoringPoints: z
     .array(
@@ -379,8 +396,9 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
   format: z.literal('cronos-project'),
-  schemaVersion: z.literal(10),
+  schemaVersion: z.literal(11),
   savedAt: z.string(),
   appVersion: z.string(),
   project: projectSchema,
+  embeddedAssets: z.record(hash, z.string()).exactOptional(),
 });

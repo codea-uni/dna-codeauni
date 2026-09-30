@@ -81,3 +81,8 @@ export function ping(message: string): string {
 // Historial de versiones (D-14)
 export * from './history/diffProjects';
 export * from './history/diffMarkers';
+
+// Topografía (D-16)
+export * from './topography/asset';
+export { sha256Hex } from './topography/sha256';
+export * from './topography/survey';

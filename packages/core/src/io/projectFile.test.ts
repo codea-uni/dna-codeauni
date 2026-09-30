@@ -1,3 +1,4 @@
+import { base64ToBytes, decodeAsset } from '../topography/asset';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BENCH, DEFAULT_CALC_PARAMS, createEmptyProject } from '../model/factories';
 import { newId } from '../model/ids';
@@ -71,7 +72,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(10);
+    expect(parsed.file.schemaVersion).toBe(11);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -208,5 +209,54 @@ describe('archivo de proyecto', () => {
     expect(r.file.project.blasts[0]?.calcParams.checks.minInterRowDelay).toBe(0.035);
     // v9 → v10: desplazamiento
     expect(r.file.project.blasts[0]?.calcParams.displacement.cB).toBe(0.12);
+  });
+
+  it('migra v10 → v11: la superficie en línea pasa a levantamiento con su asset embebido (D-16)', () => {
+    const v11 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
+      project: Record<string, unknown> & { blasts: { bench: Record<string, unknown> }[] };
+    };
+    const blast = v11.project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    delete v11.project.topography;
+    v11.project.surfaces = [
+      {
+        id: 'sup-1',
+        name: 'Topografía agosto',
+        kind: 'topography',
+        vertices: [100, 200, 3400, 110, 200, 3401, 100, 210, 3402],
+        triangles: [0, 1, 2],
+      },
+    ];
+    blast.bench.topSurfaceId = 'sup-1';
+    blast.bench.floorSurfaceId = 'sup-1';
+    const r = parseProjectFile(JSON.stringify({ ...v11, schemaVersion: 10 }));
+    if (!r.ok) throw new Error(r.error);
+    const survey = r.file.project.topography[0];
+    expect(survey).toMatchObject({
+      id: 'sup-1',
+      name: 'Topografía agosto',
+      source: { format: 'legacy' },
+      stats: { points: 3, triangles: 1, lines: 0 },
+      bounds: { minX: 100, minY: 200, minZ: 3400, maxX: 110, maxY: 210, maxZ: 3402 },
+    });
+    expect(r.file.project.blasts[0]?.bench.topographyId).toBe('sup-1');
+    expect(r.file.project.blasts[0]?.bench).not.toHaveProperty('floorSurfaceId');
+    const hash = survey?.assets.tin ?? '';
+    const bytes = base64ToBytes(r.file.embeddedAssets?.[hash] ?? '');
+    const asset = decodeAsset(bytes);
+    if (asset.kind !== 'tin') throw new Error('tipo');
+    expect([...asset.tin.vertices]).toEqual([100, 200, 3400, 110, 200, 3401, 100, 210, 3402]);
+    expect([...asset.tin.triangles]).toEqual([0, 1, 2]);
+  });
+
+  it('exporta y vuelve a leer los assets embebidos', () => {
+    const hash = 'f'.repeat(64);
+    const text = serializeProject(sampleProject(), {
+      appVersion: 'x',
+      embeddedAssets: { [hash]: 'AAEC' },
+    });
+    const r = parseProjectFile(text);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.file.embeddedAssets).toEqual({ [hash]: 'AAEC' });
   });
 });
