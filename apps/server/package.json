@@ -1,0 +1,27 @@
+{
+  "name": "@cronos/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
+    "build": "node build.js",
+    "start": "node dist/main.js",
+    "migrate": "tsx --env-file-if-exists=.env src/migrate.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@cronos/api": "workspace:*",
+    "@cronos/core": "workspace:*",
+    "fastify": "^5.12.5",
+    "kysely": "^0.29.6",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
+  }
+}

@@ -1,0 +1,22 @@
+# Solo para desarrollo y pruebas locales: PostgreSQL del servidor (`apps/server`).
+#   docker compose -f docker-compose.dev.yml up -d
+# Credenciales de desarrollo, no de producción (las de producción van en .env, fuera del repo).
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: cronos-postgres-dev
+    environment:
+      POSTGRES_USER: cronos
+      POSTGRES_PASSWORD: cronos
+      POSTGRES_DB: cronos
+    ports:
+      - '54329:5432'
+    volumes:
+      - cronos-pg-dev:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cronos']
+      interval: 2s
+      retries: 15
+
+volumes:
+  cronos-pg-dev:

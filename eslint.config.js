@@ -64,6 +64,50 @@ export default tseslint.config(
     },
   },
   {
+    // api son contratos compartidos: solo core y zod, sin UI ni servidor.
+    files: ['packages/api/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@cronos/engine', '@cronos/workers', '@cronos/web', '@cronos/server'],
+              message: 'api solo depende de core.',
+            },
+            {
+              group: ['react', 'react-dom', 'zustand', 'three', 'comlink', 'fastify'],
+              message: 'api es solo contratos.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['apps/server/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@cronos/engine',
+                '@cronos/workers',
+                '@cronos/web',
+                'react',
+                'react-dom',
+                'three',
+              ],
+              message: 'server solo depende de core y api.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['apps/web/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
