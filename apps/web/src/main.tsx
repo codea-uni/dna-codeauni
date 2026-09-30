@@ -14,4 +14,6 @@ if (import.meta.env.DEV) {
 const root = document.getElementById('root');
 if (!root) throw new Error('No se encontró #root');
 
-createRoot(root).render(<StrictMode>{serverMode ? <ServerApp /> : <App />}</StrictMode>);
+createRoot(root).render(
+  <StrictMode>{serverMode ? <ServerApp /> : <App restoreLocalDraft />}</StrictMode>,
+);

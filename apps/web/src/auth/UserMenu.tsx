@@ -1,7 +1,5 @@
-import { Building2, KeyRound, LogOut, UserRound, X } from 'lucide-react';
+import { KeyRound, LogOut, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { IconButton } from '../components/IconButton';
 import { MenuButton } from '../components/MenuButton';
 import { useT } from '../i18n';
 import { useAuth } from '../server/api';
@@ -56,20 +54,5 @@ export function UserMenu() {
         </div>
       )}
     </>
-  );
-}
-
-/** Vuelve del editor a las minas de la empresa (solo en modo servidor, dentro del router). */
-export function BackToMines() {
-  const t = useT();
-  const navigate = useNavigate();
-  return (
-    <IconButton
-      icon={Building2}
-      label={t('workspace.backToMines')}
-      onClick={() => {
-        void navigate('/');
-      }}
-    />
   );
 }

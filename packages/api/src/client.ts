@@ -62,6 +62,8 @@ export interface ApiClientOptions {
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
+  /** Cuerpo JSON ya serializado (p. ej. un proyecto grande que serializó el worker). */
+  rawBody?: string;
   signal?: AbortSignal;
 }
 
@@ -92,12 +94,14 @@ export class ApiClient {
    * y valida en el worker (CLAUDE.md, regla 2), no en el hilo principal.
    */
   async requestText(path: string, options: RequestOptions = {}): Promise<string> {
+    const body =
+      options.rawBody ?? (options.body === undefined ? undefined : JSON.stringify(options.body));
     const init: RequestInit = {
       method: options.method ?? 'GET',
       credentials: 'include',
-      headers: options.body === undefined ? {} : { 'content-type': 'application/json' },
+      headers: body === undefined ? {} : { 'content-type': 'application/json' },
     };
-    if (options.body !== undefined) init.body = JSON.stringify(options.body);
+    if (body !== undefined) init.body = body;
     if (options.signal) init.signal = options.signal;
     const res = await this.fetchImpl(`${this.baseUrl}${path}`, init);
     const text = await res.text();
@@ -205,6 +209,22 @@ export class ApiClient {
     return this.request(`/mines/${enc(mineId)}/projects`, projectSummarySchema, {
       method: 'POST',
       body,
+    });
+  }
+
+  /**
+   * Como `createProject`, con el ProjectFile ya serializado: se arma el cuerpo sin volver a
+   * parsear ni serializar el JSON grande en el hilo principal.
+   */
+  createProjectFromText(
+    mineId: string,
+    fileJson: string,
+    message?: string,
+  ): Promise<ProjectSummary> {
+    const rawBody = `{"file":${fileJson}${message === undefined ? '' : `,"message":${JSON.stringify(message)}`}}`;
+    return this.request(`/mines/${enc(mineId)}/projects`, projectSummarySchema, {
+      method: 'POST',
+      rawBody,
     });
   }
 

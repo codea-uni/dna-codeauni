@@ -6,6 +6,7 @@ import * as auth from './ns/auth';
 import * as core from './ns/core';
 import * as panelsA from './ns/panelsA';
 import * as panelsB from './ns/panelsB';
+import * as projects from './ns/projects';
 import * as workspace from './ns/workspace';
 
 export const en = {
@@ -14,6 +15,7 @@ export const en = {
   ...core.en,
   ...panelsA.en,
   ...panelsB.en,
+  ...projects.en,
   ...workspace.en,
   'toolbar.newProject': 'New project',
   'toolbar.openProject': 'Open project',

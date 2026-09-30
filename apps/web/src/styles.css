@@ -1518,3 +1518,27 @@ button.link {
   gap: 0.3rem;
   align-items: center;
 }
+
+.toolbar-context {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  max-width: 28rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+a.button-link {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+a.button-link:hover {
+  border-color: var(--accent);
+}

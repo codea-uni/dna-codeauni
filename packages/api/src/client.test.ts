@@ -36,4 +36,41 @@ describe('ApiClient', () => {
     const api = new ApiClient({ baseUrl: '/api', fetch: fakeFetch(200, { status: 'maybe' }) });
     await expect(api.health()).rejects.toThrow();
   });
+
+  it('envía un proyecto ya serializado sin volver a parsearlo', async () => {
+    const seen: { url?: string; init?: RequestInit } = {};
+    const summary = {
+      id: 'p1',
+      mineId: 'm1',
+      name: 'Banco',
+      versionCount: 1,
+      createdAt: 'x',
+      updatedAt: 'x',
+      latest: {
+        id: 'v1',
+        projectId: 'p1',
+        number: 1,
+        parentVersionId: null,
+        restoredFromVersionId: null,
+        authorId: 'u1',
+        authorName: 'Ana',
+        createdAt: 'x',
+        message: 'Inicial',
+        projectName: 'Banco',
+        schemaVersion: 10,
+        holeCount: 0,
+        sizeBytes: 2,
+        contentHash: 'h',
+      },
+    };
+    const api = new ApiClient({ baseUrl: '/api', fetch: fakeFetch(201, summary, seen) });
+    await api.createProjectFromText('m1', '{"format":"cronos-project"}', 'Inicial "1"');
+    expect(seen.url).toBe('/api/mines/m1/projects');
+    const sent = seen.init?.body;
+    expect(typeof sent).toBe('string');
+    expect(JSON.parse(sent as string)).toEqual({
+      file: { format: 'cronos-project' },
+      message: 'Inicial "1"',
+    });
+  });
 });

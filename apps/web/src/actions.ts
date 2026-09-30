@@ -82,7 +82,15 @@ export function zoomToFit(selectionOnly = false): void {
   getEngine()?.zoomToFit(selectionOnly);
 }
 
+/** En solo lectura (revisor) no se reemplaza el proyecto abierto: se avisa y no se hace nada. */
+function blockedByReadOnly(): boolean {
+  if (!document.readOnly) return false;
+  notify(t('projects.readOnlyHint'), 'error');
+  return true;
+}
+
 export function newProject(): void {
+  if (blockedByReadOnly()) return;
   if (document.canUndo && !window.confirm(t('actions.discardForNew'))) return;
   document.load(createEmptyProject());
   notify(t('toolbar.newProject'));
@@ -106,6 +114,7 @@ export async function saveProject(): Promise<void> {
 }
 
 export async function openProject(file: File): Promise<void> {
+  if (blockedByReadOnly()) return;
   await withBusy(t('actions.opening'), async () => {
     const text = await file.text();
     const result = await getCompute().api.parseProject(text);
@@ -710,6 +719,7 @@ export async function compareScenarios(): Promise<void> {
 
 /** Abre un proyecto de ejemplo completamente configurado (se genera en el worker). */
 export async function loadExample(id: string, name: string): Promise<void> {
+  if (blockedByReadOnly()) return;
   if (document.canUndo && !window.confirm(t('actions.discardForExample', { name }))) return;
   await withBusy(t('actions.preparingExample'), async () => {
     const project = await getCompute().api.buildExample(id);

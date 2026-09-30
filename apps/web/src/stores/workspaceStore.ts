@@ -57,6 +57,10 @@ export function workspaceErrorKey(err: unknown): MessageKey {
       return 'workspace.error.forbidden';
     case 'not_found':
       return 'workspace.error.notFound';
+    case 'crs_mismatch':
+      return 'projects.error.crsMismatch';
+    case 'invalid_project':
+      return 'projects.error.invalid';
     default:
       return err.status >= 500 ? 'auth.error.unreachable' : 'auth.error.unexpected';
   }

@@ -44,7 +44,8 @@ import { useHistory } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { IconButton } from './IconButton';
 import { MenuButton } from './MenuButton';
-import { BackToMines, UserMenu } from '../auth/UserMenu';
+import { UserMenu } from '../auth/UserMenu';
+import { BackToMine, ProjectContext } from '../server/ProjectContext';
 import { serverMode } from '../server/api';
 import { t as translate, useT, type MessageKey } from '../i18n';
 import { exampleText } from '../i18n/coreText';
@@ -173,35 +174,49 @@ export function Toolbar() {
   return (
     <header className="toolbar">
       <strong className="brand">Cronos</strong>
+      {serverMode && <ProjectContext />}
       <div className="toolbar-group">
-        <IconButton icon={FilePlus} label={tr('toolbar.newProject')} onClick={actions.newProject} />
-        <IconButton
-          icon={FolderOpen}
-          label={tr('toolbar.openProject')}
-          onClick={() => fileInput.current?.click()}
-        />
+        {/* En modo servidor el proyecto viene de la mina: nuevo y abrir están en la página de la mina. */}
+        {!serverMode && (
+          <>
+            <IconButton
+              icon={FilePlus}
+              label={tr('toolbar.newProject')}
+              onClick={actions.newProject}
+            />
+            <IconButton
+              icon={FolderOpen}
+              label={tr('toolbar.openProject')}
+              onClick={() => fileInput.current?.click()}
+            />
+          </>
+        )}
         <IconButton
           icon={Save}
           label={tr('toolbar.saveProject')}
           shortcut="Ctrl+S"
           onClick={() => void actions.saveProject()}
         />
-        <IconButton
-          icon={Clapperboard}
-          label={tr('toolbar.demo')}
-          active={demoOn}
-          onClick={() => {
-            if (demoOn) stopDemo();
-            else startDemo();
-          }}
-        />
-        <IconButton
-          icon={HistoryIcon}
-          label={tr('toolbar.versions')}
-          onClick={() => {
-            useUiStore.getState().setVersionsOpen(true);
-          }}
-        />
+        {!serverMode && (
+          <>
+            <IconButton
+              icon={Clapperboard}
+              label={tr('toolbar.demo')}
+              active={demoOn}
+              onClick={() => {
+                if (demoOn) stopDemo();
+                else startDemo();
+              }}
+            />
+            <IconButton
+              icon={HistoryIcon}
+              label={tr('toolbar.versions')}
+              onClick={() => {
+                useUiStore.getState().setVersionsOpen(true);
+              }}
+            />
+          </>
+        )}
         <IconButton
           icon={Settings}
           label={tr('toolbar.settings')}
@@ -467,7 +482,7 @@ export function Toolbar() {
       </div>
       {serverMode && (
         <div className="toolbar-group toolbar-account">
-          <BackToMines />
+          <BackToMine />
           <UserMenu />
         </div>
       )}

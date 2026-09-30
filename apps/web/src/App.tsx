@@ -25,7 +25,11 @@ import { useT } from './i18n';
 import { LEFT_TABS, PanelContent } from './panels/registry';
 import { Viewport } from './viewport/Viewport';
 
-export function App() {
+/**
+ * Editor. `restoreLocalDraft`: al abrir, recupera el último autoguardado del navegador (modo
+ * local). En modo servidor el proyecto llega de la mina y no se reemplaza con un borrador.
+ */
+export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean }) {
   useShortcuts();
   const tr = useT();
   const tab = useUiStore((s) => s.leftTab);
@@ -53,14 +57,14 @@ export function App() {
     void getCompute().api.ping('warmup');
     const stopAnalysis = startAnalysisRunner();
     const stopAutosave = startAutosave();
-    void restoreLatestAutosave();
+    if (restoreLocalDraft) void restoreLatestAutosave();
     const stops = [startEnergyRunner(), startFragmentationRunner(), startVibrationRunner()];
     return () => {
       stopAnalysis();
       stopAutosave();
       for (const stop of stops) stop();
     };
-  }, []);
+  }, [restoreLocalDraft]);
   return (
     <div className="app">
       <Toolbar />
