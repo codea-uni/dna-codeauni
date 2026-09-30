@@ -23,7 +23,8 @@ Las barras laterales no cambian. Los módulos con tablas o muchos campos juntos 
 
 ```bash
 pnpm install
-pnpm dev         # aplicación web (Vite)
+pnpm dev         # aplicación web (Vite), sin login
+pnpm dev:online  # con login, empresas, minas e historial (PostgreSQL con Docker)
 pnpm test        # tests (core, engine, workers, web) y de rendimiento
 pnpm typecheck   # tsc -b
 pnpm lint

@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "pnpm --filter @cronos/web dev",
     "dev:server": "pnpm --filter @cronos/server dev",
+    "dev:online": "node scripts/dev-online.js",
     "build": "pnpm typecheck && pnpm --filter @cronos/web build",
     "typecheck": "tsc -b",
     "lint": "eslint .",
