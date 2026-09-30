@@ -26,7 +26,6 @@ export const es = {
   'workspace.yourRole': 'Tu rol: {role}',
   'workspace.openEditor': 'Abrir el editor',
   'workspace.backToMines': 'Volver a las minas',
-  'workspace.newOrganization': 'Nueva empresa',
   'workspace.newOrganizationHint':
     'Para una contratista que trabaja en otras minas. Quedas como administrador.',
   'workspace.create': 'Crear',
@@ -70,12 +69,23 @@ export const es = {
   'audit.mine.create': 'Creó una mina',
   'audit.mine.update': 'Editó una mina',
   'audit.mine.access_change': 'Cambió el acceso a una mina',
+  'audit.organization.rename': 'Renombró la empresa',
+  'audit.organization.disable': 'Desactivó la empresa',
+  'audit.organization.enable': 'Reactivó la empresa',
+  'audit.user.disable': 'Desactivó una cuenta',
+  'audit.user.enable': 'Reactivó una cuenta',
+  'audit.project.create': 'Creó un proyecto',
+  'audit.version.create': 'Guardó una versión',
+  'audit.version.restore': 'Restauró una versión',
 
   'workspace.error.lastAdmin': 'La empresa necesita al menos un administrador.',
   'workspace.error.alreadyMember': 'Ese usuario ya es miembro de la empresa.',
   'workspace.error.passwordRequired': 'Es una cuenta nueva: indica una contraseña temporal.',
   'workspace.error.forbidden': 'Tu rol no permite esta acción.',
   'workspace.error.notFound': 'No existe o no tienes acceso.',
+  'workspace.error.otherOrganization':
+    'Ese correo ya pertenece a otra empresa. Cada persona es de una sola.',
+  'workspace.error.organizationDisabled': 'La cuenta de tu empresa está desactivada.',
 };
 
 export const en = {
@@ -102,7 +112,6 @@ export const en = {
   'workspace.yourRole': 'Your role: {role}',
   'workspace.openEditor': 'Open the editor',
   'workspace.backToMines': 'Back to mines',
-  'workspace.newOrganization': 'New company',
   'workspace.newOrganizationHint':
     'For a contractor working at other mines. You become its administrator.',
   'workspace.create': 'Create',
@@ -145,10 +154,21 @@ export const en = {
   'audit.mine.create': 'Created a mine',
   'audit.mine.update': 'Edited a mine',
   'audit.mine.access_change': 'Changed access to a mine',
+  'audit.organization.rename': 'Renamed the company',
+  'audit.organization.disable': 'Disabled the company',
+  'audit.organization.enable': 'Re-enabled the company',
+  'audit.user.disable': 'Disabled an account',
+  'audit.user.enable': 'Re-enabled an account',
+  'audit.project.create': 'Created a project',
+  'audit.version.create': 'Saved a version',
+  'audit.version.restore': 'Restored a version',
 
   'workspace.error.lastAdmin': 'The company needs at least one administrator.',
   'workspace.error.alreadyMember': 'That user is already a member of the company.',
   'workspace.error.passwordRequired': 'This is a new account: enter a temporary password.',
   'workspace.error.forbidden': 'Your role does not allow this action.',
   'workspace.error.notFound': 'It does not exist or you have no access.',
+  'workspace.error.otherOrganization':
+    'That email already belongs to another company. Each person belongs to one.',
+  'workspace.error.organizationDisabled': 'Your company account is disabled.',
 } satisfies Record<keyof typeof es, string>;

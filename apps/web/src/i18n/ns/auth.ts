@@ -29,6 +29,11 @@ export const es = {
   'auth.error.invalidPassword': 'La contraseña actual no es correcta.',
   'auth.error.passwordTooShort': 'La contraseña nueva debe tener al menos 10 caracteres.',
   'auth.error.passwordMismatch': 'Las contraseñas nuevas no coinciden.',
+  'auth.error.accountDisabled':
+    'Esta cuenta está desactivada. Consulta con el administrador de tu empresa.',
+  'auth.orgDisabledTitle': 'La cuenta de {name} está desactivada',
+  'auth.orgDisabled':
+    'Mientras esté desactivada nadie de la empresa puede abrir sus minas ni proyectos. Los datos y el historial se conservan intactos.',
 };
 
 export const en = {
@@ -59,4 +64,8 @@ export const en = {
   'auth.error.invalidPassword': 'The current password is not correct.',
   'auth.error.passwordTooShort': 'The new password must be at least 10 characters long.',
   'auth.error.passwordMismatch': 'The new passwords do not match.',
+  'auth.error.accountDisabled': 'This account is disabled. Ask your company administrator.',
+  'auth.orgDisabledTitle': 'The {name} account is disabled',
+  'auth.orgDisabled':
+    'While it is disabled, nobody in the company can open its mines or projects. Data and history are kept intact.',
 } satisfies Record<keyof typeof es, string>;

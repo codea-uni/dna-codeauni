@@ -1,28 +1,27 @@
 import { permissions } from '@cronos/api';
 import { Lock, Mountain } from 'lucide-react';
-import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import { useT } from '../i18n';
-import { useWorkspace } from '../server/api';
+import { useAuth, useWorkspace } from '../server/api';
 import { activeRole } from '../stores/workspaceStore';
 import { ErrorLine, PageShell } from './PageShell';
 
 /** Inicio: las minas de la empresa activa. */
 export function HomePage() {
   const t = useT();
-  const organizations = useWorkspace((s) => s.organizations);
+  const organization = useWorkspace((s) => s.organization);
+  const isSuperAdmin = useAuth((s) => s.user?.isSuperAdmin ?? false);
   const mines = useWorkspace((s) => s.mines);
   const role = useWorkspace(activeRole);
+  // El superadministrador sin empresa trabaja en la consola de la plataforma.
+  if (!organization && isSuperAdmin) return <Navigate to="/platform" replace />;
 
   return (
     <PageShell>
       <h1>{t('workspace.mines')}</h1>
       <ErrorLine />
-      {organizations === null && <p className="muted">{t('workspace.loading')}</p>}
-      {organizations?.length === 0 && <p>{t('workspace.noOrganization')}</p>}
-      {organizations && organizations.length > 0 && mines === null && (
-        <p className="muted">{t('workspace.loading')}</p>
-      )}
+      {!organization && <p>{t('workspace.noOrganization')}</p>}
+      {organization && mines === null && <p className="muted">{t('workspace.loading')}</p>}
       {mines?.length === 0 && (
         <p>
           {t('workspace.noMines')}{' '}
@@ -51,42 +50,6 @@ export function HomePage() {
           ))}
         </ul>
       )}
-      {role && permissions.manageMembers(role) && <NewOrganization />}
     </PageShell>
-  );
-}
-
-function NewOrganization() {
-  const t = useT();
-  const create = useWorkspace((s) => s.createOrganization);
-  const busy = useWorkspace((s) => s.busy);
-  const [name, setName] = useState('');
-  return (
-    <section className="page-section">
-      <h2>{t('workspace.newOrganization')}</h2>
-      <p className="muted">{t('workspace.newOrganizationHint')}</p>
-      <form
-        className="inline-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void create(name.trim()).then((ok) => {
-            if (ok) setName('');
-          });
-        }}
-      >
-        <input
-          aria-label={t('workspace.name')}
-          placeholder={t('workspace.name')}
-          required
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-          }}
-        />
-        <button className="primary" type="submit" disabled={busy}>
-          {t('workspace.create')}
-        </button>
-      </form>
-    </section>
   );
 }

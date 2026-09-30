@@ -8,6 +8,7 @@ import * as core from './ns/core';
 import * as history from './ns/history';
 import * as panelsA from './ns/panelsA';
 import * as panelsB from './ns/panelsB';
+import * as platform from './ns/platform';
 import * as projects from './ns/projects';
 import * as workspace from './ns/workspace';
 
@@ -18,6 +19,7 @@ export const es = {
   ...history.es,
   ...panelsA.es,
   ...panelsB.es,
+  ...platform.es,
   ...projects.es,
   ...workspace.es,
   'toolbar.newProject': 'Proyecto nuevo',

@@ -12,6 +12,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const t = useT();
   const status = useAuth((s) => s.status);
   const user = useAuth((s) => s.user);
+  const organization = useAuth((s) => s.organization);
+  const signOut = useAuth((s) => s.signOut);
   const refresh = useAuth((s) => s.refresh);
   const setLocale = useLocale((s) => s.setLocale);
   const userLocale = user?.locale;
@@ -51,6 +53,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <AuthShell>
         <p>{t('auth.mustChange')}</p>
         <ChangePasswordForm />
+      </AuthShell>
+    );
+  // Empresa desactivada por la plataforma: sus datos siguen, pero nadie de ella entra.
+  if (organization?.disabled && !user.isSuperAdmin)
+    return (
+      <AuthShell>
+        <h1 className="auth-title">{t('auth.orgDisabledTitle', { name: organization.name })}</h1>
+        <p>{t('auth.orgDisabled')}</p>
+        <button onClick={() => void signOut()}>{t('auth.signOut')}</button>
       </AuthShell>
     );
   return children;

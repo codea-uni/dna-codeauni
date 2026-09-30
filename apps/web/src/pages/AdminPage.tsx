@@ -16,14 +16,20 @@ const AUDIT_KEYS: Record<string, MessageKey> = {
   'mine.create': 'audit.mine.create',
   'mine.update': 'audit.mine.update',
   'mine.access_change': 'audit.mine.access_change',
+  'organization.rename': 'audit.organization.rename',
+  'organization.disable': 'audit.organization.disable',
+  'organization.enable': 'audit.organization.enable',
+  'user.disable': 'audit.user.disable',
+  'user.enable': 'audit.user.enable',
+  'project.create': 'audit.project.create',
+  'version.create': 'audit.version.create',
+  'version.restore': 'audit.version.restore',
 };
 
 /** Administración de la empresa activa: usuarios y roles, minas y su acceso, auditoría. */
 export function AdminPage() {
   const role = useWorkspace(activeRole);
-  const organizations = useWorkspace((s) => s.organizations);
-  if (organizations && (!role || !permissions.manageMembers(role)))
-    return <Navigate to="/" replace />;
+  if (!role || !permissions.manageMembers(role)) return <Navigate to="/" replace />;
   return (
     <PageShell>
       <ErrorLine />
@@ -38,7 +44,7 @@ function Members() {
   const t = useT();
   const fmtDate = useFormatDate();
   const me = useAuth((s) => s.user);
-  const orgId = useWorkspace((s) => s.activeOrgId);
+  const orgId = useWorkspace((s) => s.organization?.id);
   const members = useWorkspace((s) => s.members);
   const load = useWorkspace((s) => s.loadMembers);
   const updateRole = useWorkspace((s) => s.updateMemberRole);
@@ -349,7 +355,7 @@ function AccessDialog({ mine, onClose }: { mine: Mine; onClose: () => void }) {
 function Audit() {
   const t = useT();
   const fmtDate = useFormatDate();
-  const orgId = useWorkspace((s) => s.activeOrgId);
+  const orgId = useWorkspace((s) => s.organization?.id);
   // Se recarga cuando cambian miembros o minas, para mostrar los eventos recién creados.
   const members = useWorkspace((s) => s.members);
   const mines = useWorkspace((s) => s.mines);

@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AuthGate } from '../auth/AuthGate';
-import { useWorkspace } from '../server/api';
+import { useAuth, useWorkspace } from '../server/api';
 import { AdminPage } from './AdminPage';
 import { HomePage } from './HomePage';
 import { MineHistoryPage } from './MineHistoryPage';
 import { MinePage } from './MinePage';
+import { PlatformPage } from './PlatformPage';
 import { ProjectEditor } from './ProjectEditor';
 
 /**
@@ -22,6 +23,7 @@ export function ServerApp() {
           <Route path="/mines/:mineId" element={<MinePage />} />
           <Route path="/mines/:mineId/history" element={<MineHistoryPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/platform" element={<PlatformPage />} />
           <Route path="/projects/:projectId" element={<ProjectEditor />} />
           <Route path="/projects/:projectId/versions/:number" element={<ProjectEditor />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -31,11 +33,12 @@ export function ServerApp() {
   );
 }
 
-/** Carga las empresas del usuario al entrar. */
+/** La empresa de la sesión pasa al espacio de trabajo (y con ella, sus minas). */
 function WorkspaceLoader() {
-  const load = useWorkspace((s) => s.loadOrganizations);
+  const organization = useAuth((s) => s.organization);
+  const setOrganization = useWorkspace((s) => s.setOrganization);
   useEffect(() => {
-    void load();
-  }, [load]);
+    void setOrganization(organization);
+  }, [organization, setOrganization]);
   return null;
 }

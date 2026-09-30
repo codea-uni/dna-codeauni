@@ -1,8 +1,10 @@
-import { ApiError, type ApiClient, type User } from '@cronos/api';
+import { ApiError, type ApiClient, type Me, type MyOrganization, type User } from '@cronos/api';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import type { MessageKey } from '../i18n';
 
 const FAILED = Symbol('failed');
+
+const fromMe = (me: Me) => ({ user: me.user, organization: me.organization });
 
 /**
  * - `loading`: consultando la sesión al arrancar.
@@ -15,6 +17,8 @@ export type AuthStatus = 'loading' | 'anonymous' | 'authenticated' | 'unreachabl
 export interface AuthState {
   status: AuthStatus;
   user: User | null;
+  /** Empresa del usuario (una por persona); `null` si no pertenece a ninguna. */
+  organization: MyOrganization | null;
   /** Clave de i18n del último error (la UI la traduce); `null` sin error. */
   error: MessageKey | null;
   busy: boolean;
@@ -32,6 +36,7 @@ export type AuthStore = UseBoundStore<StoreApi<AuthState>>;
 export function authErrorKey(err: unknown): MessageKey {
   if (!(err instanceof ApiError)) return 'auth.error.unreachable';
   if (err.status === 429) return 'auth.error.tooManyAttempts';
+  if (err.code === 'account_disabled') return 'auth.error.accountDisabled';
   if (err.code === 'invalid_password') return 'auth.error.invalidPassword';
   if (err.code === 'password_too_short') return 'auth.error.passwordTooShort';
   if (err.status === 401) return 'auth.error.invalidCredentials';
@@ -56,49 +61,55 @@ export function createAuthStore(api: ApiClient): AuthStore {
     return {
       status: 'loading',
       user: null,
+      organization: null,
       error: null,
       busy: false,
 
       refresh: async () => {
         try {
-          const { user } = await api.me();
-          set({ status: 'authenticated', user, error: null });
+          set({ status: 'authenticated', ...fromMe(await api.me()), error: null });
         } catch (err) {
-          if (err instanceof ApiError && err.status === 401)
-            set({ status: 'anonymous', user: null, error: null });
-          else set({ status: 'unreachable', user: null, error: authErrorKey(err) });
+          if (err instanceof ApiError && (err.status === 401 || err.code === 'account_disabled'))
+            set({ status: 'anonymous', user: null, organization: null, error: null });
+          else
+            set({
+              status: 'unreachable',
+              user: null,
+              organization: null,
+              error: authErrorKey(err),
+            });
         }
       },
 
       signIn: async (email, password) => {
         const res = await run(async () => {
           await api.signIn({ email, password });
-          return (await api.me()).user;
+          return api.me();
         });
         if (res === FAILED) return false;
-        set({ status: 'authenticated', user: res });
+        set({ status: 'authenticated', ...fromMe(res) });
         return true;
       },
 
       signOut: async () => {
         await run(() => api.signOut());
-        set({ status: 'anonymous', user: null });
+        set({ status: 'anonymous', user: null, organization: null });
       },
 
       changePassword: async (currentPassword, newPassword) => {
         const res = await run(async () => {
           await api.changePassword({ currentPassword, newPassword });
-          return (await api.me()).user;
+          return api.me();
         });
         if (res === FAILED) return false;
-        set({ user: res });
+        set(fromMe(res));
         return true;
       },
 
       setLocale: async (locale) => {
         if (get().user?.locale === locale) return;
         const res = await run(() => api.updateMe({ locale }));
-        if (res !== FAILED) set({ user: res.user });
+        if (res !== FAILED) set(fromMe(res));
       },
 
       clearError: () => {

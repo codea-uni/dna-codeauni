@@ -5,27 +5,24 @@ import {
   type CreateMine,
   type Member,
   type Mine,
-  type Organization,
+  type MyOrganization,
   type Role,
   type UpdateMine,
 } from '@cronos/api';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import type { MessageKey } from '../i18n';
 
-const ORG_KEY = 'cronos.organization';
-
-/** Empresa activa y sus minas y miembros (modo servidor, D-14). */
+/** La empresa del usuario (una por persona) con sus minas y miembros (modo servidor, D-14). */
 export interface WorkspaceState {
-  organizations: Organization[] | null;
-  activeOrgId: string | null;
+  /** Llega con la sesión (`/me`); `null` si el usuario no pertenece a ninguna empresa. */
+  organization: MyOrganization | null;
   mines: Mine[] | null;
   members: Member[] | null;
   /** Clave de i18n del último error (la UI la traduce). */
   error: MessageKey | null;
   busy: boolean;
-  loadOrganizations: () => Promise<void>;
-  setActiveOrganization: (id: string) => Promise<void>;
-  createOrganization: (name: string) => Promise<boolean>;
+  /** Fija la empresa de la sesión y carga sus minas. */
+  setOrganization: (organization: MyOrganization | null) => Promise<void>;
   loadMines: () => Promise<void>;
   loadMembers: () => Promise<void>;
   createMine: (body: CreateMine) => Promise<Mine | null>;
@@ -65,24 +62,16 @@ export function workspaceErrorKey(err: unknown): MessageKey {
       return 'history.error.conflict';
     case 'no_changes':
       return 'history.error.noChanges';
+    case 'other_organization':
+      return 'workspace.error.otherOrganization';
+    case 'organization_disabled':
+      return 'workspace.error.organizationDisabled';
+    case 'account_disabled':
+      return 'auth.error.accountDisabled';
+    case 'cannot_disable_self':
+      return 'platform.error.cannotDisableSelf';
     default:
       return err.status >= 500 ? 'auth.error.unreachable' : 'auth.error.unexpected';
-  }
-}
-
-function storedOrg(): string | null {
-  try {
-    return globalThis.localStorage.getItem(ORG_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function storeOrg(id: string): void {
-  try {
-    globalThis.localStorage.setItem(ORG_KEY, id);
-  } catch {
-    // sin almacenamiento: la empresa activa dura la sesión
   }
 }
 
@@ -91,8 +80,9 @@ export function createWorkspaceStore(api: ApiClient): WorkspaceStore {
   return create<WorkspaceState>((set, get) => {
     /** Ejecuta `fn` con el estado de ocupado y el error traducido; `true` si salió bien. */
     const run = async (fn: (orgId: string) => Promise<void>): Promise<boolean> => {
-      const orgId = get().activeOrgId;
-      if (!orgId) return false;
+      const org = get().organization;
+      if (!org || org.disabled) return false;
+      const orgId = org.id;
       set({ busy: true, error: null });
       try {
         await fn(orgId);
@@ -112,45 +102,20 @@ export function createWorkspaceStore(api: ApiClient): WorkspaceStore {
     };
 
     return {
-      organizations: null,
-      activeOrgId: null,
+      organization: null,
       mines: null,
       members: null,
       error: null,
       busy: false,
 
-      loadOrganizations: async () => {
-        try {
-          const organizations = await api.organizations();
-          const wanted = get().activeOrgId ?? storedOrg();
-          const active =
-            organizations.find((o) => o.id === wanted)?.id ?? organizations[0]?.id ?? null;
-          set({ organizations, error: null });
-          if (active && active !== get().activeOrgId) await get().setActiveOrganization(active);
-        } catch (err) {
-          set({ error: workspaceErrorKey(err) });
-        }
-      },
-
-      setActiveOrganization: async (id) => {
-        storeOrg(id);
-        set({ activeOrgId: id, mines: null, members: null });
-        await run(refreshMines);
-      },
-
-      createOrganization: async (name) => {
-        set({ busy: true, error: null });
-        try {
-          const org = await api.createOrganization({ name });
-          set({ organizations: [...(get().organizations ?? []), org] });
-          await get().setActiveOrganization(org.id);
-          return true;
-        } catch (err) {
-          set({ error: workspaceErrorKey(err) });
-          return false;
-        } finally {
-          set({ busy: false });
-        }
+      setOrganization: async (organization) => {
+        if (
+          get().organization?.id === organization?.id &&
+          get().organization?.disabled === organization?.disabled
+        )
+          return;
+        set({ organization, mines: null, members: null, error: null });
+        if (organization && !organization.disabled) await run(refreshMines);
       },
 
       loadMines: async () => {
@@ -205,13 +170,13 @@ export function createWorkspaceStore(api: ApiClient): WorkspaceStore {
       },
 
       reset: () => {
-        set({ organizations: null, activeOrgId: null, mines: null, members: null, error: null });
+        set({ organization: null, mines: null, members: null, error: null });
       },
     };
   });
 }
 
-/** Rol del usuario en la empresa activa. */
+/** Rol del usuario en su empresa. */
 export function activeRole(s: WorkspaceState): Role | null {
-  return s.organizations?.find((o) => o.id === s.activeOrgId)?.role ?? null;
+  return s.organization?.role ?? null;
 }

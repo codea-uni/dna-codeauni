@@ -8,7 +8,9 @@ const USER = {
   email: 'ana@mina.pe',
   locale: 'es',
   mustChangePassword: false,
+  isSuperAdmin: false,
 } as const;
+const ORG = { id: 'o1', name: 'Minera Sur', role: 'designer', disabled: false } as const;
 
 type Handler = (path: string, init?: RequestInit) => [number, unknown];
 
@@ -34,9 +36,13 @@ describe('authStore', () => {
     await anon.getState().refresh();
     expect(anon.getState().status).toBe('anonymous');
 
-    const auth = store(() => [200, { user: USER }]);
+    const auth = store(() => [200, { user: USER, organization: ORG }]);
     await auth.getState().refresh();
-    expect(auth.getState()).toMatchObject({ status: 'authenticated', user: USER });
+    expect(auth.getState()).toMatchObject({
+      status: 'authenticated',
+      user: USER,
+      organization: ORG,
+    });
   });
 
   it('sin red queda en «sin conexión» con su mensaje', async () => {
@@ -70,7 +76,7 @@ describe('authStore', () => {
     const s = store((path) => {
       if (path === '/auth/sign-in/email') signedIn = true;
       if (path === '/auth/sign-out') signedIn = false;
-      if (path === '/me') return signedIn ? [200, { user: USER }] : [401, {}];
+      if (path === '/me') return signedIn ? [200, { user: USER, organization: ORG }] : [401, {}];
       return [200, {}];
     });
     expect(await s.getState().signIn('ana@mina.pe', 'buena')).toBe(true);
@@ -86,7 +92,7 @@ describe('authStore', () => {
         temporary = false;
         return [200, { ok: true }];
       }
-      return [200, { user: { ...USER, mustChangePassword: temporary } }];
+      return [200, { user: { ...USER, mustChangePassword: temporary }, organization: ORG }];
     });
     await s.getState().refresh();
     expect(s.getState().user?.mustChangePassword).toBe(true);
@@ -98,9 +104,15 @@ describe('authStore', () => {
     const s = store((path) =>
       path === '/me/password'
         ? [400, { code: 'invalid_password', message: '' }]
-        : [200, { user: USER }],
+        : [200, { user: USER, organization: ORG }],
     );
     expect(await s.getState().changePassword('mala', 'definitiva-456')).toBe(false);
     expect(s.getState().error).toBe('auth.error.invalidPassword');
+  });
+
+  it('una cuenta desactivada por la plataforma lo explica al entrar', async () => {
+    const s = store(() => [403, { code: 'account_disabled', message: '' }]);
+    expect(await s.getState().signIn('ana@mina.pe', 'x')).toBe(false);
+    expect(s.getState().error).toBe('auth.error.accountDisabled');
   });
 });
