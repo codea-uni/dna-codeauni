@@ -225,7 +225,7 @@ Guía `01 §3`: «Calibrar con mediciones · importar perforación y sismógrafo
 
 Guía `01 §3`: «Dejarlo listo para terceros · documentación de usuario, empaquetado, lista de verificación de lanzamiento · **Salida: lista aprobada**». Aquí se levanta D-08: usuarios, roles, comentarios, auditoría e historial (R-25, H-801, UC-09, UC-10, NF-07, NF-08).
 
-**Adelantado (2026-09-30, D-14):** login, empresas con minas, roles e historial de versiones de cada mina se construyen antes de F3, fuera del orden de hitos. Entregas en ramas `feat/server-foundation`, `feat/auth-login`, `feat/organizations-and-mines`, `feat/mine-projects`, `feat/version-history`, `feat/mine-timeline` y `feat/version-compare`. D3 y D4 siguen en su lugar.
+**Adelantado (2026-09-30, D-14):** login, empresas con minas, roles e historial de versiones de cada mina, fuera del orden de hitos. **Hecho:** servidor (`apps/server`) y contratos (`packages/api`); login sin registro público con contraseña temporal; empresas, usuarios con rol, minas con acceso restringible y auditoría inalterable; proyectos por mina con versiones inmutables, concurrencia optimista, restaurar, borrador local; historial de la mina y comparación de versiones en el plano. **Pendiente de D2:** comentarios del revisor por escenario (UC-09) y catálogos compartidos del administrador (`03 §1` #6). D3 y D4 siguen en su lugar.
 
 ### D0: decisión de backend (nota D-14)
 
