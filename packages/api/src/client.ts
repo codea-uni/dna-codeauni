@@ -35,6 +35,7 @@ import {
   projectDetailSchema,
   projectListSchema,
   projectSummarySchema,
+  timelineSchema,
   versionListSchema,
   versionSchema,
   type CreateProject,
@@ -42,6 +43,8 @@ import {
   type ProjectSummary,
   type ProjectVersion,
   type RestoreVersion,
+  type Timeline,
+  type TimelineQuery,
 } from './projects';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
@@ -259,6 +262,20 @@ export class ApiClient {
       method: 'POST',
       body,
     });
+  }
+
+  /** Historial de la mina: versiones de todos sus proyectos, filtradas y paginadas. */
+  timeline(mineId: string, query: TimelineQuery = {}): Promise<Timeline> {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(query))
+      if (v !== undefined && v !== '') params.set(k, String(v));
+    const qs = params.size ? `?${params.toString()}` : '';
+    return this.request(`/mines/${enc(mineId)}/versions${qs}`, timelineSchema);
+  }
+
+  /** URL para descargar el `.cronos.json` de una versión (mismo origen: la cookie viaja sola). */
+  versionDownloadUrl(projectId: string, number: number): string {
+    return `${this.baseUrl}/projects/${enc(projectId)}/versions/${number}/content?download=1`;
   }
 
   /** JSON del ProjectFile de una versión (`'latest'` = la última), sin parsear. */

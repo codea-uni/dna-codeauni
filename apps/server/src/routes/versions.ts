@@ -7,10 +7,12 @@ import {
   type ProjectFile,
 } from '@cronos/core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { sql } from 'kysely';
 import type { Auth } from '../auth/auth';
 import type { Db } from '../db/db';
 import { sendError } from '../http/errors';
 import { requireUser, type SessionUser } from '../http/session';
+import { visibleMine } from '../services/access';
 import { recordAudit } from '../services/audit';
 import { decodeContent, encodeContent, selectVersions, toVersion } from '../services/versions';
 import { validateProjectFile, visibleProject } from './projects';
@@ -116,9 +118,55 @@ async function insertNextVersion(db: Db, reply: FastifyReply, v: NewVersion) {
   });
 }
 
+const isoDate = (v: string | undefined): Date | null => {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
 /** Historial de versiones de un proyecto: listar, publicar y restaurar (NF-08). */
 export function versionRoutes(app: FastifyInstance, deps: VersionRouteDeps): void {
   const { db } = deps;
+
+  // Línea de tiempo de la mina: cómo evolucionó el diseño de todos sus proyectos (D-14).
+  app.get(
+    '/mines/:mineId/versions',
+    async (
+      req: FastifyRequest<{ Params: Record<string, string>; Querystring: Record<string, string> }>,
+      reply,
+    ) => {
+      const user = await requireUser(deps.auth, req, reply);
+      if (!user) return reply;
+      const found = await visibleMine(db, req.params.mineId ?? '', user.id);
+      if (!found) return sendError(reply, 404, 'not_found', 'Mine not found');
+      const q = req.query;
+      const limit = Math.min(Math.max(Number(q.limit ?? 100) || 100, 1), 200);
+      let query = selectVersions(db)
+        .innerJoin('project', 'project.id', 'project_version.projectId')
+        .where('project.mineId', '=', found.mine.id);
+      if (q.projectId) query = query.where('project_version.projectId', '=', q.projectId);
+      if (q.authorId) query = query.where('project_version.authorId', '=', q.authorId);
+      const from = isoDate(q.from);
+      const to = isoDate(q.to);
+      if (from) query = query.where('project_version.createdAt', '>=', from);
+      if (to) query = query.where('project_version.createdAt', '<', to);
+      // Cursor (fecha, id) de la última versión recibida, comparado en la base con precisión
+      // completa: la fecha ISO pierde los microsegundos y podría saltar versiones.
+      if (q.before)
+        query = query.where(
+          sql<boolean>`("project_version"."createdAt", "project_version"."id") < (select "createdAt", "id" from "project_version" where "id" = ${q.before})`,
+        );
+      const rows = await query
+        .orderBy('project_version.createdAt', 'desc')
+        .orderBy('project_version.id', 'desc')
+        .limit(limit + 1)
+        .execute();
+      return reply.send({
+        versions: rows.slice(0, limit).map(toVersion),
+        hasMore: rows.length > limit,
+      });
+    },
+  );
 
   app.get('/projects/:projectId/versions', async (req: Req, reply) => {
     const user = await requireUser(deps.auth, req, reply);

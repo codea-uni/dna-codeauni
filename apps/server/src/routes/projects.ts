@@ -169,31 +169,46 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
   });
 
   // El JSON sale tal cual se guardó (sin parsearlo en el servidor); la web lo valida en el worker.
-  app.get('/projects/:projectId/versions/:number/content', async (req: Req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
-    if (!user) return reply;
-    const found = await visibleProject(db, req.params.projectId ?? '', user.id, reply);
-    if (!found) return reply;
-    const wanted =
-      req.params.number === 'latest' ? found.project.versionCount : Number(req.params.number);
-    if (!Number.isInteger(wanted) || wanted < 1)
-      return sendError(
-        reply,
-        400,
-        'invalid_version',
-        'Version must be a positive integer or latest',
-      );
-    const version = await db
-      .selectFrom('project_version')
-      .select(['content', 'number', 'contentHash'])
-      .where('projectId', '=', found.project.id)
-      .where('number', '=', wanted)
-      .executeTakeFirst();
-    if (!version) return sendError(reply, 404, 'not_found', 'Version not found');
-    return reply
-      .header('content-type', 'application/json; charset=utf-8')
-      .header('x-cronos-version', String(version.number))
-      .header('etag', `"${version.contentHash}"`)
-      .send(await decodeContent(version.content));
-  });
+  app.get(
+    '/projects/:projectId/versions/:number/content',
+    async (
+      req: FastifyRequest<{ Params: Record<string, string>; Querystring: Record<string, string> }>,
+      reply,
+    ) => {
+      const user = await requireUser(deps.auth, req, reply);
+      if (!user) return reply;
+      const found = await visibleProject(db, req.params.projectId ?? '', user.id, reply);
+      if (!found) return reply;
+      const wanted =
+        req.params.number === 'latest' ? found.project.versionCount : Number(req.params.number);
+      if (!Number.isInteger(wanted) || wanted < 1)
+        return sendError(
+          reply,
+          400,
+          'invalid_version',
+          'Version must be a positive integer or latest',
+        );
+      const version = await db
+        .selectFrom('project_version')
+        .select(['content', 'number', 'contentHash', 'projectName'])
+        .where('projectId', '=', found.project.id)
+        .where('number', '=', wanted)
+        .executeTakeFirst();
+      if (!version) return sendError(reply, 404, 'not_found', 'Version not found');
+      // Con ?download=1 el navegador lo guarda como archivo (proyecto-vN.cronos.json).
+      if (req.query.download) {
+        const safe = version.projectName.replace(/[^\p{L}\p{N}_-]+/gu, '_') || 'proyecto';
+        const filename = `${safe}-v${version.number}.cronos.json`;
+        void reply.header(
+          'content-disposition',
+          `attachment; filename="${filename.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        );
+      }
+      return reply
+        .header('content-type', 'application/json; charset=utf-8')
+        .header('x-cronos-version', String(version.number))
+        .header('etag', `"${version.contentHash}"`)
+        .send(await decodeContent(version.content));
+    },
+  );
 }

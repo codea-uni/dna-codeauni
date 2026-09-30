@@ -95,3 +95,26 @@ export const restoreVersionSchema = z.object({
   message: z.string().trim().min(1).max(500),
 });
 export type RestoreVersion = z.infer<typeof restoreVersionSchema>;
+
+/**
+ * Línea de tiempo de la mina (`GET /mines/:id/versions`): versiones de todos sus proyectos, de la
+ * más nueva a la más vieja. Filtros opcionales; `before` pagina con el id de la última recibida.
+ */
+export interface TimelineQuery {
+  projectId?: string;
+  authorId?: string;
+  /** Desde (incluida), fecha ISO. */
+  from?: string;
+  /** Hasta (excluida), fecha ISO. */
+  to?: string;
+  /** Id de la última versión recibida: devuelve las anteriores a ella. */
+  before?: string;
+  limit?: number;
+}
+
+export const timelineSchema = z.object({
+  versions: z.array(versionSchema),
+  /** Hay más versiones anteriores: pedirlas con `before` = id de la última. */
+  hasMore: z.boolean(),
+});
+export type Timeline = z.infer<typeof timelineSchema>;
