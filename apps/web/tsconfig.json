@@ -12,6 +12,7 @@
   "references": [
     { "path": "../../packages/core" },
     { "path": "../../packages/engine" },
-    { "path": "../../packages/workers" }
+    { "path": "../../packages/workers" },
+    { "path": "../../packages/api" }
   ]
 }

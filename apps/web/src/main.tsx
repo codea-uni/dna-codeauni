@@ -1,6 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { AuthGate } from './auth/AuthGate';
+import { serverMode } from './server/api';
 import { getCompute, getEngine, session } from './session';
 import './styles.css';
 
@@ -14,6 +16,12 @@ if (!root) throw new Error('No se encontró #root');
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    {serverMode ? (
+      <AuthGate>
+        <App />
+      </AuthGate>
+    ) : (
+      <App />
+    )}
   </StrictMode>,
 );

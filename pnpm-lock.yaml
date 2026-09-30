@@ -233,6 +233,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@cronos/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@cronos/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -266,13 +269,13 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
         specifier: ^6.1.1
-        version: 6.1.1(vite@8.3.0(@types/node@26.6.2))
+        version: 6.1.1(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(tsx@4.23.15))
       fake-indexeddb:
         specifier: ^6.2.5
         version: 6.2.5
       vite:
         specifier: ^8.3.0
-        version: 8.3.0(@types/node@26.6.2)
+        version: 8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(tsx@4.23.15)
 
   packages/api:
     dependencies:
@@ -2579,10 +2582,10 @@ snapshots:
       '@typescript-eslint/types': 8.70.1
       eslint-visitor-keys: 5.0.1
 
-  '@vitejs/plugin-react@6.1.1(vite@8.3.0(@types/node@26.6.2))':
+  '@vitejs/plugin-react@6.1.1(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(tsx@4.23.15))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.0(@types/node@26.6.2)
+      vite: 8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(tsx@4.23.15)
 
   '@vitest/coverage-v8@5.0.1(vitest@5.0.1)':
     dependencies:
@@ -3398,17 +3401,6 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
-
-  vite@8.3.0(@types/node@26.6.2):
-    dependencies:
-      lightningcss: 1.33.0
-      picomatch: 4.0.7
-      postcss: 8.5.28
-      rolldown: 1.2.9
-      tinyglobby: 0.2.17
-    optionalDependencies:
-      '@types/node': 26.6.2
-      fsevents: 2.3.3
 
   vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(tsx@4.23.15):
     dependencies:

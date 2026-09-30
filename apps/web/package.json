@@ -10,6 +10,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@cronos/api": "workspace:*",
     "@cronos/core": "workspace:*",
     "@cronos/engine": "workspace:*",
     "@cronos/workers": "workspace:*",
