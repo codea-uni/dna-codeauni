@@ -28,6 +28,7 @@ import { t, useLocale } from './i18n';
 import { importErrorText, importWarningText, parseErrorText } from './i18n/coreText';
 import { listVersions, loadWithoutSaving, readVersion } from './persistence/autosave';
 import { useUiStore } from './stores/uiStore';
+import { collectAssets, storeEmbeddedAssets } from './topography/session';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
 
@@ -99,7 +100,13 @@ export function newProject(): void {
 export async function saveProject(): Promise<void> {
   await withBusy(t('actions.saving'), async () => {
     const project = document.project;
-    const text = await getCompute().api.serializeProject(project, { appVersion: APP_VERSION });
+    // Los levantamientos viajan dentro del archivo para que se abra en otro navegador (D-16).
+    const assets = await collectAssets(project);
+    const embeddedAssets = await getCompute().api.embedAssets(assets);
+    const text = await getCompute().api.serializeProject(project, {
+      appVersion: APP_VERSION,
+      embeddedAssets,
+    });
     const blob = new Blob([text], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = window.document.createElement('a');
@@ -122,6 +129,7 @@ export async function openProject(file: File): Promise<void> {
       notify(parseErrorText(result.error), 'error');
       return;
     }
+    if (result.file.embeddedAssets) await storeEmbeddedAssets(result.file.embeddedAssets);
     document.load(result.file.project);
     const holes = result.file.project.blasts.reduce((n, b) => n + b.holes.length, 0);
     notify(t('actions.opened', { name: result.file.project.name, n: holes }));
@@ -139,6 +147,7 @@ export async function restoreVersion(id: number, confirm = false): Promise<void>
     notify(parseErrorText(result.error), 'error');
     return;
   }
+  if (result.file.embeddedAssets) await storeEmbeddedAssets(result.file.embeddedAssets);
   loadWithoutSaving(result.file.project);
   notify(t('versions.restored', { name: version.name, date }));
 }

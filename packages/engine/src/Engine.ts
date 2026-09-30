@@ -16,6 +16,7 @@ import {
   type ChangeSet,
   type ConnectionId,
   type DiffMarker,
+  type TinData,
   type SurfaceConnectorId,
   type DocumentStore,
   type HoleId,
@@ -148,6 +149,8 @@ export class Engine {
   private viewMode: ViewMode = 'plan';
   private orbit: OrbitState | null = null;
   private scene3dDirty = true;
+  /** Triangulaciones de los levantamientos cargados (D-16), por id de levantamiento. */
+  private topographyTins: ReadonlyMap<string, TinData> = new Map();
   private options3d: Scene3DOptions = DEFAULT_3D_OPTIONS;
   private readonly loop: RenderLoop;
   private readonly input: InputRouter;
@@ -591,6 +594,14 @@ export class Engine {
     this.applyView();
   }
 
+  /** Triangulaciones de los levantamientos topográficos cargados (D-16), por id. */
+  setTopographyTins(tins: ReadonlyMap<string, TinData>): void {
+    this.topographyTins = tins;
+    this.scene3dDirty = true;
+    if (this.viewMode === '3d') this.rebuild3d();
+    this.loop.invalidate();
+  }
+
   /**
    * Comparación con otra versión del proyecto (D-14): marcadores de taladros agregados, quitados,
    * movidos y cambiados, en coordenadas de proyecto. `null` la quita.
@@ -768,7 +779,7 @@ export class Engine {
 
   private rebuild3d(): void {
     const project = this.document.project;
-    this.scene3d.rebuild(project, project.blasts, this.origin, this.options3d);
+    this.scene3d.rebuild(project, project.blasts, this.origin, this.options3d, this.topographyTins);
     this.scene3dDirty = false;
     this.rebuild3dOverlays();
     this.loop.invalidate();

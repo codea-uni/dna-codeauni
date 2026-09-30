@@ -1,10 +1,4 @@
-import {
-  commands,
-  nextHoleNumber,
-  newId,
-  type DxfInspection,
-  type DxfLayerRole,
-} from '@cronos/core';
+import { commands, nextHoleNumber, type DxfInspection, type DxfLayerRole } from '@cronos/core';
 import { X } from 'lucide-react';
 import { useState } from 'react';
 import { getCompute, getEngine, session } from '../session';
@@ -12,6 +6,7 @@ import { useUiStore } from '../stores/uiStore';
 import { boundaryOps } from '../actions';
 import { useT, type MessageKey } from '../i18n';
 import { importErrorText } from '../i18n/coreText';
+import { createSurveyOps } from '../topography/session';
 
 export interface DxfPreview {
   fileName: string;
@@ -76,24 +71,27 @@ export function DxfImportDialog({
         ...commands.addHoles(blast.id, r.holes),
       ];
       ops.push(...boundaryOps(blast, r.boundaries));
-      if (r.surfaces.length) {
-        const surfaces = r.surfaces.map((s, i) => ({
-          ...s,
-          id: newId<'Surface'>(),
-          name: `${preview.fileName}${r.surfaces.length > 1 ? ` ${i + 1}` : ''}`,
-          kind: 'topography' as const,
-        }));
-        ops.push({
-          type: 'project/patch',
-          patch: { surfaces: [...document.project.surfaces, ...surfaces] },
-        });
-        const first = surfaces[0];
-        if (first)
-          ops.push({
-            type: 'blast/patch',
-            blastId: blast.id,
-            patch: { bench: { ...blast.bench, topSurfaceId: first.id } },
-          });
+      // La topografía del DXF se guarda como levantamiento (D-16) y se usa en el banco.
+      for (const [i, surf] of r.surfaces.entries()) {
+        const { ops: surveyOps } = await createSurveyOps(
+          {
+            name: `${preview.fileName}${r.surfaces.length > 1 ? ` ${i + 1}` : ''}`,
+            surveyDate: new Date().toISOString().slice(0, 10),
+            format: 'dxf',
+            files: [preview.fileName],
+            ...(document.project.coordinateSystem.epsg
+              ? { epsg: document.project.coordinateSystem.epsg }
+              : {}),
+          },
+          {
+            tin: {
+              vertices: Float64Array.from(surf.vertices),
+              triangles: Uint32Array.from(surf.triangles),
+            },
+          },
+          i === 0 ? blast.id : undefined,
+        );
+        ops.push(...surveyOps);
       }
       if (ops.length === 0) {
         useUiStore.getState().notify(tr('dxf.nothing'), 'error');

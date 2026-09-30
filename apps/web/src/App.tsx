@@ -18,6 +18,7 @@ import { ProjectSettingsDialog } from './dialogs/ProjectSettingsDialog';
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
 import { VersionsDialog } from './dialogs/VersionsDialog';
 import { startAutosave } from './persistence/autosave';
+import { startTopographySync } from './topography/session';
 import { restoreLatestAutosave } from './actions';
 import { getCompute } from './session';
 import { useUiStore } from './stores/uiStore';
@@ -57,11 +58,13 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
     void getCompute().api.ping('warmup');
     const stopAnalysis = startAnalysisRunner();
     const stopAutosave = startAutosave();
+    const stopTopography = startTopographySync();
     if (restoreLocalDraft) void restoreLatestAutosave();
     const stops = [startEnergyRunner(), startFragmentationRunner(), startVibrationRunner()];
     return () => {
       stopAnalysis();
       stopAutosave();
+      stopTopography();
       for (const stop of stops) stop();
     };
   }, [restoreLocalDraft]);

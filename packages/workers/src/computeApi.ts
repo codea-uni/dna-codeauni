@@ -27,6 +27,12 @@ import {
   parseCsv,
   generatePatternHoles,
   parseProjectFile,
+  buildSurvey,
+  bytesToBase64,
+  base64ToBytes,
+  type BuiltSurvey,
+  type SurveyInput,
+  type SurveyParts,
   diffProjects,
   diffMarkers,
   type DiffMarker,
@@ -166,7 +172,7 @@ export const computeApi = {
   dxfExport(project: Project, blastId: BlastId, options: DxfExportOptions): string {
     const blast = project.blasts.find((b) => b.id === blastId);
     if (!blast) throw new Error('Voladura inexistente');
-    return exportDxf(blast, { ...options, surfaces: project.surfaces });
+    return exportDxf(blast, options);
   },
 
   /** Capas del DXF con su rol sugerido. */
@@ -269,6 +275,33 @@ export const computeApi = {
   /** Parsea, migra y valida un archivo de proyecto. */
   parseProject(text: string): ParseResult {
     return parseProjectFile(text);
+  },
+
+  // ---------------------------------------------------------------- Topografía (D-16)
+
+  /** Arma un levantamiento: codifica sus partes como assets `CRTS` con su hash (O(n)). */
+  buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey {
+    const built = buildSurvey(input, parts);
+    return transfer(
+      built,
+      built.assets.map((a) => a.bytes.buffer as ArrayBuffer),
+    );
+  },
+
+  /** Assets binarios → base64, para embeberlos en un `.cronos.json` exportado. */
+  embedAssets(assets: Record<string, Uint8Array>): Record<string, string> {
+    return Object.fromEntries(Object.entries(assets).map(([h, b]) => [h, bytesToBase64(b)]));
+  },
+
+  /** Base64 de un `.cronos.json` → assets binarios, para guardarlos en el navegador. */
+  extractAssets(embedded: Record<string, string>): Record<string, Uint8Array> {
+    const out = Object.fromEntries(
+      Object.entries(embedded).map(([h, b64]) => [h, base64ToBytes(b64)]),
+    );
+    return transfer(
+      out,
+      Object.values(out).map((b) => b.buffer as ArrayBuffer),
+    );
   },
 
   /** Diferencias entre dos versiones de un proyecto (historial de la mina, D-14). */

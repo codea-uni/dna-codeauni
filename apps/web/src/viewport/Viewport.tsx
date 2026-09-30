@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { bindVisualization } from '../analysis/visualize';
 import { t, useLocale } from '../i18n';
 import { session, setEngine } from '../session';
+import { applyTopographyToEngine } from '../topography/session';
 import { useUiStore } from '../stores/uiStore';
 import { Legend3D } from './Legend3D';
 
@@ -18,6 +19,7 @@ export function Viewport() {
     if (!canvas) return;
     const engine = new Engine(canvas, { document: session.document, selection: session.selection });
     setEngine(engine);
+    applyTopographyToEngine();
 
     const ui = useUiStore.getState();
     engine.setTool(ui.tool);

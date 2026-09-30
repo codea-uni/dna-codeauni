@@ -7,6 +7,7 @@ import { parseErrorText } from '../i18n/coreText';
 import { latestDraft, loadWithoutSaving, readVersion, setDraftBase } from '../persistence/autosave';
 import type { VersionInfo } from '../persistence/history';
 import { getCompute, session } from '../session';
+import { storeEmbeddedAssets } from '../topography/session';
 import { workspaceErrorKey } from '../stores/workspaceStore';
 import { api } from './api';
 
@@ -93,6 +94,7 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
       const editable = permissions.editDesign(detail.role) && !viewingOld;
       session.document.setReadOnly(false);
       setDraftBase(editable ? base.id : null);
+      if (parsed.file.embeddedAssets) await storeEmbeddedAssets(parsed.file.embeddedAssets);
       loadWithoutSaving(parsed.file.project);
       session.document.setReadOnly(!editable);
       set({
@@ -144,7 +146,9 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
     set({ draft: null });
     if (!saved) return;
     const parsed = await getCompute().api.parseProject(saved.text);
-    if (parsed.ok) loadWithoutSaving(parsed.file.project);
+    if (!parsed.ok) return;
+    if (parsed.file.embeddedAssets) await storeEmbeddedAssets(parsed.file.embeddedAssets);
+    loadWithoutSaving(parsed.file.project);
   },
 
   dismissDraft: () => {

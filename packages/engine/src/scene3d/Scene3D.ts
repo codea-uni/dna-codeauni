@@ -1,5 +1,6 @@
 import {
   AmbientLight,
+  BufferAttribute,
   BufferGeometry,
   Color,
   CylinderGeometry,
@@ -28,6 +29,7 @@ import {
   type Project,
   type SegmentKind,
   type Vec3,
+  type TinData,
 } from '@cronos/core';
 import { writeSegmentMatrix } from './segmentMatrix';
 
@@ -99,7 +101,17 @@ export class Scene3D {
     this.root.visible = false;
   }
 
-  rebuild(project: Project, blasts: readonly Blast[], origin: Vec3, options: Scene3DOptions): void {
+  /**
+   * `tins`: triangulaciones de los levantamientos topográficos cargados, por id (D-16). La del
+   * banco (`bench.topographyId`) reemplaza el plano superior.
+   */
+  rebuild(
+    project: Project,
+    blasts: readonly Blast[],
+    origin: Vec3,
+    options: Scene3DOptions,
+    tins: ReadonlyMap<string, TinData> = new Map(),
+  ): void {
     this.clearDynamic();
     const explosiveIndex = new Map(project.library.explosives.map((e, i) => [e.id as string, i]));
     const b: Bounds3 = {
@@ -190,7 +202,7 @@ export class Scene3D {
     for (const blast of blasts) {
       const top = blast.bench.floorElevation + blast.bench.height - origin.z;
       const floor = blast.bench.floorElevation - origin.z;
-      const surface = project.surfaces.find((s) => s.id === blast.bench.topSurfaceId);
+      const surface = blast.bench.topographyId ? tins.get(blast.bench.topographyId) : undefined;
       let outlines = blast.boundaries
         .filter((x) => x.polygon.length >= 3)
         .map((x) => x.polygon.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y })));
@@ -333,8 +345,8 @@ export class Scene3D {
 
   /** TIN coloreado por cota (verde bajo → marrón alto). */
   private addSurface(
-    vertices: readonly number[],
-    triangles: readonly number[],
+    vertices: ArrayLike<number>,
+    triangles: ArrayLike<number>,
     origin: Vec3,
   ): void {
     const n = vertices.length / 3;
@@ -363,7 +375,13 @@ export class Scene3D {
     const g = new BufferGeometry();
     g.setAttribute('position', new Float32BufferAttribute(pos, 3));
     g.setAttribute('color', new Float32BufferAttribute(col, 3));
-    g.setIndex([...triangles]);
+    // Índices como arreglo tipado, sin copiar a un arreglo de JS (TIN de cientos de miles).
+    g.setIndex(
+      new BufferAttribute(
+        triangles instanceof Uint32Array ? triangles : Uint32Array.from(triangles),
+        1,
+      ),
+    );
     g.computeVertexNormals();
     this.dynamic.add(
       new Mesh(
