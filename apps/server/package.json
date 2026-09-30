@@ -9,7 +9,8 @@
     "start": "node dist/main.js",
     "migrate": "tsx --env-file-if-exists=.env src/migrate.ts",
     "test": "vitest run",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "reset-password": "tsx --env-file-if-exists=.env src/resetPassword.ts"
   },
   "dependencies": {
     "@cronos/api": "workspace:*",

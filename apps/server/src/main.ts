@@ -14,7 +14,9 @@ const auth = createAuth({
   pool,
   secret: config.authSecret,
   baseUrl: config.baseUrl,
-  rateLimit: true,
+  // Límite de intentos solo en producción (la imagen Docker fija NODE_ENV=production): en
+  // desarrollo todas las peticiones llegan desde la misma IP y se bloquearía al programador.
+  rateLimit: process.env.NODE_ENV === 'production',
 });
 const app = buildApp({
   db,

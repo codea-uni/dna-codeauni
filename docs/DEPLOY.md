@@ -22,6 +22,8 @@ Opcional. Sin él, la web funciona como siempre (sin login, con autoguardado loc
 
 - Las migraciones se aplican solas al arrancar `api`. Los datos quedan en el volumen `pgdata`; respaldo: `docker compose exec postgres pg_dump -U cronos cronos > respaldo.sql`.
 - Salud: `https://<dominio>/api/health` (`status` y `database`).
+- Contraseña olvidada: `docker compose exec api node dist/resetPassword.js <correo> <contraseña temporal>` (en local: `pnpm --filter @cronos/server reset-password <correo> <contraseña>`). Queda temporal y cierra las sesiones de esa cuenta.
+- El límite de 5 inicios de sesión por minuto e IP solo rige en producción (`NODE_ENV=production`, lo fija la imagen).
 
 ### Desarrollo local
 
