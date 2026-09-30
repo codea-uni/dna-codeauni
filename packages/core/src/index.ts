@@ -77,3 +77,6 @@ export * from './analysis/compareScenarios';
 export function ping(message: string): string {
   return `pong: ${message}`;
 }
+
+// Historial de versiones (D-14)
+export * from './history/diffProjects';
