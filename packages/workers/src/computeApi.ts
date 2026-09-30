@@ -28,6 +28,8 @@ import {
   generatePatternHoles,
   parseProjectFile,
   diffProjects,
+  diffMarkers,
+  type DiffMarker,
   type DiffOptions,
   type ProjectDiff,
   ping,
@@ -272,6 +274,16 @@ export const computeApi = {
   /** Diferencias entre dos versiones de un proyecto (historial de la mina, D-14). */
   diffProjects(before: Project, after: Project, options?: DiffOptions): ProjectDiff {
     return diffProjects(before, after, options);
+  },
+
+  /** Comparación para dibujar: las diferencias y dónde ubicar cada una en el plano. */
+  compareVersions(
+    before: Project,
+    after: Project,
+    options?: DiffOptions,
+  ): { diff: ProjectDiff; markers: DiffMarker[] } {
+    const diff = diffProjects(before, after, options);
+    return { diff, markers: diffMarkers(before, after, diff) };
   },
 };
 

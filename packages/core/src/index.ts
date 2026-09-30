@@ -80,3 +80,4 @@ export function ping(message: string): string {
 
 // Historial de versiones (D-14)
 export * from './history/diffProjects';
+export * from './history/diffMarkers';
