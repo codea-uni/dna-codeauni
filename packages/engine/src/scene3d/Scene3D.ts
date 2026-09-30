@@ -21,6 +21,7 @@ import {
   type Object3D,
 } from 'three';
 import {
+  boundaryBench,
   freeFaceQuads,
   holeSegments3d,
   holeToe,
@@ -215,24 +216,31 @@ export class Scene3D {
     // ---------------------------------------------------------------- Banco, caras y topografía
     const wanted = new Set<TinData>();
     for (const blast of blasts) {
-      const top = blast.bench.floorElevation + blast.bench.height - origin.z;
-      const floor = blast.bench.floorElevation - origin.z;
       const surface = blast.bench.topographyId ? tins.get(blast.bench.topographyId) : undefined;
+      // Cada perímetro a la cota de su propio piso (pueden estar en bancos distintos del tajo).
       let outlines = blast.boundaries
         .filter((x) => x.polygon.length >= 3)
-        .map((x) => x.polygon.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y })));
+        .map((x) => ({
+          poly: x.polygon.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y })),
+          bench: boundaryBench(blast.bench, x),
+        }));
       if (outlines.length === 0 && Number.isFinite(b.minX)) {
         const pad = 5;
         outlines = [
-          [
-            { x: b.minX - pad, y: b.minY - pad },
-            { x: b.maxX + pad, y: b.minY - pad },
-            { x: b.maxX + pad, y: b.maxY + pad },
-            { x: b.minX - pad, y: b.maxY + pad },
-          ],
+          {
+            poly: [
+              { x: b.minX - pad, y: b.minY - pad },
+              { x: b.maxX + pad, y: b.minY - pad },
+              { x: b.maxX + pad, y: b.maxY + pad },
+              { x: b.minX - pad, y: b.maxY + pad },
+            ],
+            bench: blast.bench,
+          },
         ];
       }
-      for (const poly of outlines) {
+      for (const { poly, bench } of outlines) {
+        const top = bench.floorElevation + bench.height - origin.z;
+        const floor = bench.floorElevation - origin.z;
         for (const p of poly) {
           grow(p.x, p.y, top);
           grow(p.x, p.y, floor);
@@ -249,7 +257,7 @@ export class Scene3D {
       // Caras de talud (hacia donde se desplaza el material).
       const faceVerts: number[] = [];
       for (const boundary of blast.boundaries) {
-        for (const q of freeFaceQuads(boundary, blast.bench)) {
+        for (const q of freeFaceQuads(boundary, boundaryBench(blast.bench, boundary))) {
           const [a, bb, c, d] = q.map(rel) as [Vec3, Vec3, Vec3, Vec3];
           faceVerts.push(
             a.x,

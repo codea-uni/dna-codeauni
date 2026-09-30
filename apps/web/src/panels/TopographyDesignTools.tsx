@@ -92,15 +92,13 @@ export function TopographyDesignTools({ blast }: { blast: Blast }) {
           top: fmt(top, 2),
           floor: fmt(floor, 2),
           height: fmt(blast.bench.height, 1),
+          name: boundary.name,
         }),
       );
       if (!ok) return;
+      // Solo el piso de este perímetro: los demás pueden estar en otros bancos del tajo.
       session.document.dispatch(
-        {
-          type: 'blast/patch',
-          blastId: blast.id,
-          patch: { bench: { ...blast.bench, floorElevation: floor } },
-        },
+        commands.setBoundaryFloor(session.document, blast.id, boundary.id, floor),
         t('topo.design.benchUndo'),
       );
     });

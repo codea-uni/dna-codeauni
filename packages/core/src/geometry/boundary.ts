@@ -1,4 +1,4 @@
-import type { BlastBoundary, Pattern, Vec2 } from '../model/types';
+import type { Bench, Blast, BlastBoundary, Hole, Pattern, Vec2 } from '../model/types';
 import { unitToAzimuth } from './vec';
 import { pointInPolygon, polygonSignedArea } from './polygon';
 
@@ -78,4 +78,37 @@ export function freeFaceAlignment(
     rowAzimuth: unitToAzimuth(b.x - a.x, b.y - a.y),
     rowAdvance: polygonSignedArea(boundary.polygon) > 0 ? 'left' : 'right',
   };
+}
+
+/**
+ * Perímetro al que pertenece un taladro: el de su malla y, si no tiene (agregado a mano o
+ * importado), el que contiene su boca en planta.
+ */
+export function holeBoundary(
+  blast: Partial<Pick<Blast, 'boundaries' | 'patterns'>>,
+  hole: Pick<Hole, 'patternId' | 'collar'>,
+): BlastBoundary | undefined {
+  const boundaries = blast.boundaries ?? [];
+  if (boundaries.length === 0) return undefined;
+  const pattern = hole.patternId ? blast.patterns?.find((p) => p.id === hole.patternId) : undefined;
+  const own = pattern?.boundaryId ? boundaries.find((b) => b.id === pattern.boundaryId) : undefined;
+  return own ?? boundaries.find((b) => pointInPolygon(hole.collar.x, hole.collar.y, b.polygon));
+}
+
+/** Banco efectivo de un perímetro: con su piso propio si lo tiene (bancos distintos del tajo). */
+export function boundaryBench(
+  bench: Bench,
+  boundary: Pick<BlastBoundary, 'floorElevation'> | undefined,
+): Bench {
+  return boundary?.floorElevation !== undefined
+    ? { ...bench, floorElevation: boundary.floorElevation }
+    : bench;
+}
+
+/** Banco efectivo de un taladro: el de su perímetro. */
+export function holeBench(
+  blast: Pick<Blast, 'bench'> & Partial<Pick<Blast, 'boundaries' | 'patterns'>>,
+  hole: Pick<Hole, 'patternId' | 'collar'>,
+): Bench {
+  return boundaryBench(blast.bench, holeBoundary(blast, hole));
 }

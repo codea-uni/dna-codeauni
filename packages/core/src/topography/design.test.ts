@@ -7,9 +7,11 @@ import {
 } from '../model/factories';
 import type { LineSetData } from './asset';
 import { DocumentStore } from '../document/DocumentStore';
-import { addHoles, moveHoles } from '../document/commands';
+import { addHoles, moveHoles, setBoundaryFloor } from '../document/commands';
+import { boundaryBench, holeBench, holeBoundary } from '../geometry/boundary';
 import { createEmptyProject } from '../model/factories';
 import {
+  blastHolesOffBench,
   benchFloorFor,
   benchOffTopography,
   holesOffBench,
@@ -174,5 +176,76 @@ describe('taladros que respetan la topografía', () => {
     // Por encima de dos bancos también es incoherente.
     expect(holesOffBench({ floorElevation: 3300, height: 15 }, collars)).toBe(true);
     expect(holesOffBench({ floorElevation: 0, height: 15 }, [])).toBe(false);
+  });
+});
+
+describe('perímetros en bancos distintos', () => {
+  // Perímetro de arriba (piso propio 3385 m) y de abajo (piso propio 3340 m) en la misma voladura.
+  const square = (x0: number) => [
+    { x: x0, y: 0 },
+    { x: x0 + 10, y: 0 },
+    { x: x0 + 10, y: 10 },
+    { x: x0, y: 10 },
+  ];
+  const bench = { ...DEFAULT_BENCH, floorElevation: 0, height: 15 };
+  const template = { ...DEFAULT_HOLE_TEMPLATE, inclination: 0, subdrill: 1 };
+
+  it('cada taladro usa el piso de su perímetro y cambiar uno no mueve al otro', () => {
+    const project = createEmptyProject('P');
+    const blast = project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    blast.bench = bench;
+    blast.boundaries = [
+      {
+        id: 'arriba' as never,
+        name: 'A',
+        polygon: square(0),
+        freeFaceEdges: [],
+        floorElevation: 3385,
+      },
+      {
+        id: 'abajo' as never,
+        name: 'B',
+        polygon: square(100),
+        freeFaceEdges: [],
+        floorElevation: 3340,
+      },
+    ];
+    const store = new DocumentStore(project);
+    const up = createHole({ position: { x: 5, y: 5 }, template, bench, label: '1', collarZ: 3400 });
+    const down = createHole({
+      position: { x: 105, y: 5 },
+      template,
+      bench,
+      label: '2',
+      collarZ: 3355,
+    });
+    store.dispatch(addHoles(blast.id, [up, down]), 'Agregar');
+    const b = () => store.getBlast(blast.id);
+    const current = b();
+    if (!current) throw new Error('sin voladura');
+    expect(holeBoundary(current, up)?.name).toBe('A');
+    // Fijar el piso del perímetro recalcula el largo de sus taladros, y solo de ellos.
+    store.dispatch(setBoundaryFloor(store, blast.id, 'arriba' as never, 3385), 'Piso');
+    expect(store.findHole(up.id)?.hole.length).toBeCloseTo(16, 9); // 3400 − 3385 + 1
+    // Bajar el perímetro de abajo no cambia el piso (ni los largos) del de arriba.
+    store.dispatch(setBoundaryFloor(store, blast.id, 'abajo' as never, 3330), 'Piso');
+    expect(store.findHole(up.id)?.hole.length).toBeCloseTo(16, 9);
+    expect(store.findHole(down.id)?.hole.length).toBeCloseTo(26, 9); // 3355 − 3330 + 1
+    expect(b()?.boundaries[0]?.floorElevation).toBe(3385);
+    // Sin piso propio, el perímetro vuelve al del banco.
+    store.dispatch(setBoundaryFloor(store, blast.id, 'abajo' as never, null), 'Piso');
+    expect(b()?.boundaries[1]?.floorElevation).toBeUndefined();
+    expect(holeBench(b() ?? current, down).floorElevation).toBe(0);
+    expect(store.findHole(down.id)?.hole.length).toBeCloseTo(3356, 9);
+    // Deshacer devuelve el piso propio y los largos.
+    store.undo();
+    expect(store.findHole(down.id)?.hole.length).toBeCloseTo(26, 9);
+    expect(blastHolesOffBench(b() ?? current)).toBe(false);
+  });
+
+  it('el banco efectivo de un perímetro sin piso propio es el de la voladura', () => {
+    expect(boundaryBench(bench, undefined)).toBe(bench);
+    expect(boundaryBench(bench, { floorElevation: 10 }).floorElevation).toBe(10);
   });
 });

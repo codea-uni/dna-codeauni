@@ -37,7 +37,7 @@ export const es = {
   'topo.bench.outside':
     '{n} taladros quedan fuera de la topografía y conservan la cota plana del banco.',
   'topo.bench.offWarning':
-    'La superficie del banco ({top} m) está lejos del terreno ({min} a {max} m): los taladros no respetan la topografía.',
+    'Hay taladros o perímetros cuyo piso no corresponde al terreno ({min} a {max} m): no respetan la topografía.',
   'topo.bench.fix': 'Ajustar banco y taladros al terreno',
 
   // Menú y panel
@@ -147,10 +147,10 @@ export const es = {
   'topo.design.drapeOutside':
     '{n} collares ajustados; {out} taladros quedan fuera de la topografía y no cambiaron.',
   'topo.design.noHoles': 'No hay taladros que ajustar.',
-  'topo.design.bench': 'Cota del banco desde la topografía',
+  'topo.design.bench': 'Piso del perímetro desde la topografía',
   'topo.design.benchConfirm':
-    'La mediana del terreno dentro del perímetro es {top} m. ¿Usarla como superficie del banco? El piso queda a {floor} m (altura {height} m).',
-  'topo.design.benchUndo': 'Cota del banco desde la topografía',
+    'La mediana del terreno dentro de «{name}» es {top} m. ¿Usarla como superficie de ese perímetro? Su piso queda a {floor} m (altura {height} m); los demás perímetros no cambian.',
+  'topo.design.benchUndo': 'Piso del perímetro desde la topografía',
   'topo.design.needBoundary': 'Dibuja o elige un perímetro primero',
   'topo.design.outsideBoundary': 'El perímetro está fuera de la topografía.',
   'topo.design.tolerance': 'Tolerancia a la cresta',
@@ -233,7 +233,7 @@ export const en = {
   'topo.bench.draped': '{n} hole collars set on the ground.',
   'topo.bench.outside': '{n} holes are outside the topography and keep the flat bench elevation.',
   'topo.bench.offWarning':
-    'The bench surface ({top} m) is far from the ground ({min} to {max} m): holes do not follow the topography.',
+    'Some holes or boundaries have a floor that does not match the ground ({min} to {max} m): they do not follow the topography.',
   'topo.bench.fix': 'Fit bench and holes to the ground',
 
   'topo.importMenu': 'Topography (DXF, Surpac, LandXML, points)…',
@@ -339,10 +339,10 @@ export const en = {
   'topo.design.drapeOutside':
     '{n} collars set; {out} holes are outside the topography and did not change.',
   'topo.design.noHoles': 'There are no holes to adjust.',
-  'topo.design.bench': 'Bench elevation from the topography',
+  'topo.design.bench': 'Boundary floor from the topography',
   'topo.design.benchConfirm':
-    'The median ground elevation inside the boundary is {top} m. Use it as the bench surface? The floor becomes {floor} m (height {height} m).',
-  'topo.design.benchUndo': 'Bench elevation from the topography',
+    'The median ground elevation inside “{name}” is {top} m. Use it as that boundary’s surface? Its floor becomes {floor} m (height {height} m); other boundaries do not change.',
+  'topo.design.benchUndo': 'Boundary floor from the topography',
   'topo.design.needBoundary': 'Draw or choose a boundary first',
   'topo.design.outsideBoundary': 'The boundary is outside the topography.',
   'topo.design.tolerance': 'Crest tolerance',

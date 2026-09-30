@@ -211,6 +211,12 @@ export const es = {
   'blast.freeFaces.one': '{n} cara libre',
   'blast.freeFaces.other': '{n} caras libres',
   'blast.removeBoundary': 'Borrar perímetro',
+  'blast.boundaryFloorInherited':
+    'Piso de este perímetro: el del banco (escribe un valor para darle uno propio)',
+  'blast.boundaryFloorOwn':
+    'Piso propio de este perímetro [m]: sus taladros llegan a él; los demás perímetros no cambian',
+  'blast.boundaryFloorReset': 'Volver a usar el piso del banco',
+  'blast.boundaryFloorUndo': 'Piso de {name}',
   'blast.drawBoundary': 'Dibujar perímetro',
   'blast.freeFace': 'Cara libre',
   'blast.freeFaceHint':
@@ -459,6 +465,12 @@ export const en = {
   'blast.freeFaces.one': '{n} free face',
   'blast.freeFaces.other': '{n} free faces',
   'blast.removeBoundary': 'Delete boundary',
+  'blast.boundaryFloorInherited':
+    'Floor of this boundary: the bench floor (type a value to give it its own)',
+  'blast.boundaryFloorOwn':
+    'Own floor of this boundary [m]: its holes reach it; other boundaries do not change',
+  'blast.boundaryFloorReset': 'Use the bench floor again',
+  'blast.boundaryFloorUndo': 'Floor of {name}',
   'blast.drawBoundary': 'Draw boundary',
   'blast.freeFace': 'Free face',
   'blast.freeFaceHint':

@@ -1,5 +1,8 @@
 import {
   benchFloorFor,
+  boundaryBench,
+  holeBoundary,
+  type BlastBoundary,
   benchOffTopography,
   decodeAsset,
   holesOffBench,
@@ -19,7 +22,6 @@ import {
   type SurveyParts,
   type TinData,
   type TopographySurvey,
-  type Vec2,
 } from '@cronos/core';
 import type { TopographyViewData } from '@cronos/engine';
 import { getAsset, putAsset } from '../persistence/assets';
@@ -316,12 +318,13 @@ export interface BenchOnSurvey {
 }
 
 /**
- * El banco usa el levantamiento (D-16) y sus taladros respetan el terreno:
+ * El banco usa el levantamiento (D-16) y sus taladros respetan el terreno. Cada perímetro es
+ * independiente (en un tajo pueden estar en bancos distintos):
  * - las bocas de los taladros toman la cota del terreno;
- * - el piso sale de donde está la voladura (en un tajo hay muchos bancos): la mediana de las bocas
- *   menos la altura del banco si el piso actual no les corresponde (S-18); sin taladros, la
- *   mediana del terreno en el perímetro o, si no hay, la del levantamiento;
- * - los largos llegan a piso + sobreperforación.
+ * - el piso de cada perímetro sale de sus bocas (mediana menos la altura del banco) si su piso
+ *   actual no les corresponde (S-18); un perímetro sin taladros toma la mediana del terreno en su
+ *   polígono; los taladros fuera de todo perímetro ajustan el piso del banco;
+ * - los largos llegan al piso de su perímetro + sobreperforación.
  * El trabajo sobre el TIN corre en el worker; todo vuelve como operaciones que se deshacen juntas.
  */
 export async function benchOnSurveyOps(
@@ -329,71 +332,101 @@ export async function benchOnSurveyOps(
   survey: TopographySurvey,
   tin: TinData | undefined,
   forceFloor = false,
-  polygon?: readonly Vec2[],
 ): Promise<BenchOnSurvey> {
   const api = getCompute().api;
   let bench: Bench = { ...blast.bench, topographyId: survey.id };
-  if (!tin) return { ops: [benchPatch(blast, bench)], floor: null, draped: 0, outside: 0 };
-  const drape = (b: Bench) =>
-    api.topographyDrape(tin, blast.holes, { bench: b, calcParams: blast.calcParams });
-  let r = blast.holes.length > 0 ? await drape(bench) : null;
+  if (!tin) return { ops: [benchPatch(blast, { bench })], floor: null, draped: 0, outside: 0 };
+  const drape = (b: Pick<Blast, 'bench' | 'boundaries'>) =>
+    api.topographyDrape(tin, blast.holes, {
+      bench: b.bench,
+      boundaries: b.boundaries,
+      patterns: blast.patterns,
+      calcParams: blast.calcParams,
+    });
+  let r = blast.holes.length > 0 ? await drape({ bench, boundaries: blast.boundaries }) : null;
   const off = new Set(r?.outside ?? []);
-  const collars = (r?.holes ?? []).filter((h) => !off.has(h.id)).map((h) => h.collar.z);
+  // Bocas sobre el terreno agrupadas por perímetro ('' = fuera de todo perímetro).
+  const groups = new Map<string, number[]>();
+  for (const h of r?.holes ?? []) {
+    if (off.has(h.id)) continue;
+    const key = holeBoundary(blast, h)?.id ?? '';
+    groups.set(key, [...(groups.get(key) ?? []), h.collar.z]);
+  }
   let floor: number | null = null;
-  if (collars.length > 0) {
-    if (forceFloor || holesOffBench(bench, collars)) floor = benchFloorFor(collars, bench.height);
-  } else if (forceFloor || benchOffTopography(bench, survey.bounds)) {
+  const boundaries: BlastBoundary[] = [];
+  for (const b of blast.boundaries) {
+    const own = boundaryBench(bench, b);
+    const collars = groups.get(b.id) ?? [];
+    let next: number | null = null;
+    if (collars.length > 0) {
+      if (forceFloor || holesOffBench(own, collars)) next = benchFloorFor(collars, own.height);
+    } else if (forceFloor || benchOffTopography(own, survey.bounds)) {
+      const z = await api.topographyBenchElevation(tin, [...b.polygon]);
+      if (z !== null) next = z - own.height;
+    }
+    boundaries.push(next === null ? b : { ...b, floorElevation: next });
+    if (next !== null) floor = next;
+  }
+  const loose = groups.get('') ?? [];
+  if (
+    loose.length > 0
+      ? forceFloor || holesOffBench(bench, loose)
+      : blast.boundaries.length === 0 && (forceFloor || benchOffTopography(bench, survey.bounds))
+  ) {
     const z =
-      (polygon && polygon.length >= 3
-        ? await api.topographyBenchElevation(tin, [...polygon])
-        : null) ?? (await api.topographyMedianElevation(tin));
-    if (z !== null) floor = z - bench.height;
+      loose.length > 0
+        ? benchFloorFor(loose, bench.height)
+        : await api
+            .topographyMedianElevation(tin)
+            .then((m) => (m === null ? null : m - bench.height));
+    if (z !== null) {
+      bench = { ...bench, floorElevation: z };
+      floor = z;
+    }
   }
-  if (floor !== null) {
-    bench = { ...bench, floorElevation: floor };
-    // Con el piso nuevo cambian los largos.
-    if (r) r = await drape(bench);
-  }
-  const ops: Op[] = [benchPatch(blast, bench)];
+  // Con los pisos nuevos cambian los largos.
+  if (r) r = await drape({ bench, boundaries });
+  const ops: Op[] = [benchPatch(blast, { bench, boundaries })];
   const changed = (r?.holes ?? []).filter((h) => !off.has(h.id));
   if (changed.length > 0) ops.push({ type: 'holes/replace', blastId: blast.id, holes: changed });
   return { ops, floor, draped: changed.length, outside: off.size };
 }
 
-const benchPatch = (blast: Blast, bench: Bench): Op => ({
+const benchPatch = (blast: Blast, patch: Partial<Pick<Blast, 'bench' | 'boundaries'>>): Op => ({
   type: 'blast/patch',
   blastId: blast.id,
-  patch: { bench },
+  patch,
 });
 
 /**
  * Taladros recién generados sobre el banco con topografía: la boca en el terreno y el largo hasta
- * piso + J (en el worker). Si el piso no corresponde a esas bocas (S-18), se propone el piso que
- * les corresponde (`bench`), que el llamador aplica en el mismo paso. Sin topografía, igual.
+ * el piso de su perímetro + J (en el worker). Si ese piso no corresponde a las bocas (S-18), se
+ * propone el que les corresponde (`floor`); el llamador lo aplica **solo a ese perímetro** (o al
+ * banco si la malla no tiene perímetro), en el mismo paso. Sin topografía, vuelven igual.
  */
 export async function drapeNewHoles(
   blast: Blast,
   holes: Hole[],
-): Promise<{ holes: Hole[]; outside: number; bench: Bench | null }> {
+  boundary?: BlastBoundary,
+): Promise<{ holes: Hole[]; outside: number; floor: number | null }> {
   const id = blast.bench.topographyId;
   const tin = id ? loaded.get(id)?.tin : undefined;
-  if (!tin || holes.length === 0) return { holes, outside: 0, bench: null };
+  if (!tin || holes.length === 0) return { holes, outside: 0, floor: null };
   const api = getCompute().api;
-  let r = await api.topographyDrape(tin, holes, {
-    bench: blast.bench,
-    calcParams: blast.calcParams,
-  });
+  const own = boundaryBench(blast.bench, boundary);
+  let r = await api.topographyDrape(tin, holes, { bench: own, calcParams: blast.calcParams });
   const off = new Set(r.outside);
   const collars = r.holes.filter((h) => !off.has(h.id)).map((h) => h.collar.z);
-  let bench: Bench | null = null;
-  if (holesOffBench(blast.bench, collars)) {
-    const floor = benchFloorFor(collars, blast.bench.height);
-    if (floor !== null) {
-      bench = { ...blast.bench, floorElevation: floor };
-      r = await api.topographyDrape(tin, holes, { bench, calcParams: blast.calcParams });
-    }
+  let floor: number | null = null;
+  if (holesOffBench(own, collars)) {
+    floor = benchFloorFor(collars, own.height);
+    if (floor !== null)
+      r = await api.topographyDrape(tin, holes, {
+        bench: { ...own, floorElevation: floor },
+        calcParams: blast.calcParams,
+      });
   }
-  return { holes: r.holes, outside: off.size, bench };
+  return { holes: r.holes, outside: off.size, floor };
 }
 
 /** Levantamientos cargados con sus datos (para las herramientas de diseño). */

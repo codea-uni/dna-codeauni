@@ -72,7 +72,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(11);
+    expect(parsed.file.schemaVersion).toBe(12);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -209,6 +209,26 @@ describe('archivo de proyecto', () => {
     expect(r.file.project.blasts[0]?.calcParams.checks.minInterRowDelay).toBe(0.035);
     // v9 → v10: desplazamiento
     expect(r.file.project.blasts[0]?.calcParams.displacement.cB).toBe(0.12);
+  });
+
+  it('migra v11 → v12: los perímetros usan el piso del banco hasta tener uno propio', () => {
+    const v11 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as Record<
+      string,
+      unknown
+    >;
+    const r = parseProjectFile(JSON.stringify({ ...v11, schemaVersion: 11 }));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.file.schemaVersion).toBe(12);
+    for (const b of r.file.project.blasts[0]?.boundaries ?? [])
+      expect(b.floorElevation).toBeUndefined();
+    // Un piso propio se conserva al guardar y abrir.
+    const project = sampleProject();
+    const boundary = project.blasts[0]?.boundaries[0];
+    if (!boundary) throw new Error('sin perímetro');
+    boundary.floorElevation = 3340;
+    const back = parseProjectFile(serializeProject(project, { appVersion: 'x' }));
+    if (!back.ok) throw new Error(back.error);
+    expect(back.file.project.blasts[0]?.boundaries[0]?.floorElevation).toBe(3340);
   });
 
   it('migra v10 → v11: la superficie en línea pasa a levantamiento con su asset embebido (D-16)', () => {

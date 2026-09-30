@@ -1,12 +1,12 @@
 import {
   benchOffTopography,
-  holesOffBench,
+  blastHolesOffBench,
   type Op,
   type TopographyFormat,
   type TopographySurvey,
 } from '@cronos/core';
 import { Mountain, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef } from 'react';
 import * as actions from '../actions';
 import { IconButton } from '../components/IconButton';
 import { useProject } from '../hooks/useDocument';
@@ -50,10 +50,7 @@ export function TopographyPanel() {
   /** El banco usa el levantamiento y sus taladros se apoyan en el terreno (un solo deshacer). */
   const use = async (s: TopographySurvey, forceFloor = false) => {
     if (!blast) return;
-    const boundary =
-      blast.boundaries.find((b) => b.id === useUiStore.getState().activeBoundaryId) ??
-      blast.boundaries[0];
-    const r = await benchOnSurveyOps(blast, s, topographyTin(s.id), forceFloor, boundary?.polygon);
+    const r = await benchOnSurveyOps(blast, s, topographyTin(s.id), forceFloor);
     session.document.dispatch(r.ops, t('topo.panel.useUndo', { name: s.name }));
     const parts = [
       r.floor !== null ? t('topo.bench.floorSet', { floor: fmt(r.floor, 2) }) : '',
@@ -64,10 +61,14 @@ export function TopographyPanel() {
       useUiStore.getState().notify(parts.join(' '), r.outside > 0 ? 'error' : 'info');
   };
   const benchSurvey = surveys.find((s) => s.id === blast?.bench.topographyId);
-  const collarZ = useMemo(() => blast?.holes.map((h) => h.collar.z) ?? [], [blast?.holes]);
+  // Aviso: taladros que no corresponden al piso de su perímetro, o un banco sin perímetros con
+  // piso propio lejos del terreno.
   const benchOff =
     blast && benchSurvey
-      ? benchOffTopography(blast.bench, benchSurvey.bounds) || holesOffBench(blast.bench, collarZ)
+      ? blastHolesOffBench(blast) ||
+        (blast.holes.length === 0 &&
+          blast.boundaries.every((b) => b.floorElevation === undefined) &&
+          benchOffTopography(blast.bench, benchSurvey.bounds))
       : false;
   const remove = (s: TopographySurvey) => {
     const ops: Op[] = [
@@ -92,7 +93,6 @@ export function TopographyPanel() {
       {benchOff && benchSurvey && blast && (
         <div className="errors">
           {t('topo.bench.offWarning', {
-            top: fmt(blast.bench.floorElevation + blast.bench.height, 1),
             min: fmt(benchSurvey.bounds.minZ, 1),
             max: fmt(benchSurvey.bounds.maxZ, 1),
           })}{' '}

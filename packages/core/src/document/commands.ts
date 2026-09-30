@@ -33,6 +33,7 @@ import type {
 import { withDownholeDetonator } from '../timing/tieUp';
 import type { DocumentReader } from './DocumentStore';
 import type { Op } from './ops';
+import { holeBench, holeBoundary } from '../geometry/boundary';
 
 /**
  * Comandos de edición: traducen una intención del usuario a operaciones primitivas.
@@ -135,7 +136,7 @@ export interface HoleEdit {
 export function applyHoleEdit(
   hole: Hole,
   edit: HoleEdit,
-  blast: Pick<Blast, 'bench' | 'calcParams'>,
+  blast: Pick<Blast, 'bench' | 'calcParams'> & Partial<Pick<Blast, 'boundaries' | 'patterns'>>,
 ): Hole {
   const next: Hole = {
     ...hole,
@@ -153,9 +154,10 @@ export function applyHoleEdit(
     edit.inclination !== undefined ||
     edit.subdrill !== undefined
   ) {
+    // El piso es el del perímetro del taladro (cada perímetro puede estar en otro banco).
     next.length = lengthToFloor(
       next.collar.z,
-      blast.bench.floorElevation,
+      holeBench(blast, next).floorElevation,
       next.subdrill,
       next.inclination,
       blast.calcParams.subdrillConvention,
@@ -280,6 +282,44 @@ export function setFreeFaceEdges(
   return patchBoundaries(doc, blastId, (list) =>
     list.map((b) => (b.id === id ? { ...b, freeFaceEdges } : b)),
   );
+}
+
+/**
+ * Piso propio de un perímetro [m]; `null` vuelve a usar el del banco. Los taladros de ese
+ * perímetro recalculan su largo hasta el piso nuevo + sobreperforación (su boca no cambia); los de
+ * otros perímetros no se tocan.
+ */
+export function setBoundaryFloor(
+  doc: DocumentReader,
+  blastId: BlastId,
+  id: BoundaryId,
+  floor: number | null,
+): Op[] {
+  const blast = doc.getBlast(blastId);
+  if (!blast) return [];
+  const boundaries = blast.boundaries.map((b) => {
+    if (b.id !== id) return b;
+    const next = { ...b };
+    if (floor === null) delete next.floorElevation;
+    else next.floorElevation = floor;
+    return next;
+  });
+  const after = { ...blast, boundaries };
+  const holes = blast.holes
+    .filter((h) => holeBoundary(after, h)?.id === id)
+    .map((h) => ({
+      ...h,
+      length: lengthToFloor(
+        h.collar.z,
+        holeBench(after, h).floorElevation,
+        h.subdrill,
+        h.inclination,
+        blast.calcParams.subdrillConvention,
+      ),
+    }));
+  const ops: Op[] = [{ type: 'blast/patch', blastId, patch: { boundaries } }];
+  if (holes.length > 0) ops.push({ type: 'holes/replace', blastId, holes });
+  return ops;
 }
 
 /** Nombre libre "Perímetro N" para un perímetro nuevo. */

@@ -270,6 +270,11 @@ export interface BlastBoundary {
   polygon: Polygon2;
   /** Índices de aristas de cara libre; la arista i va del vértice i al i+1 (la última cierra con el 0). */
   freeFaceEdges: number[];
+  /**
+   * Cota de piso propia del perímetro [m]; si falta, la del banco. En un tajo, los perímetros de
+   * una voladura pueden estar en bancos distintos y cada uno conserva su piso.
+   */
+  floorElevation?: Meters;
 }
 
 export interface Bench {

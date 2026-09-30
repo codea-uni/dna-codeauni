@@ -156,6 +156,7 @@ const blast: z.ZodType<M.Blast> = z.object({
       name: z.string(),
       polygon: polygon2,
       freeFaceEdges: z.array(z.int().nonnegative()),
+      floorElevation: num.exactOptional(),
     }),
   ),
   freeFaces: z.array(freeFace),
@@ -396,7 +397,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
   format: z.literal('cronos-project'),
-  schemaVersion: z.literal(11),
+  schemaVersion: z.literal(12),
   savedAt: z.string(),
   appVersion: z.string(),
   project: projectSchema,

@@ -387,7 +387,7 @@ export const computeApi = {
   topographyDrape(
     tin: TinData,
     holes: Hole[],
-    blast: Pick<Blast, 'bench' | 'calcParams'>,
+    blast: Pick<Blast, 'bench' | 'calcParams'> & Partial<Pick<Blast, 'boundaries' | 'patterns'>>,
   ): DrapeResult {
     const index = SurfaceIndex.build(tin);
     return drapeHoles(holes, (x, y) => index.elevationAt(x, y), blast);

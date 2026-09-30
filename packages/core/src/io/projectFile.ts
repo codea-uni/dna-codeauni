@@ -161,6 +161,11 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
       },
     };
   },
+  /**
+   * v11 → v12: piso propio por perímetro (`BlastBoundary.floorElevation`, opcional). Sin él, el
+   * perímetro usa el piso del banco, como hasta ahora: no hay nada que convertir.
+   */
+  11: (data) => data,
 };
 
 /** Caja envolvente de vértices x, y, z intercalados. */

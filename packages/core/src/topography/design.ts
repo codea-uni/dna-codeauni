@@ -1,5 +1,6 @@
 import Flatbush from 'flatbush';
 import { applyHoleEdit } from '../document/commands';
+import { boundaryBench, holeBoundary } from '../geometry/boundary';
 import { pointInPolygon, polygonBounds } from '../geometry/polygon';
 import type { Bench, Blast, Bounds3, Hole, HoleId, Vec2 } from '../model/types';
 import { LINE_ROLES, type LineRole, type LineSetData, type TinData } from './asset';
@@ -183,6 +184,30 @@ export function holesOffBench(
   return above < bench.height / 2 || above > bench.height * 2;
 }
 
+/**
+ * ¿Algún grupo de taladros (los de cada perímetro, con su piso) no corresponde a su piso? Ver
+ * `holesOffBench` (S-18).
+ */
+export function blastHolesOffBench(
+  blast: Pick<Blast, 'bench' | 'holes' | 'boundaries' | 'patterns'>,
+): boolean {
+  const groups = new Map<
+    string,
+    { bench: Pick<Bench, 'floorElevation' | 'height'>; z: number[] }
+  >();
+  for (const h of blast.holes) {
+    const b = holeBoundary(blast, h);
+    const key = b?.id ?? '';
+    let g = groups.get(key);
+    if (!g) {
+      g = { bench: boundaryBench(blast.bench, b), z: [] };
+      groups.set(key, g);
+    }
+    g.z.push(h.collar.z);
+  }
+  return [...groups.values()].some((g) => holesOffBench(g.bench, g.z));
+}
+
 /** Piso del banco para bocas a estas cotas: su mediana menos la altura del banco. */
 export function benchFloorFor(collarZ: readonly number[], height: number): number | null {
   const z = medianOf(collarZ);
@@ -213,7 +238,7 @@ export interface DrapeResult {
 export function drapeHoles(
   holes: readonly Hole[],
   elevationAt: (x: number, y: number) => number | null,
-  blast: Pick<Blast, 'bench' | 'calcParams'>,
+  blast: Pick<Blast, 'bench' | 'calcParams'> & Partial<Pick<Blast, 'boundaries' | 'patterns'>>,
 ): DrapeResult {
   const out: Hole[] = [];
   const outside: HoleId[] = [];

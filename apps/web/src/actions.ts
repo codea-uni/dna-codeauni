@@ -1,4 +1,5 @@
 import {
+  boundaryBench,
   centeredPatternOrigin,
   commands,
   createEmptyProject,
@@ -265,19 +266,34 @@ export async function generatePattern(form: PatternForm): Promise<void> {
 
   await withBusy(t('actions.generatingPattern'), async () => {
     const t0 = performance.now();
+    // Cada perímetro con su piso: la malla se genera en el banco de su perímetro.
     const generated = await getCompute().api.generatePattern(
       pattern,
-      blast.bench,
+      boundaryBench(blast.bench, boundary),
       nextHoleNumber(blast.holes),
       blast.calcParams.subdrillConvention,
     );
     // Con el banco sobre la topografía, cada boca va en el terreno (D-16).
-    const { holes, outside, bench } = await drapeNewHoles(blast, generated);
+    const { holes, outside, floor } = await drapeNewHoles(blast, generated, boundary);
     const t1 = performance.now();
-    // Si el piso no correspondía a las bocas sobre el terreno (S-18), se ajusta en el mismo paso.
-    const benchOps: Op[] = bench
-      ? [{ type: 'blast/patch', blastId: blast.id, patch: { bench } }]
-      : [];
+    // Si el piso no correspondía a las bocas sobre el terreno (S-18), se ajusta en el mismo paso
+    // y solo el del perímetro de esta malla: los demás perímetros no se mueven.
+    const benchOps: Op[] =
+      floor === null
+        ? []
+        : [
+            {
+              type: 'blast/patch',
+              blastId: blast.id,
+              patch: boundary
+                ? {
+                    boundaries: blast.boundaries.map((b) =>
+                      b.id === boundary.id ? { ...b, floorElevation: floor } : b,
+                    ),
+                  }
+                : { bench: { ...blast.bench, floorElevation: floor } },
+            },
+          ];
     document.dispatch(
       [
         ...benchOps,
@@ -301,9 +317,8 @@ export async function generatePattern(form: PatternForm): Promise<void> {
       render: (t2 - t1).toFixed(0),
     });
     const offGround =
-      (bench
-        ? ` ${t('topo.bench.floorSet', { floor: formatNumber(bench.floorElevation, 2) })}`
-        : '') + (outside > 0 ? ` ${t('topo.bench.outside', { n: outside })}` : '');
+      (floor !== null ? ` ${t('topo.bench.floorSet', { floor: formatNumber(floor, 2) })}` : '') +
+      (outside > 0 ? ` ${t('topo.bench.outside', { n: outside })}` : '');
     if (hasFreeFace && outside === 0) notify(`${summary}.${offGround}`);
     else
       notify(`${summary}.${hasFreeFace ? '' : ` ${t('pattern.noFreeFace')}`}${offGround}`, 'error');

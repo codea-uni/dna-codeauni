@@ -1,7 +1,7 @@
 import { commands, type BoundaryId, type SubdrillConvention } from '@cronos/core';
 import { boundaryColorCss } from '@cronos/engine';
 import { Mountain, Pentagon } from 'lucide-react';
-import { TextCell } from '../components/CellInput';
+import { NumberCell, TextCell } from '../components/CellInput';
 import { IconButton } from '../components/IconButton';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
@@ -115,6 +115,39 @@ export function BlastPanel() {
                     );
                   }}
                 />
+                <span
+                  className={`boundary-floor${b.floorElevation === undefined ? ' inherited' : ''}`}
+                  title={
+                    b.floorElevation === undefined
+                      ? t('blast.boundaryFloorInherited')
+                      : t('blast.boundaryFloorOwn')
+                  }
+                >
+                  <NumberCell
+                    value={len.show(b.floorElevation ?? blast.bench.floorElevation)}
+                    decimals={2}
+                    onCommit={(v) => {
+                      session.document.dispatch(
+                        commands.setBoundaryFloor(session.document, blast.id, b.id, len.parse(v)),
+                        t('blast.boundaryFloorUndo', { name: b.name }),
+                      );
+                    }}
+                  />
+                  {b.floorElevation !== undefined && (
+                    <button
+                      className="icon"
+                      title={t('blast.boundaryFloorReset')}
+                      onClick={() => {
+                        session.document.dispatch(
+                          commands.setBoundaryFloor(session.document, blast.id, b.id, null),
+                          t('blast.boundaryFloorUndo', { name: b.name }),
+                        );
+                      }}
+                    >
+                      ↺
+                    </button>
+                  )}
+                </span>
                 <span className="muted small" title={t('blast.verticesFaces')}>
                   {b.polygon.length} v ·{' '}
                   {b.freeFaceEdges.length === 0 ? (
