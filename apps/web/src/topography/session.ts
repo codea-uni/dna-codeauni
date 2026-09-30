@@ -1,7 +1,9 @@
 import {
   decodeAsset,
   newId,
+  SurfaceIndex,
   type BlastId,
+  type LineSetData,
   type Op,
   type Project,
   type SurveyInput,
@@ -9,19 +11,30 @@ import {
   type TinData,
   type TopographySurvey,
 } from '@cronos/core';
+import type { TopographyViewData } from '@cronos/engine';
 import { getAsset, putAsset } from '../persistence/assets';
 import { getCompute, getEngine, session } from '../session';
+import { useAnalysisStore } from '../stores/analysisStore';
 
 /**
  * Topografía cargada en la sesión (D-16): los levantamientos que usa el proyecto, decodificados
- * de sus assets `CRTS` (vistas sobre el binario, sin copiar) y enviados al motor.
+ * de sus assets `CRTS` (vistas sobre el binario, sin copiar). El worker calcula el sombreado, las
+ * curvas y el índice espacial; el motor los dibuja y el índice da la cota bajo el cursor.
  */
-const tins = new Map<string, TinData>();
+interface LoadedSurvey {
+  survey: TopographySurvey;
+  tin?: TinData;
+  lines?: LineSetData;
+  index?: SurfaceIndex;
+  view: TopographyViewData;
+}
+
+const loaded = new Map<string, LoadedSurvey>();
 const loading = new Set<string>();
 const listeners = new Set<() => void>();
 
 export function topographyTin(surveyId: string): TinData | undefined {
-  return tins.get(surveyId);
+  return loaded.get(surveyId)?.tin;
 }
 
 /** Avisa cuando cambia lo cargado (para paneles). Devuelve la función para dejar de escuchar. */
@@ -32,23 +45,96 @@ export function onTopographyChange(listener: () => void): () => void {
   };
 }
 
-/** Pasa al motor lo que esté cargado (al montar el visor o al cargar un levantamiento). */
-export function applyTopographyToEngine(): void {
-  getEngine()?.setTopographyTins(new Map(tins));
+function notify(): void {
+  applyTopographyToEngine();
+  for (const l of listeners) l();
 }
 
-async function load(survey: TopographySurvey): Promise<void> {
-  const hash = survey.assets.tin;
-  if (!hash || tins.has(survey.id) || loading.has(survey.id)) return;
+/** Pasa al motor lo que esté cargado (al montar el visor o al cargar un levantamiento). */
+export function applyTopographyToEngine(): void {
+  const engine = getEngine();
+  if (!engine) return;
+  const tins = new Map<string, TinData>();
+  for (const [id, s] of loaded) if (s.tin) tins.set(id, s.tin);
+  engine.setTopographyTins(tins);
+  // El más reciente arriba: se dibujan en orden de fecha.
+  engine.setTopography(
+    [...loaded.values()]
+      .sort((a, b) => a.survey.surveyDate.localeCompare(b.survey.surveyDate))
+      .map((s) => s.view),
+  );
+}
+
+/**
+ * Cota del terreno bajo (x, y): la del levantamiento que usa el banco de la voladura activa y, si
+ * no la cubre, la del más reciente que lo cubra. `null` fuera de toda topografía.
+ */
+export function topographyElevation(x: number, y: number, preferred?: string): number | null {
+  const first = preferred ? loaded.get(preferred) : undefined;
+  const z = first?.index?.elevationAt(x, y);
+  if (z !== undefined && z !== null) return z;
+  const byDate = [...loaded.values()].sort((a, b) =>
+    b.survey.surveyDate.localeCompare(a.survey.surveyDate),
+  );
+  for (const s of byDate) {
+    const e = s.index?.elevationAt(x, y);
+    if (e !== undefined && e !== null) return e;
+  }
+  return null;
+}
+
+/** Intervalo de curvas automático: ~25 curvas en el rango de cotas, redondeado a 1, 2 o 5 × 10ⁿ. */
+export function autoContourInterval(zMin: number, zMax: number): number {
+  const raw = Math.max(zMax - zMin, 1) / 25;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].find((k) => k * p >= raw) ?? 10;
+  return Math.max(0.5, step * p);
+}
+
+function contourInterval(survey: TopographySurvey): number {
+  const fixed = useAnalysisStore.getState().topoContourInterval;
+  const { minZ, maxZ } = survey.bounds;
+  // Tope de 500 curvas: un intervalo muy chico en un tajo alto congelaría el dibujo.
+  return fixed > 0 ? Math.max(fixed, (maxZ - minZ) / 500) : autoContourInterval(minZ, maxZ);
+}
+
+async function decode(
+  hash: string | undefined,
+): Promise<ReturnType<typeof decodeAsset> | undefined> {
+  if (!hash) return undefined;
+  const bytes = await getAsset(hash);
+  if (!bytes) {
+    console.warn(`[topografía] falta el asset ${hash}`);
+    return undefined;
+  }
+  return decodeAsset(bytes);
+}
+
+async function load(survey: TopographySurvey): Promise<boolean> {
+  if (loaded.has(survey.id) || loading.has(survey.id)) return false;
   loading.add(survey.id);
   try {
-    const bytes = await getAsset(hash);
-    if (!bytes) {
-      console.warn(`[topografía] falta el asset ${hash} del levantamiento «${survey.name}»`);
-      return;
-    }
-    const asset = decodeAsset(bytes);
-    if (asset.kind === 'tin') tins.set(survey.id, asset.tin);
+    const [tinAsset, linesAsset] = await Promise.all([
+      decode(survey.assets.tin),
+      decode(survey.assets.lines),
+    ]);
+    const tin = tinAsset?.kind === 'tin' ? tinAsset.tin : undefined;
+    const lines = linesAsset?.kind === 'lines' ? linesAsset.lines : undefined;
+    const api = getCompute().api;
+    const [shade, contours, indexData] = tin
+      ? await Promise.all([
+          api.topographyHillshade(tin),
+          api.topographyContours(tin, { interval: contourInterval(survey) }),
+          api.topographyIndex(tin),
+        ])
+      : [null, null, null];
+    loaded.set(survey.id, {
+      survey,
+      ...(tin ? { tin, index: SurfaceIndex.fromData(tin, indexData) } : {}),
+      ...(lines ? { lines } : {}),
+      view: { id: survey.id, bounds: survey.bounds, shade, contours, lines: lines ?? null },
+    });
+    return true;
   } finally {
     loading.delete(survey.id);
   }
@@ -58,28 +144,44 @@ async function load(survey: TopographySurvey): Promise<void> {
 export async function syncTopography(project: Project): Promise<void> {
   const ids = new Set(project.topography.map((s) => s.id as string));
   let changed = false;
-  for (const id of [...tins.keys()])
+  for (const id of [...loaded.keys()])
     if (!ids.has(id)) {
-      tins.delete(id);
+      loaded.delete(id);
       changed = true;
     }
-  const before = tins.size;
-  await Promise.all(project.topography.map(load));
-  if (changed || tins.size !== before) {
-    applyTopographyToEngine();
-    for (const l of listeners) l();
-  }
+  const added = await Promise.all(project.topography.map(load));
+  if (changed || added.some(Boolean)) notify();
 }
 
-/** Mantiene la topografía cargada al día con el documento. */
+/** Recalcula las curvas de nivel (al cambiar el intervalo). */
+async function refreshContours(): Promise<void> {
+  const api = getCompute().api;
+  await Promise.all(
+    [...loaded.values()].map(async (s) => {
+      if (!s.tin) return;
+      const contours = await api.topographyContours(s.tin, { interval: contourInterval(s.survey) });
+      s.view = { ...s.view, contours };
+    }),
+  );
+  notify();
+}
+
+/** Mantiene la topografía cargada al día con el documento y con el intervalo de curvas. */
 export function startTopographySync(): () => void {
   let last = session.document.project.topography;
   void syncTopography(session.document.project);
-  return session.document.subscribe((_cs, store) => {
+  const offDoc = session.document.subscribe((_cs, store) => {
     if (store.project.topography === last) return;
     last = store.project.topography;
     void syncTopography(store.project);
   });
+  const offInterval = useAnalysisStore.subscribe((s, prev) => {
+    if (s.topoContourInterval !== prev.topoContourInterval) void refreshContours();
+  });
+  return () => {
+    offDoc();
+    offInterval();
+  };
 }
 
 /**

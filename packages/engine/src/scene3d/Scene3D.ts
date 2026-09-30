@@ -277,6 +277,17 @@ export class Scene3D {
       }
       if (surface) this.addSurface(surface.vertices, surface.triangles, origin);
     }
+    // Si ningún banco usa un levantamiento, se dibujan los cargados como referencia; sin
+    // taladros, su extensión decide el encuadre.
+    const benchUses = blasts.some((x) => x.bench.topographyId && tins.has(x.bench.topographyId));
+    if (!benchUses)
+      for (const tin of tins.values()) this.addSurface(tin.vertices, tin.triangles, origin);
+    if (!Number.isFinite(b.minX))
+      for (const tin of tins.values()) {
+        const v = tin.vertices;
+        for (let i = 0; i + 2 < v.length; i += 3)
+          grow((v[i] ?? 0) - origin.x, (v[i + 1] ?? 0) - origin.y, (v[i + 2] ?? 0) - origin.z);
+      }
     this.bounds = Number.isFinite(b.minX) ? b : null;
     this.refreshColors();
   }

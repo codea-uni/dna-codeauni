@@ -62,6 +62,9 @@ interface AnalysisState {
   vibOpacity: number;
   vibration: VibrationResult | null;
   vibComputing: boolean;
+  /** Topografía: intervalo de curvas [m] (0 = automático) y opacidad del sombreado. */
+  topoContourInterval: number;
+  topoShadeOpacity: number;
   set: (patch: Partial<Omit<AnalysisState, 'set' | 'setLayer'>>) => void;
   setLayer: (layer: EngineLayer, visible: boolean) => void;
 }
@@ -82,6 +85,9 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
     vibration: true,
     flyrock: true,
     displacement: false,
+    topoShade: true,
+    topoContours: true,
+    topoLines: true,
   },
   sequenceTime: null,
   sequencePlaying: false,
@@ -111,6 +117,8 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   vibOpacity: 0.45,
   vibration: null,
   vibComputing: false,
+  topoContourInterval: 0,
+  topoShadeOpacity: 0.85,
   set: (patch) => {
     set(patch);
   },

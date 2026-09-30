@@ -9,6 +9,7 @@ import * as panelsA from './ns/panelsA';
 import * as panelsB from './ns/panelsB';
 import * as platform from './ns/platform';
 import * as projects from './ns/projects';
+import * as topography from './ns/topography';
 import * as workspace from './ns/workspace';
 
 export const en = {
@@ -20,6 +21,7 @@ export const en = {
   ...panelsB.en,
   ...platform.en,
   ...projects.en,
+  ...topography.en,
   ...workspace.en,
   'toolbar.newProject': 'New project',
   'toolbar.openProject': 'Open project',

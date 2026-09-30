@@ -139,7 +139,14 @@ export function hillshade(tin: TinData, options: HillshadeOptions = {}): Hillsha
     width,
     height,
     rgba,
-    georef: { originX: minX, originY: maxY, pixelSizeX: size, pixelSizeY: -size, rotation: 0 },
+    // Georreferencia por la esquina superior izquierda (los píxeles están centrados en la grilla).
+    georef: {
+      originX: minX - size / 2,
+      originY: maxY + size / 2,
+      pixelSizeX: size,
+      pixelSizeY: -size,
+      rotation: 0,
+    },
     zMin,
     zMax,
   };

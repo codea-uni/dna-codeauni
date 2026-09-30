@@ -2,7 +2,7 @@ import type { Blast, BlastAnalysis } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { colorRange, sequenceTimes, SDOB_COLORS } from '../analysis/visualize';
 import { NumberField } from '../components/NumberField';
-import { useActiveBlast } from '../hooks/useDocument';
+import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
 import { getEngine, session } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
@@ -35,6 +35,7 @@ export function ViewPanel() {
   const t = useT();
   const s = useAnalysisStore();
   const blast = useActiveBlast();
+  const hasTopography = useProject().topography.length > 0;
   const { analysis } = s;
   const range = analysis ? colorRange(analysis, s.colorBy) : null;
   const timing = analysis?.timing;
@@ -149,6 +150,7 @@ export function ViewPanel() {
       {s.layers.displacement && blast && analysis && (
         <DisplacementParams blast={blast} analysis={analysis} />
       )}
+      {hasTopography && <TopographyView />}
       <label className="field">
         <span className="field-label">{t('view.isochroneInterval')}</span>
         <span className="field-input">
@@ -282,6 +284,66 @@ function DisplacementParams({ blast, analysis }: { blast: Blast; analysis: Blast
         {excluded > 0 && ` ${t('view.disp.excluded', { n: excluded })}`}
       </p>
       <p className="hint">{t('view.disp.source')}</p>
+    </>
+  );
+}
+
+/** Capas de la topografía, intervalo de curvas y opacidad del relieve. */
+function TopographyView() {
+  const t = useT();
+  const s = useAnalysisStore();
+  return (
+    <>
+      <h3>{t('topo.section')}</h3>
+      <div className="checks">
+        {(
+          [
+            ['topoShade', 'topo.layer.shade'],
+            ['topoContours', 'topo.layer.contours'],
+            ['topoLines', 'topo.layer.lines'],
+          ] as const
+        ).map(([layer, label]) => (
+          <label key={layer} className="check">
+            <input
+              type="checkbox"
+              checked={s.layers[layer]}
+              onChange={(e) => {
+                s.setLayer(layer, e.target.checked);
+              }}
+            />
+            {t(label)}
+          </label>
+        ))}
+      </div>
+      <label className="field">
+        <span className="field-label">{t('topo.contourInterval')}</span>
+        <span className="field-input">
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={s.topoContourInterval}
+            title={t('view.autoZero')}
+            onChange={(e) => {
+              s.set({ topoContourInterval: Math.max(0, Number(e.target.value)) });
+            }}
+          />
+          <span className="field-unit">m</span>
+        </span>
+      </label>
+      <label className="field">
+        <span className="field-label">{t('topo.shadeOpacity')}</span>
+        <input
+          type="range"
+          min={0.1}
+          max={1}
+          step={0.05}
+          value={s.topoShadeOpacity}
+          onChange={(e) => {
+            s.set({ topoShadeOpacity: Number(e.target.value) });
+          }}
+        />
+      </label>
     </>
   );
 }

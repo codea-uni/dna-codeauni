@@ -12,6 +12,7 @@ export { boundaryColorCss } from './layers/BoundaryLayer';
 export { diffColorCss } from './layers/VersionDiffLayer';
 export type { IsochroneData } from './layers/IsochronesLayer';
 export type { EnergyData } from './layers/EnergyLayer';
+export { TOPO_LINE_COLORS, type TopographyViewData } from './layers/TopographyLayer';
 export { fitBounds, panBy, screenToWorld, zoomAt, type PlanViewState } from './cameras/planView';
 export type { ToolName } from './tools/types';
 export type { FrameStats } from './loop/RenderLoop';

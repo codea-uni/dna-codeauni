@@ -46,6 +46,7 @@ import { GridLayer } from './layers/GridLayer';
 import { turbo } from './layers/colormap';
 import { EnergyLayer, type EnergyData } from './layers/EnergyLayer';
 import { SiteLayer } from './layers/SiteLayer';
+import { TopographyLayer, type TopographyViewData } from './layers/TopographyLayer';
 import { VersionDiffLayer } from './layers/VersionDiffLayer';
 import { HolesLayer } from './layers/HolesLayer';
 import { InitiationLayer } from './layers/InitiationLayer';
@@ -103,7 +104,10 @@ export type EngineLayer =
   | 'energy'
   | 'vibration'
   | 'flyrock'
-  | 'displacement';
+  | 'displacement'
+  | 'topoShade'
+  | 'topoContours'
+  | 'topoLines';
 
 /** Valores escalares por taladro para colorear con el mapa turbo. */
 export interface HoleScalars {
@@ -151,6 +155,9 @@ export class Engine {
   private scene3dDirty = true;
   /** Triangulaciones de los levantamientos cargados (D-16), por id de levantamiento. */
   private topographyTins: ReadonlyMap<string, TinData> = new Map();
+  /** Topografía en planta: sombreado, curvas y líneas de referencia. */
+  private readonly topography = new TopographyLayer();
+  private topographyData: readonly TopographyViewData[] = [];
   private options3d: Scene3DOptions = DEFAULT_3D_OPTIONS;
   private readonly loop: RenderLoop;
   private readonly input: InputRouter;
@@ -198,6 +205,9 @@ export class Engine {
     vibration: true,
     flyrock: true,
     displacement: false,
+    topoShade: true,
+    topoContours: true,
+    topoLines: true,
   };
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
@@ -285,7 +295,10 @@ export class Engine {
       this.siteLabels3d.mesh,
     );
     this.planRoot.add(
+      this.topography.shadeRoot,
       this.grid.mesh,
+      this.topography.contourRoot,
+      this.topography.lineRoot,
       this.energy.root,
       this.vibration.root,
       this.isochrones.lines,
@@ -454,6 +467,12 @@ export class Engine {
       if (!selectionOnly)
         for (const b of blast.boundaries) for (const p of b.polygon) add(p.x, p.y);
     }
+    // Sin diseño, se encuadra la topografía.
+    if (!Number.isFinite(bounds.minX) && !selectionOnly)
+      for (const t of this.topographyData) {
+        add(t.bounds.minX, t.bounds.minY);
+        add(t.bounds.maxX, t.bounds.maxY);
+      }
     if (!Number.isFinite(bounds.minX)) {
       if (selectionOnly) return;
       this.setView({ centerX: 0, centerY: 0, metersPerPixel: 0.1 });
@@ -603,6 +622,28 @@ export class Engine {
   }
 
   /**
+   * Topografía en planta (D-16): sombreado, curvas y líneas de cada levantamiento cargado. Si no
+   * hay taladros, sus límites deciden el origen de render y el encuadre.
+   */
+  setTopography(data: readonly TopographyViewData[]): void {
+    const first = this.topographyData.length === 0 && data.length > 0;
+    this.topographyData = data;
+    if (this.needsRebase([])) {
+      this.rebase();
+    } else {
+      this.topography.set(data, this.origin);
+      this.applyView();
+    }
+    if (first && this.designEmpty()) this.zoomToFit();
+  }
+
+  /** Opacidad del relieve sombreado (0–1). */
+  setTopographyShadeOpacity(opacity: number): void {
+    this.topography.setShadeOpacity(opacity);
+    this.loop.invalidate();
+  }
+
+  /**
    * Comparación con otra versión del proyecto (D-14): marcadores de taladros agregados, quitados,
    * movidos y cambiados, en coordenadas de proyecto. `null` la quita.
    */
@@ -714,6 +755,7 @@ export class Engine {
     this.vibration.dispose();
     this.site.dispose();
     this.versionDiff.dispose();
+    this.topography.dispose();
     this.siteLabels.dispose();
     this.overlay.dispose();
     this.decorations.dispose();
@@ -1054,6 +1096,7 @@ export class Engine {
     this.site.setZone(this.flyrockZone, this.origin, this.view.metersPerPixel);
     this.rebuildSite();
     this.rebuildVersionDiff();
+    this.topography.set(this.topographyData, this.origin);
     this.holes.refreshColors();
     this.updateTypicalSpacing();
     this.applyView();
@@ -1070,11 +1113,34 @@ export class Engine {
         return h !== undefined && far(h.collar.x, h.collar.y);
       });
     }
+    let anyHole = false;
     for (const blast of this.document.project.blasts) {
       const h = blast.holes[0];
       if (h && far(h.collar.x, h.collar.y)) return true;
+      anyHole ||= h !== undefined;
     }
-    return false;
+    if (anyHole) return false;
+    // Sin taladros: el centro de la topografía.
+    const c = this.topographyCenter();
+    return c !== null && far(c.x, c.y);
+  }
+
+  /** Centro de los levantamientos cargados, o null si no hay. */
+  private topographyCenter(): Vec3 | null {
+    const t = this.topographyData[0];
+    if (!t) return null;
+    return {
+      x: (t.bounds.minX + t.bounds.maxX) / 2,
+      y: (t.bounds.minY + t.bounds.maxY) / 2,
+      z: (t.bounds.minZ + t.bounds.maxZ) / 2,
+    };
+  }
+
+  /** ¿El proyecto no tiene taladros ni perímetros? */
+  private designEmpty(): boolean {
+    return this.document.project.blasts.every(
+      (b) => b.holes.length === 0 && b.boundaries.length === 0,
+    );
   }
 
   /** Recentra el origen de render en los datos y reconstruye; la vista no se mueve en el mundo. */
@@ -1091,8 +1157,11 @@ export class Engine {
         n++;
       }
     }
-    if (n === 0) return;
-    const next = { x: Math.round(sx / n), y: Math.round(sy / n), z: Math.round(sz / n) };
+    const topo = n === 0 ? this.topographyCenter() : null;
+    if (n === 0 && !topo) return;
+    const next = topo
+      ? { x: Math.round(topo.x), y: Math.round(topo.y), z: Math.round(topo.z) }
+      : { x: Math.round(sx / n), y: Math.round(sy / n), z: Math.round(sz / n) };
     this.view = {
       ...this.view,
       centerX: this.view.centerX + this.origin.x - next.x,
@@ -1170,6 +1239,9 @@ export class Engine {
     this.initiation.root.visible = this.layerVisible.connections;
     this.isochrones.lines.visible = this.layerVisible.isochrones;
     this.displacement.lines.visible = this.layerVisible.displacement;
+    this.topography.shadeRoot.visible = this.layerVisible.topoShade;
+    this.topography.contourRoot.visible = this.layerVisible.topoContours;
+    this.topography.lineRoot.visible = this.layerVisible.topoLines;
     this.energy.root.visible = this.layerVisible.energy;
     this.apply3dVisibility();
     this.vibration.root.visible = this.layerVisible.vibration;

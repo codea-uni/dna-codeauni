@@ -48,7 +48,13 @@ describe('sombreado', () => {
     const h = hillshade(pyramid, { maxSize: 21 });
     if (!h) throw new Error('sin ráster');
     expect(h.zMax).toBe(10);
-    expect(h.georef).toMatchObject({ originX: 0, originY: 20, pixelSizeY: -h.georef.pixelSizeX });
+    // Esquina superior izquierda: medio píxel afuera del primer centro (0, 20).
+    const half = h.georef.pixelSizeX / 2;
+    expect(h.georef).toMatchObject({
+      originX: -half,
+      originY: 20 + half,
+      pixelSizeY: -h.georef.pixelSizeX,
+    });
     const alpha = (r: number, c: number) => h.rgba[(r * h.width + c) * 4 + 3];
     expect(alpha(Math.floor(h.height / 2), Math.floor(h.width / 2))).toBe(255);
     // La cara iluminada (luz desde el Noroeste) es más clara que la opuesta.

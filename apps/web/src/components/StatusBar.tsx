@@ -3,6 +3,7 @@ import { useProject, useSelectionIds } from '../hooks/useDocument';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { toolHint } from './Toolbar';
+import { topographyElevation } from '../topography/session';
 import { useT } from '../i18n';
 
 export function StatusBar() {
@@ -18,6 +19,11 @@ export function StatusBar() {
   const busy = useUiStore((s) => s.busy);
   const holeCount = project.blasts.reduce((n, b) => n + b.holes.length, 0);
   const hoverLabel = hover ? session.document.findHole(hover)?.hole.label : undefined;
+  // O(log n) con el índice del worker: se puede consultar en cada movimiento del cursor.
+  const groundZ =
+    pointer && project.topography.length > 0
+      ? topographyElevation(pointer.x, pointer.y, project.blasts[0]?.bench.topographyId)
+      : null;
 
   useEffect(() => {
     if (!message) return;
@@ -37,6 +43,11 @@ export function StatusBar() {
       <span className="mono">
         {pointer ? `E ${pointer.x.toFixed(2)}  N ${pointer.y.toFixed(2)}` : 'E —  N —'}
       </span>
+      {project.topography.length > 0 && (
+        <span className="mono" title={tr('topo.cursorZ')}>
+          {groundZ !== null ? `Z ${groundZ.toFixed(2)}` : 'Z —'}
+        </span>
+      )}
       <span>{tr('status.holes', { n: holeCount })}</span>
       <span>{tr('status.selected', { n: selected.size })}</span>
       {hoverLabel !== undefined && <span>{tr('status.hole', { label: hoverLabel })}</span>}
