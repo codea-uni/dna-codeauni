@@ -57,7 +57,7 @@ docker compose ps
 if grep -q '^COMPOSE_PROFILES=.*server' .env 2>/dev/null; then
   printf 'Esperando la API'
   i=0
-  until docker compose exec -T api wget -qO- http://localhost:3000/api/health 2>/dev/null | grep -q '"status":"ok"'; do
+  until docker compose exec -T api wget -qO- http://127.0.0.1:3000/api/health 2>/dev/null | grep -q '"status":"ok"'; do
     i=$((i + 1))
     if [ "$i" -ge 30 ]; then
       echo ' sin respuesta. Revisar: docker compose logs api'
