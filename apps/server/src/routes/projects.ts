@@ -1,5 +1,5 @@
 import { createProjectSchema, permissions, type ProjectSummary } from '@cronos/api';
-import { newId, parseProjectFile, uuidv7, type ProjectFile, type ProjectId } from '@cronos/core';
+import { parseProjectFile, type ProjectFile } from '@cronos/core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Kysely, Selectable } from 'kysely';
 import type { Auth } from '../auth/auth';
@@ -8,9 +8,8 @@ import type { Database, ProjectTable } from '../db/schema';
 import { sendError } from '../http/errors';
 import { requireUser } from '../http/session';
 import { visibleMine } from '../services/access';
-import { recordAudit } from '../services/audit';
-import { syncProjectTopography } from '../services/topography';
-import { decodeContent, encodeContent, selectVersions, toVersion } from '../services/versions';
+import { createProject } from '../services/projects';
+import { decodeContent, selectVersions, toVersion } from '../services/versions';
 import { toMine } from './organizations';
 
 export interface ProjectRouteDeps {
@@ -96,8 +95,6 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
     const parsed = validateProjectFile(body.data.file);
     if (!parsed.ok) return sendError(reply, 400, 'invalid_project', parsed.error);
 
-    // Un id nuevo siempre: importar dos veces el mismo archivo da dos proyectos distintos.
-    const projectId = newId<'Project'>() satisfies ProjectId;
     const epsg = parsed.file.project.coordinateSystem.epsg;
     if (found.mine.epsg && epsg && epsg !== found.mine.epsg)
       return sendError(
@@ -106,53 +103,7 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
         'crs_mismatch',
         `Project CRS EPSG:${epsg} differs from the mine (EPSG:${found.mine.epsg})`,
       );
-    // La topografía vive en la mina (D-16): assets y levantamientos se registran aparte.
-    const synced = await syncProjectTopography(db, found.mine, parsed.file, user.id);
-    const file: ProjectFile = { ...synced, project: { ...synced.project, id: projectId } };
-
-    const content = await encodeContent(file);
-    const row = await db.transaction().execute(async (tx) => {
-      const project = await tx
-        .insertInto('project')
-        .values({
-          id: projectId,
-          mineId: found.mine.id,
-          name: file.project.name,
-          versionCount: 1,
-          createdBy: user.id,
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
-      const versionId = uuidv7();
-      await tx
-        .insertInto('project_version')
-        .values({
-          id: versionId,
-          projectId,
-          number: 1,
-          parentVersionId: null,
-          restoredFromVersionId: null,
-          authorId: user.id,
-          message: body.data.message ?? '',
-          projectName: file.project.name,
-          schemaVersion: file.schemaVersion,
-          holeCount: content.holeCount,
-          sizeBytes: content.sizeBytes,
-          contentHash: content.hash,
-          content: content.gz,
-          summary: null,
-        })
-        .execute();
-      await recordAudit(tx, {
-        organizationId: found.mine.organizationId,
-        actorId: user.id,
-        action: 'project.create',
-        targetType: 'project',
-        targetId: projectId,
-        data: { name: file.project.name, mine: found.mine.name, holes: content.holeCount },
-      });
-      return project;
-    });
+    const row = await createProject(db, found.mine, parsed.file, user.id, body.data.message ?? '');
     return reply.code(201).send(await toSummary(db, row));
   });
 

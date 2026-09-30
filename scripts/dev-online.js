@@ -2,7 +2,8 @@
 // `pnpm dev:online`: la app con login, empresas, minas e historial (D-14) en un solo comando.
 //   1. PostgreSQL de desarrollo (docker-compose.dev.yml), si no está arriba.
 //   2. apps/server/.env desde su plantilla, si no existe.
-//   3. API en :3000 (si ya hay una respondiendo, la reutiliza) y web en :5173 con VITE_API_URL=/api.
+//   3. Datos de demostración (cuentas del README, empresas, minas y proyectos), si faltan.
+//   4. API en :3000 (si ya hay una respondiendo, la reutiliza) y web en :5173 con VITE_API_URL=/api.
 // Ctrl+C detiene lo que este comando levantó (PostgreSQL queda arriba para las pruebas).
 import { spawn, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync } from 'node:fs';
@@ -40,10 +41,17 @@ if (docker.status !== 0) {
 const envFile = `${root}apps/server/.env`;
 if (!existsSync(envFile)) {
   copyFileSync(`${root}apps/server/.env.example`, envFile);
-  log('Creado apps/server/.env desde la plantilla (admin@cronos.local / admin-cronos-dev).');
+  log('Creado apps/server/.env desde la plantilla (plataforma@cronos.local / admin-cronos-dev).');
 }
 
-// 3. API y web
+// 3. Datos de demostración (idempotente: solo crea lo que falta)
+const seed = spawnSync('pnpm', ['--filter', '@cronos/server', '--silent', 'seed-demo'], {
+  cwd: root,
+  stdio: 'inherit',
+});
+if (seed.status !== 0) log('No se pudieron cargar los datos de demostración; se sigue igual.');
+
+// 4. API y web
 const children = [];
 const env = {
   ...process.env,

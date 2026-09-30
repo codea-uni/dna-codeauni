@@ -2,7 +2,39 @@
 
 Aplicación web para **diseñar** una voladura en banco, **simular** su secuencia y **predecir** sus resultados antes de disparar: carga por taladro, factor de carga, tiempos, carga máxima por retardo, vibración, energía y fragmentación. Cada cálculo cita su fuente y se verifica con un caso de referencia.
 
-Todo corre en el navegador: el cálculo pesado va en Web Workers y la vista usa WebGL. Por ahora no hay backend.
+El cálculo corre en el navegador (Web Workers y WebGL). Un servidor opcional agrega login, empresas, minas, historial de versiones y topografía compartida.
+
+## Inicio rápido
+
+1. Instalar [Node 24](https://nodejs.org), pnpm (`corepack enable`) y [Docker](https://www.docker.com).
+2. En la carpeta del proyecto:
+
+   ```bash
+   pnpm install
+   pnpm dev:online
+   ```
+
+3. Abrir <http://localhost:5173> y entrar con `luis@cronos.local` / `luis-definitiva-1` (diseñador).
+   Otras cuentas en [Usuarios de desarrollo](#usuarios-de-desarrollo).
+4. Entrar a la mina **Cuajone** y abrir **Demo · Banco sobre topografía**: una voladura sobre el
+   terreno con ortofoto (en 3D, tecla **3**). También está **Demo · Tajo con topografía**.
+
+Ctrl+C lo detiene. Sin Docker, `pnpm dev` abre la aplicación sin login (se guarda en el navegador).
+
+## Despliegue (VPS)
+
+Para el agente de Claude en el VPS: el código está en `/opt/dna-codeauni` y se publica en
+<https://dna.codeadevelopment.com>.
+
+```sh
+cd /opt/dna-codeauni
+./scripts/deploy.sh                                              # actualizar (git pull + docker compose)
+CRONOS_SUPERADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server   # solo la primera vez, con login
+curl -s https://dna.codeadevelopment.com/api/health              # debe responder status ok
+```
+
+El `.env` del VPS no se sube al repositorio; ahí están el superadministrador y los secretos.
+Detalle, respaldos y contraseñas olvidadas en [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Demostración
 
@@ -19,12 +51,13 @@ Las barras laterales no cambian. Los módulos con tablas o muchos campos juntos 
 - Node ≥ 24
 - pnpm (se usa **solo** pnpm; ver `packageManager` en `package.json`)
 
-## Uso
+## Comandos de desarrollo
 
 ```bash
 pnpm install
 pnpm dev         # aplicación web (Vite), sin login
 pnpm dev:online  # con login, empresas, minas e historial (PostgreSQL con Docker)
+pnpm dev:seed    # vuelve a cargar los datos de demostración (solo lo que falte)
 pnpm test        # tests (core, engine, workers, web) y de rendimiento
 pnpm typecheck   # tsc -b
 pnpm lint
@@ -34,8 +67,10 @@ pnpm format
 ## Usuarios de desarrollo
 
 Cuentas de la base local de `pnpm dev:online` (PostgreSQL de `docker-compose.dev.yml`), en
-http://localhost:5173. **Solo para desarrollo**: en producción el superadministrador sale de su
-propio `.env` y las demás cuentas las crea cada empresa.
+http://localhost:5173. Se crean solas al arrancar, junto con las empresas, las minas y los
+proyectos de demostración (`pnpm dev:seed` lo repite; solo agrega lo que falte). **Solo para
+desarrollo**: en producción el superadministrador sale de su propio `.env` y las demás cuentas las
+crea cada empresa.
 
 | Correo                    | Contraseña           | Rol                                     |
 | ------------------------- | -------------------- | --------------------------------------- |

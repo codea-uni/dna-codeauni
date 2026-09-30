@@ -10,7 +10,8 @@
     "migrate": "tsx --env-file-if-exists=.env src/migrate.ts",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "reset-password": "tsx --env-file-if-exists=.env src/resetPassword.ts"
+    "reset-password": "tsx --env-file-if-exists=.env src/resetPassword.ts",
+    "seed-demo": "tsx --env-file-if-exists=.env src/seedDemo.ts"
   },
   "dependencies": {
     "@cronos/api": "workspace:*",
