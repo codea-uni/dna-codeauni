@@ -23,8 +23,8 @@ describe('loadConfig', () => {
   it('arma el primer administrador solo con correo y contraseña', () => {
     const c = loadConfig({
       ...BASE,
-      CRONOS_ADMIN_EMAIL: 'a@b.pe',
-      CRONOS_ADMIN_PASSWORD: 'x'.repeat(10),
+      CRONOS_SUPERADMIN_EMAIL: 'a@b.pe',
+      CRONOS_SUPERADMIN_PASSWORD: 'x'.repeat(10),
     });
     expect(c.initialAdmin).toEqual({
       email: 'a@b.pe',
@@ -38,5 +38,14 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...BASE, BETTER_AUTH_SECRET: 'corto' })).toThrow(
       /BETTER_AUTH_SECRET/,
     );
+  });
+
+  it('acepta los nombres anteriores CRONOS_ADMIN_*', () => {
+    const c = loadConfig({
+      ...BASE,
+      CRONOS_ADMIN_EMAIL: 'a@b.pe',
+      CRONOS_ADMIN_PASSWORD: 'x'.repeat(10),
+    });
+    expect(c.initialAdmin?.email).toBe('a@b.pe');
   });
 });

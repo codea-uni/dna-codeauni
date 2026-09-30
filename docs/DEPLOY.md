@@ -15,10 +15,10 @@ Opcional. Sin él, la web funciona como siempre (sin login, con autoguardado loc
 - Para activarlo, la primera vez (después basta `./scripts/deploy.sh`):
 
   ```sh
-  CRONOS_ADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server
+  CRONOS_SUPERADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server
   ```
 
-  Completa `/opt/dna-codeauni/.env` sin tocar lo que ya tenga: `COMPOSE_PROFILES=server`, `VITE_API_URL=/api` y secretos aleatorios para `POSTGRES_PASSWORD` y `BETTER_AUTH_SECRET`. Con `CRONOS_ADMIN_EMAIL` crea el superadministrador de la plataforma y muestra una sola vez su contraseña temporal; desde `/platform` crea las empresas con su primer administrador. El superadministrador es el dueño del software y no pertenece a ninguna empresa: usar un correo que no sea de ninguna. Al final espera a que `/api/health` responda. El `.env` nunca va al repositorio (plantilla en `.env.example`).
+  Completa `/opt/dna-codeauni/.env` sin tocar lo que ya tenga: `COMPOSE_PROFILES=server`, `VITE_API_URL=/api` y secretos aleatorios para `POSTGRES_PASSWORD` y `BETTER_AUTH_SECRET`. Con `CRONOS_SUPERADMIN_EMAIL` crea el superadministrador de la plataforma y muestra una sola vez su contraseña temporal; desde `/platform` crea las empresas con su primer administrador. El superadministrador es el dueño del software y no pertenece a ninguna empresa: usar un correo que no sea de ninguna. Al final espera a que `/api/health` responda. El `.env` nunca va al repositorio (plantilla en `.env.example`).
 
 - Las migraciones se aplican solas al arrancar `api`. Los datos quedan en el volumen `pgdata`; respaldo: `docker compose exec postgres pg_dump -U cronos cronos > respaldo.sql`.
 - Salud: `https://<dominio>/api/health` (`status` y `database`).

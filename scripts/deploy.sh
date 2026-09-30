@@ -8,7 +8,7 @@
 # Con --server completa en .env lo que falte (nunca reemplaza un valor existente):
 #   COMPOSE_PROFILES=server, VITE_API_URL=/api, y secretos aleatorios para POSTGRES_PASSWORD y
 #   BETTER_AUTH_SECRET. Para el superadministrador de la plataforma (crea las empresas), exportar
-#   CRONOS_ADMIN_EMAIL la primera vez: su contraseña temporal se genera y se muestra una sola vez.
+#   CRONOS_SUPERADMIN_EMAIL la primera vez: su contraseña temporal se genera y se muestra una sola vez.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -31,16 +31,20 @@ if [ "${1:-}" = "--server" ]; then
   ensure_var VITE_API_URL /api || true
   ensure_var POSTGRES_PASSWORD "$(random)" || true
   ensure_var BETTER_AUTH_SECRET "$(random)" || true
-  if [ -n "${CRONOS_ADMIN_EMAIL:-}" ]; then
-    ensure_var CRONOS_ADMIN_EMAIL "$CRONOS_ADMIN_EMAIL" || true
+  # El correo puede venir exportado o ya escrito en .env.
+  if [ -z "${CRONOS_SUPERADMIN_EMAIL:-}" ]; then
+    CRONOS_SUPERADMIN_EMAIL="$(grep '^CRONOS_SUPERADMIN_EMAIL=' .env | tail -1 | cut -d= -f2-)"
+  fi
+  if [ -n "${CRONOS_SUPERADMIN_EMAIL:-}" ]; then
+    ensure_var CRONOS_SUPERADMIN_EMAIL "$CRONOS_SUPERADMIN_EMAIL" || true
     admin_password="$(random | cut -c1-16)"
-    if ensure_var CRONOS_ADMIN_PASSWORD "$admin_password"; then
-      echo "Superadministrador de la plataforma: $CRONOS_ADMIN_EMAIL"
+    if ensure_var CRONOS_SUPERADMIN_PASSWORD "$admin_password"; then
+      echo "Superadministrador de la plataforma: $CRONOS_SUPERADMIN_EMAIL"
       echo "Contraseña temporal: $admin_password (se pide cambiarla al entrar; guárdala ahora)"
     fi
-  elif ! grep -q '^CRONOS_ADMIN_EMAIL=.' .env; then
-    echo "Aviso: sin CRONOS_ADMIN_EMAIL no se crea el superadministrador (quien crea las empresas)."
-    echo "       Repetir con: CRONOS_ADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server"
+  elif ! grep -q '^CRONOS_SUPERADMIN_EMAIL=.' .env; then
+    echo "Aviso: sin CRONOS_SUPERADMIN_EMAIL no se crea el superadministrador (quien crea las empresas)."
+    echo "       Repetir con: CRONOS_SUPERADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server"
   fi
 fi
 
