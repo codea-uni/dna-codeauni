@@ -180,11 +180,20 @@ export function organizationRoutes(app: FastifyInstance, deps: OrganizationRoute
       const body = parse(addMemberSchema, req.body, reply);
       if (!body) return reply;
       const email = body.email.trim().toLowerCase();
-      let target = await db
+      const found = await db
         .selectFrom('user')
-        .select('id')
+        .select(['id', 'isSuperAdmin'])
         .where('email', '=', email)
         .executeTakeFirst();
+      // El superadministrador es el dueño del software: no pertenece a ninguna empresa (D-15).
+      if (found?.isSuperAdmin)
+        return sendError(
+          reply,
+          409,
+          'superadmin_no_organization',
+          'The platform superadmin cannot join',
+        );
+      let target: { id: string } | undefined = found;
       let created = false;
       if (!target) {
         if (!body.password)

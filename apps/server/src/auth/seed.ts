@@ -8,16 +8,16 @@ export interface InitialAdmin {
 }
 
 /**
- * Superadministrador de la plataforma desde las variables de entorno (D-14). Si la cuenta ya
- * existe, solo se asegura de que sea superadministrador (no toca su contraseña); si no, la crea
- * con la contraseña temporal. Idempotente. Devuelve el id de la cuenta o `null` sin variables.
- * No crea empresas: las crea el superadministrador desde la consola de la plataforma.
+ * Superadministrador de la plataforma desde las variables de entorno (D-15): el dueño del
+ * software, sin empresa. Si la cuenta ya existe y no es de ninguna empresa, se la promueve (no se
+ * toca su contraseña); si pertenece a una empresa, no se la promueve (`belongsToOrganization`).
+ * Si no existe, se crea con la contraseña temporal. Idempotente; `null` sin variables.
  */
 export async function ensureSuperAdmin(
   db: Db,
   auth: Auth,
   admin: InitialAdmin | null,
-): Promise<{ id: string; created: boolean } | null> {
+): Promise<{ id: string; created: boolean; belongsToOrganization: boolean } | null> {
   if (!admin) return null;
   const email = admin.email.trim().toLowerCase();
   const existing = await db
@@ -26,14 +26,20 @@ export async function ensureSuperAdmin(
     .where('email', '=', email)
     .executeTakeFirst();
   if (existing) {
+    const member = await db
+      .selectFrom('member')
+      .select('id')
+      .where('userId', '=', existing.id)
+      .executeTakeFirst();
+    if (member) return { id: existing.id, created: false, belongsToOrganization: true };
     await db
       .updateTable('user')
       .set({ isSuperAdmin: true })
       .where('id', '=', existing.id)
       .execute();
-    return { id: existing.id, created: false };
+    return { id: existing.id, created: false, belongsToOrganization: false };
   }
   const { id } = await createUserWithPassword(auth, { ...admin, email, mustChangePassword: true });
   await db.updateTable('user').set({ isSuperAdmin: true }).where('id', '=', id).execute();
-  return { id, created: true };
+  return { id, created: true, belongsToOrganization: false };
 }

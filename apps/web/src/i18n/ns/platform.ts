@@ -10,7 +10,7 @@ export const es = {
   'platform.mine': 'Mina',
   'platform.noMines': 'Esta empresa todavía no tiene minas.',
   'platform.intro':
-    'Todas las empresas que usan Cronos. Desactivar una empresa o una cuenta corta el acceso sin borrar datos ni historial.',
+    'Las empresas que pueden usar Cronos, con sus minas y proyectos. Desactivar una empresa o una cuenta corta el acceso sin borrar datos ni historial.',
   'platform.companies': 'Empresas',
   'platform.activeCount': '{n} activas',
   'platform.disabledCount': '{n} desactivadas',
@@ -45,6 +45,8 @@ export const es = {
   'platform.create': 'Crear empresa',
   'platform.created': 'Empresa «{name}» creada',
   'platform.error.cannotDisableSelf': 'No puedes desactivar tu propia cuenta.',
+  'platform.error.superadminNoOrganization':
+    'Ese correo es del superadministrador de la plataforma, que no pertenece a ninguna empresa. Usa otra cuenta.',
   'platform.noAdmin': 'Sin administrador: asígnale uno para que pueda usarse.',
   'platform.addAdmin': 'Asignar administrador',
   'platform.addAdminHint':
@@ -61,7 +63,7 @@ export const en = {
   'platform.mine': 'Mine',
   'platform.noMines': 'This company has no mines yet.',
   'platform.intro':
-    'Every company using Cronos. Disabling a company or an account cuts access without deleting data or history.',
+    'The companies allowed to use Cronos, with their mines and projects. Disabling a company or an account cuts access without deleting data or history.',
   'platform.companies': 'Companies',
   'platform.activeCount': '{n} active',
   'platform.disabledCount': '{n} disabled',
@@ -96,6 +98,8 @@ export const en = {
   'platform.create': 'Create company',
   'platform.created': 'Company “{name}” created',
   'platform.error.cannotDisableSelf': 'You cannot disable your own account.',
+  'platform.error.superadminNoOrganization':
+    'That email belongs to the platform superadmin, who does not belong to any company. Use another account.',
   'platform.noAdmin': 'No administrator: assign one so the company can be used.',
   'platform.addAdmin': 'Assign administrator',
   'platform.addAdminHint':

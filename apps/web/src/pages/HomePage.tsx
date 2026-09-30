@@ -15,8 +15,8 @@ export function HomePage() {
   const mines = useWorkspace((s) => s.mines);
   const role = useWorkspace(activeRole);
   const isSuperAdmin = useAuth((s) => s.user?.isSuperAdmin ?? false);
-  // El superadministrador sin empresa trabaja en la consola de la plataforma.
-  if (!organization && isSuperAdmin) return <Navigate to="/platform" replace />;
+  // El superadministrador es el dueño del software, sin empresa: trabaja en la consola.
+  if (isSuperAdmin) return <Navigate to="/platform" replace />;
   const canManage = role !== null && permissions.manageMines(role);
 
   return (

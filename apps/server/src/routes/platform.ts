@@ -156,9 +156,18 @@ async function resolveAdmin(
   const email = input.email.trim().toLowerCase();
   const existing = await deps.db
     .selectFrom('user')
-    .select('id')
+    .select(['id', 'isSuperAdmin'])
     .where('email', '=', email)
     .executeTakeFirst();
+  if (existing?.isSuperAdmin) {
+    await sendError(
+      reply,
+      409,
+      'superadmin_no_organization',
+      'The platform superadmin cannot join',
+    );
+    return null;
+  }
   if (existing) {
     const current = await deps.db
       .selectFrom('member')

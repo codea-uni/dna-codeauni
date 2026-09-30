@@ -27,6 +27,10 @@ const app = buildApp({
 });
 const superAdmin = await ensureSuperAdmin(db, auth, config.initialAdmin);
 if (superAdmin?.created) app.log.info('Superadministrador creado desde CRONOS_ADMIN_EMAIL');
+if (superAdmin?.belongsToOrganization)
+  app.log.error(
+    'CRONOS_ADMIN_EMAIL pertenece a una empresa: el superadministrador no puede ser miembro. Usar otra cuenta.',
+  );
 
 const shutdown = async () => {
   await app.close();

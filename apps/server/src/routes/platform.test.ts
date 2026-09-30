@@ -7,6 +7,7 @@ import {
   platformUserSchema,
 } from '@cronos/api';
 import { createEmptyProject, toProjectFile } from '@cronos/core';
+import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ensureSuperAdmin } from '../auth/seed';
 import { activate, createTestApp, signIn, TEST_ORIGIN, type TestApp } from '../test/testApp';
@@ -72,6 +73,42 @@ describe.runIf(await databaseAvailable())(
         role: 'admin',
         disabled: false,
       });
+    });
+
+    it('el superadministrador es el dueño del software: no pertenece a ninguna empresa', async () => {
+      expect((await me(root)).organization).toBeNull();
+      const asAdmin = await call(root, 'POST', '/platform/organizations', {
+        name: 'Propia',
+        admin: { email: 'root@cronos.pe', name: 'Plataforma' },
+      });
+      expect(asAdmin.status).toBe(409);
+      expect(asAdmin.json()).toMatchObject({ code: 'superadmin_no_organization' });
+      const asMember = await call(surAdmin, 'POST', `/organizations/${surId}/members`, {
+        email: 'root@cronos.pe',
+        name: 'Plataforma',
+        role: 'reviewer',
+      });
+      expect(asMember.json()).toMatchObject({ code: 'superadmin_no_organization' });
+      // La base también lo impide, aunque se salte la API.
+      const rootId = (await me(root)).user.id;
+      await expect(
+        sql`insert into "member" ("id", "organizationId", "userId", "role") values ('x', ${surId}, ${rootId}, 'admin')`.execute(
+          t.db,
+        ),
+      ).rejects.toThrow(/superadmin/);
+    });
+
+    it('una cuenta que es de una empresa no se vuelve superadministrador', async () => {
+      const res = await ensureSuperAdmin(t.db, s.auth, {
+        email: 'ana@sur.pe',
+        password: 'x'.repeat(10),
+        name: 'Ana',
+      });
+      expect(res).toMatchObject({ created: false, belongsToOrganization: true });
+      expect((await me(surAdmin)).user.isSuperAdmin).toBe(false);
+      await expect(
+        sql`update "user" set "isSuperAdmin" = true where "email" = 'ana@sur.pe'`.execute(t.db),
+      ).rejects.toThrow(/superadmin/);
     });
 
     it('solo el superadministrador entra a la consola', async () => {

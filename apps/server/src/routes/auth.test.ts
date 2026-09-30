@@ -165,7 +165,10 @@ describe.runIf(await databaseAvailable())('primer administrador y límite de int
   it('el superadministrador se crea una vez, con contraseña temporal, o se promueve', async () => {
     const s = createTestApp(t);
     const admin = { email: 'Plataforma@Cronos.pe', password: 'admin-inicial', name: 'Plataforma' };
-    expect(await ensureSuperAdmin(t.db, s.auth, admin)).toMatchObject({ created: true });
+    expect(await ensureSuperAdmin(t.db, s.auth, admin)).toMatchObject({
+      created: true,
+      belongsToOrganization: false,
+    });
     expect(await ensureSuperAdmin(t.db, s.auth, admin)).toMatchObject({ created: false });
     expect(await ensureSuperAdmin(t.db, s.auth, null)).toBeNull();
     const cookie = await signIn(s.app, 'plataforma@cronos.pe', 'admin-inicial');

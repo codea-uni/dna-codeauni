@@ -57,7 +57,7 @@ export function PlatformPage() {
         <p className="lede">{t('platform.intro')}</p>
       </header>
       {error && (
-        <p className="auth-error" role="alert">
+        <p className="form-error" role="alert">
           {t(error)}
         </p>
       )}
@@ -171,7 +171,7 @@ function CompanyRow({
           <CompanyMines orgId={org.id} onError={onError} />
           <h3>{t('platform.people')}</h3>
           <CompanyUsers key={org.admins.length} orgId={org.id} onError={onError} />
-          <AddAdmin orgId={org.id} onAdded={onUpdated} onError={onError} />
+          <AddAdmin orgId={org.id} onAdded={onUpdated} />
         </div>
       )}
     </li>
@@ -354,15 +354,15 @@ function NewCompany({ onCreated }: { onCreated: (org: PlatformOrganization) => v
 function AddAdmin({
   orgId,
   onAdded,
-  onError,
 }: {
   orgId: string;
   onAdded: (org: PlatformOrganization) => void;
-  onError: (e: MessageKey) => void;
 }) {
   const t = useT();
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
+  // El error se muestra en el propio formulario, junto a lo que hay que corregir.
+  const [error, setError] = useState<MessageKey | null>(null);
   const field = (key: keyof typeof form) => ({
     value: form[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -375,6 +375,7 @@ function AddAdmin({
       onSubmit={(e) => {
         e.preventDefault();
         setBusy(true);
+        setError(null);
         api
           .addPlatformAdmin(orgId, {
             name: form.name.trim(),
@@ -387,7 +388,7 @@ function AddAdmin({
               setForm({ name: '', email: '', password: '' });
             },
             (err: unknown) => {
-              onError(workspaceErrorKey(err));
+              setError(workspaceErrorKey(err));
             },
           )
           .finally(() => {
@@ -422,6 +423,11 @@ function AddAdmin({
             {...field('password')}
           />
         </label>
+        {error && (
+          <p className="form-error" role="alert">
+            {t(error)}
+          </p>
+        )}
         <div>
           <button className="primary" type="submit" disabled={busy}>
             {t('platform.assign')}

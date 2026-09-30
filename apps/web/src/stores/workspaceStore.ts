@@ -68,6 +68,8 @@ export function workspaceErrorKey(err: unknown): MessageKey {
       return 'workspace.error.organizationDisabled';
     case 'account_disabled':
       return 'auth.error.accountDisabled';
+    case 'superadmin_no_organization':
+      return 'platform.error.superadminNoOrganization';
     case 'cannot_disable_self':
       return 'platform.error.cannotDisableSelf';
     default:
