@@ -11,6 +11,9 @@ export interface HistoryEntry {
 
 export type DocumentListener = (changes: ChangeSet, store: DocumentStore) => void;
 
+/** Recibe el nombre del cambio rechazado por estar el documento en solo lectura. */
+export type ReadOnlyListener = (label: string) => void;
+
 export interface HoleLocation {
   readonly blast: Blast;
   readonly hole: Hole;
@@ -35,6 +38,8 @@ export class DocumentStore implements DocumentReader {
   private readonly undoStack: HistoryEntry[] = [];
   private readonly redoStack: HistoryEntry[] = [];
   private readonly listeners = new Set<DocumentListener>();
+  private readonly readOnlyListeners = new Set<ReadOnlyListener>();
+  private _readOnly = false;
   private locator: Map<HoleId, { blast: number; index: number }> | null = null;
 
   constructor(project: Project) {
@@ -80,18 +85,47 @@ export class DocumentStore implements DocumentReader {
     return { blast, hole, index: loc.index };
   }
 
-  /** Aplica un grupo de operaciones como un solo paso de undo. */
-  dispatch(ops: Op | readonly Op[], label: string): void {
+  /**
+   * Solo lectura (rol revisor, guía H-801, o una versión antigua abierta para consulta): el
+   * documento se puede cargar y leer, pero no modificar.
+   */
+  get readOnly(): boolean {
+    return this._readOnly;
+  }
+
+  setReadOnly(readOnly: boolean): void {
+    this._readOnly = readOnly;
+  }
+
+  /** Avisa cada intento de cambio rechazado por la solo lectura (para explicárselo al usuario). */
+  onReadOnlyAttempt(listener: ReadOnlyListener): () => void {
+    this.readOnlyListeners.add(listener);
+    return () => {
+      this.readOnlyListeners.delete(listener);
+    };
+  }
+
+  /**
+   * Aplica un grupo de operaciones como un solo paso de undo. En solo lectura no aplica nada,
+   * avisa a `onReadOnlyAttempt` y devuelve `false`.
+   */
+  dispatch(ops: Op | readonly Op[], label: string): boolean {
     const list = Array.isArray(ops) ? (ops as readonly Op[]) : [ops as Op];
-    if (list.length === 0) return;
+    if (list.length === 0) return false;
+    if (this._readOnly) {
+      for (const listener of this.readOnlyListeners) listener(label);
+      return false;
+    }
     const changes = new ChangeSetBuilder();
     const inverse = this.applyAll(list, changes);
     this.undoStack.push({ label, ops: list, inverse });
     this.redoStack.length = 0;
     this.commit(changes);
+    return true;
   }
 
   undo(): void {
+    if (this._readOnly) return;
     const entry = this.undoStack.pop();
     if (!entry) return;
     const changes = new ChangeSetBuilder();
@@ -101,6 +135,7 @@ export class DocumentStore implements DocumentReader {
   }
 
   redo(): void {
+    if (this._readOnly) return;
     const entry = this.redoStack.pop();
     if (!entry) return;
     const changes = new ChangeSetBuilder();

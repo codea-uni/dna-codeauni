@@ -158,4 +158,29 @@ describe('DocumentStore', () => {
     session.document.load(createEmptyProject());
     expect(session.selection.size).toBe(0);
   });
+
+  it('en solo lectura (revisor, H-801) no cambia nada y avisa el intento', () => {
+    const { store, blastId, events } = setup(2);
+    const version = store.version;
+    const rejected: string[] = [];
+    store.onReadOnlyAttempt((label) => rejected.push(label));
+    store.setReadOnly(true);
+
+    expect(store.dispatch(addHoles(blastId, makeHoles(1)), 'Agregar')).toBe(false);
+    store.undo();
+    expect(labels(store)).toEqual(['1', '2']);
+    expect(store.version).toBe(version);
+    expect(events).toHaveLength(0);
+    expect(rejected).toEqual(['Agregar']);
+
+    // Cargar otra versión sí se permite (abrir para consultar).
+    store.load(createEmptyProject('Otra'));
+    expect(store.project.name).toBe('Otra');
+
+    store.setReadOnly(false);
+    const blast = store.project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    expect(store.dispatch(addHoles(blast.id, makeHoles(1)), 'Agregar')).toBe(true);
+    expect(labels(store)).toEqual(['1']);
+  });
 });
