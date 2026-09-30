@@ -110,9 +110,9 @@ export function VersionHistoryDialog({ onClose }: { onClose: () => void }) {
                     <td>{v.authorName}</td>
                     <td>
                       <div>{v.message || (v.number === 1 ? t('history.initial') : '')}</div>
-                      <div className="muted">
-                        {v.summary ? summaryParts(v.summary, t).join(' · ') : t('history.initial')}
-                      </div>
+                      {v.summary && (
+                        <div className="muted">{summaryParts(v.summary, t).join(' · ')}</div>
+                      )}
                     </td>
                     <td className="actions">
                       <button

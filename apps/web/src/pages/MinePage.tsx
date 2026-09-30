@@ -1,6 +1,6 @@
 import { permissions, type MineDetail, type ProjectSummary } from '@cronos/api';
 import { createEmptyProject } from '@cronos/core';
-import { ArrowLeft, FilePlus, FileUp } from 'lucide-react';
+import { ArrowLeft, FilePlus, FileUp, History } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
@@ -113,6 +113,10 @@ export function MinePage() {
               : t('workspace.noEpsg')}{' '}
             · {t('workspace.yourRole', { role: t(roleKey(detail.role)) })}
           </p>
+
+          <Link className="button-link" to={`/mines/${mineId}/history`}>
+            <History size={14} aria-hidden /> {t('history.mineLink')}
+          </Link>
 
           <section className="page-section">
             <h2>{t('projects.title')}</h2>

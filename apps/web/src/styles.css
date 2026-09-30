@@ -1608,3 +1608,62 @@ a.button-link:hover {
 .page-table td.actions button + button {
   margin-left: 0.4rem;
 }
+
+.filters {
+  margin: 0.6rem 0 1rem;
+}
+
+.filters label {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline > li > h3 {
+  margin: 1rem 0 0.4rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.timeline ul {
+  margin: 0;
+  padding: 0 0 0 0.9rem;
+  list-style: none;
+  border-left: 2px solid var(--border);
+}
+
+.timeline-entry {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.5rem 0;
+}
+
+.timeline-entry + .timeline-entry {
+  border-top: 1px solid #30363d80;
+}
+
+.timeline-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.timeline-actions a {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .timeline-entry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

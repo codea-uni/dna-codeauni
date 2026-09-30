@@ -3,6 +3,20 @@
  * claves en ambos idiomas.
  */
 export const es = {
+  'history.mineLink': 'Historial de la mina',
+  'history.mineTitle': 'Historial de {mine}',
+  'history.mineHint':
+    'Todas las versiones de todos los proyectos de la mina, de la más nueva a la más vieja: cómo fue cambiando el diseño.',
+  'history.filterProject': 'Proyecto',
+  'history.filterAuthor': 'Autor',
+  'history.allProjects': 'Todos los proyectos',
+  'history.allAuthors': 'Todos los autores',
+  'history.from': 'Desde',
+  'history.to': 'Hasta',
+  'history.empty': 'No hay versiones con estos filtros.',
+  'history.loadMore': 'Cargar más',
+  'history.download': 'Descargar',
+  'history.open': 'Abrir',
   'history.publish': 'Guardar versión',
   'history.publishTitle': 'Guardar versión en la mina',
   'history.publishHint':
@@ -86,6 +100,20 @@ export const es = {
 };
 
 export const en = {
+  'history.mineLink': 'Mine history',
+  'history.mineTitle': '{mine} history',
+  'history.mineHint':
+    'Every version of every project in the mine, newest first: how the design has changed.',
+  'history.filterProject': 'Project',
+  'history.filterAuthor': 'Author',
+  'history.allProjects': 'All projects',
+  'history.allAuthors': 'All authors',
+  'history.from': 'From',
+  'history.to': 'To',
+  'history.empty': 'No versions match these filters.',
+  'history.loadMore': 'Load more',
+  'history.download': 'Download',
+  'history.open': 'Open',
   'history.publish': 'Save version',
   'history.publishTitle': 'Save version to the mine',
   'history.publishHint':

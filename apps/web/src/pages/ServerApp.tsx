@@ -4,6 +4,7 @@ import { AuthGate } from '../auth/AuthGate';
 import { useWorkspace } from '../server/api';
 import { AdminPage } from './AdminPage';
 import { HomePage } from './HomePage';
+import { MineHistoryPage } from './MineHistoryPage';
 import { MinePage } from './MinePage';
 import { ProjectEditor } from './ProjectEditor';
 
@@ -19,6 +20,7 @@ export function ServerApp() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/mines/:mineId" element={<MinePage />} />
+          <Route path="/mines/:mineId/history" element={<MineHistoryPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/projects/:projectId" element={<ProjectEditor />} />
           <Route path="/projects/:projectId/versions/:number" element={<ProjectEditor />} />
