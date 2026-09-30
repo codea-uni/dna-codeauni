@@ -6,6 +6,10 @@
     "tsBuildInfoFile": ".tsbuild/tsconfig.tsbuildinfo",
     "lib": ["ES2023", "WebWorker"]
   },
-  "include": ["src"],
-  "references": [{ "path": "../core" }]
+  "include": ["src", "types"],
+  "references": [
+    {
+      "path": "../core"
+    }
+  ]
 }

@@ -106,6 +106,7 @@ export type EngineLayer =
   | 'vibration'
   | 'flyrock'
   | 'displacement'
+  | 'topoImage'
   | 'topoShade'
   | 'topoContours'
   | 'topoLines';
@@ -211,6 +212,7 @@ export class Engine {
     vibration: true,
     flyrock: true,
     displacement: false,
+    topoImage: true,
     topoShade: true,
     topoContours: true,
     topoLines: true,
@@ -303,6 +305,7 @@ export class Engine {
     );
     this.planRoot.add(
       this.topography.shadeRoot,
+      this.topography.imageRoot,
       this.grid.mesh,
       this.topography.contourRoot,
       this.topography.lineRoot,
@@ -1287,6 +1290,7 @@ export class Engine {
     this.initiation.root.visible = this.layerVisible.connections;
     this.isochrones.lines.visible = this.layerVisible.isochrones;
     this.displacement.lines.visible = this.layerVisible.displacement;
+    this.topography.imageRoot.visible = this.layerVisible.topoImage;
     this.topography.shadeRoot.visible = this.layerVisible.topoShade;
     this.topography.contourRoot.visible = this.layerVisible.topoContours;
     this.topography.lineRoot.visible = this.layerVisible.topoLines;

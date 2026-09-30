@@ -68,6 +68,36 @@ describe('TopographyLayer', () => {
     expect([pos.getX(4), pos.getY(4), pos.getX(5), pos.getY(5)]).toEqual([10, 10, 0, 0]);
   });
 
+  it('la ortofoto va sobre el relieve, ubicada por su esquina', () => {
+    const layer = new TopographyLayer();
+    const bitmap = { width: 100, height: 50 } as unknown as ImageBitmap;
+    layer.set(
+      [
+        {
+          ...data,
+          image: {
+            bitmap,
+            width: 100,
+            height: 50,
+            // 0,5 m por píxel: 50 × 25 m con la esquina superior izquierda en (345 000, 8 512 025).
+            georef: {
+              originX: 345_000,
+              originY: 8_512_025,
+              pixelSizeX: 0.5,
+              pixelSizeY: -0.5,
+              rotation: 0,
+            },
+          },
+        },
+      ],
+      ORIGIN,
+    );
+    const mesh = layer.imageRoot.children[0] as Mesh;
+    expect([mesh.scale.x, mesh.scale.y]).toEqual([50, 25]);
+    expect([mesh.position.x, mesh.position.y]).toEqual([25, 12.5]);
+    expect(layer.imageRoot.renderOrder).toBeGreaterThan(layer.shadeRoot.renderOrder);
+  });
+
   it('volver a cargar reemplaza lo anterior', () => {
     const layer = new TopographyLayer();
     layer.set([data], ORIGIN);

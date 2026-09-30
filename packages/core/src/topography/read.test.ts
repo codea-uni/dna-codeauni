@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectTopoFormat, inspectTopography, readTopography } from './read';
+import { detectTopoFormat, inspectTopography, readTopography, worldFileFor } from './read';
 
 const file = (name: string, text: string) => ({ name, bytes: new TextEncoder().encode(text) });
 
@@ -21,6 +21,19 @@ describe('lectura por formato', () => {
     expect(r.format).toBe('points');
     expect(r.rejected).toEqual(['plano.dwg', 'b.dxf']);
     expect(r.points?.hasHeader).toBe(true);
+  });
+
+  it('ráster y nubes: la imagen se lleva su archivo de mundo', () => {
+    expect(detectTopoFormat('dem.tif')).toBe('geotiff');
+    expect(detectTopoFormat('nube.LAZ')).toBe('las');
+    const files = [file('orto.jpg', ''), file('orto.jgw', ''), file('otra.csv', '')];
+    const r = inspectTopography(files);
+    expect(r.format).toBe('image');
+    expect(r.rejected).toEqual(['otra.csv']);
+    expect(worldFileFor(files, 'orto.jpg')?.name).toBe('orto.jgw');
+    expect(
+      worldFileFor([file('a.png', ''), file('b.pgw', ''), file('c.pgw', '')], 'a.png'),
+    ).toBeUndefined();
   });
 
   it('LandXML: EPSG declarado', () => {

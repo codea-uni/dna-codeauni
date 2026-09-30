@@ -18,7 +18,7 @@ import {
 } from '@cronos/core';
 import { X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useT, type MessageKey } from '../i18n';
+import { useFormat, useT, type MessageKey } from '../i18n';
 import { es } from '../i18n/es';
 import { getCompute, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
@@ -131,6 +131,7 @@ export function TopographyImportDialog({
   onClose: () => void;
 }) {
   const tr = useT();
+  const fmt = useFormat();
   const { files, inspection } = request;
   const format = inspection.format ?? 'points';
   const project = session.document.project;
@@ -152,7 +153,10 @@ export function TopographyImportDialog({
     inspection.points?.columns ?? { east: 0, north: 1, elevation: 2 },
   );
   const [maxEdgeFactor, setMaxEdgeFactor] = useState<number>(DEFAULT_TIN_OPTIONS.maxEdgeFactor);
-  const [cell, setCell] = useState(0);
+  // Nubes LAS/LAZ: reducción a 0,5 m por defecto (S-14); puntos de texto: sin reducir.
+  const [cell, setCell] = useState(format === 'las' ? 0.5 : 0);
+  const [demTolerance, setDemTolerance] = useState(0.5);
+  const isImage = format === 'image' || inspection.raster?.kind === 'image';
   const [name, setName] = useState(() => baseName(files));
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [useInBench, setUseInBench] = useState(blast !== undefined);
@@ -223,12 +227,17 @@ export function TopographyImportDialog({
           ? { layerRoles: roles }
           : format === 'points'
             ? { pointColumns: columns }
-            : {},
+            : format === 'las'
+              ? { cloudCell: cell }
+              : format === 'geotiff'
+                ? { demTolerance }
+                : {},
         options(),
       );
       const ms = Math.round(performance.now() - t0);
       setResult({ r, ms });
-      if (r.parts.tin || r.parts.lines) await showTopographyPreview(r.parts, r.bounds);
+      if (r.parts.tin || r.parts.lines || r.parts.image)
+        await showTopographyPreview(r.parts, r.bounds);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -239,7 +248,7 @@ export function TopographyImportDialog({
   const accept = async () => {
     if (!result) return;
     const { parts } = result.r;
-    if (!parts.tin && !parts.lines) {
+    if (!parts.tin && !parts.lines && !parts.image) {
       setError(tr('topo.import.nothing'));
       return;
     }
@@ -282,7 +291,9 @@ export function TopographyImportDialog({
   const canAccept =
     result !== null &&
     !busy &&
-    (result.r.parts.tin !== undefined || result.r.parts.lines !== undefined);
+    (result.r.parts.tin !== undefined ||
+      result.r.parts.lines !== undefined ||
+      result.r.parts.image !== undefined);
   const acceptButton = (
     <button className="primary-inline" disabled={!canAccept} onClick={() => void accept()}>
       {tr('topo.import.accept')}
@@ -392,23 +403,44 @@ export function TopographyImportDialog({
             )}
 
             <h3>{tr('topo.import.options')}</h3>
-            <label className="field" title={tr('topo.import.maxEdgeHint')}>
-              <span className="field-label">{tr('topo.import.maxEdge')}</span>
-              <span className="field-input">
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={maxEdgeFactor}
-                  onChange={(e) => {
-                    setMaxEdgeFactor(Math.max(1, Number(e.target.value) || 1));
-                    invalidate();
-                  }}
-                />
-                <span className="field-unit">×</span>
-              </span>
-            </label>
-            {format === 'points' && (
+            {isImage && <p className="hint">{tr('topo.import.imageHint')}</p>}
+            {format === 'geotiff' && !isImage && (
+              <label className="field" title={tr('topo.import.demToleranceHint')}>
+                <span className="field-label">{tr('topo.import.demTolerance')}</span>
+                <span className="field-input">
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.1}
+                    value={demTolerance}
+                    onChange={(e) => {
+                      setDemTolerance(Math.max(0.01, Number(e.target.value) || 0.01));
+                      invalidate();
+                    }}
+                  />
+                  <span className="field-unit">m</span>
+                </span>
+              </label>
+            )}
+            {!isImage && format !== 'geotiff' && (
+              <label className="field" title={tr('topo.import.maxEdgeHint')}>
+                <span className="field-label">{tr('topo.import.maxEdge')}</span>
+                <span className="field-input">
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={maxEdgeFactor}
+                    onChange={(e) => {
+                      setMaxEdgeFactor(Math.max(1, Number(e.target.value) || 1));
+                      invalidate();
+                    }}
+                  />
+                  <span className="field-unit">×</span>
+                </span>
+              </label>
+            )}
+            {(format === 'points' || format === 'las') && (
               <label className="field" title={tr('topo.import.cellHint')}>
                 <span className="field-label">{tr('topo.import.cell')}</span>
                 <span className="field-input">
@@ -490,6 +522,24 @@ export function TopographyImportDialog({
             )}
             {(format === 'surpac' || format === 'landxml') && (
               <p className="hint">{tr(`topo.import.format.${format}`)}</p>
+            )}
+            {inspection.raster && (
+              <p className="hint">
+                {tr(inspection.raster.kind === 'dem' ? 'topo.import.dem' : 'topo.import.ortho', {
+                  w: inspection.raster.width,
+                  h: inspection.raster.height,
+                })}
+              </p>
+            )}
+            {format === 'image' && <p className="hint">{tr('topo.import.worldFile')}</p>}
+            {inspection.cloud && (
+              <p className="hint">
+                {tr('topo.import.cloud', {
+                  n: fmt(inspection.cloud.count),
+                  version: inspection.cloud.version,
+                  kind: inspection.cloud.compressed ? 'LAZ' : 'LAS',
+                })}
+              </p>
             )}
 
             <label className="field">

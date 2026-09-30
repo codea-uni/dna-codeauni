@@ -85,6 +85,7 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
     vibration: true,
     flyrock: true,
     displacement: false,
+    topoImage: true,
     topoShade: true,
     topoContours: true,
     topoLines: true,

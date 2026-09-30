@@ -18,8 +18,8 @@ export interface TopoLine {
  * líneas de referencia y, si el archivo ya trae triangulación, sus caras.
  */
 export interface TopoData {
-  /** x (Este), y (Norte), z intercalados [m]. */
-  points: number[];
+  /** x (Este), y (Norte), z intercalados [m] (Float64Array para nubes grandes). */
+  points: number[] | Float64Array;
   lines: TopoLine[];
   faces?: { vertices: Float64Array; triangles: Uint32Array };
   /** EPSG declarado en el propio archivo (GeoTIFF, LandXML), si lo hay. */

@@ -20,8 +20,11 @@ export interface TopoFile {
 
 /** Formatos vectoriales que se leen en el núcleo (los ráster y las nubes, en el worker). */
 export type VectorTopoFormat = Extract<TopographyFormat, 'dxf' | 'surpac' | 'points' | 'landxml'>;
+/** Todo lo que acepta el asistente de importación. */
+export type ImportTopoFormat =
+  VectorTopoFormat | Extract<TopographyFormat, 'geotiff' | 'image' | 'las'>;
 
-const EXTENSIONS: Record<string, VectorTopoFormat> = {
+const EXTENSIONS: Record<string, ImportTopoFormat> = {
   dxf: 'dxf',
   str: 'surpac',
   dtm: 'surpac',
@@ -32,25 +35,55 @@ const EXTENSIONS: Record<string, VectorTopoFormat> = {
   xyz: 'points',
   pts: 'points',
   asc: 'points',
+  tif: 'geotiff',
+  tiff: 'geotiff',
+  jpg: 'image',
+  jpeg: 'image',
+  png: 'image',
+  webp: 'image',
+  las: 'las',
+  laz: 'las',
 };
+
+/** Archivos de mundo (georreferencia de una imagen): acompañan a la imagen, no son un formato. */
+const WORLD_FILES = new Set(['jgw', 'jpgw', 'pgw', 'pngw', 'tfw', 'tifw', 'wld', 'wlf']);
 
 const extOf = (name: string) => (/\.([^.]+)$/.exec(name)?.[1] ?? '').toLowerCase();
 
 /** Formato por extensión (`undefined` si no se reconoce: la web lo informa con claridad). */
-export function detectTopoFormat(name: string): VectorTopoFormat | undefined {
+export function detectTopoFormat(name: string): ImportTopoFormat | undefined {
   return EXTENSIONS[extOf(name)];
 }
 
+export const isVectorFormat = (f: ImportTopoFormat): f is VectorTopoFormat =>
+  f === 'dxf' || f === 'surpac' || f === 'points' || f === 'landxml';
+
+/** Archivo de mundo que acompaña a la imagen (mismo nombre o el único que haya). */
+export function worldFileFor(files: readonly TopoFile[], imageName: string): TopoFile | undefined {
+  const worlds = files.filter((f) => WORLD_FILES.has(extOf(f.name)));
+  const base = (n: string) => n.replace(/\.[^.]+$/, '').toLowerCase();
+  return (
+    worlds.find((w) => base(w.name) === base(imageName)) ??
+    (worlds.length === 1 ? worlds[0] : undefined)
+  );
+}
+
 export interface TopoInspection {
-  format: VectorTopoFormat | undefined;
+  format: ImportTopoFormat | undefined;
   /** Archivos no reconocidos o que no corresponden al formato del conjunto. */
   rejected: string[];
   /** DXF: capas con su rol sugerido. */
   layers?: TopoLayerInfo[];
   /** Puntos: columnas detectadas y las primeras filas, para corregirlas. */
   points?: { columns: PointColumns; hasHeader: boolean; sample: string[] };
-  /** EPSG declarado en el archivo (LandXML). */
+  /** EPSG declarado en el archivo (LandXML, GeoTIFF, LAS). */
   epsg?: number;
+  /** GeoTIFF: modelo de elevación o imagen, y su tamaño en píxeles (lo completa el worker). */
+  raster?: { kind: 'dem' | 'image'; width: number; height: number };
+  /** Nube LAS/LAZ: cantidad de puntos, versión y compresión (lo completa el worker). */
+  cloud?: { count: number; version: string; compressed: boolean };
+  /** Imagen: falta su archivo de mundo. */
+  missingWorldFile?: boolean;
 }
 
 /**
@@ -60,8 +93,10 @@ export interface TopoInspection {
  */
 export function inspectTopography(files: readonly TopoFile[]): TopoInspection {
   const format = files.map((f) => detectTopoFormat(f.name)).find((f) => f !== undefined);
+  const companion = (f: TopoFile) =>
+    (format === 'image' || format === 'geotiff') && WORLD_FILES.has(extOf(f.name));
   const rejected = files
-    .filter((f) => detectTopoFormat(f.name) !== format || format === undefined)
+    .filter((f) => (detectTopoFormat(f.name) !== format || format === undefined) && !companion(f))
     .map((f) => f.name);
   const own = files.filter((f) => format !== undefined && detectTopoFormat(f.name) === format);
   const out: TopoInspection = { format, rejected };

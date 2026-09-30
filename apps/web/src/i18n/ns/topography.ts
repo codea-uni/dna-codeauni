@@ -9,6 +9,25 @@ export const es = {
   'topo.layer.contours': 'Curvas de nivel',
   'topo.layer.lines': 'Cresta, pie y líneas de referencia',
   'topo.contourInterval': 'Intervalo de curvas',
+  'topo.layer.image': 'Ortofoto',
+  'topo.import.format.geotiff': 'GeoTIFF',
+  'topo.import.format.image': 'Imagen con archivo de mundo',
+  'topo.import.format.las': 'Nube de puntos LAS/LAZ',
+  'topo.import.needWorldFile':
+    'Falta el archivo de mundo de la imagen (.jgw, .pgw, .tfw o .wld): elige la imagen y ese archivo juntos.',
+  'topo.import.imageHint':
+    'La imagen se muestra debajo del diseño. No se reproyecta: debe estar en el sistema del proyecto.',
+  'topo.import.demTolerance': 'Error vertical máximo del DEM',
+  'topo.import.demToleranceHint':
+    'El DEM se simplifica a una malla de triángulos que no se aparta más que esto del original (S-17).',
+  'topo.import.dem': 'Modelo de elevación de {w} × {h} píxeles.',
+  'topo.import.ortho': 'Ortofoto de {w} × {h} píxeles.',
+  'topo.import.worldFile': 'La georreferencia sale del archivo de mundo.',
+  'topo.import.cloud': 'Nube {kind} {version} con {n} puntos.',
+  'topo.warn.raster.noReproject':
+    'La ortofoto está en otro sistema de coordenadas y no se reproyecta: exporta la imagen en el sistema del proyecto.',
+  'topo.warn.las.read': 'Se leyeron {read} puntos; quedan {kept} tras la reducción.',
+  'topo.warn.las.noise': '{n} puntos clasificados como ruido se descartaron.',
   'topo.shadeOpacity': 'Opacidad del relieve',
   'topo.cursorZ': 'Cota del terreno bajo el cursor',
 
@@ -178,6 +197,25 @@ export const en = {
   'topo.layer.contours': 'Contour lines',
   'topo.layer.lines': 'Crest, toe and reference lines',
   'topo.contourInterval': 'Contour interval',
+  'topo.layer.image': 'Orthophoto',
+  'topo.import.format.geotiff': 'GeoTIFF',
+  'topo.import.format.image': 'Image with world file',
+  'topo.import.format.las': 'LAS/LAZ point cloud',
+  'topo.import.needWorldFile':
+    'The image’s world file is missing (.jgw, .pgw, .tfw or .wld): choose the image and that file together.',
+  'topo.import.imageHint':
+    'The image is shown under the design. It is not reprojected: it must be in the project system.',
+  'topo.import.demTolerance': 'DEM maximum vertical error',
+  'topo.import.demToleranceHint':
+    'The DEM is simplified to a triangle mesh that departs from the original by no more than this (S-17).',
+  'topo.import.dem': 'Elevation model of {w} × {h} pixels.',
+  'topo.import.ortho': 'Orthophoto of {w} × {h} pixels.',
+  'topo.import.worldFile': 'The georeference comes from the world file.',
+  'topo.import.cloud': '{kind} {version} cloud with {n} points.',
+  'topo.warn.raster.noReproject':
+    'The orthophoto is in another coordinate system and is not reprojected: export the image in the project system.',
+  'topo.warn.las.read': '{read} points read; {kept} remain after thinning.',
+  'topo.warn.las.noise': '{n} points classified as noise were discarded.',
   'topo.shadeOpacity': 'Relief opacity',
   'topo.cursorZ': 'Ground elevation under the cursor',
 

@@ -625,7 +625,11 @@ function download(data: string | Uint8Array, fileName: string, type: string): vo
 // ------------------------------------------------------------------ Topografía (D-16)
 
 /** Extensiones que abre el asistente de topografía (también al arrastrar archivos al visor). */
-export const TOPOGRAPHY_ACCEPT = '.dxf,.str,.dtm,.xml,.landxml,.csv,.txt,.xyz,.pts,.asc';
+export const TOPOGRAPHY_ACCEPT = [
+  '.dxf,.str,.dtm,.xml,.landxml,.csv,.txt,.xyz,.pts,.asc',
+  '.tif,.tiff,.jpg,.jpeg,.png,.webp,.jgw,.jpgw,.pgw,.pngw,.tfw,.tifw,.wld',
+  '.las,.laz',
+].join(',');
 
 /** Lee los archivos elegidos y abre el asistente de importación de topografía. */
 export async function openTopography(files: readonly File[]): Promise<void> {
@@ -642,6 +646,10 @@ export async function openTopography(files: readonly File[]): Promise<void> {
     }
     if (inspection.format === 'surpac' && !files.some((f) => /\.str$/i.test(f.name))) {
       notify(t('topo.import.dtmAlone'), 'error');
+      return;
+    }
+    if (inspection.missingWorldFile) {
+      notify(t('topo.import.needWorldFile'), 'error');
       return;
     }
     useUiStore.getState().setTopoImport({ files: topoFiles, inspection });

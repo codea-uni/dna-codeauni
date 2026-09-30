@@ -7,6 +7,7 @@ import {
   type LineSetData,
   type LineSummary,
   type Op,
+  type OrthoImageData,
   type Project,
   type SurveyInput,
   type SurveyParts,
@@ -84,13 +85,29 @@ export function applyTopographyToEngine(): void {
 export async function showTopographyPreview(parts: SurveyParts, bounds: Bounds3): Promise<void> {
   const api = getCompute().api;
   const { tin, lines } = parts;
+  const image = parts.image ? await imageView(parts.image) : null;
   const interval = contourIntervalFor(bounds);
   const [shade, contours] = tin
     ? await Promise.all([api.topographyHillshade(tin), api.topographyContours(tin, { interval })])
     : [null, null];
-  preview = { id: 'preview', bounds, shade, contours, lines: lines ?? null };
+  preview = { id: 'preview', bounds, shade, contours, lines: lines ?? null, image };
   applyTopographyToEngine();
   getEngine()?.fitBounds(bounds);
+}
+
+/** Ortofoto lista para el motor: el navegador decodifica la imagen (WebP, JPEG o PNG). */
+async function imageView(
+  image: OrthoImageData,
+): Promise<NonNullable<TopographyViewData['image']> | null> {
+  try {
+    const bitmap = await createImageBitmap(
+      new Blob([image.bytes as BlobPart], { type: image.mime }),
+    );
+    return { bitmap, width: image.width, height: image.height, georef: image.georef };
+  } catch (err) {
+    console.warn('[topografía] no se pudo decodificar la ortofoto', err);
+    return null;
+  }
 }
 
 /** Quita la vista previa del mapa. */
@@ -175,10 +192,12 @@ async function load(survey: TopographySurvey): Promise<boolean> {
   if (loaded.has(survey.id) || loading.has(survey.id)) return false;
   loading.add(survey.id);
   try {
-    const [tinAsset, linesAsset] = await Promise.all([
+    const [tinAsset, linesAsset, imageAsset] = await Promise.all([
       decode(survey.assets.tin),
       decode(survey.assets.lines),
+      decode(survey.assets.image),
     ]);
+    const image = imageAsset?.kind === 'image' ? await imageView(imageAsset.image) : null;
     const tin = tinAsset?.kind === 'tin' ? tinAsset.tin : undefined;
     const lines = linesAsset?.kind === 'lines' ? linesAsset.lines : undefined;
     const api = getCompute().api;
@@ -204,6 +223,7 @@ async function load(survey: TopographySurvey): Promise<boolean> {
         contours,
         lines: lines ?? null,
         lineIndex: lineInfo?.index ?? null,
+        image,
       },
     });
     return true;

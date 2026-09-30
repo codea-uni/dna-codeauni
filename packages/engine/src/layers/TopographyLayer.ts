@@ -12,6 +12,7 @@ import {
   PlaneGeometry,
   RGBAFormat,
   SRGBColorSpace,
+  Texture,
 } from 'three';
 import {
   LINE_ROLES,
@@ -38,6 +39,8 @@ export interface TopographyViewData {
   lines: LineSetData | null;
   /** Índice de las líneas para el ajuste del cursor, armado en el worker (`LineSnapIndex`). */
   lineIndex?: ArrayBuffer | null;
+  /** Ortofoto decodificada (fila 0 = Norte) con su georreferencia. */
+  image?: { bitmap: ImageBitmap; width: number; height: number; georef: ImageGeoref } | null;
 }
 
 /** Colores de las líneas de referencia por rol. */
@@ -75,10 +78,12 @@ function segmentPositions(
 }
 
 /**
- * Topografía en planta, debajo de todo el diseño: relieve sombreado (bajo la grilla), curvas de
- * nivel (maestras más marcadas) y líneas de referencia (cresta, pie…) coloreadas por rol.
+ * Topografía en planta, debajo de todo el diseño, de abajo arriba: relieve sombreado, ortofoto,
+ * curvas de nivel (maestras más marcadas) y líneas de referencia (cresta, pie…) por rol.
  */
 export class TopographyLayer {
+  /** Ortofoto: sobre el relieve (es la referencia visual) y bajo curvas, líneas y diseño. */
+  readonly imageRoot = new Group();
   readonly shadeRoot = new Group();
   readonly contourRoot = new Group();
   readonly lineRoot = new Group();
@@ -87,6 +92,7 @@ export class TopographyLayer {
 
   constructor() {
     this.shadeRoot.renderOrder = -12;
+    this.imageRoot.renderOrder = -11;
   }
 
   setShadeOpacity(opacity: number): void {
@@ -99,10 +105,21 @@ export class TopographyLayer {
   set(data: readonly TopographyViewData[], origin: Vec3): void {
     this.clear();
     for (const d of data) {
+      if (d.image) this.addImage(d.image, origin);
       if (d.shade) this.addShade(d.shade, origin);
       if (d.contours) this.addContours(d.contours, origin);
       if (d.lines) this.addLines(d.lines, origin);
     }
+  }
+
+  private addImage(image: NonNullable<TopographyViewData['image']>, origin: Vec3): void {
+    const tex = new Texture(image.bitmap);
+    tex.colorSpace = SRGBColorSpace;
+    tex.magFilter = LinearFilter;
+    tex.minFilter = LinearFilter;
+    tex.generateMipmaps = false;
+    tex.needsUpdate = true;
+    this.addQuad(this.imageRoot, tex, image.width, image.height, image.georef, origin, 1, -11);
   }
 
   private addShade(shade: NonNullable<TopographyViewData['shade']>, origin: Vec3): void {
@@ -117,6 +134,20 @@ export class TopographyLayer {
     tex.magFilter = LinearFilter;
     tex.minFilter = LinearFilter;
     tex.needsUpdate = true;
+    this.addQuad(this.shadeRoot, tex, width, height, georef, origin, this.shadeOpacity, -12);
+  }
+
+  /** Imagen georreferenciada como un rectángulo en planta (fila 0 arriba, giro desde la esquina). */
+  private addQuad(
+    root: Group,
+    tex: Texture,
+    width: number,
+    height: number,
+    georef: ImageGeoref,
+    origin: Vec3,
+    opacity: number,
+    renderOrder: number,
+  ): void {
     const geometry = new PlaneGeometry(1, 1);
     // La fila 0 del ráster es el Norte; la de la textura, abajo: se invierte la V.
     const uv = geometry.getAttribute('uv');
@@ -124,7 +155,7 @@ export class TopographyLayer {
     const material = new MeshBasicMaterial({
       map: tex,
       transparent: true,
-      opacity: this.shadeOpacity,
+      opacity,
       depthTest: false,
       depthWrite: false,
     });
@@ -139,8 +170,8 @@ export class TopographyLayer {
     mesh.rotation.z = a;
     mesh.position.set(georef.originX + cx - origin.x, georef.originY + cy - origin.y, 0);
     mesh.frustumCulled = false;
-    mesh.renderOrder = -12;
-    this.shadeRoot.add(mesh);
+    mesh.renderOrder = renderOrder;
+    root.add(mesh);
     this.disposers.push(() => {
       tex.dispose();
       geometry.dispose();
@@ -212,6 +243,7 @@ export class TopographyLayer {
   private clear(): void {
     for (const d of this.disposers) d();
     this.disposers.length = 0;
+    this.imageRoot.clear();
     this.shadeRoot.clear();
     this.contourRoot.clear();
     this.lineRoot.clear();

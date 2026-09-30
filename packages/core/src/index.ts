@@ -102,3 +102,5 @@ export * from './topography/validate';
 export * from './topography/assemble';
 export * from './topography/read';
 export * from './topography/design';
+export * from './topography/raster';
+export * from './topography/las';

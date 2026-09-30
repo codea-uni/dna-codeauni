@@ -9,7 +9,7 @@ import { checkTopography, swapXY, type TopoCheckContext } from './validate';
 
 /** Une el contenido de varios archivos de un mismo levantamiento (p. ej. curvas + puntos). */
 export function mergeTopo(list: readonly TopoData[]): TopoData {
-  const out: TopoData = { points: [], lines: [], warnings: [] };
+  const out: TopoData & { points: number[] } = { points: [], lines: [], warnings: [] };
   const vertices: number[] = [];
   const triangles: number[] = [];
   for (const d of list) {

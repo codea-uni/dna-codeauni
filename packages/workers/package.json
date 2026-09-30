@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "@cronos/core": "workspace:*",
+    "@mapbox/martini": "^0.2.0",
     "comlink": "^4.4.2",
+    "geotiff": "^3.0.5",
+    "laz-perf": "^0.0.7",
     "pdf-lib": "1.17.1"
   }
 }

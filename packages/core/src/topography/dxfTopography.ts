@@ -46,7 +46,7 @@ export function inspectDxfTopography(text: string): TopoLayerInfo[] {
  * `elevation` (curvas de nivel 2D, el caso más común).
  */
 export function parseDxfTopography(text: string, roles: Record<string, TopoLayerRole>): TopoData {
-  const data: TopoData = { points: [], lines: [], warnings: [] };
+  const data: TopoData & { points: number[] } = { points: [], lines: [], warnings: [] };
   const vertices: number[] = [];
   const triangles: number[] = [];
   const vIndex = new Map<string, number>();

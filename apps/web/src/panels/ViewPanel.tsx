@@ -298,6 +298,7 @@ function TopographyView() {
       <div className="checks">
         {(
           [
+            ['topoImage', 'topo.layer.image'],
             ['topoShade', 'topo.layer.shade'],
             ['topoContours', 'topo.layer.contours'],
             ['topoLines', 'topo.layer.lines'],

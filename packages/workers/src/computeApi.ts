@@ -58,7 +58,8 @@ import {
   type TopoFile,
   type TopoInspection,
   type TopoReadOptions,
-  type VectorTopoFormat,
+  type ImportTopoFormat,
+  isVectorFormat,
   diffProjects,
   diffMarkers,
   type DiffMarker,
@@ -97,6 +98,7 @@ import {
 
 import { transfer } from 'comlink';
 import { buildReport, type ReportOptions } from './report/pdfReport';
+import { importRaster, inspectRaster, type RasterReadOptions } from './topography/importRaster';
 
 /**
  * API que el worker de cómputo expone vía Comlink.
@@ -315,22 +317,24 @@ export const computeApi = {
   },
 
   /** Qué hay en los archivos de topografía elegidos (formato, capas, columnas, EPSG). */
-  topographyInspect(files: TopoFile[]): TopoInspection {
-    return inspectTopography(files);
+  async topographyInspect(files: TopoFile[]): Promise<TopoInspection> {
+    return inspectRaster(files, inspectTopography(files));
   },
 
   /**
    * Lee, transforma (Norte/Este, grilla local, reproyección) y triangula la topografía: las
    * partes del levantamiento para la vista previa y para `buildSurvey`. O(n log n).
    */
-  topographyImport(
+  async topographyImport(
     files: TopoFile[],
-    format: VectorTopoFormat,
-    read: TopoReadOptions,
+    format: ImportTopoFormat,
+    read: TopoReadOptions & RasterReadOptions,
     options: AssembleOptions,
-  ): AssembleResult {
-    const result = assembleTopography(readTopography(files, format, read), options);
-    const { tin, lines } = result.parts;
+  ): Promise<AssembleResult> {
+    const result = isVectorFormat(format)
+      ? assembleTopography(readTopography(files, format, read), options)
+      : await importRaster(files, format, read, options);
+    const { tin, lines, image } = result.parts;
     return transfer(
       result,
       uniqueBuffers([
@@ -340,6 +344,7 @@ export const computeApi = {
         lines?.offsets,
         lines?.roles,
         lines?.closed,
+        image?.bytes,
       ]),
     );
   },
