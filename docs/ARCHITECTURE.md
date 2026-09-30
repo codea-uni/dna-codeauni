@@ -103,6 +103,7 @@ La fuente de verdad es `packages/core/src/model/types.ts` (esquema en `model/sch
 
 ## Servidor, empresas e historial (D-14)
 
+- **Plataforma (D-15):** cada persona es de una sola empresa. El superadministrador (`user.isSuperAdmin`) administra las empresas desde `/platform` (`routes/platform.ts`): las crea con su primer administrador, ve sus números y desactiva empresas o cuentas sin borrar datos.
 - **Jerarquía:** empresa (`Organization`) > mina (`Mine`) > proyecto > versiones (`ProjectVersion`). El rol del miembro (`Member.role`: `admin`, `designer`, `reviewer`) se asigna en la empresa; una mina con filas en `mine_access` solo la ven esos usuarios (y los administradores).
 - **Versión inmutable:** guarda el `ProjectFile` completo (gzip), su hash, autor, fecha, mensaje y un resumen de cambios calculado con `diffProjects` de core. Restaurar crea una versión nueva; nada se reescribe.
 - **Concurrencia optimista:** publicar envía la versión base; si otro publicó antes, el servidor responde 409.

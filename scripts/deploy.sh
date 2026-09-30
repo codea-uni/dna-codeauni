@@ -7,8 +7,8 @@
 #
 # Con --server completa en .env lo que falte (nunca reemplaza un valor existente):
 #   COMPOSE_PROFILES=server, VITE_API_URL=/api, y secretos aleatorios para POSTGRES_PASSWORD y
-#   BETTER_AUTH_SECRET. Para el primer administrador, exportar CRONOS_ADMIN_EMAIL antes de
-#   la primera vez: su contraseña temporal se genera y se muestra una sola vez.
+#   BETTER_AUTH_SECRET. Para el superadministrador de la plataforma (crea las empresas), exportar
+#   CRONOS_ADMIN_EMAIL la primera vez: su contraseña temporal se genera y se muestra una sola vez.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -35,11 +35,11 @@ if [ "${1:-}" = "--server" ]; then
     ensure_var CRONOS_ADMIN_EMAIL "$CRONOS_ADMIN_EMAIL" || true
     admin_password="$(random | cut -c1-16)"
     if ensure_var CRONOS_ADMIN_PASSWORD "$admin_password"; then
-      echo "Primer administrador: $CRONOS_ADMIN_EMAIL"
+      echo "Superadministrador de la plataforma: $CRONOS_ADMIN_EMAIL"
       echo "Contraseña temporal: $admin_password (se pide cambiarla al entrar; guárdala ahora)"
     fi
   elif ! grep -q '^CRONOS_ADMIN_EMAIL=.' .env; then
-    echo "Aviso: sin CRONOS_ADMIN_EMAIL no se crea el primer administrador."
+    echo "Aviso: sin CRONOS_ADMIN_EMAIL no se crea el superadministrador (quien crea las empresas)."
     echo "       Repetir con: CRONOS_ADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server"
   fi
 fi

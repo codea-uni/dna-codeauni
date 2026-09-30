@@ -18,7 +18,7 @@ Opcional. Sin él, la web funciona como siempre (sin login, con autoguardado loc
   CRONOS_ADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server
   ```
 
-  Completa `/opt/dna-codeauni/.env` sin tocar lo que ya tenga: `COMPOSE_PROFILES=server`, `VITE_API_URL=/api` y secretos aleatorios para `POSTGRES_PASSWORD` y `BETTER_AUTH_SECRET`. Con `CRONOS_ADMIN_EMAIL` crea el primer administrador y muestra una sola vez su contraseña temporal. Al final espera a que `/api/health` responda. El `.env` nunca va al repositorio (plantilla en `.env.example`).
+  Completa `/opt/dna-codeauni/.env` sin tocar lo que ya tenga: `COMPOSE_PROFILES=server`, `VITE_API_URL=/api` y secretos aleatorios para `POSTGRES_PASSWORD` y `BETTER_AUTH_SECRET`. Con `CRONOS_ADMIN_EMAIL` crea el superadministrador de la plataforma y muestra una sola vez su contraseña temporal; desde `/platform` crea las empresas con su primer administrador. Al final espera a que `/api/health` responda. El `.env` nunca va al repositorio (plantilla en `.env.example`).
 
 - Las migraciones se aplican solas al arrancar `api`. Los datos quedan en el volumen `pgdata`; respaldo: `docker compose exec postgres pg_dump -U cronos cronos > respaldo.sql`.
 - Salud: `https://<dominio>/api/health` (`status` y `database`).
@@ -33,7 +33,7 @@ pnpm dev:online   # PostgreSQL (Docker), API en :3000 y web con login en http://
 
 `pnpm dev:online` levanta PostgreSQL con `docker-compose.dev.yml`, crea `apps/server/.env` desde su plantilla si falta, reutiliza una API que ya esté corriendo en :3000 y arranca la web en :5173 (puerto fijo: el login solo se acepta desde ese origen). Ctrl+C detiene la API y la web; PostgreSQL queda arriba para las pruebas. Por separado: `pnpm dev:server` y `VITE_API_URL=/api pnpm dev`.
 
-El `.env` de ejemplo crea el administrador `admin@cronos.local` (contraseña temporal `admin-cronos-dev`, se cambia al entrar). No hay registro público: el administrador crea las cuentas (guía H-801). Sin `VITE_API_URL`, `pnpm dev` sigue en modo local, sin login.
+El `.env` de ejemplo crea el superadministrador `admin@cronos.local` (contraseña temporal `admin-cronos-dev`, se cambia al entrar). No hay registro público: el administrador crea las cuentas (guía H-801). Sin `VITE_API_URL`, `pnpm dev` sigue en modo local, sin login.
 
 Las pruebas del servidor usan ese PostgreSQL (o `TEST_DATABASE_URL`) y crean un esquema aislado por archivo; sin base se saltan con un aviso, salvo en CI.
 
