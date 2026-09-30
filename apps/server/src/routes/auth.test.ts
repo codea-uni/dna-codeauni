@@ -162,21 +162,29 @@ describe.runIf(await databaseAvailable())('primer administrador y límite de int
     await t.drop();
   });
 
-  it('el superadministrador se crea una vez, con contraseña temporal, o se promueve', async () => {
+  it('el superadministrador sale del .env: se crea sin cambio de contraseña y se sincroniza', async () => {
     const s = createTestApp(t);
     const admin = { email: 'Plataforma@Cronos.pe', password: 'admin-inicial', name: 'Plataforma' };
     expect(await ensureSuperAdmin(t.db, s.auth, admin)).toMatchObject({
       created: true,
       belongsToOrganization: false,
     });
-    expect(await ensureSuperAdmin(t.db, s.auth, admin)).toMatchObject({ created: false });
+    expect(await ensureSuperAdmin(t.db, s.auth, admin)).toMatchObject({
+      created: false,
+      passwordSynced: false,
+    });
     expect(await ensureSuperAdmin(t.db, s.auth, null)).toBeNull();
     const cookie = await signIn(s.app, 'plataforma@cronos.pe', 'admin-inicial');
     const me = meSchema.parse(
       (await s.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } })).json(),
     );
-    expect(me.user).toMatchObject({ mustChangePassword: true, isSuperAdmin: true });
+    expect(me.user).toMatchObject({ mustChangePassword: false, isSuperAdmin: true });
     expect(me.organization).toBeNull();
+    // Si se cambia la contraseña en el .env, al arrancar pasa a ser esa.
+    const changed = { ...admin, password: 'otra-clave-del-env' };
+    expect(await ensureSuperAdmin(t.db, s.auth, changed)).toMatchObject({ passwordSynced: true });
+    await expect(signIn(s.app, 'plataforma@cronos.pe', 'admin-inicial')).rejects.toThrow();
+    await signIn(s.app, 'plataforma@cronos.pe', 'otra-clave-del-env');
   });
 
   it('bloquea el sexto intento de inicio de sesión en un minuto (429)', async () => {

@@ -31,6 +31,30 @@ pnpm lint
 pnpm format
 ```
 
+## Usuarios de desarrollo
+
+Cuentas de la base local de `pnpm dev:online` (PostgreSQL de `docker-compose.dev.yml`), en
+http://localhost:5173. **Solo para desarrollo**: en producción el superadministrador sale de su
+propio `.env` y las demás cuentas las crea cada empresa.
+
+| Correo                    | Contraseña           | Rol                                     |
+| ------------------------- | -------------------- | --------------------------------------- |
+| `plataforma@cronos.local` | `admin-cronos-dev`   | Superadministrador (dueño del software) |
+| `qa@cronos.local`         | `qa-definitiva-1`    | Superadministrador                      |
+| `admin@cronos.local`      | `admin-definitiva-1` | Administrador de Minera Sur             |
+| `luis@cronos.local`       | `luis-definitiva-1`  | Diseñador de Minera Sur                 |
+| `rosa@cronos.local`       | `rosa-definitiva-1`  | Revisora de Minera Sur (solo lectura)   |
+| `beto@norte.local`        | `beto-definitiva-1`  | Administrador de Minera Norte           |
+
+- **Superadministrador:** se define en `apps/server/.env` (`CRONOS_SUPERADMIN_EMAIL`,
+  `CRONOS_SUPERADMIN_PASSWORD`, `CRONOS_SUPERADMIN_NAME`). El `.env` manda: al arrancar el servidor
+  se crea o se actualiza con esa contraseña y no pide cambiarla. Para cambiarla, se edita el `.env`
+  y se reinicia.
+- **Restablecer otra cuenta:** `pnpm --filter @cronos/server reset-password <correo> <contraseña>`
+  (temporal: se cambia al entrar); con `--permanente` queda fija.
+- Las cuentas nuevas que crea un administrador (o el superadministrador al crear una empresa)
+  reciben una contraseña temporal que se cambia al entrar.
+
 ## Estructura
 
 | Paquete            | Qué hace                                                                                                             |

@@ -4,11 +4,13 @@ import { createDb, createPool } from './db/db';
 
 /**
  * Restablece la contraseña de una cuenta (p. ej. el administrador la olvidó). Queda como
- * temporal: hay que cambiarla al entrar. Cierra las sesiones abiertas de esa cuenta.
- *   pnpm --filter @cronos/server reset-password <correo> <contraseña temporal>
+ * temporal (hay que cambiarla al entrar) salvo con `--permanente`. Cierra las sesiones abiertas.
+ *   pnpm --filter @cronos/server reset-password <correo> <contraseña> [--permanente]
  * En producción: docker compose exec api node dist/resetPassword.js <correo> <contraseña>
  */
-const [email, password] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const permanent = args.includes('--permanente');
+const [email, password] = args.filter((a) => a !== '--permanente');
 if (!email || !password || password.length < MIN_PASSWORD_LENGTH) {
   console.error(`Uso: reset-password <correo> <contraseña de ${MIN_PASSWORD_LENGTH}+ caracteres>`);
   process.exit(1);
@@ -34,10 +36,12 @@ try {
     await ctx.internalAdapter.deleteUserSessions(found.user.id);
     await db
       .updateTable('user')
-      .set({ mustChangePassword: true })
+      .set({ mustChangePassword: !permanent })
       .where('id', '=', found.user.id)
       .execute();
-    console.log(`Contraseña de ${found.user.email} restablecida (temporal: se cambia al entrar).`);
+    console.log(
+      `Contraseña de ${found.user.email} restablecida${permanent ? '' : ' (temporal: se cambia al entrar)'}.`,
+    );
   }
 } finally {
   await db.destroy();

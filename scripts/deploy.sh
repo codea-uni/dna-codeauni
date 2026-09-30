@@ -8,7 +8,7 @@
 # Con --server completa en .env lo que falte (nunca reemplaza un valor existente):
 #   COMPOSE_PROFILES=server, VITE_API_URL=/api, y secretos aleatorios para POSTGRES_PASSWORD y
 #   BETTER_AUTH_SECRET. Para el superadministrador de la plataforma (crea las empresas), exportar
-#   CRONOS_SUPERADMIN_EMAIL la primera vez: su contraseña temporal se genera y se muestra una sola vez.
+#   CRONOS_SUPERADMIN_EMAIL la primera vez: su contraseña se genera, queda en el .env y se muestra una sola vez.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -40,7 +40,7 @@ if [ "${1:-}" = "--server" ]; then
     admin_password="$(random | cut -c1-16)"
     if ensure_var CRONOS_SUPERADMIN_PASSWORD "$admin_password"; then
       echo "Superadministrador de la plataforma: $CRONOS_SUPERADMIN_EMAIL"
-      echo "Contraseña temporal: $admin_password (se pide cambiarla al entrar; guárdala ahora)"
+      echo "Contraseña: $admin_password (queda en .env como CRONOS_SUPERADMIN_PASSWORD; para cambiarla, editar el .env y reiniciar)"
     fi
   elif ! grep -q '^CRONOS_SUPERADMIN_EMAIL=.' .env; then
     echo "Aviso: sin CRONOS_SUPERADMIN_EMAIL no se crea el superadministrador (quien crea las empresas)."
