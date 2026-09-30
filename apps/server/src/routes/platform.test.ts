@@ -156,6 +156,15 @@ describe.runIf(await databaseAvailable())(
         versions: 1,
       });
       expect(list.organizations.find((o) => o.id === surId)?.lastActivityAt).not.toBeNull();
+      const mines = (await call(root, 'GET', `/platform/organizations/${surId}/mines`)).json() as {
+        mines: { name: string; projectCount: number; organizationId: string }[];
+      };
+      expect(mines.mines).toEqual([
+        expect.objectContaining({ name: 'Cuajone', projectCount: 1, organizationId: surId }),
+      ]);
+      expect((await call(surAdmin, 'GET', `/platform/organizations/${surId}/mines`)).status).toBe(
+        403,
+      );
     });
 
     it('desactivar una empresa corta el acceso de sus miembros sin borrar nada', async () => {

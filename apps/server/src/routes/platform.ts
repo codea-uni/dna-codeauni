@@ -14,6 +14,7 @@ import type { Db } from '../db/db';
 import { sendError } from '../http/errors';
 import { requireUser, type SessionUser } from '../http/session';
 import { recordAudit } from '../services/audit';
+import { toMine } from './organizations';
 
 export interface PlatformRouteDeps {
   auth: Auth;
@@ -297,6 +298,18 @@ export function platformRoutes(app: FastifyInstance, deps: PlatformRouteDeps): v
     });
     const [updated] = await listOrganizations(db, org.id);
     return reply.code(201).send(updated);
+  });
+
+  // Minas de una empresa con sus proyectos: la plataforma ve la estructura, no el contenido.
+  app.get('/platform/organizations/:orgId/mines', async (req: Req, reply) => {
+    if (!(await requireSuperAdmin(deps, req, reply))) return reply;
+    const rows = await db
+      .selectFrom('mine')
+      .selectAll()
+      .where('organizationId', '=', req.params.orgId ?? '')
+      .orderBy('name')
+      .execute();
+    return reply.send({ mines: await Promise.all(rows.map((r) => toMine(db, r))) });
   });
 
   app.get('/platform/organizations/:orgId/users', async (req: Req, reply) => {

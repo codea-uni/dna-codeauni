@@ -244,6 +244,12 @@ export class ApiClient {
     );
   }
 
+  /** Minas de una empresa, con sus proyectos y última versión (consola de la plataforma). */
+  async platformMines(orgId: string): Promise<Mine[]> {
+    return (await this.request(`/platform/organizations/${enc(orgId)}/mines`, mineListSchema))
+      .mines;
+  }
+
   async platformUsers(orgId: string): Promise<PlatformUser[]> {
     return (
       await this.request(`/platform/organizations/${enc(orgId)}/users`, platformUserListSchema)

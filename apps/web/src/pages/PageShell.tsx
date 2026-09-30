@@ -28,11 +28,10 @@ export function PageShell({ children }: { children: ReactNode }) {
         <Link to="/" className="wordmark" translate="no">
           Cronos
         </Link>
-        {organization && <span className="org-name">{organization.name}</span>}
         <nav aria-label={t('workspace.navigation')}>
           {organization && (
             <NavLink to="/" end>
-              {t('workspace.mines')}
+              {t('workspace.minesOf', { org: organization.name })}
             </NavLink>
           )}
           {role && permissions.manageMembers(role) && (

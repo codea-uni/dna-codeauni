@@ -11,6 +11,7 @@ export const es = {
   'role.hint.reviewer': 'Ve diseños y resultados; no edita.',
 
   'workspace.mines': 'Minas',
+  'workspace.minesOf': 'Minas de {org}',
   'workspace.navigation': 'Secciones',
   'workspace.minesLede': 'Elige una mina para ver sus proyectos y cómo ha cambiado su diseño.',
   'workspace.noOrganizationTitle': 'Tu cuenta no pertenece a ninguna empresa',
@@ -108,6 +109,7 @@ export const en = {
   'role.hint.reviewer': 'Views designs and results; does not edit.',
 
   'workspace.mines': 'Mines',
+  'workspace.minesOf': '{org} mines',
   'workspace.navigation': 'Sections',
   'workspace.minesLede': 'Pick a mine to see its projects and how its design has changed.',
   'workspace.noOrganizationTitle': 'Your account does not belong to any company',

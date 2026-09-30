@@ -1,4 +1,4 @@
-import type { PlatformOrganization, PlatformUser } from '@cronos/api';
+import type { Mine, PlatformOrganization, PlatformUser } from '@cronos/api';
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router';
 import { useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
@@ -159,7 +159,7 @@ function CompanyRow({
         </dl>
         <div className="company-actions">
           <button onClick={onToggleUsers} aria-expanded={expanded}>
-            {t(expanded ? 'platform.hideUsers' : 'platform.showUsers')}
+            {t(expanded ? 'platform.hideDetail' : 'platform.showDetail')}
           </button>
           <button className={org.disabled ? 'primary-inline' : 'danger'} onClick={onToggleDisabled}>
             {t(org.disabled ? 'platform.enable' : 'platform.disable')}
@@ -168,6 +168,8 @@ function CompanyRow({
       </div>
       {expanded && (
         <div className="company-detail">
+          <CompanyMines orgId={org.id} onError={onError} />
+          <h3>{t('platform.people')}</h3>
           <CompanyUsers key={org.admins.length} orgId={org.id} onError={onError} />
           <AddAdmin orgId={org.id} onAdded={onUpdated} onError={onError} />
         </div>
@@ -427,5 +429,55 @@ function AddAdmin({
         </div>
       </div>
     </form>
+  );
+}
+
+/** Minas de la empresa con sus proyectos (Empresas > Minas > Proyectos). */
+function CompanyMines({ orgId, onError }: { orgId: string; onError: (e: MessageKey) => void }) {
+  const t = useT();
+  const fmt = useFormat();
+  const fmtDate = useFormatDate();
+  const [mines, setMines] = useState<Mine[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.platformMines(orgId).then(
+      (m) => {
+        if (alive) setMines(m);
+      },
+      (err: unknown) => {
+        onError(workspaceErrorKey(err));
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [orgId, onError]);
+
+  return (
+    <div className="section">
+      <h3>{t('platform.minesOf')}</h3>
+      {!mines && <p className="muted">{t('workspace.loading')}</p>}
+      {mines?.length === 0 && <p className="muted">{t('platform.noMines')}</p>}
+      {mines && mines.length > 0 && (
+        <table className="page-table">
+          <thead>
+            <tr>
+              <th>{t('platform.mine')}</th>
+              <th>{t('platform.projects')}</th>
+              <th>{t('platform.lastActivity')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mines.map((m) => (
+              <tr key={m.id}>
+                <td>{m.name}</td>
+                <td>{fmt(m.projectCount)}</td>
+                <td>{m.lastActivityAt ? fmtDate(m.lastActivityAt) : t('platform.never')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }

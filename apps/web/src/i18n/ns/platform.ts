@@ -4,6 +4,11 @@
  */
 export const es = {
   'platform.title': 'Plataforma',
+  'platform.showDetail': 'Ver minas y personas',
+  'platform.hideDetail': 'Ocultar detalle',
+  'platform.minesOf': 'Minas de la empresa',
+  'platform.mine': 'Mina',
+  'platform.noMines': 'Esta empresa todavía no tiene minas.',
   'platform.intro':
     'Todas las empresas que usan Cronos. Desactivar una empresa o una cuenta corta el acceso sin borrar datos ni historial.',
   'platform.companies': 'Empresas',
@@ -19,8 +24,6 @@ export const es = {
   'platform.never': 'Sin versiones',
   'platform.status.active': 'Activa',
   'platform.status.disabled': 'Desactivada',
-  'platform.showUsers': 'Ver personas',
-  'platform.hideUsers': 'Ocultar personas',
   'platform.disable': 'Desactivar',
   'platform.enable': 'Reactivar',
   'platform.disableConfirm':
@@ -52,6 +55,11 @@ export const es = {
 
 export const en = {
   'platform.title': 'Platform',
+  'platform.showDetail': 'Show mines and people',
+  'platform.hideDetail': 'Hide detail',
+  'platform.minesOf': 'Company mines',
+  'platform.mine': 'Mine',
+  'platform.noMines': 'This company has no mines yet.',
   'platform.intro':
     'Every company using Cronos. Disabling a company or an account cuts access without deleting data or history.',
   'platform.companies': 'Companies',
@@ -67,8 +75,6 @@ export const en = {
   'platform.never': 'No versions',
   'platform.status.active': 'Active',
   'platform.status.disabled': 'Disabled',
-  'platform.showUsers': 'Show people',
-  'platform.hideUsers': 'Hide people',
   'platform.disable': 'Disable',
   'platform.enable': 'Re-enable',
   'platform.disableConfirm':
