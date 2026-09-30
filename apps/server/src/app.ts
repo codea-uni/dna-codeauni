@@ -1,10 +1,15 @@
 import type { ApiErrorBody } from '@cronos/api';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import type { Auth } from './auth/auth';
 import type { Db } from './db/db';
+import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
 
 export interface AppDeps {
   db: Db;
+  auth: Auth;
+  /** URL pública (`BETTER_AUTH_URL`): arma las `Request` que se pasan a Better Auth. */
+  baseUrl: string;
   version: string;
   logger?: FastifyServerOptions['logger'];
 }
@@ -32,6 +37,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   void app.register(
     (api, _opts, done) => {
       healthRoutes(api, deps);
+      authRoutes(api, deps);
       done();
     },
     { prefix: '/api' },

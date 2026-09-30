@@ -1,6 +1,18 @@
+import type { ColumnType, Generated } from 'kysely';
+
 /**
- * Tablas de la base de datos para Kysely. Cada migración de `migrations/` agrega aquí sus tablas;
- * las de Better Auth (usuarios, sesiones, empresas, miembros) las maneja la librería.
+ * Tablas de la base de datos para Kysely, una por migración de `migrations/`. Las de Better Auth
+ * las escribe la librería; aquí se declaran solo las columnas que el servidor lee o actualiza.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- se completa con las migraciones de cada rama
-export interface Database {}
+export interface Database {
+  user: UserTable;
+}
+
+export interface UserTable {
+  id: string;
+  name: string;
+  email: string;
+  locale: Generated<string>;
+  mustChangePassword: Generated<boolean>;
+  createdAt: ColumnType<Date, never, never>;
+}

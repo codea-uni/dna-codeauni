@@ -29,6 +29,10 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://cronos:${POSTGRES_PASSWORD:-}@postgres:5432/cronos
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      BETTER_AUTH_URL: https://${DOMAIN:-dna.codeadevelopment.com}
+      CRONOS_ADMIN_EMAIL: ${CRONOS_ADMIN_EMAIL:-}
+      CRONOS_ADMIN_PASSWORD: ${CRONOS_ADMIN_PASSWORD:-}
     depends_on:
       postgres:
         condition: service_healthy

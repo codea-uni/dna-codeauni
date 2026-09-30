@@ -9,6 +9,12 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  BETTER_AUTH_SECRET: z.string().min(32),
+  BETTER_AUTH_URL: z.url(),
+  // Primer administrador: se crea solo si la base no tiene usuarios (debe cambiar la contraseña).
+  CRONOS_ADMIN_EMAIL: z.email().optional(),
+  CRONOS_ADMIN_PASSWORD: z.string().min(10).optional(),
+  CRONOS_ADMIN_NAME: z.string().min(1).default('Administrador'),
 });
 
 export interface ServerConfig {
@@ -16,6 +22,9 @@ export interface ServerConfig {
   host: string;
   port: number;
   logLevel: string;
+  authSecret: string;
+  baseUrl: string;
+  initialAdmin: { email: string; password: string; name: string } | null;
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): ServerConfig {
@@ -25,5 +34,20 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new Error(`Variables de entorno inválidas o faltantes: ${fields}`);
   }
   const e = parsed.data;
-  return { databaseUrl: e.DATABASE_URL, host: e.HOST, port: e.PORT, logLevel: e.LOG_LEVEL };
+  return {
+    databaseUrl: e.DATABASE_URL,
+    host: e.HOST,
+    port: e.PORT,
+    logLevel: e.LOG_LEVEL,
+    authSecret: e.BETTER_AUTH_SECRET,
+    baseUrl: e.BETTER_AUTH_URL,
+    initialAdmin:
+      e.CRONOS_ADMIN_EMAIL && e.CRONOS_ADMIN_PASSWORD
+        ? {
+            email: e.CRONOS_ADMIN_EMAIL,
+            password: e.CRONOS_ADMIN_PASSWORD,
+            name: e.CRONOS_ADMIN_NAME,
+          }
+        : null,
+  };
 }

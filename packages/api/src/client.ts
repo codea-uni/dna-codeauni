@@ -1,5 +1,15 @@
-import type { z } from 'zod';
-import { apiErrorSchema, healthSchema, type Health } from './schemas';
+import { z } from 'zod';
+import {
+  apiErrorSchema,
+  healthSchema,
+  meSchema,
+  okSchema,
+  type ChangePassword,
+  type Health,
+  type Me,
+  type SignIn,
+  type UpdateMe,
+} from './schemas';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
 export class ApiError extends Error {
@@ -65,5 +75,26 @@ export class ApiClient {
 
   health(signal?: AbortSignal): Promise<Health> {
     return this.request('/health', healthSchema, signal ? { signal } : {});
+  }
+
+  /** Usuario de la sesión; `ApiError` 401 si no hay sesión. */
+  me(): Promise<Me> {
+    return this.request('/me', meSchema);
+  }
+
+  async signIn(body: SignIn): Promise<void> {
+    await this.request('/auth/sign-in/email', z.unknown(), { method: 'POST', body });
+  }
+
+  async signOut(): Promise<void> {
+    await this.request('/auth/sign-out', z.unknown(), { method: 'POST', body: {} });
+  }
+
+  async changePassword(body: ChangePassword): Promise<void> {
+    await this.request('/me/password', okSchema, { method: 'POST', body });
+  }
+
+  updateMe(body: UpdateMe): Promise<Me> {
+    return this.request('/me', meSchema, { method: 'PATCH', body });
   }
 }
