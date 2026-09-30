@@ -15,6 +15,7 @@ import {
   type BoundaryId,
   type ChangeSet,
   type ConnectionId,
+  type DiffMarker,
   type SurfaceConnectorId,
   type DocumentStore,
   type HoleId,
@@ -44,6 +45,7 @@ import { GridLayer } from './layers/GridLayer';
 import { turbo } from './layers/colormap';
 import { EnergyLayer, type EnergyData } from './layers/EnergyLayer';
 import { SiteLayer } from './layers/SiteLayer';
+import { VersionDiffLayer } from './layers/VersionDiffLayer';
 import { HolesLayer } from './layers/HolesLayer';
 import { InitiationLayer } from './layers/InitiationLayer';
 import { IsochronesLayer, type IsochroneData } from './layers/IsochronesLayer';
@@ -169,6 +171,10 @@ export class Engine {
   private readonly vibration = new EnergyLayer();
   private vibrationData: EnergyData | null = null;
   private readonly site = new SiteLayer();
+  /** Comparación de versiones (D-14): marcadores de taladros agregados, quitados y movidos. */
+  private readonly versionDiff = new VersionDiffLayer();
+  private versionDiffData: readonly DiffMarker[] | null = null;
+  private lastDiffMpp = 0;
   // Capas equivalentes en la escena 3D (mismos datos, a la cota que corresponde).
   private readonly initiation3d = new InitiationLayer();
   private readonly isochrones3d = new IsochronesLayer();
@@ -288,6 +294,7 @@ export class Engine {
       this.boundaryLabels.mesh,
       this.site.root,
       this.siteLabels.mesh,
+      this.versionDiff.lines,
       this.overlay.root,
     );
 
@@ -584,6 +591,23 @@ export class Engine {
     this.applyView();
   }
 
+  /**
+   * Comparación con otra versión del proyecto (D-14): marcadores de taladros agregados, quitados,
+   * movidos y cambiados, en coordenadas de proyecto. `null` la quita.
+   */
+  setVersionDiff(markers: readonly DiffMarker[] | null): void {
+    this.versionDiffData = markers && markers.length > 0 ? markers : null;
+    this.rebuildVersionDiff();
+    this.applyView();
+  }
+
+  private rebuildVersionDiff(): void {
+    const mpp = this.view.metersPerPixel;
+    this.lastDiffMpp = mpp;
+    // Anillo de ~9 px de radio: rodea el símbolo del taladro sin taparlo.
+    this.versionDiff.set(this.versionDiffData, this.origin, 9 * mpp);
+  }
+
   /** Flechas de desplazamiento en planta (segmentos en coordenadas de proyecto, color por nivel). */
   setDisplacement(data: IsochroneData | null): void {
     this.displacementData = data;
@@ -678,6 +702,7 @@ export class Engine {
     this.siteLabels3d.dispose();
     this.vibration.dispose();
     this.site.dispose();
+    this.versionDiff.dispose();
     this.siteLabels.dispose();
     this.overlay.dispose();
     this.decorations.dispose();
@@ -1017,6 +1042,7 @@ export class Engine {
     this.vibration.set(this.vibrationData, this.origin);
     this.site.setZone(this.flyrockZone, this.origin, this.view.metersPerPixel);
     this.rebuildSite();
+    this.rebuildVersionDiff();
     this.holes.refreshColors();
     this.updateTypicalSpacing();
     this.applyView();
@@ -1143,6 +1169,9 @@ export class Engine {
       this.lastSiteMpp = mpp;
       this.rebuildSite();
     }
+    if (this.versionDiffData && Math.abs(this.lastDiffMpp - mpp) > mpp * 0.05)
+      this.rebuildVersionDiff();
+    this.versionDiff.lines.visible = this.viewMode === 'plan' && this.versionDiffData !== null;
     this.loop.invalidate();
   }
 
