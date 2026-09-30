@@ -1,7 +1,6 @@
 import {
   addMemberSchema,
   createMineSchema,
-  createOrganizationSchema,
   mineAccessSchema,
   permissions,
   updateMemberSchema,
@@ -42,7 +41,7 @@ function withUser(deps: OrganizationRouteDeps, handler: Handler) {
     req: FastifyRequest<{ Params: Params; Querystring: Params }>,
     reply: FastifyReply,
   ) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, deps.db, req, reply);
     if (!user) return reply;
     return handler({ req, reply, user });
   };
@@ -142,50 +141,6 @@ export function organizationRoutes(app: FastifyInstance, deps: OrganizationRoute
     }),
   );
 
-  // Una empresa nueva la crea quien ya administra otra (p. ej. una contratista con varias minas).
-  app.post(
-    '/organizations',
-    withUser(deps, async ({ req, reply, user }) => {
-      const body = parse(createOrganizationSchema, req.body, reply);
-      if (!body) return reply;
-      const isAdmin = await db
-        .selectFrom('member')
-        .select('id')
-        .where('userId', '=', user.id)
-        .where('role', '=', 'admin')
-        .executeTakeFirst();
-      if (!isAdmin) return sendError(reply, 403, 'forbidden', 'Only administrators');
-      const org = await db.transaction().execute(async (tx) => {
-        const id = uuidv7();
-        const row = await tx
-          .insertInto('organization')
-          .values({ id, name: body.name })
-          .returningAll()
-          .executeTakeFirstOrThrow();
-        await tx
-          .insertInto('member')
-          .values({ id: uuidv7(), organizationId: id, userId: user.id, role: 'admin' })
-          .execute();
-        await recordAudit(tx, {
-          organizationId: id,
-          actorId: user.id,
-          action: 'organization.create',
-          targetType: 'organization',
-          targetId: id,
-          data: { name: body.name },
-        });
-        return row;
-      });
-      const result: Organization = {
-        id: org.id,
-        name: org.name,
-        role: 'admin',
-        createdAt: org.createdAt.toISOString(),
-      };
-      return reply.code(201).send(result);
-    }),
-  );
-
   app.get(
     '/organizations/:orgId/members',
     withUser(deps, async ({ req, reply, user }) => {
@@ -231,8 +186,22 @@ export function organizationRoutes(app: FastifyInstance, deps: OrganizationRoute
           password: body.password,
         });
         created = true;
-      } else if (await memberRole(db, orgId, target.id)) {
-        return sendError(reply, 409, 'already_member', 'User is already a member');
+      } else {
+        // Cada persona pertenece a una sola empresa.
+        const current = await db
+          .selectFrom('member')
+          .select('organizationId')
+          .where('userId', '=', target.id)
+          .executeTakeFirst();
+        if (current?.organizationId === orgId)
+          return sendError(reply, 409, 'already_member', 'User is already a member');
+        if (current)
+          return sendError(
+            reply,
+            409,
+            'other_organization',
+            'User belongs to another organization',
+          );
       }
       const userId = target.id;
       await db.transaction().execute(async (tx) => {

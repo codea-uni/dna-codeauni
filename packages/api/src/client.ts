@@ -17,12 +17,19 @@ import {
   mineDetailSchema,
   mineListSchema,
   mineSchema,
-  organizationSchema,
   organizationListSchema,
+  platformOrganizationListSchema,
+  platformOrganizationSchema,
+  platformUserListSchema,
+  platformUserSchema,
   type AddMember,
+  type AddPlatformAdmin,
   type AuditEvent,
   type CreateMine,
-  type CreateOrganization,
+  type CreatePlatformOrganization,
+  type PlatformOrganization,
+  type PlatformUser,
+  type UpdatePlatformOrganization,
   type Member,
   type Mine,
   type MineAccess,
@@ -158,10 +165,6 @@ export class ApiClient {
     return (await this.request('/organizations', organizationListSchema)).organizations;
   }
 
-  createOrganization(body: CreateOrganization): Promise<Organization> {
-    return this.request('/organizations', organizationSchema, { method: 'POST', body });
-  }
-
   async members(orgId: string): Promise<Member[]> {
     return (await this.request(`/organizations/${enc(orgId)}/members`, memberListSchema)).members;
   }
@@ -204,6 +207,54 @@ export class ApiClient {
 
   setMineAccess(mineId: string, body: MineAccess): Promise<Mine> {
     return this.request(`/mines/${enc(mineId)}/access`, mineSchema, { method: 'PUT', body });
+  }
+
+  // Plataforma (superadministrador)
+
+  async platformOrganizations(): Promise<PlatformOrganization[]> {
+    return (await this.request('/platform/organizations', platformOrganizationListSchema))
+      .organizations;
+  }
+
+  createPlatformOrganization(body: CreatePlatformOrganization): Promise<PlatformOrganization> {
+    return this.request('/platform/organizations', platformOrganizationSchema, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  updatePlatformOrganization(
+    orgId: string,
+    body: UpdatePlatformOrganization,
+  ): Promise<PlatformOrganization> {
+    return this.request(`/platform/organizations/${enc(orgId)}`, platformOrganizationSchema, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  addPlatformAdmin(orgId: string, body: AddPlatformAdmin): Promise<PlatformOrganization> {
+    return this.request(
+      `/platform/organizations/${enc(orgId)}/admins`,
+      platformOrganizationSchema,
+      {
+        method: 'POST',
+        body,
+      },
+    );
+  }
+
+  async platformUsers(orgId: string): Promise<PlatformUser[]> {
+    return (
+      await this.request(`/platform/organizations/${enc(orgId)}/users`, platformUserListSchema)
+    ).users;
+  }
+
+  setUserDisabled(userId: string, disabled: boolean): Promise<PlatformUser> {
+    return this.request(`/platform/users/${enc(userId)}`, platformUserSchema, {
+      method: 'PATCH',
+      body: { disabled },
+    });
   }
 
   // Proyectos y versiones (D-14)

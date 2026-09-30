@@ -1,6 +1,9 @@
+import { uuidv7 } from '@cronos/core';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app';
 import { createAuth, createUserWithPassword, type Auth, type NewUser } from '../auth/auth';
+import type { Db } from '../db/db';
+import { recordAudit } from '../services/audit';
 import type { TestDb } from './testDb';
 
 export const TEST_BASE_URL = 'http://localhost:3000';
@@ -72,4 +75,38 @@ export async function activate(
   });
   if (res.statusCode !== 200) throw new Error(`password ${res.statusCode}: ${res.body}`);
   return cookieHeader(res.headers['set-cookie']);
+}
+
+/**
+ * Empresa con su primer administrador (contraseña temporal), como la crea el superadministrador
+ * desde la consola. Devuelve el id de la empresa.
+ */
+export async function seedOrganization(
+  db: Db,
+  auth: Auth,
+  input: { email: string; password: string; name: string; organization: string },
+): Promise<string> {
+  const { id: userId } = await createUserWithPassword(auth, {
+    email: input.email,
+    name: input.name,
+    password: input.password,
+  });
+  const organizationId = uuidv7();
+  await db
+    .insertInto('organization')
+    .values({ id: organizationId, name: input.organization })
+    .execute();
+  await db
+    .insertInto('member')
+    .values({ id: uuidv7(), organizationId, userId, role: 'admin' })
+    .execute();
+  await recordAudit(db, {
+    organizationId,
+    actorId: userId,
+    action: 'organization.create',
+    targetType: 'organization',
+    targetId: organizationId,
+    data: { name: input.organization },
+  });
+  return organizationId;
 }

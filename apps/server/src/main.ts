@@ -1,6 +1,6 @@
 import { buildApp } from './app';
 import { createAuth } from './auth/auth';
-import { seedInitialAdmin } from './auth/seed';
+import { ensureSuperAdmin } from './auth/seed';
 import { loadConfig } from './config';
 import { createDb, createPool, migrateToLatest } from './db/db';
 import { SERVER_VERSION } from './version';
@@ -25,8 +25,8 @@ const app = buildApp({
   version: SERVER_VERSION,
   logger: { level: config.logLevel },
 });
-if (await seedInitialAdmin(db, auth, config.initialAdmin))
-  app.log.info('Primer administrador creado desde CRONOS_ADMIN_EMAIL');
+const superAdmin = await ensureSuperAdmin(db, auth, config.initialAdmin);
+if (superAdmin?.created) app.log.info('Superadministrador creado desde CRONOS_ADMIN_EMAIL');
 
 const shutdown = async () => {
   await app.close();

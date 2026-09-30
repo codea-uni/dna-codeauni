@@ -5,6 +5,7 @@ import type { Db } from './db/db';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
 import { organizationRoutes } from './routes/organizations';
+import { platformRoutes } from './routes/platform';
 import { projectRoutes } from './routes/projects';
 import { versionRoutes } from './routes/versions';
 
@@ -43,6 +44,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       healthRoutes(api, deps);
       authRoutes(api, deps);
       organizationRoutes(api, deps);
+      platformRoutes(api, deps);
       projectRoutes(api, deps);
       versionRoutes(api, deps);
       done();

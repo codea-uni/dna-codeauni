@@ -11,3 +11,18 @@ export function sendError(
   const body: ApiErrorBody = { code, message };
   return reply.code(status).send(body);
 }
+
+/**
+ * Error con estado HTTP y `code` estable. Se lanza desde los servicios (p. ej. empresa
+ * desactivada) y el manejador de errores de la app lo responde como `{ code, message }`.
+ */
+export class HttpError extends Error {
+  constructor(
+    readonly statusCode: number,
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'HttpError';
+  }
+}

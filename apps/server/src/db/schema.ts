@@ -14,6 +14,7 @@ export interface Database {
   audit_event: AuditEventTable;
   project: ProjectTable;
   project_version: ProjectVersionTable;
+  session: SessionTable;
 }
 
 type CreatedAt = ColumnType<Date, never, never>;
@@ -24,12 +25,15 @@ export interface UserTable {
   email: string;
   locale: Generated<string>;
   mustChangePassword: Generated<boolean>;
+  isSuperAdmin: Generated<boolean>;
+  disabledAt: Generated<Date | null>;
   createdAt: CreatedAt;
 }
 
 export interface OrganizationTable {
   id: string;
   name: string;
+  disabledAt: Generated<Date | null>;
   createdAt: CreatedAt;
 }
 
@@ -92,4 +96,12 @@ export interface ProjectVersionTable {
   contentHash: string;
   content: Buffer;
   summary: JSONColumnType<Record<string, unknown> | null, string | null, never>;
+}
+
+/** Sesiones de Better Auth: el servidor solo las lee (última actividad) y las borra al desactivar. */
+export interface SessionTable {
+  id: string;
+  userId: string;
+  updatedAt: Date;
+  expiresAt: Date;
 }

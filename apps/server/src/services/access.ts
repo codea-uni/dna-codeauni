@@ -1,10 +1,14 @@
 import type { Role } from '@cronos/api';
 import type { Kysely, Selectable } from 'kysely';
+import { HttpError } from '../http/errors';
 import type { Database, MineTable } from '../db/schema';
 
 export type MineRow = Selectable<MineTable>;
 
-/** Rol del usuario en la empresa, o `null` si no es miembro. */
+/**
+ * Rol del usuario en la empresa, o `null` si no es miembro. Si la empresa está desactivada, lanza
+ * 403 `organization_disabled`: sus miembros no acceden a nada hasta que se reactive.
+ */
 export async function memberRole(
   db: Kysely<Database>,
   organizationId: string,
@@ -12,11 +16,32 @@ export async function memberRole(
 ): Promise<Role | null> {
   const row = await db
     .selectFrom('member')
-    .select('role')
-    .where('organizationId', '=', organizationId)
-    .where('userId', '=', userId)
+    .innerJoin('organization', 'organization.id', 'member.organizationId')
+    .select(['member.role', 'organization.disabledAt'])
+    .where('member.organizationId', '=', organizationId)
+    .where('member.userId', '=', userId)
     .executeTakeFirst();
-  return row?.role ?? null;
+  if (!row) return null;
+  if (row.disabledAt)
+    throw new HttpError(403, 'organization_disabled', 'The organization is disabled');
+  return row.role;
+}
+
+/** La empresa del usuario (cada persona pertenece a una sola) con su rol, o `null`. */
+export async function userOrganization(db: Kysely<Database>, userId: string) {
+  const row = await db
+    .selectFrom('member')
+    .innerJoin('organization', 'organization.id', 'member.organizationId')
+    .select([
+      'organization.id',
+      'organization.name',
+      'organization.createdAt',
+      'organization.disabledAt',
+      'member.role',
+    ])
+    .where('member.userId', '=', userId)
+    .executeTakeFirst();
+  return row ?? null;
 }
 
 /**

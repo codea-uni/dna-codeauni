@@ -11,11 +11,11 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
-  // Primer administrador: se crea solo si la base no tiene usuarios (debe cambiar la contraseña).
+  // Superadministrador de la plataforma: se crea si no existe (con contraseña temporal) o se
+  // promueve la cuenta existente.
   CRONOS_ADMIN_EMAIL: z.email().optional(),
   CRONOS_ADMIN_PASSWORD: z.string().min(10).optional(),
-  CRONOS_ADMIN_NAME: z.string().min(1).default('Administrador'),
-  CRONOS_ORGANIZATION_NAME: z.string().min(1).default('Mi empresa'),
+  CRONOS_ADMIN_NAME: z.string().min(1).default('Administrador de la plataforma'),
 });
 
 export interface ServerConfig {
@@ -25,7 +25,7 @@ export interface ServerConfig {
   logLevel: string;
   authSecret: string;
   baseUrl: string;
-  initialAdmin: { email: string; password: string; name: string; organization: string } | null;
+  initialAdmin: { email: string; password: string; name: string } | null;
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): ServerConfig {
@@ -48,7 +48,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
             email: e.CRONOS_ADMIN_EMAIL,
             password: e.CRONOS_ADMIN_PASSWORD,
             name: e.CRONOS_ADMIN_NAME,
-            organization: e.CRONOS_ORGANIZATION_NAME,
           }
         : null,
   };

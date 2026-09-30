@@ -25,11 +25,25 @@ export const userSchema = z.object({
   locale: localeSchema,
   /** Cuenta con contraseña temporal del administrador: debe cambiarla antes de seguir. */
   mustChangePassword: z.boolean(),
+  /** Superadministrador de la plataforma: ve todas las empresas y las desactiva. */
+  isSuperAdmin: z.boolean(),
 });
 export type User = z.infer<typeof userSchema>;
 
-/** `GET /api/me`. */
-export const meSchema = z.object({ user: userSchema });
+/** Empresa del usuario (una por persona) con su rol; `disabled` si la desactivó la plataforma. */
+export const myOrganizationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.enum(['admin', 'designer', 'reviewer']),
+  disabled: z.boolean(),
+});
+export type MyOrganization = z.infer<typeof myOrganizationSchema>;
+
+/** `GET /api/me`: el usuario y su empresa (`null` si no pertenece a ninguna). */
+export const meSchema = z.object({
+  user: userSchema,
+  organization: myOrganizationSchema.nullable(),
+});
 export type Me = z.infer<typeof meSchema>;
 
 /** `POST /api/auth/sign-in/email`. */

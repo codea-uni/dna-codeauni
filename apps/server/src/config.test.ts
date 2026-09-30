@@ -29,8 +29,7 @@ describe('loadConfig', () => {
     expect(c.initialAdmin).toEqual({
       email: 'a@b.pe',
       password: 'x'.repeat(10),
-      name: 'Administrador',
-      organization: 'Mi empresa',
+      name: 'Administrador de la plataforma',
     });
   });
 

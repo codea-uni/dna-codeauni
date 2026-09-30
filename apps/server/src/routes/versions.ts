@@ -135,7 +135,7 @@ export function versionRoutes(app: FastifyInstance, deps: VersionRouteDeps): voi
       req: FastifyRequest<{ Params: Record<string, string>; Querystring: Record<string, string> }>,
       reply,
     ) => {
-      const user = await requireUser(deps.auth, req, reply);
+      const user = await requireUser(deps.auth, deps.db, req, reply);
       if (!user) return reply;
       const found = await visibleMine(db, req.params.mineId ?? '', user.id);
       if (!found) return sendError(reply, 404, 'not_found', 'Mine not found');
@@ -169,7 +169,7 @@ export function versionRoutes(app: FastifyInstance, deps: VersionRouteDeps): voi
   );
 
   app.get('/projects/:projectId/versions', async (req: Req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, deps.db, req, reply);
     if (!user) return reply;
     const found = await visibleProject(db, req.params.projectId ?? '', user.id, reply);
     if (!found) return reply;
@@ -181,7 +181,7 @@ export function versionRoutes(app: FastifyInstance, deps: VersionRouteDeps): voi
   });
 
   app.post('/projects/:projectId/versions', async (req: Req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, deps.db, req, reply);
     if (!user) return reply;
     const found = await visibleProject(db, req.params.projectId ?? '', user.id, reply);
     if (!found) return reply;
@@ -216,7 +216,7 @@ export function versionRoutes(app: FastifyInstance, deps: VersionRouteDeps): voi
   });
 
   app.post('/projects/:projectId/versions/:number/restore', async (req: Req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, deps.db, req, reply);
     if (!user) return reply;
     const found = await visibleProject(db, req.params.projectId ?? '', user.id, reply);
     if (!found) return reply;

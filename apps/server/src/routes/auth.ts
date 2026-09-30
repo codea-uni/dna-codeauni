@@ -4,6 +4,7 @@ import type { Auth } from '../auth/auth';
 import type { Db } from '../db/db';
 import { sendError } from '../http/errors';
 import { requireUser, type SessionUser } from '../http/session';
+import { userOrganization } from '../services/access';
 import { sendWebResponse, toWebRequest, webHeaders } from '../http/webBridge';
 
 /**
@@ -22,7 +23,8 @@ export interface AuthRouteDeps {
   baseUrl: string;
 }
 
-function toMe(user: SessionUser): Me {
+async function toMe(db: Db, user: SessionUser): Promise<Me> {
+  const org = await userOrganization(db, user.id);
   return {
     user: {
       id: user.id,
@@ -30,8 +32,26 @@ function toMe(user: SessionUser): Me {
       email: user.email,
       locale: user.locale === 'en' ? 'en' : 'es',
       mustChangePassword: user.mustChangePassword,
+      isSuperAdmin: user.isSuperAdmin,
     },
+    organization: org
+      ? { id: org.id, name: org.name, role: org.role, disabled: org.disabledAt !== null }
+      : null,
   };
+}
+
+async function isDisabledEmail(db: Db, body: unknown): Promise<boolean> {
+  const email =
+    typeof body === 'object' && body !== null && 'email' in body && typeof body.email === 'string'
+      ? body.email.trim().toLowerCase()
+      : null;
+  if (!email) return false;
+  const row = await db
+    .selectFrom('user')
+    .select('disabledAt')
+    .where('email', '=', email)
+    .executeTakeFirst();
+  return row?.disabledAt != null;
 }
 
 export function authRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
@@ -40,6 +60,10 @@ export function authRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
       method: route.method,
       url: route.url,
       handler: async (req, reply) => {
+        // Una cuenta desactivada por la plataforma no inicia sesión (403, antes de validar la clave
+        // para no confirmar si la contraseña era correcta).
+        if (route.url === '/auth/sign-in/email' && (await isDisabledEmail(deps.db, req.body)))
+          return sendError(reply, 403, 'account_disabled', 'This account is disabled');
         const res = await deps.auth.handler(toWebRequest(req, deps.baseUrl));
         return sendWebResponse(reply, res);
       },
@@ -47,13 +71,17 @@ export function authRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
   }
 
   app.get('/me', async (req, reply) => {
-    const user = await requireUser(deps.auth, req, reply, { allowTemporaryPassword: true });
+    const user = await requireUser(deps.auth, deps.db, req, reply, {
+      allowTemporaryPassword: true,
+    });
     if (!user) return reply;
-    return reply.send(toMe(user));
+    return reply.send(await toMe(deps.db, user));
   });
 
   app.patch('/me', async (req, reply) => {
-    const user = await requireUser(deps.auth, req, reply, { allowTemporaryPassword: true });
+    const user = await requireUser(deps.auth, deps.db, req, reply, {
+      allowTemporaryPassword: true,
+    });
     if (!user) return reply;
     const body = updateMeSchema.safeParse(req.body);
     if (!body.success) return sendError(reply, 400, 'invalid_body', body.error.message);
@@ -62,12 +90,14 @@ export function authRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
       .set({ locale: body.data.locale })
       .where('id', '=', user.id)
       .execute();
-    return reply.send(toMe({ ...user, locale: body.data.locale }));
+    return reply.send(await toMe(deps.db, { ...user, locale: body.data.locale }));
   });
 
   // Cambio de contraseña: cierra las otras sesiones y quita la marca de contraseña temporal.
   app.post('/me/password', async (req, reply) => {
-    const user = await requireUser(deps.auth, req, reply, { allowTemporaryPassword: true });
+    const user = await requireUser(deps.auth, deps.db, req, reply, {
+      allowTemporaryPassword: true,
+    });
     if (!user) return reply;
     const body = changePasswordSchema.safeParse(req.body);
     if (!body.success) return sendError(reply, 400, 'password_too_short', body.error.message);

@@ -70,7 +70,7 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
   const { db } = deps;
 
   app.get('/mines/:mineId/projects', async (req: Req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, deps.db, req, reply);
     if (!user) return reply;
     const found = await visibleMine(db, req.params.mineId ?? '', user.id);
     if (!found) return sendError(reply, 404, 'not_found', 'Mine not found');
@@ -84,7 +84,7 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
   });
 
   app.post('/mines/:mineId/projects', async (req: Req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, deps.db, req, reply);
     if (!user) return reply;
     const found = await visibleMine(db, req.params.mineId ?? '', user.id);
     if (!found) return sendError(reply, 404, 'not_found', 'Mine not found');
@@ -157,7 +157,7 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
   });
 
   app.get('/projects/:projectId', async (req: Req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, deps.db, req, reply);
     if (!user) return reply;
     const found = await visibleProject(db, req.params.projectId ?? '', user.id, reply);
     if (!found) return reply;
@@ -175,7 +175,7 @@ export function projectRoutes(app: FastifyInstance, deps: ProjectRouteDeps): voi
       req: FastifyRequest<{ Params: Record<string, string>; Querystring: Record<string, string> }>,
       reply,
     ) => {
-      const user = await requireUser(deps.auth, req, reply);
+      const user = await requireUser(deps.auth, deps.db, req, reply);
       if (!user) return reply;
       const found = await visibleProject(db, req.params.projectId ?? '', user.id, reply);
       if (!found) return reply;

@@ -14,9 +14,6 @@ export const organizationSchema = z.object({
 export type Organization = z.infer<typeof organizationSchema>;
 export const organizationListSchema = z.object({ organizations: z.array(organizationSchema) });
 
-export const createOrganizationSchema = z.object({ name: z.string().trim().min(1).max(120) });
-export type CreateOrganization = z.infer<typeof createOrganizationSchema>;
-
 /** Miembro (`Member`): usuario con su rol en la empresa. */
 export const memberSchema = z.object({
   userId: id,
@@ -85,3 +82,54 @@ export const auditEventSchema = z.object({
 });
 export type AuditEvent = z.infer<typeof auditEventSchema>;
 export const auditListSchema = z.object({ events: z.array(auditEventSchema) });
+
+/** Consola de la plataforma (superadministrador): una empresa con sus números. */
+export const platformOrganizationSchema = z.object({
+  id,
+  name: z.string(),
+  createdAt: isoDate,
+  disabled: z.boolean(),
+  members: z.number().int(),
+  mines: z.number().int(),
+  projects: z.number().int(),
+  versions: z.number().int(),
+  /** Última versión publicada en la empresa. */
+  lastActivityAt: isoDate.nullable(),
+  admins: z.array(z.object({ name: z.string(), email: z.string() })),
+});
+export type PlatformOrganization = z.infer<typeof platformOrganizationSchema>;
+export const platformOrganizationListSchema = z.object({
+  organizations: z.array(platformOrganizationSchema),
+});
+
+/** Empresa nueva con su primer administrador (cuenta nueva con contraseña temporal). */
+export const createPlatformOrganizationSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  admin: z.object({
+    email: z.email(),
+    name: z.string().trim().min(1).max(120),
+    password: z.string().min(10).optional(),
+  }),
+});
+export type CreatePlatformOrganization = z.infer<typeof createPlatformOrganizationSchema>;
+
+/** Administrador para una empresa existente (p. ej. una que quedó sin administrador). */
+export const addPlatformAdminSchema = createPlatformOrganizationSchema.shape.admin;
+export type AddPlatformAdmin = z.infer<typeof addPlatformAdminSchema>;
+
+export const updatePlatformOrganizationSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  disabled: z.boolean().optional(),
+});
+export type UpdatePlatformOrganization = z.infer<typeof updatePlatformOrganizationSchema>;
+
+/** Usuario visto desde la plataforma: estado de la cuenta y última actividad. */
+export const platformUserSchema = memberSchema.extend({
+  disabled: z.boolean(),
+  lastSeenAt: isoDate.nullable(),
+});
+export type PlatformUser = z.infer<typeof platformUserSchema>;
+export const platformUserListSchema = z.object({ users: z.array(platformUserSchema) });
+
+export const updatePlatformUserSchema = z.object({ disabled: z.boolean() });
+export type UpdatePlatformUser = z.infer<typeof updatePlatformUserSchema>;

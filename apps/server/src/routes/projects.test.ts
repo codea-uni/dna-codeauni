@@ -8,8 +8,14 @@ import {
 import { createEmptyProject, EXAMPLES, parseProjectFile, toProjectFile } from '@cronos/core';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { seedInitialAdmin } from '../auth/seed';
-import { activate, createTestApp, signedIn, TEST_ORIGIN, type TestApp } from '../test/testApp';
+import {
+  activate,
+  createTestApp,
+  signedIn,
+  TEST_ORIGIN,
+  type TestApp,
+  seedOrganization,
+} from '../test/testApp';
 import { createTestDb, databaseAvailable, type TestDb } from '../test/testDb';
 
 type Method = 'GET' | 'POST' | 'PUT';
@@ -37,7 +43,7 @@ describe.runIf(await databaseAvailable())('proyectos de una mina (D-14, NF-08)',
   beforeAll(async () => {
     t = await createTestDb();
     s = createTestApp(t);
-    await seedInitialAdmin(t.db, s.auth, {
+    await seedOrganization(t.db, s.auth, {
       email: 'admin@sur.pe',
       password: 'admin-inicial',
       name: 'Ana',

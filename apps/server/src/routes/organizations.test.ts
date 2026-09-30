@@ -6,11 +6,9 @@ import {
   mineListSchema,
   mineSchema,
   organizationListSchema,
-  organizationSchema,
 } from '@cronos/api';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { seedInitialAdmin } from '../auth/seed';
 import {
   activate,
   createTestApp,
@@ -18,6 +16,7 @@ import {
   signedIn,
   TEST_ORIGIN,
   type TestApp,
+  seedOrganization,
 } from '../test/testApp';
 import { createTestDb, databaseAvailable, type TestDb } from '../test/testDb';
 
@@ -41,7 +40,7 @@ describe.runIf(await databaseAvailable())('empresas, miembros y minas (D-14, H-8
   beforeAll(async () => {
     t = await createTestDb();
     s = createTestApp(t);
-    await seedInitialAdmin(t.db, s.auth, {
+    await seedOrganization(t.db, s.auth, {
       email: 'admin@sur.pe',
       password: 'admin-inicial',
       name: 'Ana Admin',
@@ -190,7 +189,7 @@ describe.runIf(await databaseAvailable())('empresas, miembros y minas (D-14, H-8
     });
   });
 
-  it('una cuenta existente de otra empresa se agrega sin contraseña nueva', async () => {
+  it('una cuenta existente sin empresa se agrega sin contraseña nueva', async () => {
     const res = await call(admin, 'POST', `/organizations/${orgId}/members`, {
       email: 'otro@norte.pe',
       name: 'Ignorado',
@@ -239,17 +238,11 @@ describe.runIf(await databaseAvailable())('empresas, miembros y minas (D-14, H-8
     expect((await call(otro, 'GET', `/organizations/${orgId}/mines`)).status).toBe(404);
   });
 
-  it('una empresa nueva solo la crea quien ya administra otra', async () => {
-    const rosa = await signIn(s.app, 'rosa@sur.pe', 'temporal-rosa-definitiva');
-    expect((await call(rosa, 'POST', '/organizations', { name: 'Rosa SAC' })).status).toBe(403);
-    const res = await call(admin, 'POST', '/organizations', { name: 'Contratista Andina' });
-    expect(res.status).toBe(201);
-    expect(organizationSchema.parse(res.body)).toMatchObject({
-      name: 'Contratista Andina',
-      role: 'admin',
-    });
+  it('cada quien es de su empresa: nadie crea ni cambia de empresa (D-14)', async () => {
+    // Crear empresas es solo de la plataforma (routes/platform.ts).
+    expect((await call(admin, 'POST', '/organizations', { name: 'Otra' })).status).toBe(404);
     const orgs = organizationListSchema.parse((await call(admin, 'GET', '/organizations')).body);
-    expect(orgs.organizations.map((o) => o.name)).toEqual(['Contratista Andina', 'Minera Sur']);
+    expect(orgs.organizations.map((o) => o.name)).toEqual(['Minera Sur']);
   });
 
   it('la auditoría registra quién hizo qué y no se puede alterar (NF-07)', async () => {

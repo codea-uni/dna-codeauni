@@ -2,7 +2,6 @@ import { meSchema } from '@cronos/api';
 import { getMigrations } from 'better-auth/db/migration';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createUserWithPassword } from '../auth/auth';
-import { seedInitialAdmin } from '../auth/seed';
 import {
   cookieHeader,
   createTestApp,
@@ -11,6 +10,7 @@ import {
   TEST_ORIGIN,
   type TestApp,
 } from '../test/testApp';
+import { ensureSuperAdmin } from '../auth/seed';
 import { createTestDb, databaseAvailable, type TestDb } from '../test/testDb';
 
 describe.runIf(await databaseAvailable())('login (H-801, NF-07)', () => {
@@ -162,19 +162,18 @@ describe.runIf(await databaseAvailable())('primer administrador y límite de int
     await t.drop();
   });
 
-  it('se crea una sola vez, con contraseña temporal', async () => {
+  it('el superadministrador se crea una vez, con contraseña temporal, o se promueve', async () => {
     const s = createTestApp(t);
-    const admin = {
-      email: 'admin@empresa.pe',
-      password: 'admin-inicial',
-      name: 'Admin',
-      organization: 'Minera Sur',
-    };
-    expect(await seedInitialAdmin(t.db, s.auth, admin)).toEqual(expect.any(String));
-    expect(await seedInitialAdmin(t.db, s.auth, admin)).toBeNull();
-    const cookie = await signIn(s.app, 'admin@empresa.pe', 'admin-inicial');
-    const me = await s.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } });
-    expect(meSchema.parse(me.json()).user.mustChangePassword).toBe(true);
+    const admin = { email: 'Plataforma@Cronos.pe', password: 'admin-inicial', name: 'Plataforma' };
+    expect(await ensureSuperAdmin(t.db, s.auth, admin)).toMatchObject({ created: true });
+    expect(await ensureSuperAdmin(t.db, s.auth, admin)).toMatchObject({ created: false });
+    expect(await ensureSuperAdmin(t.db, s.auth, null)).toBeNull();
+    const cookie = await signIn(s.app, 'plataforma@cronos.pe', 'admin-inicial');
+    const me = meSchema.parse(
+      (await s.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } })).json(),
+    );
+    expect(me.user).toMatchObject({ mustChangePassword: true, isSuperAdmin: true });
+    expect(me.organization).toBeNull();
   });
 
   it('bloquea el sexto intento de inicio de sesión en un minuto (429)', async () => {
