@@ -1667,3 +1667,62 @@ a.button-link:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.compare-panel {
+  position: fixed;
+  left: 362px;
+  bottom: 40px;
+  z-index: 14;
+  display: grid;
+  gap: 0.4rem;
+  width: min(340px, calc(100vw - 32px));
+  max-height: 55vh;
+  overflow: auto;
+  padding: 0.7rem 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #0008;
+}
+
+.compare-panel header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.compare-panel p {
+  margin: 0;
+}
+
+.compare-legend,
+.compare-holes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compare-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.2rem 0.8rem;
+}
+
+.compare-legend .dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 2px solid;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.compare-holes li {
+  padding: 0.1rem 0;
+}
+
+@media (max-width: 900px) {
+  .compare-panel {
+    left: 16px;
+  }
+}

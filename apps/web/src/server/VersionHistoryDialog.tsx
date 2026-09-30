@@ -6,6 +6,7 @@ import { useFormatDate, useT, type MessageKey } from '../i18n';
 import { useUiStore } from '../stores/uiStore';
 import { workspaceErrorKey } from '../stores/workspaceStore';
 import { api } from './api';
+import { useCompare } from './compareStore';
 import { hasUnpublished, useProjectSession } from './projectSession';
 import { summaryParts } from './summaryText';
 
@@ -128,6 +129,16 @@ export function VersionHistoryDialog({ onClose }: { onClose: () => void }) {
                       >
                         {t('history.view')}
                       </button>
+                      {!isOpen && (
+                        <button
+                          onClick={() => {
+                            onClose();
+                            void useCompare.getState().start(current.projectId, v.number);
+                          }}
+                        >
+                          {t('history.compare')}
+                        </button>
+                      )}
                       {canRestore && v.number !== latest?.number && (
                         <button disabled={busy} onClick={() => void restore(v)}>
                           {t('history.restore')}

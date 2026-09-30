@@ -4,6 +4,8 @@ import { Link, useParams } from 'react-router';
 import { App } from '../App';
 import { AuthShell } from '../auth/AuthGate';
 import { useFormatDate, useT } from '../i18n';
+import { ComparePanel } from '../server/ComparePanel';
+import { useCompare } from '../server/compareStore';
 import { PublishDialog } from '../server/PublishDialog';
 import { useServerDialogs } from '../server/ProjectContext';
 import { hasUnpublished, useProjectSession } from '../server/projectSession';
@@ -32,11 +34,16 @@ export function ProjectEditor() {
   }, [projectId, version, open]);
   useEffect(
     () => () => {
+      useCompare.getState().stop();
       close();
       showDialog(null);
     },
     [close, showDialog],
   );
+  // Otra versión u otro proyecto: la comparación anterior deja de tener sentido.
+  useEffect(() => {
+    useCompare.getState().stop();
+  }, [projectId, version]);
   // El revisor intenta editar: se le explica en vez de fallar en silencio (H-801).
   useEffect(
     () =>
@@ -82,6 +89,7 @@ export function ProjectEditor() {
     <>
       <App restoreLocalDraft={false} />
       <EditorBanner />
+      <ComparePanel />
       {dialog === 'publish' && <PublishDialog onClose={closeDialog} />}
       {dialog === 'history' && <VersionHistoryDialog onClose={closeDialog} />}
     </>
