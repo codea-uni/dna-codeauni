@@ -147,6 +147,12 @@ export const es = {
   'example.inclined.name': 'Taladros inclinados',
   'example.inclined.description':
     'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
+  'example.topoPit.name': 'Tajo con topografía',
+  'example.topoPit.description':
+    'Tajo de 8 bancos con curvas de nivel, cresta y pie · voladura en el banco 3385 apoyada en el terreno, cara libre desde la cresta · próximo perímetro en el fondo con su propio piso',
+  'example.topoSector.name': 'Banco sobre topografía (completo)',
+  'example.topoSector.description':
+    'Talud de tres bancos con terreno natural y ortofoto · producción y buffer sobre el terreno, salida en V y escenario en escalón · puntos de control · próximo perímetro en el banco 3370',
   'example.problems.name': 'Problemas típicos',
   'example.problems.description':
     'Taco corto, sin carga, sin detonador, sin booster, ANFO en agua, columna abierta, fila sin amarre, retardos que coinciden, duplicados',
@@ -307,6 +313,12 @@ export const en = {
     'Hole-by-hole electronics (no overlaps) · air deck · plant at 180 m with its own limit',
   'example.inclined.name': 'Angled holes',
   'example.inclined.description': 'Angled 15° toward the free face · ideal for the 3D view (key 3)',
+  'example.topoPit.name': 'Pit with topography',
+  'example.topoPit.description':
+    '8-bench pit with contours, crest and toe · blast on bench 3385 set on the ground, free face from the crest · next boundary on the pit floor with its own floor',
+  'example.topoSector.name': 'Bench on topography (complete)',
+  'example.topoSector.description':
+    'Three-bench slope with natural ground and orthophoto · production and buffer on the ground, V firing and echelon scenario · monitoring points · next boundary on bench 3370',
   'example.problems.name': 'Typical problems',
   'example.problems.description':
     'Short stemming, uncharged, no detonator, no booster, ANFO in water, open column, untied row, overlapping delays, duplicates',

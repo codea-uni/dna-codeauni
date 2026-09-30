@@ -1,5 +1,6 @@
 import {
   EXAMPLES,
+  type ExampleBuild,
   analyzeBlast,
   exportDxf,
   importDxf,
@@ -247,11 +248,17 @@ export const computeApi = {
     return importExplosivesCsv(parseCsv(decodeText(bytes).text, undefined, true));
   },
 
-  /** Proyecto de ejemplo completamente configurado. */
-  buildExample(id: string): Project {
+  /** Proyecto de ejemplo completamente configurado, con los binarios de su topografía si tiene. */
+  buildExample(id: string): ExampleBuild {
     const example = EXAMPLES.find((s) => s.id === id);
     if (!example) throw new Error(`Ejemplo desconocido: ${id}`);
-    return example.build();
+    const built = example.buildFull
+      ? example.buildFull()
+      : { project: example.build(), assets: [] };
+    return transfer(
+      built,
+      built.assets.map((a) => a.bytes.buffer as ArrayBuffer),
+    );
   },
 
   /**

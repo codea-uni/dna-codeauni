@@ -30,6 +30,7 @@ import { importErrorText, importWarningText, parseErrorText } from './i18n/coreT
 import { listVersions, loadWithoutSaving, readVersion } from './persistence/autosave';
 import { useUiStore } from './stores/uiStore';
 import { collectAssets, drapeNewHoles, storeEmbeddedAssets } from './topography/session';
+import { putAsset } from './persistence/assets';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
 
@@ -747,7 +748,23 @@ function resetView(): void {
   a.setLayer('connections', true);
 }
 
+/** Encuadra el levantamiento del proyecto (ejemplos con topografía: se ve el tajo completo). */
+function fitTopography(): void {
+  const survey = document.project.topography[0];
+  if (survey) getEngine()?.fitBounds(survey.bounds);
+}
+
 const EXAMPLE_VIEWS: Record<string, () => void> = {
+  topoPit: () => {
+    useAnalysisStore.getState().set({ colorBy: 'none', labelBy: 'label', topoContourInterval: 5 });
+    useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: 'plan' });
+    fitTopography();
+  },
+  topoSector: () => {
+    useAnalysisStore.getState().set({ colorBy: 'kg', labelBy: 'label', topoContourInterval: 5 });
+    useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: 'plan' });
+    fitTopography();
+  },
   production: () => {
     useAnalysisStore.getState().set({ colorBy: 'time', labelBy: 'label' });
     useAnalysisStore.getState().setLayer('isochrones', true);
@@ -794,7 +811,9 @@ export async function loadExample(id: string, name: string): Promise<void> {
   if (blockedByReadOnly()) return;
   if (document.canUndo && !window.confirm(t('actions.discardForExample', { name }))) return;
   await withBusy(t('actions.preparingExample'), async () => {
-    const project = await getCompute().api.buildExample(id);
+    const { project, assets } = await getCompute().api.buildExample(id);
+    // La topografía del ejemplo se guarda en el navegador antes de abrirlo (D-16).
+    await Promise.all(assets.map((a) => putAsset(a.hash, a.bytes)));
     document.load(project);
     useUiStore.getState().setActiveBoundary(project.blasts[0]?.boundaries[0]?.id ?? null);
     resetView();

@@ -6,6 +6,7 @@ import { unitToAzimuth } from '../geometry/vec';
 import { fitPatternToPolygon, generatePatternHoles } from '../patterns/pattern';
 import { electronicTimes, rowTieUp, withDownholeDetonator } from '../timing/tieUp';
 import { degToRad } from '../units/units';
+import { buildPitExample, buildSectorExample, type ExampleBuild } from './topographyExamples';
 import type {
   Blast,
   BlastBoundary,
@@ -41,7 +42,7 @@ export interface ChargePlan {
   delay?: number;
 }
 
-function buildCharge(
+export function buildCharge(
   hole: Hole,
   plan: ChargePlan,
   lib: ProductLibrary,
@@ -365,6 +366,8 @@ export interface ExampleInfo {
   name: string;
   description: string;
   build: () => Project;
+  /** Proyecto con los binarios de su topografía (ejemplos con levantamiento, D-16). */
+  buildFull?: () => ExampleBuild;
 }
 
 /** Recetas de los ejemplos (exportadas para tests y variantes). */
@@ -546,6 +549,22 @@ export const EXAMPLES: ExampleInfo[] = [
     name: 'Taladros inclinados',
     description: 'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
     build: () => buildExample(EXAMPLE_SPECS.inclined),
+  },
+  {
+    id: 'topoPit',
+    name: 'Tajo con topografía',
+    description:
+      'Tajo de 8 bancos con curvas de nivel, cresta y pie · voladura en el banco 3385 apoyada en el terreno, cara libre desde la cresta · próximo perímetro en el fondo con su propio piso',
+    build: () => buildPitExample().project,
+    buildFull: () => buildPitExample(),
+  },
+  {
+    id: 'topoSector',
+    name: 'Banco sobre topografía (completo)',
+    description:
+      'Talud de tres bancos con terreno natural y ortofoto · producción y buffer sobre el terreno, salida en V y escenario en escalón · puntos de control · próximo perímetro en el banco 3370',
+    build: () => buildSectorExample().project,
+    buildFull: () => buildSectorExample(),
   },
   {
     id: 'problems',

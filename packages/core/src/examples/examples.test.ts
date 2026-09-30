@@ -29,11 +29,14 @@ describe('proyectos de ejemplo', () => {
     (id) => {
       const p = build(id);
       const { blast, a } = analyze(p);
-      expect(blast.holes.length).toBeGreaterThan(50);
-      expect(blast.boundaries[0]?.freeFaceEdges).toEqual([3]);
-      // Cara libre al Norte: normal exterior (0, 1)
-      const n = outwardNormal(blast.boundaries[0]?.polygon ?? [], 3);
-      expect(n?.y).toBeCloseTo(1);
+      // Los ejemplos con topografía tienen la cara libre en la cresta (curva): pruebas aparte.
+      if (!id.startsWith('topo')) {
+        expect(blast.holes.length).toBeGreaterThan(50);
+        expect(blast.boundaries[0]?.freeFaceEdges).toEqual([3]);
+        // Cara libre al Norte: normal exterior (0, 1)
+        const n = outwardNormal(blast.boundaries[0]?.polygon ?? [], 3);
+        expect(n?.y).toBeCloseTo(1);
+      }
       expect(a.charge.totalExplosive).toBeGreaterThan(0);
       expect(a.charge.loadingFactor).toBeGreaterThan(0.2);
       expect(a.charge.loadingFactor).toBeLessThan(1.5);

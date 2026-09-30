@@ -34,6 +34,7 @@ export * from './fragmentation/fragmentation';
 export * from './vibration/vibration';
 export * from './diagnostics/designChecks';
 export * from './examples/examples';
+export type { ExampleBuild } from './examples/topographyExamples';
 
 // Documento
 export type { ChangeSet } from './document/changeset';
