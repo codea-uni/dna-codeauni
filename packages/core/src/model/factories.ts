@@ -9,6 +9,7 @@ import type {
   PpvLimit,
   Hole,
   HoleTemplate,
+  MuckpileParams,
   PatternId,
   Project,
   RockMass,
@@ -31,6 +32,27 @@ export const DEFAULT_HOLE_TEMPLATE: HoleTemplate = {
 };
 
 /**
+ * Pila de material por defecto (A7; `docs/RULES.md` FC-39…45, supuestos S-19…S-24). Zhang (FC-36)
+ * da la velocidad; k y n solo se usan con las leyes de potencia (FC-40 en R0, FC-45 en R1).
+ * Esponjamiento 1,5 (López Jimeno et al. 1995, tabla 1.4: basalto, arenisca, diorita, pizarra) y
+ * reposo 37° (USGS OFR 03-143, p. 16: 34–37° en desmonte seco).
+ */
+export const DEFAULT_MUCKPILE_PARAMS: MuckpileParams = {
+  velocityModel: 'zhang',
+  k: 10,
+  n: 1,
+  launchAngleFloor: degToRad(10),
+  launchAngleCrest: degToRad(30),
+  launchFromFace: true,
+  swell: 1.5,
+  reposeAngle: degToRad(37),
+  blockSize: 1.5,
+  stemmingFactor: 0.5,
+  floorFactor: 0.7,
+  distanceDecay: 0.2,
+};
+
+/**
  * Parámetros de cálculo por defecto (`docs/RULES.md`, `docs/QUESTIONS.md`): ventana de MIC de
  * 8 ms (DF-12, P-10), γ = 3 (DF-02), alivio 3 ms/m de burden (P-02), sobreperforación vertical
  * (P-05), taco mínimo 0,7·B y 20·Ø (DF-09, P-04), SDOB 0,4/1,2 (DF-20), A 0,8–22 (P-08).
@@ -44,6 +66,7 @@ export const DEFAULT_CALC_PARAMS: CalcParams = {
   sdobBands: [0.62, 0.92, 1.44, 1.84],
   drillingCostPerMeter: 0,
   displacement: { cB: 0.12, theta: Math.PI / 4, rowFactor: 0.7 },
+  muckpile: DEFAULT_MUCKPILE_PARAMS,
   subdrillConvention: 'vertical',
   delayGuide: {
     interHole: { min: 0.003, max: 0.008 },

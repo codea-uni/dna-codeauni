@@ -64,14 +64,14 @@ apps/server/src/        Fastify: login (Better Auth), empresas, minas, proyectos
 
 ## Paquetes
 
-| Paquete   | Responsabilidad                                                  | Depende de                 | Externas principales                   |
-| --------- | ---------------------------------------------------------------- | -------------------------- | -------------------------------------- |
-| `core`    | Modelo, DocumentStore, cálculos, IO                              | —                          | zod, flatbush, d3-delaunay, dxf-parser |
-| `engine`  | Escena, cámaras, capas instanciadas, picking, herramientas, loop | core                       | three                                  |
-| `workers` | Cálculos de core e informe PDF fuera del hilo principal          | core                       | comlink, pdf-lib                       |
-| `web`     | UI React, paneles, gráficos, orquestación                        | core, engine, workers, api | react, zustand, echarts, lucide-react  |
-| `api`     | Contratos HTTP y cliente tipado                                  | core                       | zod                                    |
-| `server`  | Login, empresas, minas, proyectos, versiones y auditoría         | core, api                  | fastify, better-auth, kysely, pg       |
+| Paquete   | Responsabilidad                                                            | Depende de                 | Externas principales                     |
+| --------- | -------------------------------------------------------------------------- | -------------------------- | ---------------------------------------- |
+| `core`    | Modelo, DocumentStore, cálculos, IO                                        | —                          | zod, flatbush, d3-delaunay, dxf-parser   |
+| `engine`  | Escena, cámaras, capas instanciadas, picking, herramientas, loop           | core                       | three                                    |
+| `workers` | Cálculos de core, informe PDF y física de la pila fuera del hilo principal | core                       | comlink, pdf-lib, rapier3d-compat (D-17) |
+| `web`     | UI React, paneles, gráficos, orquestación                                  | core, engine, workers, api | react, zustand, echarts, lucide-react    |
+| `api`     | Contratos HTTP y cliente tipado                                            | core                       | zod                                      |
+| `server`  | Login, empresas, minas, proyectos, versiones y auditoría                   | core, api                  | fastify, better-auth, kysely, pg         |
 
 El grafo no tiene ciclos: `core ← engine`, `core ← workers`, `core ← api`, `{core, api} ← server`, `{core, engine, workers, api} ← web`. `engine` no conoce a `workers`: los resultados le llegan a través de la app. Los paquetes internos se consumen desde el fuente (`exports: "./src/index.ts"`).
 
@@ -99,6 +99,7 @@ La fuente de verdad es `packages/core/src/model/types.ts` (esquema en `model/sch
   - `apps/web/src/analysis/runner.ts` pide los cálculos con debounce y aplica _latest-wins_: descarta un resultado si el documento cambió mientras se calculaba.
   - Los resultados vuelven a Zustand (tablas, gráficos) y al engine como capas (contornos, isócronas, colores por tiempo).
   - El pool de varios workers se agrega solo si una medición lo pide.
+  - Excepción (D-17): la animación física de la pila corre en su propio worker (`physics.worker.ts`, Rapier), creado solo al pedirla, para no bloquear el de cómputo. Simula todo y devuelve cuadros que el engine reproduce con el reloj de la secuencia.
 - **Persistencia:** JSON descargable y autoguardado en IndexedDB (`apps/web/src/persistence/`, D-03). Con servidor (D-14), el autoguardado es el borrador y «Guardar versión» publica una versión inmutable del proyecto en su mina.
 
 ## Servidor, empresas e historial (D-14)
@@ -122,56 +123,63 @@ La fuente de verdad es `packages/core/src/model/types.ts` (esquema en `model/sch
 
 Terminología según `docs/theory/references/R1-MINING-PRIMER.md` §2 (glosario). La UI y los documentos usan el término en español; el código usa el identificador. Las filas marcadas «(G_)» todavía no existen en el código y se crean en ese hito con ese nombre.
 
-| Término (ES)                                 | EN                               | Identificador                                            | Unidad interna             |
-| -------------------------------------------- | -------------------------------- | -------------------------------------------------------- | -------------------------- |
-| Banco, altura de banco (H)                   | bench, bench height              | `Bench`, `bench.height`                                  | m                          |
-| Cara libre                                   | free face                        | `FreeFace`, `blast.freeFaces`                            | —                          |
-| Cresta / pie                                 | crest / toe                      | `FreeFace.crest`, `FreeFace.toe`                         | m                          |
-| Burden (B)                                   | burden                           | `pattern.burden`                                         | m                          |
-| Burden efectivo                              | effective burden                 | `effectiveBurden` (G5)                                   | m                          |
-| Espaciamiento (S)                            | spacing                          | `pattern.spacing`                                        | m                          |
-| Malla cuadrada / rectangular / tres bolillos | square / rectangular / staggered | `PatternKind`                                            | —                          |
-| Rigidez H/B                                  | stiffness ratio                  | `stiffnessRatio` (G3)                                    | —                          |
-| Taladro                                      | blast hole                       | `Hole`                                                   | —                          |
-| Collar (boca)                                | collar                           | `hole.collar`                                            | m                          |
-| Diámetro (Ø)                                 | diameter                         | `hole.diameter`                                          | m                          |
-| Longitud del taladro (L)                     | hole length                      | `hole.length`                                            | m                          |
-| Sobreperforación (J)                         | subdrilling                      | `hole.subdrill`                                          | m                          |
-| Inclinación / azimut                         | dip (from vertical) / bearing    | `hole.inclination`, `hole.azimuth`                       | rad                        |
-| Grupo (precorte, buffer, producción)         | presplit, buffer, production     | `HoleGroup` (G1)                                         | —                          |
-| Taco (T)                                     | stemming                         | `StemmingDeck`, `StemmingMaterial`                       | m                          |
-| Deck (tramo)                                 | deck                             | `Deck`                                                   | m                          |
-| Cámara de aire                               | air deck                         | `AirDeck`                                                | m                          |
-| Separador / tapón                            | spacer, stem plug                | `PlugDeck`                                               | m                          |
-| Densidad lineal de carga (DCL)               | linear charge density            | `linearChargeDensity()`                                  | kg/m                       |
-| Esponjamiento (gasificación)                 | gassing swell                    | `Explosive.gassing` (G1)                                 | m                          |
-| Carga por taladro (Q)                        | charge per hole                  | `HoleCharge`                                             | kg                         |
-| Factor de carga                              | loading factor                   | `loadingFactor` (G4; hoy `powderFactorVolume`)           | kg/m³                      |
-| Factor de potencia                           | powder factor                    | `powderFactor` (G4; hoy `powderFactorMass`)              | kg/kg (se muestra en kg/t) |
-| Factor de energía                            | energy factor                    | `energyFactor` (G4)                                      | J/kg (se muestra en MJ/t)  |
-| Profundidad escalada de enterramiento (SDOB) | scaled depth of burial           | `scaledDepthOfBurial` (G4)                               | m/kg^(1/3)                 |
-| Distancia escalada de vibración              | scaled distance                  | `scaledDistance` (G6; hoy implícita en `ppvAt()`)        | m/kg^(1/2)                 |
-| Booster (cebo, prima)                        | booster / primer                 | `Primer`                                                 | kg                         |
-| Detonador                                    | detonator                        | `Detonator`, `InHoleInitiator`                           | —                          |
-| Conector de superficie                       | surface delay connector          | `SurfaceConnector`                                       | —                          |
-| Retardo (de fondo / de superficie)           | delay (downhole / surface)       | `InHoleInitiator.delay`, `SurfaceConnection`             | s                          |
-| Amarre                                       | tie-up                           | `InitiationPlan.connections`, `timing/tieUp.ts`          | —                          |
-| Isotiempos                                   | isochrones                       | `computeIsochrones()`                                    | s                          |
-| Carga máxima instantánea (MIC)               | max. instantaneous charge        | `TimingResult.maxChargePerWindow`, `VibrationResult.mic` | kg                         |
-| Velocidad pico de partícula (PPV)            | peak particle velocity           | `ppvAt()`                                                | m/s                        |
-| Onda aérea (sobrepresión)                    | airblast                         | `airblastAt()`                                           | Pa                         |
-| Proyección de rocas                          | flyrock                          | `lundborgRange()`                                        | m                          |
-| Punto de monitoreo                           | monitoring point                 | `MonitoringPoint`                                        | —                          |
-| Factor de roca (A)                           | rock factor                      | `RockMass.rockFactor`                                    | —                          |
-| X50, P80                                     | median / 80 % passing size       | `FragmentationResult.x50`, `.p80`                        | m                          |
-| Empresa                                      | organization                     | `Organization`                                           | —                          |
-| Mina                                         | mine                             | `Mine`                                                   | —                          |
-| Miembro (rol en la empresa)                  | member                           | `Member`, `Member.role`                                  | —                          |
-| Versión del proyecto                         | project version                  | `ProjectVersion`                                         | —                          |
-| Evento de auditoría                          | audit event                      | `AuditEvent`                                             | —                          |
-| Levantamiento topográfico                    | topographic survey               | `TopographySurvey`                                       | —                          |
-| Cresta / pie (líneas de referencia)          | crest / toe (reference lines)    | `ReferenceLine.role`                                     | m                          |
-| Curvas de nivel                              | contour lines                    | `contoursFromTin()`                                      | m                          |
+| Término (ES)                                 | EN                               | Identificador                                                                | Unidad interna             |
+| -------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------- | -------------------------- |
+| Banco, altura de banco (H)                   | bench, bench height              | `Bench`, `bench.height`                                                      | m                          |
+| Cara libre                                   | free face                        | `FreeFace`, `blast.freeFaces`                                                | —                          |
+| Cresta / pie                                 | crest / toe                      | `FreeFace.crest`, `FreeFace.toe`                                             | m                          |
+| Burden (B)                                   | burden                           | `pattern.burden`                                                             | m                          |
+| Burden efectivo                              | effective burden                 | `effectiveBurden` (G5)                                                       | m                          |
+| Espaciamiento (S)                            | spacing                          | `pattern.spacing`                                                            | m                          |
+| Malla cuadrada / rectangular / tres bolillos | square / rectangular / staggered | `PatternKind`                                                                | —                          |
+| Rigidez H/B                                  | stiffness ratio                  | `stiffnessRatio` (G3)                                                        | —                          |
+| Taladro                                      | blast hole                       | `Hole`                                                                       | —                          |
+| Collar (boca)                                | collar                           | `hole.collar`                                                                | m                          |
+| Diámetro (Ø)                                 | diameter                         | `hole.diameter`                                                              | m                          |
+| Longitud del taladro (L)                     | hole length                      | `hole.length`                                                                | m                          |
+| Sobreperforación (J)                         | subdrilling                      | `hole.subdrill`                                                              | m                          |
+| Inclinación / azimut                         | dip (from vertical) / bearing    | `hole.inclination`, `hole.azimuth`                                           | rad                        |
+| Grupo (precorte, buffer, producción)         | presplit, buffer, production     | `HoleGroup` (G1)                                                             | —                          |
+| Taco (T)                                     | stemming                         | `StemmingDeck`, `StemmingMaterial`                                           | m                          |
+| Deck (tramo)                                 | deck                             | `Deck`                                                                       | m                          |
+| Cámara de aire                               | air deck                         | `AirDeck`                                                                    | m                          |
+| Separador / tapón                            | spacer, stem plug                | `PlugDeck`                                                                   | m                          |
+| Densidad lineal de carga (DCL)               | linear charge density            | `linearChargeDensity()`                                                      | kg/m                       |
+| Esponjamiento (gasificación)                 | gassing swell                    | `Explosive.gassing` (G1)                                                     | m                          |
+| Carga por taladro (Q)                        | charge per hole                  | `HoleCharge`                                                                 | kg                         |
+| Factor de carga                              | loading factor                   | `loadingFactor` (G4; hoy `powderFactorVolume`)                               | kg/m³                      |
+| Factor de potencia                           | powder factor                    | `powderFactor` (G4; hoy `powderFactorMass`)                                  | kg/kg (se muestra en kg/t) |
+| Factor de energía                            | energy factor                    | `energyFactor` (G4)                                                          | J/kg (se muestra en MJ/t)  |
+| Profundidad escalada de enterramiento (SDOB) | scaled depth of burial           | `scaledDepthOfBurial` (G4)                                                   | m/kg^(1/3)                 |
+| Distancia escalada de vibración              | scaled distance                  | `scaledDistance` (G6; hoy implícita en `ppvAt()`)                            | m/kg^(1/2)                 |
+| Booster (cebo, prima)                        | booster / primer                 | `Primer`                                                                     | kg                         |
+| Detonador                                    | detonator                        | `Detonator`, `InHoleInitiator`                                               | —                          |
+| Conector de superficie                       | surface delay connector          | `SurfaceConnector`                                                           | —                          |
+| Retardo (de fondo / de superficie)           | delay (downhole / surface)       | `InHoleInitiator.delay`, `SurfaceConnection`                                 | s                          |
+| Amarre                                       | tie-up                           | `InitiationPlan.connections`, `timing/tieUp.ts`                              | —                          |
+| Isotiempos                                   | isochrones                       | `computeIsochrones()`                                                        | s                          |
+| Carga máxima instantánea (MIC)               | max. instantaneous charge        | `TimingResult.maxChargePerWindow`, `VibrationResult.mic`                     | kg                         |
+| Velocidad pico de partícula (PPV)            | peak particle velocity           | `ppvAt()`                                                                    | m/s                        |
+| Onda aérea (sobrepresión)                    | airblast                         | `airblastAt()`                                                               | Pa                         |
+| Proyección de rocas                          | flyrock                          | `lundborgRange()`                                                            | m                          |
+| Pila de material (muckpile)                  | muckpile                         | `MuckpileResult`, `simulateMuckpile()` (A7)                                  | m, m³                      |
+| Esponjamiento de la roca volada              | swell (bulking) factor           | `calcParams.muckpile.swell` (≠ `Explosive.gassing`)                          | —                          |
+| Ángulo de reposo                             | angle of repose                  | `calcParams.muckpile.reposeAngle`                                            | rad                        |
+| Throw (avance del pie de la pila)            | throw                            | `MuckpileStats.throw`                                                        | m                          |
+| Drop (bajada del techo)                      | drop                             | `MuckpileStats.maxDrop`, `meanDrop`                                          | m                          |
+| Dominio de material o ley                    | material / grade domain          | `BlastDomain`, `blast.domains`                                               | —                          |
+| Cara libre (talud): ángulo y alto            | free face (slope) angle, height  | `bench.faceAngle`, `BlastBoundary.faceAngle`, `faceHeight`, `boundaryFace()` | rad, m                     |
+| Punto de monitoreo                           | monitoring point                 | `MonitoringPoint`                                                            | —                          |
+| Factor de roca (A)                           | rock factor                      | `RockMass.rockFactor`                                                        | —                          |
+| X50, P80                                     | median / 80 % passing size       | `FragmentationResult.x50`, `.p80`                                            | m                          |
+| Empresa                                      | organization                     | `Organization`                                                               | —                          |
+| Mina                                         | mine                             | `Mine`                                                                       | —                          |
+| Miembro (rol en la empresa)                  | member                           | `Member`, `Member.role`                                                      | —                          |
+| Versión del proyecto                         | project version                  | `ProjectVersion`                                                             | —                          |
+| Evento de auditoría                          | audit event                      | `AuditEvent`                                                                 | —                          |
+| Levantamiento topográfico                    | topographic survey               | `TopographySurvey`                                                           | —                          |
+| Cresta / pie (líneas de referencia)          | crest / toe (reference lines)    | `ReferenceLine.role`                                                         | m                          |
+| Curvas de nivel                              | contour lines                    | `contoursFromTin()`                                                          | m                          |
 
 ## Decisiones clave
 

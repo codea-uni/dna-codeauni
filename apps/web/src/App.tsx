@@ -5,6 +5,7 @@ import {
   startEnergyRunner,
   startFragmentationRunner,
   startVibrationRunner,
+  startMuckpileRunner,
 } from './analysis/runner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { StatusBar } from './components/StatusBar';
@@ -63,7 +64,12 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
     const stopAutosave = startAutosave();
     const stopTopography = startTopographySync();
     if (restoreLocalDraft) void restoreLatestAutosave();
-    const stops = [startEnergyRunner(), startFragmentationRunner(), startVibrationRunner()];
+    const stops = [
+      startEnergyRunner(),
+      startFragmentationRunner(),
+      startVibrationRunner(),
+      startMuckpileRunner(),
+    ];
     return () => {
       stopAnalysis();
       stopAutosave();

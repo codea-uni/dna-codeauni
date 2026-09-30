@@ -69,6 +69,7 @@ interface UiState {
     | 'energy'
     | 'fragmentation'
     | 'vibration'
+    | 'muckpile'
     | 'scenarios'
     | 'library';
   /** Perímetro activo (resaltado; destino por defecto al generar mallas). */

@@ -91,6 +91,9 @@ export class Scene3D {
   private cylinders: InstancedMesh | null = null;
   private capacity = 0;
   private readonly dynamic = new Group();
+  /** Caras libres (talud) y planos del banco (techo y piso): se pueden ocultar para ver la pila. */
+  readonly faces = new Group();
+  readonly benchPlanes = new Group();
   /**
    * Superficies topográficas, en caché por triangulación: no se reconstruyen en cada edición del
    * diseño (un TIN de millones de triángulos tarda), solo si cambian o cambia el origen.
@@ -98,6 +101,8 @@ export class Scene3D {
   private readonly surfaces = new Group();
   private readonly surfaceCache = new Map<TinData, Mesh<BufferGeometry, MeshLambertMaterial>>();
   private surfaceOrigin: Vec3 | null = null;
+  /** Polígonos (coordenadas de proyecto) donde la topografía no se dibuja: la roca ya volada. */
+  private surfaceMask: readonly (readonly { x: number; y: number }[])[] | null = null;
   private surfaceOpacity = DEFAULT_3D_OPTIONS.surfaceOpacity;
   bounds: Bounds3 | null = null;
   segmentCount = 0;
@@ -112,7 +117,7 @@ export class Scene3D {
     sun.position.set(0.4, -0.6, 1);
     const fill = new DirectionalLight(0xffffff, 0.5);
     fill.position.set(-0.5, 0.7, 0.3);
-    this.root.add(ambient, sun, fill, this.dynamic, this.surfaces);
+    this.root.add(ambient, sun, fill, this.dynamic, this.surfaces, this.faces, this.benchPlanes);
     this.root.visible = false;
   }
 
@@ -286,7 +291,7 @@ export class Scene3D {
         const g = new BufferGeometry();
         g.setAttribute('position', new Float32BufferAttribute(faceVerts, 3));
         g.computeVertexNormals();
-        this.dynamic.add(
+        this.faces.add(
           new Mesh(
             g,
             new MeshLambertMaterial({
@@ -369,7 +374,7 @@ export class Scene3D {
     );
     mesh.position.z = z;
     mesh.renderOrder = 1;
-    this.dynamic.add(mesh);
+    this.benchPlanes.add(mesh);
   }
 
   private addLines(positions: number[], color: number): void {
@@ -392,9 +397,62 @@ export class Scene3D {
         mesh = this.buildSurface(tin.vertices, tin.triangles, origin);
         this.surfaceCache.set(tin, mesh);
         this.surfaces.add(mesh);
+        this.applyMask(tin, mesh);
       }
       mesh.material.opacity = this.surfaceOpacity;
     }
+  }
+
+  /**
+   * Recorta la topografía (A7b): no dibuja los triángulos cuyo centro cae en alguno de los
+   * polígonos (perímetros volados y su talud), para ver la pila donde antes estaba la roca.
+   * `null` la vuelve a dibujar entera.
+   */
+  setSurfaceMask(polygons: readonly (readonly { x: number; y: number }[])[] | null): void {
+    this.surfaceMask = polygons && polygons.length > 0 ? polygons : null;
+    for (const [tin, mesh] of this.surfaceCache) this.applyMask(tin, mesh);
+  }
+
+  private applyMask(tin: TinData, mesh: Mesh<BufferGeometry, MeshLambertMaterial>): void {
+    const tri = tin.triangles;
+    const mask = this.surfaceMask;
+    if (!mask) {
+      mesh.geometry.setIndex(
+        new BufferAttribute(tri instanceof Uint32Array ? tri : Uint32Array.from(tri), 1),
+      );
+      return;
+    }
+    const v = tin.vertices;
+    const boxes = mask.map((poly) => {
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const p of poly) {
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x);
+        maxY = Math.max(maxY, p.y);
+      }
+      return { poly, minX, minY, maxX, maxY };
+    });
+    const keep = new Uint32Array(tri.length);
+    let n = 0;
+    for (let t = 0; t + 2 < tri.length; t += 3) {
+      const a = (tri[t] ?? 0) * 3;
+      const b = (tri[t + 1] ?? 0) * 3;
+      const c = (tri[t + 2] ?? 0) * 3;
+      const x = ((v[a] ?? 0) + (v[b] ?? 0) + (v[c] ?? 0)) / 3;
+      const y = ((v[a + 1] ?? 0) + (v[b + 1] ?? 0) + (v[c + 1] ?? 0)) / 3;
+      const cut = boxes.some(
+        (m) => x >= m.minX && x <= m.maxX && y >= m.minY && y <= m.maxY && inside(x, y, m.poly),
+      );
+      if (cut) continue;
+      keep[n++] = tri[t] ?? 0;
+      keep[n++] = tri[t + 1] ?? 0;
+      keep[n++] = tri[t + 2] ?? 0;
+    }
+    mesh.geometry.setIndex(new BufferAttribute(keep.slice(0, n), 1));
   }
 
   private dropSurface(tin: TinData): void {
@@ -475,6 +533,14 @@ export class Scene3D {
   }
 
   private clearDynamic(): void {
+    for (const group of [this.faces, this.benchPlanes])
+      for (const child of [...group.children] as Object3D[]) {
+        group.remove(child);
+        if (child instanceof Mesh) {
+          (child.geometry as BufferGeometry).dispose();
+          (child.material as { dispose(): void }).dispose();
+        }
+      }
     for (const child of [...this.dynamic.children] as Object3D[]) {
       this.dynamic.remove(child);
       if (child === this.cylinders) continue;
@@ -489,4 +555,16 @@ export class Scene3D {
       }
     }
   }
+}
+
+/** Punto en polígono (par-impar). */
+function inside(x: number, y: number, poly: readonly { x: number; y: number }[]): boolean {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i];
+    const b = poly[j];
+    if (!a || !b) continue;
+    if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
 }

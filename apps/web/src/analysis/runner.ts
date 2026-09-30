@@ -7,6 +7,7 @@ import {
   type EnergyOptions,
 } from '@cronos/core';
 import { getCompute, session } from '../session';
+import { topographyTin } from '../topography/session';
 import { useAnalysisStore } from '../stores/analysisStore';
 
 const DEBOUNCE_MS = 120;
@@ -95,10 +96,15 @@ export function startEnergyRunner(): () => void {
     const mine = ++token;
     s.set({ energyComputing: true });
     try {
+      // Con la topografía del banco, arriba del terreno es aire (A7b).
+      const tin = blast.bench.topographyId
+        ? (topographyTin(blast.bench.topographyId) ?? null)
+        : null;
       const energy = await getCompute().api.computeEnergy(
         session.document.project,
         blast.id,
         options,
+        tin,
       );
       if (mine !== token) return;
       useAnalysisStore.getState().set({ energy, energyComputing: false });
@@ -241,4 +247,59 @@ export function startVibrationRunner(): () => void {
     offOptions();
     if (timer) clearTimeout(timer);
   };
+}
+
+/**
+ * Pila de material (A7): se calcula en el worker cuando se pide (botón «Calcular»), con la
+ * topografía del banco si la voladura la usa. El perfil se rehace al trazar otra sección.
+ */
+export function startMuckpileRunner(): () => void {
+  let token = 0;
+  const run = async () => {
+    const blast = session.document.project.blasts[0];
+    if (!blast) return;
+    const version = session.document.version;
+    const tin = blast.bench.topographyId ? (topographyTin(blast.bench.topographyId) ?? null) : null;
+    const mine = ++token;
+    useAnalysisStore.getState().set({ muckpileComputing: true });
+    try {
+      const muckpile = await getCompute().api.computeMuckpile(
+        session.document.project,
+        blast.id,
+        tin,
+      );
+      if (mine !== token) return;
+      useAnalysisStore.getState().set({
+        muckpile,
+        muckpileVersion: version,
+        muckpileComputing: false,
+        muckpileFrames: null,
+        muckpileCompare: null,
+      });
+    } catch (err) {
+      console.error('[pila]', err);
+      useAnalysisStore.getState().set({ muckpileComputing: false });
+    }
+  };
+  let sectionToken = 0;
+  const section = async () => {
+    const { muckpile, muckpileSection } = useAnalysisStore.getState();
+    if (!muckpile || !muckpileSection || muckpile.grids.after.nx === 0) {
+      useAnalysisStore.getState().set({ muckpileProfile: null });
+      return;
+    }
+    const mine = ++sectionToken;
+    const { base, before, after } = muckpile.grids;
+    const profile = await getCompute().api.muckpileSection(
+      { base, before, after },
+      muckpileSection.a,
+      muckpileSection.b,
+    );
+    if (mine === sectionToken) useAnalysisStore.getState().set({ muckpileProfile: profile });
+  };
+  const off = useAnalysisStore.subscribe((s, prev) => {
+    if (s.muckpileRequest !== prev.muckpileRequest) void run();
+    if (s.muckpile !== prev.muckpile || s.muckpileSection !== prev.muckpileSection) void section();
+  });
+  return off;
 }

@@ -72,7 +72,7 @@ describe('archivo de proyecto', () => {
     const parsed = parseProjectFile(text);
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.file.project).toEqual({ ...project, updatedAt: now.toISOString() });
-    expect(parsed.file.schemaVersion).toBe(12);
+    expect(parsed.file.schemaVersion).toBe(14);
     expect(parsed.file.format).toBe('cronos-project');
   });
 
@@ -218,7 +218,7 @@ describe('archivo de proyecto', () => {
     >;
     const r = parseProjectFile(JSON.stringify({ ...v11, schemaVersion: 11 }));
     if (!r.ok) throw new Error(r.error);
-    expect(r.file.schemaVersion).toBe(12);
+    expect(r.file.schemaVersion).toBe(14);
     for (const b of r.file.project.blasts[0]?.boundaries ?? [])
       expect(b.floorElevation).toBeUndefined();
     // Un piso propio se conserva al guardar y abrir.
@@ -229,6 +229,77 @@ describe('archivo de proyecto', () => {
     const back = parseProjectFile(serializeProject(project, { appVersion: 'x' }));
     if (!back.ok) throw new Error(back.error);
     expect(back.file.project.blasts[0]?.boundaries[0]?.floorElevation).toBe(3340);
+  });
+
+  it('migra v12 → v13: parámetros de la pila de material (A7) con sus valores por defecto', () => {
+    const v12 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
+      project: { blasts: { calcParams: Record<string, unknown>; domains?: unknown }[] };
+    };
+    const blast = v12.project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    delete blast.calcParams.muckpile;
+    delete blast.domains;
+    const r = parseProjectFile(JSON.stringify({ ...v12, schemaVersion: 12 }));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.file.schemaVersion).toBe(14);
+    const m = r.file.project.blasts[0]?.calcParams.muckpile;
+    expect(m?.velocityModel).toBe('zhang');
+    expect(m?.swell).toBe(1.5);
+    expect(m?.reposeAngle).toBeCloseTo((37 * Math.PI) / 180, 12);
+    expect(r.file.project.blasts[0]?.domains).toBeUndefined();
+    // Un campo guardado se conserva y los que falten se completan.
+    blast.calcParams.muckpile = { swell: 1.25 };
+    const partial = parseProjectFile(JSON.stringify({ ...v12, schemaVersion: 12 }));
+    if (!partial.ok) throw new Error(partial.error);
+    expect(partial.file.project.blasts[0]?.calcParams.muckpile.swell).toBe(1.25);
+    expect(partial.file.project.blasts[0]?.calcParams.muckpile.blockSize).toBe(1.5);
+    // Los dominios se guardan y se abren.
+    const project = sampleProject();
+    const b = project.blasts[0];
+    if (!b) throw new Error('sin voladura');
+    b.domains = [
+      {
+        id: 'd' as never,
+        name: 'Mineral',
+        material: 'Óxido',
+        grade: 0.9,
+        color: '#aa8800',
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+          { x: 1, y: 1 },
+        ],
+      },
+    ];
+    const back = parseProjectFile(serializeProject(project, { appVersion: 'x' }));
+    if (!back.ok) throw new Error(back.error);
+    expect(back.file.project.blasts[0]?.domains?.[0]?.grade).toBe(0.9);
+  });
+
+  it('migra v13 → v14: cara libre propia por perímetro y lanzamiento según la cara (A7b)', () => {
+    const v13 = JSON.parse(serializeProject(sampleProject(), { appVersion: 'x' })) as {
+      project: { blasts: { calcParams: { muckpile: Record<string, unknown> } }[] };
+    };
+    const blast = v13.project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    delete blast.calcParams.muckpile.launchFromFace;
+    const r = parseProjectFile(JSON.stringify({ ...v13, schemaVersion: 13 }));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.file.schemaVersion).toBe(14);
+    expect(r.file.project.blasts[0]?.calcParams.muckpile.launchFromFace).toBe(true);
+    for (const b of r.file.project.blasts[0]?.boundaries ?? []) expect(b.faceAngle).toBeUndefined();
+    // Ángulo y alto propios se conservan al guardar y abrir.
+    const project = sampleProject();
+    const boundary = project.blasts[0]?.boundaries[0];
+    if (!boundary) throw new Error('sin perímetro');
+    boundary.faceAngle = 1.1;
+    boundary.faceHeight = 12;
+    const back = parseProjectFile(serializeProject(project, { appVersion: 'x' }));
+    if (!back.ok) throw new Error(back.error);
+    expect(back.file.project.blasts[0]?.boundaries[0]).toMatchObject({
+      faceAngle: 1.1,
+      faceHeight: 12,
+    });
   });
 
   it('migra v10 → v11: la superficie en línea pasa a levantamiento con su asset embebido (D-16)', () => {

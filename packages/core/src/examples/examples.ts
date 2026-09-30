@@ -145,7 +145,18 @@ export interface ExampleSpec {
 
 export type ExampleTiming =
   | { mode: 'v' | 'line' | 'echelon'; interHole: string; interRow: string }
-  | { mode: 'electronic'; interHoleMs: number; interRowMs: number };
+  | {
+      mode: 'electronic';
+      interHoleMs: number;
+      interRowMs: number;
+      /**
+       * Intervalos tal cual, aunque las filas se superpongan (p. ej. 25 ms entre taladros y 67 ms
+       * entre filas); por defecto la fila siguiente espera al último taladro de la anterior.
+       */
+      exact?: boolean;
+      /** Taladro de salida de cada fila: el de menor columna (defecto) o el de mayor. */
+      from?: 'first' | 'last';
+    };
 
 /** Construye un proyecto completo (malla, carga, iniciación y puntos de control) a partir de la receta. */
 export function buildExample(spec: ExampleSpec): Project {
@@ -299,14 +310,13 @@ function applyTiming(blast: Blast, pattern: Pattern, t: ExampleTiming, lib: Prod
     const maxCol = allCols.length ? Math.max(...allCols) : 0;
     // Taladro a taladro: la fila siguiente empieza un intervalo después del último de la anterior,
     // así ningún par queda dentro de la ventana de coincidencia.
-    const interRowMs = Math.max(
-      t.interRowMs,
-      (maxCol - minCol + 1) * t.interHoleMs + t.interHoleMs,
-    );
+    const interRowMs = t.exact
+      ? t.interRowMs
+      : Math.max(t.interRowMs, (maxCol - minCol + 1) * t.interHoleMs + t.interHoleMs);
     const times = electronicTimes(clean, {
       patternId: pattern.id,
       startRow: 0,
-      startCol: minCol,
+      startCol: t.from === 'last' ? maxCol : minCol,
       interHole: t.interHoleMs / 1000,
       interRow: interRowMs / 1000,
       offset: 0.01,
@@ -520,6 +530,45 @@ export const EXAMPLE_SPECS = {
     monitoring: [{ name: 'Mirador', dx: 45, dy: 300 }],
     rock: ROCK,
   } satisfies ExampleSpec,
+  /**
+   * Caso de ejemplo de la pila de material (A7, pedido del usuario; demostración y regresión, no
+   * es un CR): banco de 10 m, malla 4 × 5 m, 3 filas × 8 taladros, 25 ms entre taladros y 67 ms
+   * entre filas (electrónicos), cara libre al Norte.
+   */
+  muckpile: {
+    projectName: 'Demo · Pila de material',
+    blastName: 'Banco 3500 · Desplazamiento',
+    origin: ORIGIN,
+    floorElevation: 3500,
+    benchHeight: 10,
+    faceAngleDeg: 75,
+    // Rectángulo de 40 × 14 m; la arista 2 (Norte) es la cara libre (primera fila a un burden).
+    perimeter: [
+      { x: 0, y: 0 },
+      { x: 40, y: 0 },
+      { x: 40, y: 14 },
+      { x: 0, y: 14 },
+    ],
+    freeFaceEdges: [2],
+    pattern: { kind: 'rectangular', burden: 4, spacing: 5, diameterMm: 127, subdrill: 1 },
+    frontOffset: 4,
+    charge: () => ({
+      column: 'Emulsión bombeable',
+      stemming: 2.5,
+      primer: 'Booster 450',
+      detonator: 'Electrónico',
+    }),
+    timing: { mode: 'electronic', interHoleMs: 25, interRowMs: 67, exact: true },
+    scenarios: [
+      {
+        name: 'Salida desde el Este',
+        timing: { mode: 'electronic', interHoleMs: 25, interRowMs: 67, exact: true, from: 'last' },
+      },
+    ],
+    groups: () => ({ name: 'Producción', kind: 'production' }),
+    monitoring: [{ name: 'Oficina de mina', dx: 20, dy: -300 }],
+    rock: ROCK,
+  } satisfies ExampleSpec,
 };
 
 export const EXAMPLES: ExampleInfo[] = [
@@ -549,6 +598,13 @@ export const EXAMPLES: ExampleInfo[] = [
     name: 'Taladros inclinados',
     description: 'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
     build: () => buildExample(EXAMPLE_SPECS.inclined),
+  },
+  {
+    id: 'muckpile',
+    name: 'Pila de material',
+    description:
+      'Banco de 10 m · malla 4 × 5 m · 3 filas × 8 taladros · 25 ms entre taladros y 67 ms entre filas · para ver el desplazamiento y la pila (A7)',
+    build: () => buildExample(EXAMPLE_SPECS.muckpile),
   },
   {
     id: 'topoPit',

@@ -157,6 +157,8 @@ const blast: z.ZodType<M.Blast> = z.object({
       polygon: polygon2,
       freeFaceEdges: z.array(z.int().nonnegative()),
       floorElevation: num.exactOptional(),
+      faceAngle: pos.exactOptional(),
+      faceHeight: pos.exactOptional(),
     }),
   ),
   freeFaces: z.array(freeFace),
@@ -180,6 +182,20 @@ const blast: z.ZodType<M.Blast> = z.object({
     sdobBands: z.array(nonNeg),
     drillingCostPerMeter: nonNeg,
     displacement: z.object({ cB: pos, theta: pos, rowFactor: pos }),
+    muckpile: z.object({
+      velocityModel: z.enum(['zhang', 'scaledBurden', 'richardsMoore']),
+      k: pos,
+      n: num,
+      launchAngleFloor: num,
+      launchAngleCrest: num,
+      launchFromFace: z.boolean(),
+      swell: pos,
+      reposeAngle: pos,
+      blockSize: pos,
+      stemmingFactor: nonNeg,
+      floorFactor: nonNeg,
+      distanceDecay: nonNeg,
+    }),
     subdrillConvention: z.enum(['vertical', 'lopezJimeno']),
     delayGuide: z.object({ interHole: range, interRow: range }),
     checks: z.object({
@@ -202,6 +218,18 @@ const blast: z.ZodType<M.Blast> = z.object({
       uniformityRange: range,
     }),
   }),
+  domains: z
+    .array(
+      z.object({
+        id: id<'Domain'>(),
+        name: z.string(),
+        polygon: polygon2,
+        material: z.string(),
+        grade: num.exactOptional(),
+        color: z.string(),
+      }),
+    )
+    .exactOptional(),
   notes: z.string().exactOptional(),
 });
 
@@ -397,7 +425,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({
   format: z.literal('cronos-project'),
-  schemaVersion: z.literal(12),
+  schemaVersion: z.literal(14),
   savedAt: z.string(),
   appVersion: z.string(),
   project: projectSchema,

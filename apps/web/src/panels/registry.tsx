@@ -6,6 +6,7 @@ import {
   Layers,
   LayoutGrid,
   Library,
+  Mountain,
   MousePointerClick,
   Shapes,
   SlidersHorizontal,
@@ -21,6 +22,7 @@ import { FragmentationPanel } from './FragmentationPanel';
 import { GroupsPanel } from './GroupsPanel';
 import { LibraryPanel } from './LibraryPanel';
 import { MapPanel } from './MapPanel';
+import { MuckpilePanel } from './MuckpilePanel';
 import { PatternPanel } from './PatternPanel';
 import { PropertiesPanel } from './PropertiesPanel';
 import { ResultsPanel } from './ResultsPanel';
@@ -59,6 +61,14 @@ export const LEFT_TABS = [
     id: 'vibration',
     label: 'app.tab.vibration',
     icon: Activity,
+    group: 'analysis',
+    requires: 'charged',
+  },
+  {
+    id: 'muckpile',
+    label: 'app.tab.muckpile',
+    icon: Mountain,
+    title: 'app.tab.muckpile.title',
     group: 'analysis',
     requires: 'charged',
   },
@@ -117,6 +127,8 @@ export function PanelContent({ id }: { id: PanelId }) {
       return <FragmentationPanel />;
     case 'vibration':
       return <VibrationPanel />;
+    case 'muckpile':
+      return <MuckpilePanel />;
     case 'scenarios':
       return <ScenariosPanel />;
     case 'library':

@@ -41,6 +41,7 @@ export type BoundaryId = Id<'Boundary'>;
 export type MonitoringPointId = Id<'MonitoringPoint'>;
 export type HoleGroupId = Id<'HoleGroup'>;
 export type ScenarioId = Id<'Scenario'>;
+export type DomainId = Id<'Domain'>;
 
 /** Punto en coordenadas de proyecto [m], float64. */
 export interface Vec3 {
@@ -165,7 +166,68 @@ export interface Blast {
   initiation: InitiationPlan;
   /** Parámetros de cálculo de esta voladura. */
   calcParams: CalcParams;
+  /** Dominios de material o ley en planta: se transportan con la pila (dilución, A7). */
+  domains?: BlastDomain[];
   notes?: string;
+}
+
+/**
+ * Dominio de material o ley (A7, dilución): polígono en planta que cubre todo el alto del banco.
+ * Cada bloque de la pila hereda el dominio de su posición in situ y lo lleva a su destino.
+ */
+export interface BlastDomain {
+  id: DomainId;
+  name: string;
+  /** Polígono cerrado en planta [m]. */
+  polygon: Polygon2;
+  /** Tipo de material (p. ej. «Mineral», «Desmonte»). */
+  material: string;
+  /** Ley del dominio en la unidad que elija el usuario (p. ej. % Cu); opcional. */
+  grade?: number;
+  /** Color de presentación (#rrggbb). */
+  color: string;
+}
+
+/**
+ * Modelo de velocidad inicial de la pila (A7): Zhang (FC-36, R3), ley de potencia con la carga
+ * del taladro (FC-40, R0) o velocidad de cara de Richards & Moore (FC-45, R1).
+ */
+export type MuckpileVelocityModel = 'zhang' | 'scaledBurden' | 'richardsMoore';
+
+/**
+ * Parámetros de la pila de material (A7, `packages/core/src/muckpile/README.md`). Todo lo que no
+ * tiene fuente numérica es parámetro del usuario (regla de dominio 3; `docs/RULES.md` FC-39…45).
+ */
+export interface MuckpileParams {
+  /**
+   * Velocidad inicial: Zhang con el burden efectivo (defecto), v0 = k·(Q^⅓/B)^n o
+   * v0 = k·(√m/B)^n de Richards & Moore (m = carga por metro).
+   */
+  velocityModel: MuckpileVelocityModel;
+  /** k de la ley de potencia [m/s] (FC-40: R0, calibrar; FC-45: 13,5 roca blanda, 27 dura). */
+  k: number;
+  /** Exponente n (FC-40: R0, calibrar; FC-45: 1,3). */
+  n: number;
+  /** Ángulo de lanzamiento sobre la horizontal al pie y en la cresta del banco [rad] (FC-43). */
+  launchAngleFloor: Radians;
+  launchAngleCrest: Radians;
+  /**
+   * Lanzamiento según la cara (A7b): el ángulo medio es el de la normal a la cara, 90° − β, y los
+   * de pie y cresta solo fijan cuánto varía con la altura (FC-37, FC-43).
+   */
+  launchFromFace: boolean;
+  /** Factor de esponjamiento de la roca volada: V_suelto / V_in situ (FC-41). */
+  swell: Ratio;
+  /** Ángulo de reposo del material volado [rad] (FC-42). */
+  reposeAngle: Radians;
+  /** Lado del bloque de discretización y de la celda de la pila [m]. */
+  blockSize: Meters;
+  /** Factor de velocidad de los bloques a la altura del taco (sobre la carga) (FC-43, R0). */
+  stemmingFactor: Ratio;
+  /** Factor de velocidad de la capa del piso (confinamiento del pie) (FC-43, R0). */
+  floorFactor: Ratio;
+  /** Atenuación por distancia al taladro: v·exp(−λ·r/B) (FC-43, R0). */
+  distanceDecay: Ratio;
 }
 
 /**
@@ -188,6 +250,8 @@ export interface CalcParams {
    * ordinaria), semiángulo de rotura θ [rad] (45°) y reducción por fila k (0,6–0,8, calibración; S-01).
    */
   displacement: { cB: Ratio; theta: Radians; rowFactor: Ratio };
+  /** Pila de material (A7): modelo cinemático de desplazamiento y depósito. */
+  muckpile: MuckpileParams;
   /** Costo de perforación [US$/m] (`R1` F28; 0 = sin dato). */
   drillingCostPerMeter: number;
   /** Cortes ascendentes de las bandas de SDOB [m/kg^(1/3)] (`R1` F12, P-20). */
@@ -275,6 +339,13 @@ export interface BlastBoundary {
    * una voladura pueden estar en bancos distintos y cada uno conserva su piso.
    */
   floorElevation?: Meters;
+  /**
+   * Ángulo propio de la cara libre (talud) de este perímetro desde la horizontal [rad]; si falta, el
+   * del banco. Permite adaptar cada perímetro a su topografía (A7b).
+   */
+  faceAngle?: Radians;
+  /** Alto propio de la cara libre, de la cresta al pie [m]; si falta, la altura del banco. */
+  faceHeight?: Meters;
 }
 
 export interface Bench {
@@ -284,7 +355,7 @@ export interface Bench {
   height: Meters;
   /** Levantamiento topográfico de la superficie del banco (opcional; si falta, plano en floorElevation + height). */
   topographyId?: TopographySurveyId;
-  /** Ángulo de la cara del banco medido desde la horizontal [rad]. */
+  /** Ángulo de la cara libre (talud) medido desde la horizontal [rad]; cada perímetro puede tener el suyo. */
   faceAngle: Radians;
 }
 

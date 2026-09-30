@@ -10,6 +10,8 @@ import {
 import {
   DEFAULT_HOLE_TEMPLATE,
   LineSnapIndex,
+  freeFaceQuads,
+  pointInPolygon,
   snapPoint,
   type Blast,
   type BlastId,
@@ -18,6 +20,7 @@ import {
   type ConnectionId,
   type DiffMarker,
   type TinData,
+  type ScalarGrid,
   type SurfaceConnectorId,
   type DocumentStore,
   type HoleId,
@@ -53,6 +56,14 @@ import { HolesLayer } from './layers/HolesLayer';
 import { InitiationLayer } from './layers/InitiationLayer';
 import { IsochronesLayer, type IsochroneData } from './layers/IsochronesLayer';
 import { LabelsLayer } from './layers/LabelsLayer';
+import { BlocksLayer, type BlocksData } from './layers/BlocksLayer';
+import { DomainsLayer } from './layers/DomainsLayer';
+import {
+  MuckpileBeforeLayer,
+  MuckpileSurfaceLayer,
+  type MuckpileSurfaceData,
+} from './layers/MuckpileLayer';
+import { VectorsLayer, type VectorsData } from './layers/VectorsLayer';
 import { OverlayLayer } from './layers/OverlayLayer';
 import { RenderLoop, type FrameStats } from './loop/RenderLoop';
 import { HolePicker } from './picking/HolePicker';
@@ -61,6 +72,8 @@ import { BoundaryTool } from './tools/BoundaryTool';
 import { FreeFaceTool } from './tools/FreeFaceTool';
 import { MonitorTool } from './tools/MonitorTool';
 import { MeasureTool } from './tools/MeasureTool';
+import { SectionTool } from './tools/SectionTool';
+import { DomainTool } from './tools/DomainTool';
 import {
   DEFAULT_DECORATIONS,
   MapDecorations,
@@ -93,6 +106,8 @@ export interface EngineEvents extends Record<string, unknown> {
   activeBoundary: BoundaryId | null;
   /** Cambió la vista (planta o 3D). */
   viewMode: ViewMode;
+  /** Se trazó una sección para el perfil de la pila (A7). */
+  section: { a: Vec2; b: Vec2 };
 }
 
 export type ViewMode = 'plan' | '3d';
@@ -109,7 +124,29 @@ export type EngineLayer =
   | 'topoImage'
   | 'topoShade'
   | 'topoContours'
-  | 'topoLines';
+  | 'topoLines'
+  | 'muckpile'
+  | 'muckpileBefore'
+  | 'muckpileVectors'
+  | 'muckpileBlocks'
+  | 'domains'
+  | 'faces'
+  | 'benchPlanes';
+
+/**
+ * Pila de material (A7) lista para dibujar: superficie (3D y raster en planta), techo in situ,
+ * vectores por taladro y bloques animados con el reloj de la secuencia.
+ */
+export interface MuckpileView {
+  surface: MuckpileSurfaceData | null;
+  /** Raster coloreado para la planta (mismo color que la superficie 3D). */
+  plan: EnergyData | null;
+  before: { before: ScalarGrid; base: ScalarGrid } | null;
+  vectors: VectorsData | null;
+  blocks: BlocksData | null;
+  /** Fin del movimiento [s] (último impacto y asentamiento): la animación llega hasta aquí. */
+  end: number;
+}
 
 /** Valores escalares por taladro para colorear con el mapa turbo. */
 export interface HoleScalars {
@@ -187,6 +224,20 @@ export class Engine {
   private energyData: EnergyData | null = null;
   private readonly vibration = new EnergyLayer();
   private vibrationData: EnergyData | null = null;
+  // Pila de material (A7): raster y flechas en planta; superficie, vectores y bloques en 3D.
+  private readonly muckpilePlan = new EnergyLayer();
+  private readonly muckpileArrows = new IsochronesLayer();
+  private readonly muckpileSurface3d = new MuckpileSurfaceLayer();
+  private readonly muckpileBefore3d = new MuckpileBeforeLayer();
+  private readonly muckpileVectors3d = new VectorsLayer();
+  private readonly muckpileBlocks = new BlocksLayer();
+  private readonly muckpileBlocksRoot = new Group();
+  private muckpileData: MuckpileView | null = null;
+  private lastCut: { data: MuckpileView | null; blasts: readonly Blast[] } | null = null;
+  private readonly domains = new DomainsLayer();
+  /** Sección trazada (perfil de la pila). */
+  private readonly sectionLine = new IsochronesLayer();
+  private sectionData: IsochroneData | null = null;
   private readonly site = new SiteLayer();
   /** Comparación de versiones (D-14): marcadores de taladros agregados, quitados y movidos. */
   private readonly versionDiff = new VersionDiffLayer();
@@ -216,6 +267,13 @@ export class Engine {
     topoShade: true,
     topoContours: true,
     topoLines: true,
+    muckpile: true,
+    muckpileBefore: false,
+    muckpileVectors: true,
+    muckpileBlocks: true,
+    domains: true,
+    faces: true,
+    benchPlanes: true,
   };
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
@@ -242,6 +300,8 @@ export class Engine {
     freeFace: new FreeFaceTool(),
     monitor: new MonitorTool(),
     measure: new MeasureTool(),
+    section: new SectionTool(),
+    domain: new DomainTool(),
     pan: new PanTool(),
     tie: new TieTool(),
     initiate: new InitiateTool(),
@@ -302,7 +362,16 @@ export class Engine {
       this.site3d.root,
       this.labels3d.mesh,
       this.siteLabels3d.mesh,
+      this.muckpileSurface3d.root,
+      this.muckpileBefore3d.root,
+      this.muckpileVectors3d.root,
+      this.muckpileBlocksRoot,
     );
+    this.muckpileBlocks.onMeshChange = (mesh, previous) => {
+      if (previous) this.muckpileBlocksRoot.remove(previous);
+      if (mesh) this.muckpileBlocksRoot.add(mesh);
+      this.loop.invalidate();
+    };
     this.planRoot.add(
       this.topography.shadeRoot,
       this.topography.imageRoot,
@@ -311,8 +380,12 @@ export class Engine {
       this.topography.lineRoot,
       this.energy.root,
       this.vibration.root,
+      this.muckpilePlan.root,
+      this.domains.lines,
       this.isochrones.lines,
       this.displacement.lines,
+      this.muckpileArrows.lines,
+      this.sectionLine.lines,
       this.boundaries.root,
       this.initiation.root,
       this.holes.root,
@@ -735,7 +808,13 @@ export class Engine {
    * Animación de la secuencia de disparo. `times` en segundos por taladro.
    * `speed` = segundos de secuencia por segundo real (p.ej. 0.1 → 10× más lento).
    */
-  playSequence(times: ReadonlyMap<HoleId, number>, speed: number, from?: number): void {
+  playSequence(
+    times: ReadonlyMap<HoleId, number>,
+    speed: number,
+    from?: number,
+    /** Fin de la animación [s] si va más allá del último disparo (vuelo de la pila, A7). */
+    until?: number,
+  ): void {
     let first = Infinity;
     let end = -Infinity;
     for (const t of times.values()) {
@@ -743,13 +822,15 @@ export class Engine {
       end = Math.max(end, t);
     }
     if (!Number.isFinite(first)) return;
-    const start = from ?? (this.sequence && this.sequence.t < end ? this.sequence.t : first - 0.05);
+    const last = Math.max(end, until ?? this.muckpileData?.end ?? -Infinity);
+    const start =
+      from ?? (this.sequence && this.sequence.t < last ? this.sequence.t : first - 0.05);
     this.sequence = {
       times,
       t: start,
       playing: true,
       speed,
-      end: end + 0.3,
+      end: Math.max(end + 0.3, until ?? this.muckpileData?.end ?? -Infinity),
       last: performance.now(),
     };
     this.applyHoleColors();
@@ -768,6 +849,9 @@ export class Engine {
     const speed = this.sequence?.speed ?? 0.1;
     this.sequence = { times, t, playing: false, speed, end: Infinity, last: performance.now() };
     this.applyHoleColors();
+    this.muckpileBlocks.update(t);
+    this.applyMuckpileSurfaceVisibility();
+    this.loop.invalidate();
     this.events.emit('sequenceTime', t);
   }
 
@@ -775,7 +859,118 @@ export class Engine {
     if (!this.sequence) return;
     this.sequence = null;
     this.applyHoleColors();
+    this.muckpileBlocks.update(null);
+    this.applyMuckpileSurfaceVisibility();
+    this.loop.invalidate();
     this.events.emit('sequenceTime', null);
+  }
+
+  /** Pila de material (A7); `null` la quita. Los bloques quedan en la pila final hasta animarlos. */
+  setMuckpile(view: MuckpileView | null): void {
+    this.muckpileData = view;
+    this.applyMuckpilePlan();
+    this.rebuildMuckpile3d();
+    this.applyView();
+  }
+
+  /** Colores nuevos de superficie y bloques (otro modo de color) sin rehacer la geometría. */
+  setMuckpileColors(
+    surface: Uint8Array | null,
+    plan: EnergyData | null,
+    blocks: Uint8Array | null,
+  ): void {
+    const data = this.muckpileData;
+    if (!data) return;
+    this.muckpileData = {
+      ...data,
+      surface: data.surface && surface ? { ...data.surface, colors: surface } : data.surface,
+      plan,
+      blocks: data.blocks && blocks ? { ...data.blocks, colors: blocks } : data.blocks,
+    };
+    this.applyMuckpilePlan();
+    this.muckpileSurface3d.set(this.muckpileData.surface, this.origin);
+    if (blocks) this.muckpileBlocks.setColors(blocks);
+    this.loop.invalidate();
+  }
+
+  /** Opacidad de la superficie de la pila (0–1). */
+  setMuckpileOpacity(opacity: number): void {
+    this.muckpileSurface3d.setOpacity(opacity);
+    this.muckpilePlan.setOpacity(Math.min(0.9, opacity));
+    this.loop.invalidate();
+  }
+
+  /** Línea de la sección del perfil (A7); `null` la quita. */
+  setSectionLine(a: Vec2 | null, b: Vec2 | null): void {
+    this.sectionData =
+      a && b
+        ? {
+            segments: Float64Array.from([a.x, a.y, b.x, b.y]),
+            levels: Float32Array.from([1]),
+            min: 0,
+            max: 1,
+          }
+        : null;
+    this.sectionLine.set(this.sectionData, this.origin);
+    this.loop.invalidate();
+  }
+
+  /** La superficie final de la pila se oculta mientras los bloques todavía vuelan. */
+  private applyMuckpileSurfaceVisibility(): void {
+    const seq = this.sequence;
+    const end = this.muckpileData?.end ?? -Infinity;
+    const flying = seq !== null && seq.t < end;
+    this.muckpileSurface3d.root.visible = this.layerVisible.muckpile && !flying;
+  }
+
+  private applyMuckpilePlan(): void {
+    const data = this.muckpileData;
+    this.muckpilePlan.set(data?.plan ?? null, this.origin);
+    this.muckpileArrows.set(data?.vectors ? planArrows(data.vectors) : null, this.origin);
+  }
+
+  /**
+   * Con la pila a la vista, la topografía se recorta en los perímetros volados y su talud (la roca
+   * ya salió): se ve la pila, también delante de la cara libre (A7b).
+   */
+  private applyTopographyCut(): void {
+    const v = this.layerVisible;
+    const show = this.muckpileData !== null && (v.muckpile || v.muckpileBlocks);
+    // Solo se recalcula si cambió algo que lo afecta (se llama en cada cambio de vista).
+    const key = { data: show ? this.muckpileData : null, blasts: this.document.project.blasts };
+    if (this.lastCut?.data === key.data && this.lastCut.blasts === key.blasts) return;
+    this.lastCut = key;
+    if (!show) {
+      this.scene3d.setSurfaceMask(null);
+      return;
+    }
+    const polygons: Vec2[][] = [];
+    for (const blast of this.document.project.blasts)
+      for (const b of blast.boundaries) {
+        if (b.polygon.length < 3) continue;
+        const charged = blast.holes.some(
+          (h) =>
+            h.decks.some((d) => d.kind === 'explosive') &&
+            pointInPolygon(h.collar.x, h.collar.y, b.polygon),
+        );
+        if (!charged) continue;
+        polygons.push([...b.polygon]);
+        for (const q of freeFaceQuads(b, blast.bench))
+          polygons.push(q.map((p) => ({ x: p.x, y: p.y })));
+      }
+    this.scene3d.setSurfaceMask(polygons);
+  }
+
+  /** Capas 3D de la pila (se rehacen al cambiar datos, vista u origen). */
+  private rebuildMuckpile3d(): void {
+    this.applyTopographyCut();
+    const data = this.muckpileData;
+    this.muckpileSurface3d.set(data?.surface ?? null, this.origin);
+    this.muckpileBefore3d.set(data?.before ?? null, this.origin);
+    this.muckpileVectors3d.set(data?.vectors ?? null, this.origin);
+    this.muckpileBlocks.set(data?.blocks ?? null, this.origin);
+    if (this.sequence) this.muckpileBlocks.update(this.sequence.t);
+    this.loop.invalidate();
   }
 
   /**
@@ -815,6 +1010,14 @@ export class Engine {
     this.topography.dispose();
     this.siteLabels.dispose();
     this.overlay.dispose();
+    this.muckpilePlan.dispose();
+    this.muckpileArrows.dispose();
+    this.muckpileSurface3d.dispose();
+    this.muckpileBefore3d.dispose();
+    this.muckpileVectors3d.dispose();
+    this.muckpileBlocks.dispose();
+    this.domains.dispose();
+    this.sectionLine.dispose();
     this.decorations.dispose();
     this.renderer.dispose();
   }
@@ -860,7 +1063,10 @@ export class Engine {
       this.labels.flush();
       this.picker.markDirty();
     }
-    if (cs.blasts.length > 0) this.rebuildBoundaries();
+    if (cs.blasts.length > 0) {
+      this.rebuildBoundaries();
+      this.domains.rebuild(this.document.project.blasts, this.origin);
+    }
     // Las conexiones siguen a los taladros: se reconstruyen si cambian taladros, iniciación o librería.
     if (cs.blasts.length > 0 || cs.project || added.length + removed.length + updated.length > 0)
       this.rebuildInitiation();
@@ -949,13 +1155,20 @@ export class Engine {
     this.energy3d.root.visible = v.energy;
     this.vibration3d.root.visible = v.vibration;
     this.site3d.setZoneVisible(v.flyrock);
+    this.applyMuckpileSurfaceVisibility();
+    this.scene3d.faces.visible = v.faces;
+    this.applyTopographyCut();
+    this.scene3d.benchPlanes.visible = v.benchPlanes;
+    this.muckpileBefore3d.root.visible = v.muckpileBefore;
+    this.muckpileVectors3d.root.visible = v.muckpileVectors;
+    this.muckpileBlocksRoot.visible = v.muckpileBlocks;
     // Etiquetas en 3D solo con cantidades legibles.
     const n = this.document.project.blasts.reduce((sum, b) => sum + b.holes.length, 0);
     this.labels3d.mesh.visible = v.labels && n <= 2500;
   }
 
   private fit3d(): void {
-    const b = this.scene3d.bounds ?? {
+    const b = this.withMuckpileBounds(this.scene3d.bounds) ?? {
       minX: -50,
       minY: -50,
       minZ: -10,
@@ -964,6 +1177,24 @@ export class Engine {
       maxZ: 10,
     };
     this.orbit = fitOrbit(b, (this.camera3d.fov * Math.PI) / 180);
+  }
+
+  /** Agrega la extensión de la pila (puede salir muy por delante de la voladura) al encuadre 3D. */
+  private withMuckpileBounds(b: typeof this.scene3d.bounds): typeof this.scene3d.bounds {
+    const g = this.muckpileData?.surface?.after;
+    if (!g || g.nx === 0) return b;
+    const minX = g.originX - this.origin.x;
+    const minY = g.originY - this.origin.y;
+    const maxX = minX + g.nx * g.cellSize;
+    const maxY = minY + g.ny * g.cellSize;
+    if (!b) return null;
+    return {
+      ...b,
+      minX: Math.min(b.minX, minX),
+      minY: Math.min(b.minY, minY),
+      maxX: Math.max(b.maxX, maxX),
+      maxY: Math.max(b.maxY, maxY),
+    };
   }
 
   private applyCamera3d(): void {
@@ -1097,7 +1328,11 @@ export class Engine {
     }
     this.holes.refreshColors();
     this.holes.flush();
-    if (this.viewMode === '3d') this.scene3d.refreshColors();
+    if (this.viewMode === '3d') {
+      this.scene3d.refreshColors();
+      this.muckpileBlocks.update(seq.t);
+      this.applyMuckpileSurfaceVisibility();
+    }
     this.events.emit('sequenceTime', seq.t);
     if (seq.playing) this.loop.invalidate();
   }
@@ -1161,6 +1396,10 @@ export class Engine {
     this.rebuildSite();
     this.rebuildVersionDiff();
     this.topography.set(this.topographyData, this.origin);
+    this.domains.rebuild(this.document.project.blasts, this.origin);
+    this.sectionLine.set(this.sectionData, this.origin);
+    this.applyMuckpilePlan();
+    this.rebuildMuckpile3d();
     this.holes.refreshColors();
     this.updateTypicalSpacing();
     this.applyView();
@@ -1308,6 +1547,9 @@ export class Engine {
     this.topography.contourRoot.visible = this.layerVisible.topoContours;
     this.topography.lineRoot.visible = this.layerVisible.topoLines;
     this.energy.root.visible = this.layerVisible.energy;
+    this.muckpilePlan.root.visible = this.layerVisible.muckpile;
+    this.muckpileArrows.lines.visible = this.layerVisible.muckpileVectors;
+    this.domains.lines.visible = this.layerVisible.domains;
     this.apply3dVisibility();
     this.vibration.root.visible = this.layerVisible.vibration;
     this.site.setDashScale(mpp);
@@ -1357,6 +1599,8 @@ export class Engine {
         tool === 'freeFace' ||
         tool === 'monitor' ||
         tool === 'measure' ||
+        tool === 'section' ||
+        tool === 'domain' ||
         tool === 'pan'
         ? null
         : this.pickHole(p.x, p.y),
@@ -1487,6 +1731,10 @@ export class Engine {
       setActiveBoundary: (id) => {
         this.setActiveBoundary(id);
       },
+      setSection: (a, b) => {
+        this.setSectionLine(a, b);
+        this.events.emit('section', { a, b });
+      },
       showPolyline: (points) => {
         this.overlay.setPolyline(points ? toRender(points) : null);
       },
@@ -1518,4 +1766,35 @@ export class Engine {
       text: (key, vars) => this.text(key, vars),
     };
   }
+}
+
+/** Flechas en planta a partir de los vectores 3D: cuerpo y dos barbas por vector. */
+function planArrows(v: VectorsData): IsochroneData | null {
+  const segs: number[] = [];
+  const levels: number[] = [];
+  for (let i = 0; i < v.values.length; i++) {
+    const x0 = v.from[3 * i] ?? 0;
+    const y0 = v.from[3 * i + 1] ?? 0;
+    const x1 = v.to[3 * i] ?? 0;
+    const y1 = v.to[3 * i + 1] ?? 0;
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    if (len < 1e-3) continue;
+    const ux = (x1 - x0) / len;
+    const uy = (y1 - y0) / len;
+    const head = Math.min(0.25 * len, 3);
+    const c = Math.cos(0.45);
+    const sn = Math.sin(0.45);
+    segs.push(x0, y0, x1, y1);
+    segs.push(x1, y1, x1 - head * (ux * c - uy * sn), y1 - head * (uy * c + ux * sn));
+    segs.push(x1, y1, x1 - head * (ux * c + uy * sn), y1 - head * (uy * c - ux * sn));
+    const val = v.values[i] ?? 0;
+    levels.push(val, val, val);
+  }
+  if (levels.length === 0) return null;
+  return {
+    segments: Float64Array.from(segs),
+    levels: Float32Array.from(levels),
+    min: v.min,
+    max: v.max,
+  };
 }

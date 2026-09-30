@@ -13,6 +13,8 @@ export const ENGINE_TEXT = {
   'undo.connectHoles': 'Conectar taladros',
   'undo.initiationPoint': 'Punto de inicio',
   'undo.freeFace': 'Cara libre',
+  /** Nombre de un dominio de material nuevo (A7). */
+  'domain.defaultName': 'Dominio {n}',
   'map.compass': 'Brújula',
   /** Letra del Oeste en la brújula y en los rumbos de medición. */
   'map.west': 'O',
