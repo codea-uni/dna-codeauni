@@ -1,10 +1,15 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      target: web
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
     container_name: dna-codeauni
     restart: unless-stopped
     networks:
       - proxy
+      - backend
     labels:
       - 'traefik.enable=true'
       - 'traefik.docker.network=proxy'
@@ -13,6 +18,45 @@ services:
       - 'traefik.http.routers.dna.tls.certresolver=mytlschallenge'
       - 'traefik.http.services.dna.loadbalancer.server.port=80'
 
+  # Perfil `server` (D-14): login, minas e historial. Se activa con COMPOSE_PROFILES=server en .env,
+  # junto con POSTGRES_PASSWORD (sin ella PostgreSQL no arranca).
+  api:
+    profiles: [server]
+    build:
+      context: .
+      target: server
+    container_name: dna-codeauni-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://cronos:${POSTGRES_PASSWORD:-}@postgres:5432/cronos
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  postgres:
+    profiles: [server]
+    image: postgres:18-alpine
+    container_name: dna-codeauni-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cronos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_DB: cronos
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cronos']
+      interval: 5s
+      retries: 10
+    networks:
+      - backend
+
 networks:
   proxy:
     external: true
+  backend:
+
+volumes:
+  pgdata:
