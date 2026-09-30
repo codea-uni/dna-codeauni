@@ -114,6 +114,7 @@ La fuente de verdad es `packages/core/src/model/types.ts` (esquema en `model/sch
 - **Auditoría:** `audit_event` solo admite inserciones (quién, cuándo, qué).
 - **El servidor valida** todo proyecto con `parseProjectFile` (migra y valida con zod) antes de guardarlo.
 - **Cuentas:** no hay registro público; el administrador crea la cuenta con una contraseña temporal (guía H-801) y, hasta cambiarla, el servidor solo acepta las rutas de `/me`. Los permisos por rol están en `packages/api/src/roles.ts` y los usan el servidor (que los hace cumplir) y la web (que solo muestra u oculta).
+- **Tema visual:** tokens en `:root` de `apps/web/src/styles.css` (roca volcánica, crisocola como acento, ámbar para tiempo y detonación, azurita para información) y tipografía Barlow autoalojada (`@fontsource`, OFL). Los estilos del modo servidor están en `apps/web/src/server.css`.
 - **Web en modo servidor** (`apps/web/src/pages/`): React Router con `/` (minas de la empresa activa), `/mines/:id`, `/admin` (usuarios, roles, acceso a minas y auditoría) y `/projects/:id` (el editor de siempre con la última versión del proyecto; `server/projectSession.ts`). El JSON de una versión se parsea y valida en el worker; para el revisor el DocumentStore queda en solo lectura (`setReadOnly`: `dispatch` no aplica nada y avisa con `onReadOnlyAttempt`). Los datos de la empresa viven en `stores/workspaceStore.ts`, no en el DocumentStore.
 - **Sin servidor** (`VITE_API_URL` vacío) la app funciona como antes: sin login y solo con el autoguardado local.
 
