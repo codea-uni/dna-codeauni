@@ -59,12 +59,24 @@ function parse<S extends z.ZodType>(
 }
 
 export async function toMine(db: Kysely<Database>, row: MineRow): Promise<Mine> {
-  const access = await db
-    .selectFrom('mine_access')
-    .select('userId')
-    .where('mineId', '=', row.id)
-    .orderBy('userId')
-    .execute();
+  const [access, stats] = await Promise.all([
+    db
+      .selectFrom('mine_access')
+      .select('userId')
+      .where('mineId', '=', row.id)
+      .orderBy('userId')
+      .execute(),
+    db
+      .selectFrom('project')
+      .leftJoin('project_version', 'project_version.projectId', 'project.id')
+      .select([
+        (eb) => eb.fn.count<string>('project.id').distinct().as('projects'),
+        (eb) => eb.fn.max('project_version.createdAt').as('last'),
+      ])
+      .where('project.mineId', '=', row.id)
+      .executeTakeFirst(),
+  ]);
+  const last = stats?.last;
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -73,6 +85,8 @@ export async function toMine(db: Kysely<Database>, row: MineRow): Promise<Mine> 
     restricted: access.length > 0,
     accessUserIds: access.map((a) => a.userId),
     createdAt: row.createdAt.toISOString(),
+    projectCount: Number(stats?.projects ?? 0),
+    lastActivityAt: last ? new Date(last).toISOString() : null,
   };
 }
 

@@ -127,6 +127,14 @@ describe.runIf(await databaseAvailable())('línea de tiempo de la mina (D-14)', 
     expect([...dates].sort((x, y) => y - x)).toEqual(dates);
   });
 
+  it('la mina informa sus proyectos y su última versión', async () => {
+    const detail = (await call(rosa, 'GET', `/mines/${mineId}`)).json() as { mine: unknown };
+    const parsed = mineSchema.parse(detail.mine);
+    const tl = await timeline();
+    expect(parsed.projectCount).toBe(2);
+    expect(parsed.lastActivityAt).toBe(tl.versions[0]?.createdAt);
+  });
+
   it('filtra por proyecto y por autor', async () => {
     const onlyA = await timeline(`?projectId=${projectIds[0] ?? ''}`);
     expect(onlyA.versions.map((v) => v.number)).toEqual([3, 2, 1]);

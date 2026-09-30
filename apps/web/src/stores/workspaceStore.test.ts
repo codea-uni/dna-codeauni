@@ -11,6 +11,8 @@ const mine = (id: string, org: string) => ({
   restricted: false,
   accessUserIds: [],
   createdAt: '2026-09-30T10:00:00Z',
+  projectCount: 0,
+  lastActivityAt: null,
 });
 
 function store(routes: Record<string, [number, unknown]>) {

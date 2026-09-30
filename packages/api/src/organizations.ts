@@ -49,6 +49,9 @@ export const mineSchema = z.object({
   restricted: z.boolean(),
   accessUserIds: z.array(id),
   createdAt: isoDate,
+  /** Proyectos de la mina y fecha de su última versión (`null` sin versiones). */
+  projectCount: z.number().int().nonnegative(),
+  lastActivityAt: isoDate.nullable(),
 });
 export type Mine = z.infer<typeof mineSchema>;
 export const mineListSchema = z.object({ mines: z.array(mineSchema) });
