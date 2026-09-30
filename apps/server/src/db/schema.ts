@@ -1,4 +1,5 @@
-import type { ColumnType, Generated } from 'kysely';
+import type { Role } from '@cronos/api';
+import type { ColumnType, Generated, JSONColumnType } from 'kysely';
 
 /**
  * Tablas de la base de datos para Kysely, una por migración de `migrations/`. Las de Better Auth
@@ -6,7 +7,14 @@ import type { ColumnType, Generated } from 'kysely';
  */
 export interface Database {
   user: UserTable;
+  organization: OrganizationTable;
+  member: MemberTable;
+  mine: MineTable;
+  mine_access: MineAccessTable;
+  audit_event: AuditEventTable;
 }
+
+type CreatedAt = ColumnType<Date, never, never>;
 
 export interface UserTable {
   id: string;
@@ -14,5 +22,44 @@ export interface UserTable {
   email: string;
   locale: Generated<string>;
   mustChangePassword: Generated<boolean>;
-  createdAt: ColumnType<Date, never, never>;
+  createdAt: CreatedAt;
+}
+
+export interface OrganizationTable {
+  id: string;
+  name: string;
+  createdAt: CreatedAt;
+}
+
+export interface MemberTable {
+  id: string;
+  organizationId: string;
+  userId: string;
+  role: Role;
+  createdAt: CreatedAt;
+}
+
+export interface MineTable {
+  id: string;
+  organizationId: string;
+  name: string;
+  epsg: number | null;
+  createdBy: string | null;
+  createdAt: CreatedAt;
+}
+
+export interface MineAccessTable {
+  mineId: string;
+  userId: string;
+}
+
+export interface AuditEventTable {
+  id: string;
+  organizationId: string;
+  actorId: string | null;
+  at: CreatedAt;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  data: JSONColumnType<Record<string, unknown>>;
 }

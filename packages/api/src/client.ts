@@ -10,6 +10,27 @@ import {
   type SignIn,
   type UpdateMe,
 } from './schemas';
+import {
+  auditListSchema,
+  memberListSchema,
+  memberSchema,
+  mineDetailSchema,
+  mineListSchema,
+  mineSchema,
+  organizationSchema,
+  organizationListSchema,
+  type AddMember,
+  type AuditEvent,
+  type CreateMine,
+  type CreateOrganization,
+  type Member,
+  type Mine,
+  type MineAccess,
+  type MineDetail,
+  type Organization,
+  type UpdateMember,
+  type UpdateMine,
+} from './organizations';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
 export class ApiError extends Error {
@@ -97,4 +118,66 @@ export class ApiClient {
   updateMe(body: UpdateMe): Promise<Me> {
     return this.request('/me', meSchema, { method: 'PATCH', body });
   }
+
+  // Empresas, miembros, minas y auditoría (D-14)
+
+  async organizations(): Promise<Organization[]> {
+    return (await this.request('/organizations', organizationListSchema)).organizations;
+  }
+
+  createOrganization(body: CreateOrganization): Promise<Organization> {
+    return this.request('/organizations', organizationSchema, { method: 'POST', body });
+  }
+
+  async members(orgId: string): Promise<Member[]> {
+    return (await this.request(`/organizations/${enc(orgId)}/members`, memberListSchema)).members;
+  }
+
+  addMember(orgId: string, body: AddMember): Promise<Member> {
+    return this.request(`/organizations/${enc(orgId)}/members`, memberSchema, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  updateMember(orgId: string, userId: string, body: UpdateMember): Promise<Member> {
+    return this.request(`/organizations/${enc(orgId)}/members/${enc(userId)}`, memberSchema, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  async removeMember(orgId: string, userId: string): Promise<void> {
+    await this.request(`/organizations/${enc(orgId)}/members/${enc(userId)}`, okSchema, {
+      method: 'DELETE',
+    });
+  }
+
+  async mines(orgId: string): Promise<Mine[]> {
+    return (await this.request(`/organizations/${enc(orgId)}/mines`, mineListSchema)).mines;
+  }
+
+  createMine(orgId: string, body: CreateMine): Promise<Mine> {
+    return this.request(`/organizations/${enc(orgId)}/mines`, mineSchema, { method: 'POST', body });
+  }
+
+  mine(mineId: string): Promise<MineDetail> {
+    return this.request(`/mines/${enc(mineId)}`, mineDetailSchema);
+  }
+
+  updateMine(mineId: string, body: UpdateMine): Promise<Mine> {
+    return this.request(`/mines/${enc(mineId)}`, mineSchema, { method: 'PATCH', body });
+  }
+
+  setMineAccess(mineId: string, body: MineAccess): Promise<Mine> {
+    return this.request(`/mines/${enc(mineId)}/access`, mineSchema, { method: 'PUT', body });
+  }
+
+  async audit(orgId: string, limit = 100): Promise<AuditEvent[]> {
+    return (
+      await this.request(`/organizations/${enc(orgId)}/audit?limit=${limit}`, auditListSchema)
+    ).events;
+  }
 }
+
+const enc = encodeURIComponent;

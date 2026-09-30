@@ -30,6 +30,7 @@ describe('loadConfig', () => {
       email: 'a@b.pe',
       password: 'x'.repeat(10),
       name: 'Administrador',
+      organization: 'Mi empresa',
     });
   });
 

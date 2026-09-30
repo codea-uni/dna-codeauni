@@ -25,13 +25,25 @@ export async function getSessionUser(auth: Auth, req: FastifyRequest): Promise<S
   };
 }
 
-/** Como `getSessionUser`, pero responde 401 y devuelve `null` si no hay sesión. */
+/**
+ * Como `getSessionUser`, pero responde y devuelve `null` si no hay sesión (401) o si la contraseña
+ * es temporal (403 `password_change_required`): hasta cambiarla solo se permiten las rutas de
+ * `/me` (`allowTemporaryPassword`).
+ */
 export async function requireUser(
   auth: Auth,
   req: FastifyRequest,
   reply: FastifyReply,
+  options: { allowTemporaryPassword?: boolean } = {},
 ): Promise<SessionUser | null> {
   const user = await getSessionUser(auth, req);
-  if (!user) await sendError(reply, 401, 'unauthorized', 'Sign in required');
+  if (!user) {
+    await sendError(reply, 401, 'unauthorized', 'Sign in required');
+    return null;
+  }
+  if (user.mustChangePassword && !options.allowTemporaryPassword) {
+    await sendError(reply, 403, 'password_change_required', 'Change the temporary password first');
+    return null;
+  }
   return user;
 }

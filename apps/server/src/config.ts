@@ -15,6 +15,7 @@ const envSchema = z.object({
   CRONOS_ADMIN_EMAIL: z.email().optional(),
   CRONOS_ADMIN_PASSWORD: z.string().min(10).optional(),
   CRONOS_ADMIN_NAME: z.string().min(1).default('Administrador'),
+  CRONOS_ORGANIZATION_NAME: z.string().min(1).default('Mi empresa'),
 });
 
 export interface ServerConfig {
@@ -24,7 +25,7 @@ export interface ServerConfig {
   logLevel: string;
   authSecret: string;
   baseUrl: string;
-  initialAdmin: { email: string; password: string; name: string } | null;
+  initialAdmin: { email: string; password: string; name: string; organization: string } | null;
 }
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): ServerConfig {
@@ -47,6 +48,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
             email: e.CRONOS_ADMIN_EMAIL,
             password: e.CRONOS_ADMIN_PASSWORD,
             name: e.CRONOS_ADMIN_NAME,
+            organization: e.CRONOS_ORGANIZATION_NAME,
           }
         : null,
   };

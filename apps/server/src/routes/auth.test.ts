@@ -164,7 +164,12 @@ describe.runIf(await databaseAvailable())('primer administrador y límite de int
 
   it('se crea una sola vez, con contraseña temporal', async () => {
     const s = createTestApp(t);
-    const admin = { email: 'admin@empresa.pe', password: 'admin-inicial', name: 'Admin' };
+    const admin = {
+      email: 'admin@empresa.pe',
+      password: 'admin-inicial',
+      name: 'Admin',
+      organization: 'Minera Sur',
+    };
     expect(await seedInitialAdmin(t.db, s.auth, admin)).toEqual(expect.any(String));
     expect(await seedInitialAdmin(t.db, s.auth, admin)).toBeNull();
     const cookie = await signIn(s.app, 'admin@empresa.pe', 'admin-inicial');

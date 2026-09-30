@@ -47,13 +47,13 @@ export function authRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
   }
 
   app.get('/me', async (req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, req, reply, { allowTemporaryPassword: true });
     if (!user) return reply;
     return reply.send(toMe(user));
   });
 
   app.patch('/me', async (req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, req, reply, { allowTemporaryPassword: true });
     if (!user) return reply;
     const body = updateMeSchema.safeParse(req.body);
     if (!body.success) return sendError(reply, 400, 'invalid_body', body.error.message);
@@ -67,7 +67,7 @@ export function authRoutes(app: FastifyInstance, deps: AuthRouteDeps): void {
 
   // Cambio de contraseña: cierra las otras sesiones y quita la marca de contraseña temporal.
   app.post('/me/password', async (req, reply) => {
-    const user = await requireUser(deps.auth, req, reply);
+    const user = await requireUser(deps.auth, req, reply, { allowTemporaryPassword: true });
     if (!user) return reply;
     const body = changePasswordSchema.safeParse(req.body);
     if (!body.success) return sendError(reply, 400, 'password_too_short', body.error.message);

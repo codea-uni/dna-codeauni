@@ -55,3 +55,21 @@ export function cookieHeader(setCookie: string | string[] | undefined): string {
   const list = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
   return list.map((c) => c.split(';')[0]).join('; ');
 }
+
+/** Entra con la contraseña temporal, la cambia por `newPassword` y devuelve la cookie nueva. */
+export async function activate(
+  app: FastifyInstance,
+  email: string,
+  temporary: string,
+  newPassword = `${temporary}-definitiva`,
+): Promise<string> {
+  const cookie = await signIn(app, email, temporary);
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/me/password',
+    headers: { ...TEST_ORIGIN, cookie },
+    payload: { currentPassword: temporary, newPassword },
+  });
+  if (res.statusCode !== 200) throw new Error(`password ${res.statusCode}: ${res.body}`);
+  return cookieHeader(res.headers['set-cookie']);
+}
