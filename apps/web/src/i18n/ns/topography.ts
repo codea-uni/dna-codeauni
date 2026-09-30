@@ -29,6 +29,7 @@ export const es = {
   'topo.warn.las.read': 'Se leyeron {read} puntos; quedan {kept} tras la reducción.',
   'topo.warn.las.noise': '{n} puntos clasificados como ruido se descartaron.',
   'topo.shadeOpacity': 'Opacidad del relieve',
+  'topo.imageOpacity': 'Opacidad de la ortofoto',
   'topo.cursorZ': 'Cota del terreno bajo el cursor',
   'topo.opacity3d': 'Opacidad de la topografía en 3D',
   'topo.bench.floorSet':
@@ -226,6 +227,7 @@ export const en = {
   'topo.warn.las.read': '{read} points read; {kept} remain after thinning.',
   'topo.warn.las.noise': '{n} points classified as noise were discarded.',
   'topo.shadeOpacity': 'Relief opacity',
+  'topo.imageOpacity': 'Orthophoto opacity',
   'topo.cursorZ': 'Ground elevation under the cursor',
   'topo.opacity3d': 'Topography opacity in 3D',
   'topo.bench.floorSet':

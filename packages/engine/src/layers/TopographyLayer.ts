@@ -88,11 +88,20 @@ export class TopographyLayer {
   readonly contourRoot = new Group();
   readonly lineRoot = new Group();
   private shadeOpacity = 0.85;
+  private imageOpacity = 1;
   private readonly disposers: (() => void)[] = [];
 
   constructor() {
     this.shadeRoot.renderOrder = -12;
     this.imageRoot.renderOrder = -11;
+  }
+
+  /** Opacidad de la ortofoto (0–1): deja ver el relieve y la grilla debajo. */
+  setImageOpacity(opacity: number): void {
+    this.imageOpacity = opacity;
+    this.imageRoot.traverse((o) => {
+      if (o instanceof Mesh) (o.material as MeshBasicMaterial).opacity = opacity;
+    });
   }
 
   setShadeOpacity(opacity: number): void {
@@ -119,7 +128,16 @@ export class TopographyLayer {
     tex.minFilter = LinearFilter;
     tex.generateMipmaps = false;
     tex.needsUpdate = true;
-    this.addQuad(this.imageRoot, tex, image.width, image.height, image.georef, origin, 1, -11);
+    this.addQuad(
+      this.imageRoot,
+      tex,
+      image.width,
+      image.height,
+      image.georef,
+      origin,
+      this.imageOpacity,
+      -11,
+    );
   }
 
   private addShade(shade: NonNullable<TopographyViewData['shade']>, origin: Vec3): void {

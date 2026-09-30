@@ -333,10 +333,23 @@ function TopographyView() {
         </span>
       </label>
       <label className="field">
+        <span className="field-label">{t('topo.imageOpacity')}</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={s.topoImageOpacity}
+          onChange={(e) => {
+            s.set({ topoImageOpacity: Number(e.target.value) });
+          }}
+        />
+      </label>
+      <label className="field">
         <span className="field-label">{t('topo.shadeOpacity')}</span>
         <input
           type="range"
-          min={0.1}
+          min={0}
           max={1}
           step={0.05}
           value={s.topoShadeOpacity}

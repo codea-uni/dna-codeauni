@@ -694,6 +694,12 @@ export class Engine {
     this.loop.invalidate();
   }
 
+  /** Opacidad de la ortofoto (0–1). */
+  setTopographyImageOpacity(opacity: number): void {
+    this.topography.setImageOpacity(opacity);
+    this.loop.invalidate();
+  }
+
   /**
    * Comparación con otra versión del proyecto (D-14): marcadores de taladros agregados, quitados,
    * movidos y cambiados, en coordenadas de proyecto. `null` la quita.

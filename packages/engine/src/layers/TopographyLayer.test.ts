@@ -96,6 +96,26 @@ describe('TopographyLayer', () => {
     expect([mesh.scale.x, mesh.scale.y]).toEqual([50, 25]);
     expect([mesh.position.x, mesh.position.y]).toEqual([25, 12.5]);
     expect(layer.imageRoot.renderOrder).toBeGreaterThan(layer.shadeRoot.renderOrder);
+    // Su opacidad se controla aparte del relieve y se conserva al recargar.
+    layer.setImageOpacity(0.4);
+    expect((mesh.material as { opacity: number }).opacity).toBe(0.4);
+    layer.set(
+      [
+        {
+          ...data,
+          image: {
+            bitmap,
+            width: 100,
+            height: 50,
+            georef: { originX: 0, originY: 0, pixelSizeX: 1, pixelSizeY: -1, rotation: 0 },
+          },
+        },
+      ],
+      ORIGIN,
+    );
+    expect(((layer.imageRoot.children[0] as Mesh).material as { opacity: number }).opacity).toBe(
+      0.4,
+    );
   });
 
   it('volver a cargar reemplaza lo anterior', () => {

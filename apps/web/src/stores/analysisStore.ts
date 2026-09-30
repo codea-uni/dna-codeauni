@@ -65,6 +65,8 @@ interface AnalysisState {
   /** Topografía: intervalo de curvas [m] (0 = automático) y opacidad del sombreado. */
   topoContourInterval: number;
   topoShadeOpacity: number;
+  /** Opacidad de la ortofoto en planta. */
+  topoImageOpacity: number;
   /** Opacidad de la topografía en 3D: menos de 1 deja ver los taladros bajo el terreno. */
   topoOpacity3d: number;
   set: (patch: Partial<Omit<AnalysisState, 'set' | 'setLayer'>>) => void;
@@ -122,6 +124,7 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   vibComputing: false,
   topoContourInterval: 0,
   topoShadeOpacity: 0.85,
+  topoImageOpacity: 1,
   topoOpacity3d: 0.55,
   set: (patch) => {
     set(patch);
