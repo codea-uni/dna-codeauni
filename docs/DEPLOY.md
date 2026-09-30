@@ -29,7 +29,10 @@ Opcional. Sin él, la web funciona como siempre (sin login, con autoguardado loc
 docker compose -f docker-compose.dev.yml up -d   # PostgreSQL en localhost:54329
 cp apps/server/.env.example apps/server/.env
 pnpm dev:server                                  # API en localhost:3000
+VITE_API_URL=/api pnpm dev                       # web con login; Vite pasa /api a :3000
 ```
+
+El `.env` de ejemplo crea el administrador `admin@cronos.local` (contraseña temporal `admin-cronos-dev`, se cambia al entrar). No hay registro público: el administrador crea las cuentas (guía H-801). Sin `VITE_API_URL`, `pnpm dev` sigue en modo local, sin login.
 
 Las pruebas del servidor usan ese PostgreSQL (o `TEST_DATABASE_URL`) y crean un esquema aislado por archivo; sin base se saltan con un aviso, salvo en CI.
 
