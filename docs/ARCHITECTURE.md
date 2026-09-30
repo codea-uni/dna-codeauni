@@ -169,6 +169,9 @@ Terminología según `docs/theory/references/R1-MINING-PRIMER.md` §2 (glosario)
 | Miembro (rol en la empresa)                  | member                           | `Member`, `Member.role`                                  | —                          |
 | Versión del proyecto                         | project version                  | `ProjectVersion`                                         | —                          |
 | Evento de auditoría                          | audit event                      | `AuditEvent`                                             | —                          |
+| Levantamiento topográfico                    | topographic survey               | `TopographySurvey`                                       | —                          |
+| Cresta / pie (líneas de referencia)          | crest / toe (reference lines)    | `ReferenceLine.role`                                     | m                          |
+| Curvas de nivel                              | contour lines                    | `contoursFromTin()`                                      | m                          |
 
 ## Decisiones clave
 

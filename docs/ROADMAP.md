@@ -227,6 +227,8 @@ Guía `01 §3`: «Dejarlo listo para terceros · documentación de usuario, empa
 
 **Adelantado (2026-09-30, D-14):** login, empresas con minas, roles e historial de versiones de cada mina, fuera del orden de hitos. **Hecho:** servidor (`apps/server`) y contratos (`packages/api`); login sin registro público con contraseña temporal; empresas, usuarios con rol, minas con acceso restringible y auditoría inalterable; proyectos por mina con versiones inmutables, concurrencia optimista, restaurar, borrador local; historial de la mina y comparación de versiones en el plano. **Pendiente de D2:** comentarios del revisor por escenario (UC-09) y catálogos compartidos del administrador (`03 §1` #6). D3 y D4 siguen en su lugar.
 
+**Topografía (2026-09-30, D-16):** se adelanta parte de C3 (nube y dron) junto con R-03/H-202: levantamientos por mina con fecha, importación de DXF, Surpac, CSV/TXT, LandXML, GeoTIFF y LAS/LAZ, reproyección y herramientas de diseño sobre la topografía (perímetro desde línea, cara libre desde la cresta, collares sobre el terreno). Ramas `feat/topography-*` y `feat/mine-surveys`.
+
 ### D0: decisión de backend (nota D-14)
 
 - Opciones: servidor Node con `@cronos/core` (D-02 lo permite tal cual) y base relacional; o servicio gestionado. Autenticación, cifrado en tránsito, variables de entorno sin credenciales en el repositorio (guía `§14`), licencias permisivas (NF-15). Despliegue sobre lo que ya existe (`Dockerfile`, `docker-compose.yml` con Traefik, `docs/DEPLOY.md`).
