@@ -30,6 +30,15 @@ export const es = {
   'topo.warn.las.noise': '{n} puntos clasificados como ruido se descartaron.',
   'topo.shadeOpacity': 'Opacidad del relieve',
   'topo.cursorZ': 'Cota del terreno bajo el cursor',
+  'topo.opacity3d': 'Opacidad de la topografía en 3D',
+  'topo.bench.floorSet':
+    'El piso del banco no correspondía al terreno de la voladura: pasó a {floor} m (cota de las bocas menos la altura del banco).',
+  'topo.bench.draped': '{n} bocas de taladro apoyadas en el terreno.',
+  'topo.bench.outside':
+    '{n} taladros quedan fuera de la topografía y conservan la cota plana del banco.',
+  'topo.bench.offWarning':
+    'La superficie del banco ({top} m) está lejos del terreno ({min} a {max} m): los taladros no respetan la topografía.',
+  'topo.bench.fix': 'Ajustar banco y taladros al terreno',
 
   // Menú y panel
   'topo.importMenu': 'Topografía (DXF, Surpac, LandXML, puntos)…',
@@ -218,6 +227,14 @@ export const en = {
   'topo.warn.las.noise': '{n} points classified as noise were discarded.',
   'topo.shadeOpacity': 'Relief opacity',
   'topo.cursorZ': 'Ground elevation under the cursor',
+  'topo.opacity3d': 'Topography opacity in 3D',
+  'topo.bench.floorSet':
+    'The bench floor did not match the ground of the blast: it is now {floor} m (collar elevation minus the bench height).',
+  'topo.bench.draped': '{n} hole collars set on the ground.',
+  'topo.bench.outside': '{n} holes are outside the topography and keep the flat bench elevation.',
+  'topo.bench.offWarning':
+    'The bench surface ({top} m) is far from the ground ({min} to {max} m): holes do not follow the topography.',
+  'topo.bench.fix': 'Fit bench and holes to the ground',
 
   'topo.importMenu': 'Topography (DXF, Surpac, LandXML, points)…',
   'topo.panel.empty':

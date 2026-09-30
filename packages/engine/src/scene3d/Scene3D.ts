@@ -60,9 +60,15 @@ export interface Scene3DOptions {
   radiusScale: number;
   /** Radio mínimo visible [m]. */
   minRadius: number;
+  /** Opacidad de la topografía (0–1): deja ver los taladros bajo el terreno. */
+  surfaceOpacity: number;
 }
 
-export const DEFAULT_3D_OPTIONS: Scene3DOptions = { radiusScale: 2, minRadius: 0.15 };
+export const DEFAULT_3D_OPTIONS: Scene3DOptions = {
+  radiusScale: 2,
+  minRadius: 0.15,
+  surfaceOpacity: 0.55,
+};
 
 export interface Bounds3 {
   minX: number;
@@ -84,6 +90,14 @@ export class Scene3D {
   private cylinders: InstancedMesh | null = null;
   private capacity = 0;
   private readonly dynamic = new Group();
+  /**
+   * Superficies topográficas, en caché por triangulación: no se reconstruyen en cada edición del
+   * diseño (un TIN de millones de triángulos tarda), solo si cambian o cambia el origen.
+   */
+  private readonly surfaces = new Group();
+  private readonly surfaceCache = new Map<TinData, Mesh<BufferGeometry, MeshLambertMaterial>>();
+  private surfaceOrigin: Vec3 | null = null;
+  private surfaceOpacity = DEFAULT_3D_OPTIONS.surfaceOpacity;
   bounds: Bounds3 | null = null;
   segmentCount = 0;
   private instanceHole: HoleId[] = [];
@@ -97,7 +111,7 @@ export class Scene3D {
     sun.position.set(0.4, -0.6, 1);
     const fill = new DirectionalLight(0xffffff, 0.5);
     fill.position.set(-0.5, 0.7, 0.3);
-    this.root.add(ambient, sun, fill, this.dynamic);
+    this.root.add(ambient, sun, fill, this.dynamic, this.surfaces);
     this.root.visible = false;
   }
 
@@ -199,6 +213,7 @@ export class Scene3D {
     this.dynamic.add(mesh);
 
     // ---------------------------------------------------------------- Banco, caras y topografía
+    const wanted = new Set<TinData>();
     for (const blast of blasts) {
       const top = blast.bench.floorElevation + blast.bench.height - origin.z;
       const floor = blast.bench.floorElevation - origin.z;
@@ -275,13 +290,13 @@ export class Scene3D {
           ),
         );
       }
-      if (surface) this.addSurface(surface.vertices, surface.triangles, origin);
+      if (surface) wanted.add(surface);
     }
     // Si ningún banco usa un levantamiento, se dibujan los cargados como referencia; sin
     // taladros, su extensión decide el encuadre.
-    const benchUses = blasts.some((x) => x.bench.topographyId && tins.has(x.bench.topographyId));
-    if (!benchUses)
-      for (const tin of tins.values()) this.addSurface(tin.vertices, tin.triangles, origin);
+    if (wanted.size === 0) for (const tin of tins.values()) wanted.add(tin);
+    this.surfaceOpacity = options.surfaceOpacity;
+    this.syncSurfaces(wanted, origin);
     if (!Number.isFinite(b.minX))
       for (const tin of tins.values()) {
         const v = tin.vertices;
@@ -320,6 +335,7 @@ export class Scene3D {
 
   dispose(): void {
     this.clearDynamic();
+    for (const tin of [...this.surfaceCache.keys()]) this.dropSurface(tin);
     this.cylinders?.dispose();
     this.cylinderGeometry.dispose();
     this.cylinderMaterial.dispose();
@@ -354,12 +370,52 @@ export class Scene3D {
     this.dynamic.add(new LineSegments(g, new LineBasicMaterial({ color })));
   }
 
+  /** Deja en escena exactamente las superficies pedidas, reutilizando las ya construidas. */
+  private syncSurfaces(wanted: ReadonlySet<TinData>, origin: Vec3): void {
+    const o = this.surfaceOrigin;
+    if (o?.x !== origin.x || o.y !== origin.y || o.z !== origin.z) {
+      for (const tin of [...this.surfaceCache.keys()]) this.dropSurface(tin);
+      this.surfaceOrigin = { ...origin };
+    }
+    for (const tin of [...this.surfaceCache.keys()]) if (!wanted.has(tin)) this.dropSurface(tin);
+    for (const tin of wanted) {
+      let mesh = this.surfaceCache.get(tin);
+      if (!mesh) {
+        mesh = this.buildSurface(tin.vertices, tin.triangles, origin);
+        this.surfaceCache.set(tin, mesh);
+        this.surfaces.add(mesh);
+      }
+      mesh.material.opacity = this.surfaceOpacity;
+    }
+  }
+
+  private dropSurface(tin: TinData): void {
+    const mesh = this.surfaceCache.get(tin);
+    if (!mesh) return;
+    this.surfaces.remove(mesh);
+    mesh.geometry.dispose();
+    mesh.material.dispose();
+    this.surfaceCache.delete(tin);
+  }
+
+  /** Opacidad de la topografía sin reconstruirla. */
+  setSurfaceOpacity(opacity: number): void {
+    this.surfaceOpacity = opacity;
+    for (const mesh of this.surfaceCache.values()) {
+      mesh.material.opacity = opacity;
+      // Opaca del todo, escribe profundidad como un sólido; transparente, deja ver lo de abajo.
+      mesh.material.transparent = opacity < 1;
+      mesh.material.depthWrite = opacity >= 1;
+      mesh.material.needsUpdate = true;
+    }
+  }
+
   /** TIN coloreado por cota (verde bajo → marrón alto). */
-  private addSurface(
+  private buildSurface(
     vertices: ArrayLike<number>,
     triangles: ArrayLike<number>,
     origin: Vec3,
-  ): void {
+  ): Mesh<BufferGeometry, MeshLambertMaterial> {
     const n = vertices.length / 3;
     const pos = new Float32Array(n * 3);
     const col = new Float32Array(n * 3);
@@ -394,17 +450,20 @@ export class Scene3D {
       ),
     );
     g.computeVertexNormals();
-    this.dynamic.add(
-      new Mesh(
-        g,
-        new MeshLambertMaterial({
-          vertexColors: true,
-          side: DoubleSide,
-          transparent: true,
-          opacity: 0.8,
-        }),
-      ),
+    const opaque = this.surfaceOpacity >= 1;
+    const mesh = new Mesh(
+      g,
+      new MeshLambertMaterial({
+        vertexColors: true,
+        side: DoubleSide,
+        transparent: !opaque,
+        opacity: this.surfaceOpacity,
+        depthWrite: opaque,
+      }),
     );
+    // Después de los taladros (opacos): así se ven a través del terreno.
+    mesh.renderOrder = 1;
+    return mesh;
   }
 
   private clearDynamic(): void {

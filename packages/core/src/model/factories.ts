@@ -177,12 +177,14 @@ export interface CreateHoleParams {
   col?: number;
   /** Convención de sobreperforación de la voladura (P-05). */
   subdrillConvention?: SubdrillConvention;
+  /** Cota de boca [m]: la del terreno si el banco usa topografía; si falta, la del banco plano. */
+  collarZ?: number;
 }
 
 /** Taladro de diseño con boca sobre la superficie del banco y fondo a piso + sobreperforación. */
 export function createHole(params: CreateHoleParams): Hole {
   const { position, template, bench } = params;
-  const collarZ = benchTopElevation(bench);
+  const collarZ = params.collarZ ?? benchTopElevation(bench);
   const hole: Hole = {
     id: newId<'Hole'>(),
     label: params.label,

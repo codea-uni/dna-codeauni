@@ -1,12 +1,24 @@
-import type { Op, TopographyFormat, TopographySurvey } from '@cronos/core';
+import {
+  benchOffTopography,
+  holesOffBench,
+  type Op,
+  type TopographyFormat,
+  type TopographySurvey,
+} from '@cronos/core';
 import { Mountain, Trash2 } from 'lucide-react';
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef } from 'react';
 import * as actions from '../actions';
 import { IconButton } from '../components/IconButton';
 import { useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
 import { session } from '../session';
-import { isTopographyLoaded, onTopographyChange } from '../topography/session';
+import {
+  benchOnSurveyOps,
+  isTopographyLoaded,
+  onTopographyChange,
+  topographyTin,
+} from '../topography/session';
+import { useUiStore } from '../stores/uiStore';
 import { TopographyDesignTools } from './TopographyDesignTools';
 
 const FORMAT_KEY = {
@@ -35,17 +47,28 @@ export function TopographyPanel() {
   useEffect(() => onTopographyChange(refresh), []);
   const surveys = [...project.topography].sort((a, b) => b.surveyDate.localeCompare(a.surveyDate));
 
-  const use = (s: TopographySurvey) => {
+  /** El banco usa el levantamiento y sus taladros se apoyan en el terreno (un solo deshacer). */
+  const use = async (s: TopographySurvey, forceFloor = false) => {
     if (!blast) return;
-    session.document.dispatch(
-      {
-        type: 'blast/patch',
-        blastId: blast.id,
-        patch: { bench: { ...blast.bench, topographyId: s.id } },
-      },
-      t('topo.panel.useUndo', { name: s.name }),
-    );
+    const boundary =
+      blast.boundaries.find((b) => b.id === useUiStore.getState().activeBoundaryId) ??
+      blast.boundaries[0];
+    const r = await benchOnSurveyOps(blast, s, topographyTin(s.id), forceFloor, boundary?.polygon);
+    session.document.dispatch(r.ops, t('topo.panel.useUndo', { name: s.name }));
+    const parts = [
+      r.floor !== null ? t('topo.bench.floorSet', { floor: fmt(r.floor, 2) }) : '',
+      r.draped > 0 ? t('topo.bench.draped', { n: r.draped }) : '',
+      r.outside > 0 ? t('topo.bench.outside', { n: r.outside }) : '',
+    ].filter(Boolean);
+    if (parts.length)
+      useUiStore.getState().notify(parts.join(' '), r.outside > 0 ? 'error' : 'info');
   };
+  const benchSurvey = surveys.find((s) => s.id === blast?.bench.topographyId);
+  const collarZ = useMemo(() => blast?.holes.map((h) => h.collar.z) ?? [], [blast?.holes]);
+  const benchOff =
+    blast && benchSurvey
+      ? benchOffTopography(blast.bench, benchSurvey.bounds) || holesOffBench(blast.bench, collarZ)
+      : false;
   const remove = (s: TopographySurvey) => {
     const ops: Op[] = [
       {
@@ -66,6 +89,18 @@ export function TopographyPanel() {
     <section className="panel">
       <h2>{t('topo.section')}</h2>
       {surveys.length === 0 && <p className="hint">{t('topo.panel.empty')}</p>}
+      {benchOff && benchSurvey && blast && (
+        <div className="errors">
+          {t('topo.bench.offWarning', {
+            top: fmt(blast.bench.floorElevation + blast.bench.height, 1),
+            min: fmt(benchSurvey.bounds.minZ, 1),
+            max: fmt(benchSurvey.bounds.maxZ, 1),
+          })}{' '}
+          <button className="small" onClick={() => void use(benchSurvey, true)}>
+            {t('topo.bench.fix')}
+          </button>
+        </div>
+      )}
       {surveys.length > 0 && (
         <ul className="survey-list">
           {surveys.map((s) => {
@@ -113,7 +148,7 @@ export function TopographyPanel() {
                     <button
                       className="small"
                       onClick={() => {
-                        use(s);
+                        void use(s);
                       }}
                     >
                       {t('topo.panel.useInBench')}

@@ -54,6 +54,11 @@ export interface ToolContext {
   /** Metros por píxel CSS en la vista actual. */
   metersPerPixel(): number;
   activeBlast(): Blast | undefined;
+  /**
+   * Cota del terreno en (x, y) si el banco de la voladura activa usa topografía (D-16), o `null`:
+   * los taladros nuevos o movidos apoyan su boca en el terreno.
+   */
+  groundAt(x: number, y: number): number | null;
   holeTemplate(): HoleTemplate;
   /** Conector que usa la herramienta Amarre. */
   tieConnector(): SurfaceConnectorId | undefined;

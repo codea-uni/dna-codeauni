@@ -255,7 +255,7 @@ export function TopographyImportDialog({
     setBusy(true);
     try {
       const transform = transformText();
-      const { ops } = await createSurveyOps(
+      const { ops, bench } = await createSurveyOps(
         {
           name: name.trim() || baseName(files),
           surveyDate: date,
@@ -270,7 +270,18 @@ export function TopographyImportDialog({
       );
       session.document.dispatch(ops, tr('topo.import.undo', { name }));
       clearTopographyPreview();
-      useUiStore.getState().notify(tr('topo.import.done', { name }));
+      useUiStore
+        .getState()
+        .notify(
+          [
+            tr('topo.import.done', { name }),
+            bench?.floor != null ? tr('topo.bench.floorSet', { floor: fmt(bench.floor, 2) }) : '',
+            bench && bench.draped > 0 ? tr('topo.bench.draped', { n: bench.draped }) : '',
+            bench && bench.outside > 0 ? tr('topo.bench.outside', { n: bench.outside }) : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        );
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

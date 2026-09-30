@@ -13,10 +13,11 @@ import '@fontsource/barlow-semi-condensed/latin-600.css';
 import '@fontsource/barlow-semi-condensed/latin-700.css';
 import './styles.css';
 import './server.css';
+import { topographyElevation } from './topography/session';
 
 if (import.meta.env.DEV) {
   // Gancho de depuración y medición (solo en desarrollo).
-  Object.assign(window, { __cronos: { session, getEngine, getCompute } });
+  Object.assign(window, { __cronos: { session, getEngine, getCompute, topographyElevation } });
 }
 
 const root = document.getElementById('root');

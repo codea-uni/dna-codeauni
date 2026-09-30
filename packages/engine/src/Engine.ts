@@ -565,7 +565,14 @@ export class Engine {
   }
 
   set3DOptions(options: Partial<Scene3DOptions>): void {
-    this.options3d = { ...this.options3d, ...options };
+    const prev = this.options3d;
+    this.options3d = { ...prev, ...options };
+    // La opacidad de la topografía no obliga a reconstruir la escena.
+    if (Object.keys(options).every((k) => k === 'surfaceOpacity')) {
+      this.scene3d.setSurfaceOpacity(this.options3d.surfaceOpacity);
+      this.loop.invalidate();
+      return;
+    }
     this.scene3dDirty = true;
     if (this.viewMode === '3d') this.rebuild3d();
   }
@@ -1458,6 +1465,8 @@ export class Engine {
       snap: (x, y, query) => this.snapAt(x, y, query?.ignoreHoles ?? false),
       metersPerPixel: () => this.view.metersPerPixel,
       activeBlast: () => this.activeBlast(),
+      groundAt: (x, y) =>
+        this.activeBlast()?.bench.topographyId && this.elevationAt ? this.elevationAt(x, y) : null,
       holeTemplate: () => this.template,
       tieConnector: () => {
         const connectors = this.document.project.library.surfaceConnectors;

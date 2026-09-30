@@ -1,8 +1,8 @@
 import Flatbush from 'flatbush';
 import { applyHoleEdit } from '../document/commands';
 import { pointInPolygon, polygonBounds } from '../geometry/polygon';
-import type { Blast, Hole, HoleId, Vec2 } from '../model/types';
-import { LINE_ROLES, type LineRole, type LineSetData } from './asset';
+import type { Bench, Blast, Bounds3, Hole, HoleId, Vec2 } from '../model/types';
+import { LINE_ROLES, type LineRole, type LineSetData, type TinData } from './asset';
 
 /**
  * Herramientas de diseño sobre la topografía (D-16): cara libre desde la cresta, perímetro desde
@@ -145,6 +145,59 @@ export function summarizeLines(lines: LineSetData): LineSummary[] {
     });
   }
   return out;
+}
+
+/**
+ * ¿El piso del banco es incoherente con el terreno? La superficie plana del banco (piso + altura)
+ * queda a más de una altura de banco fuera del rango de cotas del levantamiento: los taladros
+ * sobre la topografía tendrían largos absurdos (p. ej. piso en 0 m y terreno a 3400 m).
+ */
+export function benchOffTopography(
+  bench: Pick<Bench, 'floorElevation' | 'height'>,
+  bounds: Pick<Bounds3, 'minZ' | 'maxZ'>,
+): boolean {
+  const top = bench.floorElevation + bench.height;
+  return top < bounds.minZ - bench.height || top > bounds.maxZ + bench.height;
+}
+
+/** Mediana de una lista de cotas, o `null` si está vacía. */
+export function medianOf(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  const z = Float64Array.from(values).sort();
+  const m = Math.floor(z.length / 2);
+  return z.length % 2 ? (z[m] ?? null) : ((z[m - 1] ?? 0) + (z[m] ?? 0)) / 2;
+}
+
+/**
+ * ¿Los taladros sobre el terreno no corresponden a este piso? La mediana de la altura de las
+ * bocas sobre el piso queda fuera de [½·H, 2·H] (supuesto S-18): bocas bajo el piso o por encima
+ * de dos bancos. En un tajo hay muchos bancos: el piso debe salir de donde está la voladura.
+ */
+export function holesOffBench(
+  bench: Pick<Bench, 'floorElevation' | 'height'>,
+  collarZ: readonly number[],
+): boolean {
+  const z = medianOf(collarZ);
+  if (z === null) return false;
+  const above = z - bench.floorElevation;
+  return above < bench.height / 2 || above > bench.height * 2;
+}
+
+/** Piso del banco para bocas a estas cotas: su mediana menos la altura del banco. */
+export function benchFloorFor(collarZ: readonly number[], height: number): number | null {
+  const z = medianOf(collarZ);
+  return z === null ? null : z - height;
+}
+
+/** Mediana de la cota de los vértices del TIN [m] (cota representativa del levantamiento). */
+export function medianVertexElevation(tin: TinData): number | null {
+  const n = tin.vertices.length / 3;
+  if (n === 0) return null;
+  const z = new Float64Array(n);
+  for (let i = 0; i < n; i++) z[i] = tin.vertices[i * 3 + 2] ?? 0;
+  z.sort();
+  const m = Math.floor(n / 2);
+  return n % 2 ? (z[m] ?? null) : ((z[m - 1] ?? 0) + (z[m] ?? 0)) / 2;
 }
 
 export interface DrapeResult {

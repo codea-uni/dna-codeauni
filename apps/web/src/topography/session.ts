@@ -1,8 +1,14 @@
 import {
+  benchFloorFor,
+  benchOffTopography,
   decodeAsset,
+  holesOffBench,
   newId,
   SurfaceIndex,
+  type Bench,
+  type Blast,
   type BlastId,
+  type Hole,
   type Bounds3,
   type LineSetData,
   type LineSummary,
@@ -13,6 +19,7 @@ import {
   type SurveyParts,
   type TinData,
   type TopographySurvey,
+  type Vec2,
 } from '@cronos/core';
 import type { TopographyViewData } from '@cronos/engine';
 import { getAsset, putAsset } from '../persistence/assets';
@@ -286,20 +293,107 @@ export async function createSurveyOps(
   useInBlast?: BlastId,
   /** Levantamientos a los que se suma (los del proyecto; al crear varios juntos, los acumulados). */
   existing: readonly TopographySurvey[] = session.document.project.topography,
-): Promise<{ ops: Op[]; survey: TopographySurvey }> {
+): Promise<{ ops: Op[]; survey: TopographySurvey; bench: BenchOnSurvey | null }> {
   const built = await getCompute().api.buildSurvey(input, parts);
   await Promise.all(built.assets.map((a) => putAsset(a.hash, a.bytes)));
   const survey: TopographySurvey = { ...built.survey, id: newId<'TopographySurvey'>() };
   const project = session.document.project;
   const ops: Op[] = [{ type: 'project/patch', patch: { topography: [...existing, survey] } }];
   const blast = useInBlast ? project.blasts.find((b) => b.id === useInBlast) : undefined;
-  if (blast)
-    ops.push({
-      type: 'blast/patch',
-      blastId: blast.id,
-      patch: { bench: { ...blast.bench, topographyId: survey.id } },
-    });
-  return { ops, survey };
+  if (!blast) return { ops, survey, bench: null };
+  const r = await benchOnSurveyOps(blast, survey, parts.tin);
+  return { ops: [...ops, ...r.ops], survey, bench: r };
+}
+
+/** Qué cambió al apoyar el banco en un levantamiento. */
+export interface BenchOnSurvey {
+  ops: Op[];
+  /** Nuevo piso del banco [m] si el anterior quedaba lejos del terreno. */
+  floor: number | null;
+  /** Taladros cuya boca pasó a la cota del terreno, y los que quedan fuera de él. */
+  draped: number;
+  outside: number;
+}
+
+/**
+ * El banco usa el levantamiento (D-16) y sus taladros respetan el terreno:
+ * - las bocas de los taladros toman la cota del terreno;
+ * - el piso sale de donde está la voladura (en un tajo hay muchos bancos): la mediana de las bocas
+ *   menos la altura del banco si el piso actual no les corresponde (S-18); sin taladros, la
+ *   mediana del terreno en el perímetro o, si no hay, la del levantamiento;
+ * - los largos llegan a piso + sobreperforación.
+ * El trabajo sobre el TIN corre en el worker; todo vuelve como operaciones que se deshacen juntas.
+ */
+export async function benchOnSurveyOps(
+  blast: Blast,
+  survey: TopographySurvey,
+  tin: TinData | undefined,
+  forceFloor = false,
+  polygon?: readonly Vec2[],
+): Promise<BenchOnSurvey> {
+  const api = getCompute().api;
+  let bench: Bench = { ...blast.bench, topographyId: survey.id };
+  if (!tin) return { ops: [benchPatch(blast, bench)], floor: null, draped: 0, outside: 0 };
+  const drape = (b: Bench) =>
+    api.topographyDrape(tin, blast.holes, { bench: b, calcParams: blast.calcParams });
+  let r = blast.holes.length > 0 ? await drape(bench) : null;
+  const off = new Set(r?.outside ?? []);
+  const collars = (r?.holes ?? []).filter((h) => !off.has(h.id)).map((h) => h.collar.z);
+  let floor: number | null = null;
+  if (collars.length > 0) {
+    if (forceFloor || holesOffBench(bench, collars)) floor = benchFloorFor(collars, bench.height);
+  } else if (forceFloor || benchOffTopography(bench, survey.bounds)) {
+    const z =
+      (polygon && polygon.length >= 3
+        ? await api.topographyBenchElevation(tin, [...polygon])
+        : null) ?? (await api.topographyMedianElevation(tin));
+    if (z !== null) floor = z - bench.height;
+  }
+  if (floor !== null) {
+    bench = { ...bench, floorElevation: floor };
+    // Con el piso nuevo cambian los largos.
+    if (r) r = await drape(bench);
+  }
+  const ops: Op[] = [benchPatch(blast, bench)];
+  const changed = (r?.holes ?? []).filter((h) => !off.has(h.id));
+  if (changed.length > 0) ops.push({ type: 'holes/replace', blastId: blast.id, holes: changed });
+  return { ops, floor, draped: changed.length, outside: off.size };
+}
+
+const benchPatch = (blast: Blast, bench: Bench): Op => ({
+  type: 'blast/patch',
+  blastId: blast.id,
+  patch: { bench },
+});
+
+/**
+ * Taladros recién generados sobre el banco con topografía: la boca en el terreno y el largo hasta
+ * piso + J (en el worker). Si el piso no corresponde a esas bocas (S-18), se propone el piso que
+ * les corresponde (`bench`), que el llamador aplica en el mismo paso. Sin topografía, igual.
+ */
+export async function drapeNewHoles(
+  blast: Blast,
+  holes: Hole[],
+): Promise<{ holes: Hole[]; outside: number; bench: Bench | null }> {
+  const id = blast.bench.topographyId;
+  const tin = id ? loaded.get(id)?.tin : undefined;
+  if (!tin || holes.length === 0) return { holes, outside: 0, bench: null };
+  const api = getCompute().api;
+  let r = await api.topographyDrape(tin, holes, {
+    bench: blast.bench,
+    calcParams: blast.calcParams,
+  });
+  const off = new Set(r.outside);
+  const collars = r.holes.filter((h) => !off.has(h.id)).map((h) => h.collar.z);
+  let bench: Bench | null = null;
+  if (holesOffBench(blast.bench, collars)) {
+    const floor = benchFloorFor(collars, blast.bench.height);
+    if (floor !== null) {
+      bench = { ...blast.bench, floorElevation: floor };
+      r = await api.topographyDrape(tin, holes, { bench, calcParams: blast.calcParams });
+    }
+  }
+  return { holes: r.holes, outside: off.size, bench };
 }
 
 /** Levantamientos cargados con sus datos (para las herramientas de diseño). */

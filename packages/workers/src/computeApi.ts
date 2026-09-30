@@ -45,6 +45,7 @@ import {
   summarizeLines,
   type LineSummary,
   medianElevationInPolygon,
+  medianVertexElevation,
   type DrapeResult,
   type LineSetData,
   type Vec2,
@@ -390,6 +391,11 @@ export const computeApi = {
   ): DrapeResult {
     const index = SurfaceIndex.build(tin);
     return drapeHoles(holes, (x, y) => index.elevationAt(x, y), blast);
+  },
+
+  /** Mediana de la cota de los vértices del levantamiento (piso inicial del banco), o `null`. */
+  topographyMedianElevation(tin: TinData): number | null {
+    return medianVertexElevation(tin);
   },
 
   /** Mediana de la cota del terreno dentro del perímetro (cota del banco), o `null`. */

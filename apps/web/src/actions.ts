@@ -24,11 +24,11 @@ import {
 } from '@cronos/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
 import { useAnalysisStore } from './stores/analysisStore';
-import { t, useLocale } from './i18n';
+import { formatNumber, t, useLocale } from './i18n';
 import { importErrorText, importWarningText, parseErrorText } from './i18n/coreText';
 import { listVersions, loadWithoutSaving, readVersion } from './persistence/autosave';
 import { useUiStore } from './stores/uiStore';
-import { collectAssets, storeEmbeddedAssets } from './topography/session';
+import { collectAssets, drapeNewHoles, storeEmbeddedAssets } from './topography/session';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
 
@@ -265,23 +265,32 @@ export async function generatePattern(form: PatternForm): Promise<void> {
 
   await withBusy(t('actions.generatingPattern'), async () => {
     const t0 = performance.now();
-    const holes = await getCompute().api.generatePattern(
+    const generated = await getCompute().api.generatePattern(
       pattern,
       blast.bench,
       nextHoleNumber(blast.holes),
       blast.calcParams.subdrillConvention,
     );
+    // Con el banco sobre la topografía, cada boca va en el terreno (D-16).
+    const { holes, outside, bench } = await drapeNewHoles(blast, generated);
     const t1 = performance.now();
+    // Si el piso no correspondía a las bocas sobre el terreno (S-18), se ajusta en el mismo paso.
+    const benchOps: Op[] = bench
+      ? [{ type: 'blast/patch', blastId: blast.id, patch: { bench } }]
+      : [];
     document.dispatch(
-      replaced.length > 0
-        ? commands.replacePatterns(
-            document,
-            blast.id,
-            replaced.map((p) => p.id),
-            pattern,
-            holes,
-          )
-        : commands.addPattern(blast.id, pattern, holes),
+      [
+        ...benchOps,
+        ...(replaced.length > 0
+          ? commands.replacePatterns(
+              document,
+              blast.id,
+              replaced.map((p) => p.id),
+              pattern,
+              holes,
+            )
+          : commands.addPattern(blast.id, pattern, holes)),
+      ],
       t('actions.generatePatternUndo', { name: pattern.name, n: holes.length }),
     );
     const t2 = performance.now();
@@ -291,8 +300,13 @@ export async function generatePattern(form: PatternForm): Promise<void> {
       worker: (t1 - t0).toFixed(0),
       render: (t2 - t1).toFixed(0),
     });
-    if (hasFreeFace) notify(summary);
-    else notify(`${summary}. ${t('pattern.noFreeFace')}`, 'error');
+    const offGround =
+      (bench
+        ? ` ${t('topo.bench.floorSet', { floor: formatNumber(bench.floorElevation, 2) })}`
+        : '') + (outside > 0 ? ` ${t('topo.bench.outside', { n: outside })}` : '');
+    if (hasFreeFace && outside === 0) notify(`${summary}.${offGround}`);
+    else
+      notify(`${summary}.${hasFreeFace ? '' : ` ${t('pattern.noFreeFace')}`}${offGround}`, 'error');
   });
 }
 

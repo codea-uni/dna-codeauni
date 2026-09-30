@@ -6,8 +6,15 @@ import {
   DEFAULT_HOLE_TEMPLATE,
 } from '../model/factories';
 import type { LineSetData } from './asset';
+import { DocumentStore } from '../document/DocumentStore';
+import { addHoles, moveHoles } from '../document/commands';
+import { createEmptyProject } from '../model/factories';
 import {
+  benchFloorFor,
+  benchOffTopography,
+  holesOffBench,
   drapeHoles,
+  medianVertexElevation,
   freeFaceEdgesFromLines,
   linePolygon,
   LineSnapIndex,
@@ -110,5 +117,62 @@ describe('collares y cota del banco sobre la topografía', () => {
     expect(medianElevationInPolygon(square, elevationAt)).toBeCloseTo(100.5, 9);
     const far = square.map((p) => ({ x: p.x + 100, y: p.y }));
     expect(medianElevationInPolygon(far, elevationAt)).toBeNull();
+  });
+});
+
+describe('taladros que respetan la topografía', () => {
+  // Terreno z = 100 + 0,1·x; banco con piso en 80 m, sobreperforación 1 m, vertical.
+  const ground = (x: number) => (x <= 50 ? 100 + 0.1 * x : null);
+  const bench = { ...DEFAULT_BENCH, floorElevation: 80, height: 20 };
+  const template = { ...DEFAULT_HOLE_TEMPLATE, inclination: 0, subdrill: 1 };
+
+  it('al crearlo, la boca toma la cota del terreno y el largo llega a piso + J', () => {
+    const h = createHole({ position: { x: 20, y: 0 }, template, bench, label: '1', collarZ: 102 });
+    expect(h.collar.z).toBe(102);
+    expect(h.length).toBeCloseTo(23, 9); // 102 − 80 + 1
+  });
+
+  it('al moverlo, la boca sigue al terreno; fuera de él conserva su cota', () => {
+    const project = createEmptyProject('P');
+    const blast = project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    blast.bench = bench;
+    const store = new DocumentStore(project);
+    const h = createHole({ position: { x: 0, y: 0 }, template, bench, label: '1', collarZ: 100 });
+    store.dispatch(addHoles(blast.id, [h]), 'Agregar');
+    store.dispatch(
+      moveHoles(store, [h.id], 30, 0, (x) => ground(x)),
+      'Mover',
+    );
+    const moved = store.findHole(h.id)?.hole;
+    expect(moved?.collar.z).toBeCloseTo(103, 9);
+    expect(moved?.length).toBeCloseTo(24, 9);
+    store.dispatch(
+      moveHoles(store, [h.id], 40, 0, (x) => ground(x)),
+      'Mover',
+    );
+    expect(store.findHole(h.id)?.hole.collar.z).toBeCloseTo(103, 9);
+  });
+
+  it('detecta un piso de banco lejos del terreno y la cota representativa del levantamiento', () => {
+    const bounds = { minZ: 3340, maxZ: 3460 };
+    expect(benchOffTopography({ floorElevation: 0, height: 15 }, bounds)).toBe(true);
+    expect(benchOffTopography({ floorElevation: 3385, height: 15 }, bounds)).toBe(false);
+    const tin = {
+      vertices: Float64Array.from([0, 0, 5, 1, 0, 1, 0, 1, 9]),
+      triangles: Uint32Array.from([0, 1, 2]),
+    };
+    expect(medianVertexElevation(tin)).toBe(5);
+  });
+
+  it('el piso sale de las bocas de la voladura, no de todo el tajo (S-18)', () => {
+    // Bocas en el fondo del tajo (~3355 m) con el piso a 3385 m: quedan bajo el piso.
+    const collars = [3354, 3355, 3356];
+    expect(holesOffBench({ floorElevation: 3385, height: 15 }, collars)).toBe(true);
+    expect(benchFloorFor(collars, 15)).toBe(3340);
+    expect(holesOffBench({ floorElevation: 3340, height: 15 }, collars)).toBe(false);
+    // Por encima de dos bancos también es incoherente.
+    expect(holesOffBench({ floorElevation: 3300, height: 15 }, collars)).toBe(true);
+    expect(holesOffBench({ floorElevation: 0, height: 15 }, [])).toBe(false);
   });
 });

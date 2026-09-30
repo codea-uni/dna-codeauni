@@ -109,7 +109,7 @@ export class SelectTool implements Tool {
         if (s.dx !== 0 || s.dy !== 0) {
           const n = s.ids.length;
           ctx.document.dispatch(
-            commands.moveHoles(ctx.document, s.ids, s.dx, s.dy),
+            commands.moveHoles(ctx.document, s.ids, s.dx, s.dy, (x, y) => ctx.groundAt(x, y)),
             n === 1 ? ctx.text('undo.moveHole') : ctx.text('undo.moveHoles', { n }),
           );
         }

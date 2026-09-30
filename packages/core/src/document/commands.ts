@@ -86,22 +86,33 @@ export function deleteHoles(doc: DocumentReader, ids: Iterable<HoleId>): Op[] {
   return ops;
 }
 
-/** Desplaza taladros en planta (la cota de boca no cambia, así que la longitud tampoco). */
+/**
+ * Desplaza taladros en planta. Sin `ground`, la cota de boca no cambia (ni la longitud); con
+ * `ground` (banco sobre topografía), la boca toma la cota del terreno en su nuevo lugar y la
+ * longitud se recalcula hasta piso + sobreperforación. Fuera del terreno, la cota se conserva.
+ */
 export function moveHoles(
   doc: DocumentReader,
   ids: Iterable<HoleId>,
   dx: Meters,
   dy: Meters,
+  ground?: (x: number, y: number) => number | null,
 ): Op[] {
   if (dx === 0 && dy === 0) return [];
-  return [...groupByBlast(doc, ids)].map(([blastId, holes]) => ({
-    type: 'holes/replace',
-    blastId,
-    holes: holes.map((h) => ({
-      ...h,
-      collar: { x: h.collar.x + dx, y: h.collar.y + dy, z: h.collar.z },
-    })),
-  }));
+  return [...groupByBlast(doc, ids)].map(([blastId, holes]) => {
+    const blast = doc.getBlast(blastId);
+    return {
+      type: 'holes/replace',
+      blastId,
+      holes: holes.map((h) => {
+        const x = h.collar.x + dx;
+        const y = h.collar.y + dy;
+        const z = ground?.(x, y) ?? null;
+        const moved = { ...h, collar: { x, y, z: h.collar.z } };
+        return z !== null && blast ? applyHoleEdit(moved, { z }, blast) : moved;
+      }),
+    };
+  });
 }
 
 /** Campos editables desde el panel de propiedades (SI). */

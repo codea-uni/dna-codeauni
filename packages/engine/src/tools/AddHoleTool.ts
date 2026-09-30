@@ -17,7 +17,9 @@ export class AddHoleTool implements Tool {
     const blast = ctx.activeBlast();
     if (!blast) return;
     const at = ctx.snap(p.x, p.y);
+    const ground = ctx.groundAt(at.x, at.y);
     const hole = createHole({
+      ...(ground !== null ? { collarZ: ground } : {}),
       position: { x: at.x, y: at.y },
       template: ctx.holeTemplate(),
       bench: blast.bench,

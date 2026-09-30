@@ -345,6 +345,19 @@ function TopographyView() {
           }}
         />
       </label>
+      <label className="field">
+        <span className="field-label">{t('topo.opacity3d')}</span>
+        <input
+          type="range"
+          min={0.1}
+          max={1}
+          step={0.05}
+          value={s.topoOpacity3d}
+          onChange={(e) => {
+            s.set({ topoOpacity3d: Number(e.target.value) });
+          }}
+        />
+      </label>
     </>
   );
 }

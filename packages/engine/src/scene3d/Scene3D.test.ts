@@ -135,4 +135,32 @@ describe('escena 3D', () => {
     scene.root.traverse(() => after++);
     expect(after).toBe(before);
   });
+
+  it('la topografía se reutiliza entre ediciones y su opacidad cambia sin reconstruir', () => {
+    const p = projectWith(1, 1);
+    const tin = {
+      vertices: Float64Array.from([0, 0, 15, 20, 0, 15, 0, 20, 16]),
+      triangles: Uint32Array.from([0, 1, 2]),
+    };
+    const tins = new Map([['s1', tin]]);
+    const origin = { x: 0, y: 0, z: 0 };
+    const scene = new Scene3D();
+    const surfaces = () =>
+      scene.root.children
+        .flatMap((c) => c.children)
+        // La superficie es la única malla indexada con el triángulo del TIN.
+        .filter(
+          (c) =>
+            (c as unknown as { geometry?: { index?: { count: number } | null } }).geometry?.index
+              ?.count === 3,
+        );
+    scene.rebuild(p, p.blasts, origin, DEFAULT_3D_OPTIONS, tins);
+    const first = surfaces()[0];
+    scene.rebuild(p, p.blasts, origin, DEFAULT_3D_OPTIONS, tins);
+    expect(surfaces()).toEqual([first]);
+    scene.setSurfaceOpacity(0.3);
+    expect((first as unknown as { material: { opacity: number } }).material.opacity).toBe(0.3);
+    scene.rebuild(p, p.blasts, origin, DEFAULT_3D_OPTIONS, new Map());
+    expect(surfaces()).toHaveLength(0);
+  });
 });
