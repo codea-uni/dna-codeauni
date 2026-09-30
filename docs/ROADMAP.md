@@ -29,6 +29,7 @@ Fuera de alcance en todas las fases (guía `01 §3`): ejecución en campo con ta
 
 - **Un hito a la vez**, con el ciclo de abajo. Al cerrarlo: marcarlo ✅ aquí, mover el ▶, agregar su reporte en `docs/REPORTS.md` y actualizar `docs/RULES.md`.
 - **Dudas de dominio (D-12):** buscar la fuente (web, `docs/theory/`); si no aparece, tomar un supuesto como parámetro editable y anotarlo en `docs/QUESTIONS.md` §2. No detenerse a preguntar.
+- **Ramas:** `<tipo>/<tema>` en inglés y kebab-case (`feat/auth-login`, `fix/mesh-replace`, `docs/backend-decision`), creadas desde `main` y cortas. Antes de unir: `git rebase main` y pruebas en verde; se une con `git merge --ff-only` (historial lineal) y se borra la rama.
 - **Commits:** unos 3 por hito (núcleo, web, docs); solo el asunto en español (Conventional Commits) y el trailer `Co-Authored-By`. Antes: `pnpm typecheck && pnpm lint && pnpm test` en verde, revisando la salida. `git push` solo si el usuario lo pide.
 - **Documentos:** `docs/RULES.md` (estado R0–R4 de cada fórmula), `docs/QUESTIONS.md` (decisiones del ingeniero, supuestos, comprensión), `docs/DECISIONS.md`, `docs/REPORTS.md`, `docs/ARCHITECTURE.md`, `docs/DEPLOY.md`.
 
@@ -223,6 +224,8 @@ Guía `01 §3`: «Calibrar con mediciones · importar perforación y sismógrafo
 ## Fase 5: distribución y backend (D0–D4)
 
 Guía `01 §3`: «Dejarlo listo para terceros · documentación de usuario, empaquetado, lista de verificación de lanzamiento · **Salida: lista aprobada**». Aquí se levanta D-08: usuarios, roles, comentarios, auditoría e historial (R-25, H-801, UC-09, UC-10, NF-07, NF-08).
+
+**Adelantado (2026-09-30, D-14):** login, empresas con minas, roles e historial de versiones de cada mina se construyen antes de F3, fuera del orden de hitos. Entregas en ramas `feat/server-foundation`, `feat/auth-login`, `feat/organizations-and-mines`, `feat/mine-projects`, `feat/version-history`, `feat/mine-timeline` y `feat/version-compare`. D3 y D4 siguen en su lugar.
 
 ### D0: decisión de backend (nota D-14)
 

@@ -1,6 +1,6 @@
 # Arquitectura de Cronos
 
-Las decisiones de fondo están en `docs/DECISIONS.md` (D-01…D-11), y la hoja de ruta en `docs/ROADMAP.md`.
+Las decisiones de fondo están en `docs/DECISIONS.md` (D-01…D-14), y la hoja de ruta en `docs/ROADMAP.md`.
 
 ## Flujo de datos
 
@@ -17,7 +17,8 @@ flowchart LR
     API["packages/workers<br/>Comlink"]
     CALC["core: cálculos<br/>(carguío, tiempos, energía,<br/>fragmentación, vibración, IO, PDF)"]
   end
-  STORE[("JSON versionado<br/>(descarga; IndexedDB en G1)")]
+  STORE[("JSON versionado<br/>(descarga; borrador en IndexedDB)")]
+  SRV[("apps/server<br/>versiones por mina<br/>(PostgreSQL)")]
 
   UI -- "dispatch(comando)" --> DOC
   UI -- "setTool / setView / capas" --> ENG
@@ -33,6 +34,7 @@ flowchart LR
   API -- "latest-wins" --> UI
   UI -- "capas de resultados<br/>(contornos, tiempos)" --> ENG
   DOC <-- "serializar / migrar" --> STORE
+  UI -- "packages/api<br/>(login, guardar versión)" --> SRV
 ```
 
 ## Estructura del monorepo
@@ -56,18 +58,22 @@ packages/core/src/      dominio y cálculos; sin DOM (Node, workers y hilo princ
 packages/engine/src/    Three.js: Engine.ts, loop, cameras, input, layers, picking, tools, scene3d
 packages/workers/src/   compute.worker.ts, computeApi.ts, client.ts, report/ (PDF)
 apps/web/src/           React: viewport, panels, dialogs, charts, stores, analysis (runner)
+packages/api/src/       contratos HTTP (zod) y cliente fetch tipado
+apps/server/src/        Fastify: login (Better Auth), empresas, minas, proyectos, versiones, auditoría
 ```
 
 ## Paquetes
 
-| Paquete   | Responsabilidad                                                  | Depende de            | Externas principales                   |
-| --------- | ---------------------------------------------------------------- | --------------------- | -------------------------------------- |
-| `core`    | Modelo, DocumentStore, cálculos, IO                              | —                     | zod, flatbush, d3-delaunay, dxf-parser |
-| `engine`  | Escena, cámaras, capas instanciadas, picking, herramientas, loop | core                  | three                                  |
-| `workers` | Cálculos de core e informe PDF fuera del hilo principal          | core                  | comlink, pdf-lib                       |
-| `web`     | UI React, paneles, gráficos, orquestación                        | core, engine, workers | react, zustand, echarts, lucide-react  |
+| Paquete   | Responsabilidad                                                  | Depende de                 | Externas principales                   |
+| --------- | ---------------------------------------------------------------- | -------------------------- | -------------------------------------- |
+| `core`    | Modelo, DocumentStore, cálculos, IO                              | —                          | zod, flatbush, d3-delaunay, dxf-parser |
+| `engine`  | Escena, cámaras, capas instanciadas, picking, herramientas, loop | core                       | three                                  |
+| `workers` | Cálculos de core e informe PDF fuera del hilo principal          | core                       | comlink, pdf-lib                       |
+| `web`     | UI React, paneles, gráficos, orquestación                        | core, engine, workers, api | react, zustand, echarts, lucide-react  |
+| `api`     | Contratos HTTP y cliente tipado                                  | core                       | zod                                    |
+| `server`  | Login, empresas, minas, proyectos, versiones y auditoría         | core, api                  | fastify, better-auth, kysely, pg       |
 
-El grafo no tiene ciclos: `core ← engine`, `core ← workers`, `{core, engine, workers} ← web`. `engine` no conoce a `workers`: los resultados le llegan a través de la app. Los paquetes internos se consumen desde el fuente (`exports: "./src/index.ts"`).
+El grafo no tiene ciclos: `core ← engine`, `core ← workers`, `core ← api`, `{core, api} ← server`, `{core, engine, workers, api} ← web`. `engine` no conoce a `workers`: los resultados le llegan a través de la app. Los paquetes internos se consumen desde el fuente (`exports: "./src/index.ts"`).
 
 ## Modelo de dominio
 
@@ -93,7 +99,16 @@ La fuente de verdad es `packages/core/src/model/types.ts` (esquema en `model/sch
   - `apps/web/src/analysis/runner.ts` pide los cálculos con debounce y aplica _latest-wins_: descarta un resultado si el documento cambió mientras se calculaba.
   - Los resultados vuelven a Zustand (tablas, gráficos) y al engine como capas (contornos, isócronas, colores por tiempo).
   - El pool de varios workers se agrega solo si una medición lo pide.
-- **Persistencia:** hoy el proyecto se guarda o abre como JSON descargado. El autoguardado en IndexedDB llega en G1 (H-102).
+- **Persistencia:** JSON descargable y autoguardado en IndexedDB (`apps/web/src/persistence/`, D-03). Con servidor (D-14), el autoguardado es el borrador y «Guardar versión» publica una versión inmutable del proyecto en su mina.
+
+## Servidor, empresas e historial (D-14)
+
+- **Jerarquía:** empresa (`Organization`) > mina (`Mine`) > proyecto > versiones (`ProjectVersion`). El rol del miembro (`Member.role`: `admin`, `designer`, `reviewer`) se asigna en la empresa; una mina con filas en `mine_access` solo la ven esos usuarios (y los administradores).
+- **Versión inmutable:** guarda el `ProjectFile` completo (gzip), su hash, autor, fecha, mensaje y un resumen de cambios calculado con `diffProjects` de core. Restaurar crea una versión nueva; nada se reescribe.
+- **Concurrencia optimista:** publicar envía la versión base; si otro publicó antes, el servidor responde 409.
+- **Auditoría:** `audit_event` solo admite inserciones (quién, cuándo, qué).
+- **El servidor valida** todo proyecto con `parseProjectFile` (migra y valida con zod) antes de guardarlo.
+- **Sin servidor** (`VITE_API_URL` vacío) la app funciona como antes: sin login y solo con el autoguardado local.
 
 ## Vocabulario: término minero ↔ identificador
 
@@ -141,22 +156,27 @@ Terminología según `docs/theory/references/R1-MINING-PRIMER.md` §2 (glosario)
 | Punto de monitoreo                           | monitoring point                 | `MonitoringPoint`                                        | —                          |
 | Factor de roca (A)                           | rock factor                      | `RockMass.rockFactor`                                    | —                          |
 | X50, P80                                     | median / 80 % passing size       | `FragmentationResult.x50`, `.p80`                        | m                          |
+| Empresa                                      | organization                     | `Organization`                                           | —                          |
+| Mina                                         | mine                             | `Mine`                                                   | —                          |
+| Miembro (rol en la empresa)                  | member                           | `Member`, `Member.role`                                  | —                          |
+| Versión del proyecto                         | project version                  | `ProjectVersion`                                         | —                          |
+| Evento de auditoría                          | audit event                      | `AuditEvent`                                             | —                          |
 
 ## Decisiones clave
 
-| Decisión                                                        | Motivo                                                                                            |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Simulación 100 % en cliente, sin backend por ahora (D-02, D-08) | Latencia cero y funcionamiento offline. Usuarios, roles y auditoría esperan a la fase con backend |
-| Document store en core, no en Zustand                           | Evita que React se re-renderice en ediciones masivas; undo/redo testeable en Node                 |
-| ChangeSets incrementales                                        | Actualizar 1 taladro no reconstruye 20.000 instancias                                             |
-| Origen local en render                                          | float32 en la GPU no tiene precisión con coordenadas UTM; se recentra a más de 5 km               |
-| Picking con flatbush en el hilo principal                       | O(log n), interactivo y síncrono; reconstruir cuesta ~1–2 ms                                      |
-| TS primero, WASM después                                        | Solo se migra un kernel cuando una medición lo justifique                                         |
-| Arrastre con preview en el engine                               | Solo se mueven instancias en la GPU; el documento recibe un único comando al soltar               |
-| Operaciones con inversa exacta                                  | El store guarda ops primitivas y sus inversas, no copias del proyecto                             |
-| Símbolos y etiquetas en espacio de pantalla                     | Quads instanciados de tamaño constante; etiquetas con atlas de glifos y LOD                       |
-| DXF R12 propio para escribir                                    | Conserva Z en todas las entidades; dxf-parser para leer                                           |
-| Informe PDF vectorial en el worker                              | pdf-lib no depende del DOM                                                                        |
-| 3D sobre la misma escena                                        | Reutiliza documento, origen de render y loop a demanda                                            |
-| i18n sin librería (D-11)                                        | Diccionario tipado: una clave faltante en inglés es un error de compilación                       |
-| Fórmulas con fuente y caso de referencia (D-06)                 | Guía §9–§11: ninguna regla minera sin cita; pruebas con valores externos                          |
+| Decisión                                        | Motivo                                                                                             |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Simulación 100 % en cliente (D-02)              | Latencia cero y funcionamiento offline. El servidor (D-14) solo guarda, valida y compara versiones |
+| Document store en core, no en Zustand           | Evita que React se re-renderice en ediciones masivas; undo/redo testeable en Node                  |
+| ChangeSets incrementales                        | Actualizar 1 taladro no reconstruye 20.000 instancias                                              |
+| Origen local en render                          | float32 en la GPU no tiene precisión con coordenadas UTM; se recentra a más de 5 km                |
+| Picking con flatbush en el hilo principal       | O(log n), interactivo y síncrono; reconstruir cuesta ~1–2 ms                                       |
+| TS primero, WASM después                        | Solo se migra un kernel cuando una medición lo justifique                                          |
+| Arrastre con preview en el engine               | Solo se mueven instancias en la GPU; el documento recibe un único comando al soltar                |
+| Operaciones con inversa exacta                  | El store guarda ops primitivas y sus inversas, no copias del proyecto                              |
+| Símbolos y etiquetas en espacio de pantalla     | Quads instanciados de tamaño constante; etiquetas con atlas de glifos y LOD                        |
+| DXF R12 propio para escribir                    | Conserva Z en todas las entidades; dxf-parser para leer                                            |
+| Informe PDF vectorial en el worker              | pdf-lib no depende del DOM                                                                         |
+| 3D sobre la misma escena                        | Reutiliza documento, origen de render y loop a demanda                                             |
+| i18n sin librería (D-11)                        | Diccionario tipado: una clave faltante en inglés es un error de compilación                        |
+| Fórmulas con fuente y caso de referencia (D-06) | Guía §9–§11: ninguna regla minera sin cita; pruebas con valores externos                           |
