@@ -169,6 +169,7 @@ export const en = {
   'demo.ch.burden': 'Effective burden',
   'demo.ch.sdob': 'Flyrock traffic light',
   'demo.ch.displacement': 'Displacement',
+  'demo.ch.muckpile': 'Final muckpile',
   'demo.ch.damage': 'Rock damage',
   'demo.ch.fragmentation': 'Fragmentation',
   'demo.ch.vibration': 'Vibration',
@@ -183,12 +184,13 @@ export const en = {
   'demo.next': 'Next',
   'demo.exit': 'Exit (Esc)',
   'demo.intro':
-    'Cronos: blast design and simulation in the browser. Example: production bench with ≈250 holes, UTM coordinates and the free face to the north.',
+    'Cronos: blast design and simulation in the browser. Mine on a DXF survey: real topography and 141 holes adapted to the terrain.',
   'demo.design':
-    'Design: staggered pattern generated inside the boundary and aligned to the free face. Production and buffer groups, and theoretical burden by Ash, Konya–Walter and Andersen.',
+    'Design: pattern generated inside the boundary, on the DXF survey benches and aligned to the free face. Theoretical burden by Ash, Konya–Walter and Andersen.',
   'demo.charge':
     'Deck charging: bottom charge, column and stemming, with booster. Kilograms per hole, loading factor and scaled depth of burial (SDOB) of the selected hole.',
-  'demo.view3d': '3D view of the bench: each deck of the column in the colour of its material.',
+  'demo.view3d':
+    'The DXF mine in 3D: real relief, benches and terrain-adapted holes; each column deck retains the colour of its material.',
   'demo.timing':
     'Timing: V tie-up from the free face, with surface and downhole delays. Isochrones and firing time of each hole.',
   'demo.sequence': 'Simulation of the firing sequence, hole by hole, in slow motion.',
@@ -197,7 +199,9 @@ export const en = {
   'demo.sdob':
     'Flyrock traffic light: each hole’s scaled depth of burial by band (cratering, uncontrolled, controlled, very controlled).',
   'demo.displacement':
-    'Displacement: burden velocity (Zhang 2021) and throw toward the opening face, hole by hole.',
+    'Muckpile displacement in 3D: blocks launch according to the firing sequence and settle toward the free face on the real terrain.',
+  'demo.muckpile':
+    'Final muckpile: displaced material surface on the DXF survey. Volume, throw and swell in the results panel.',
   'demo.damage':
     'Rock damage: Holmberg–Persson near the charge, with contours at ¼, 1, 4 and 8 times the rock’s critical velocity.',
   'demo.vibration':

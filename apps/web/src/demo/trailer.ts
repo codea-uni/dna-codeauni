@@ -6,8 +6,8 @@ import { exampleText } from '../i18n/coreText';
 import { getCompute, getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
-import { topographyTin } from '../topography/session';
-import { analysisReady, type DemoStep } from './tour';
+import type { DemoStep } from './tour';
+import { analysisReady, pileReady, playDemoSequence, terrainReady } from './runtime';
 
 let full: Project | null = null;
 let chargeColors: { values: ReturnType<typeof scalarValues>; min: number; max: number } | null =
@@ -85,14 +85,7 @@ async function mine(signal: AbortSignal): Promise<Project> {
   signal.throwIfAborted();
   const project = prepared.project;
   if (!project) throw new Error('No se pudo cargar la mina del tráiler.');
-  const topoId = project.blasts[0]?.bench.topographyId;
-  const start = performance.now();
-  while (topoId && !topographyTin(topoId)) {
-    signal.throwIfAborted();
-    if (performance.now() - start > 15000)
-      throw new Error('El levantamiento no estuvo listo a tiempo.');
-    await sleep();
-  }
+  await terrainReady(project, signal);
   const blast = project.blasts[0];
   if (blast) {
     const analysis = await getCompute().api.analyzeBlast(project, blast.id, {
@@ -143,39 +136,6 @@ async function stage(signal: AbortSignal, holes: boolean, ties: boolean): Promis
   useUiStore.setState({ leftTab: 'design', rightTab: 'view' });
   frame(project);
   return project;
-}
-
-async function pileReady(signal: AbortSignal): Promise<void> {
-  if (view().muckpileVersion !== session.document.version && !view().muckpileComputing)
-    requestMuckpile();
-  const start = performance.now();
-  while (
-    !view().muckpile ||
-    view().muckpileVersion !== session.document.version ||
-    view().muckpileComputing
-  ) {
-    signal.throwIfAborted();
-    if (!view().muckpileComputing && view().muckpileVersion !== session.document.version)
-      requestMuckpile();
-    if (performance.now() - start > 30000) throw new Error('La maza no estuvo lista a tiempo.');
-    await sleep();
-  }
-}
-
-async function sequence(signal: AbortSignal, seconds: number, pile: boolean): Promise<void> {
-  await analysisReady(signal);
-  if (pile) await pileReady(signal);
-  signal.throwIfAborted();
-  const analysis = view().analysis;
-  const engine = getEngine();
-  if (!analysis || !engine) throw new Error('Falta el análisis de la secuencia.');
-  const result = view().muckpile;
-  const end = pile && result ? muckpileEnd(result, null) : analysis.timing.lastTime + 0.3;
-  const from = analysis.timing.firstTime - 0.05;
-  const speed = Math.max(0.001, (end - from) / seconds);
-  view().set({ sequenceSpeed: speed, sequencePlaying: true });
-  engine.playSequence(sequenceTimes(analysis), speed, from, end);
-  if (ui().demoPaused) engine.pauseSequence();
 }
 
 async function completeDesign(signal: AbortSignal): Promise<void> {
@@ -261,7 +221,7 @@ export const TRAILER_STEPS: DemoStep[] = [
       ui().setViewMode('plan');
       view().set({ colorBy: 'time', labelBy: 'time' });
       view().setLayer('isochrones', true);
-      await sequence(signal, 7, false);
+      await playDemoSequence(signal, 7, false);
     },
   },
   {
@@ -278,7 +238,8 @@ export const TRAILER_STEPS: DemoStep[] = [
       view().set({ colorBy: 'kg', labelBy: 'label', muckpileMode: 'fast' });
       view().setLayer('labels', false);
       view().setLayer('muckpileBlocks', true);
-      await sequence(signal, 14, true);
+      getEngine()?.zoomToFit();
+      await playDemoSequence(signal, 14, true);
     },
   },
   {
@@ -295,6 +256,7 @@ export const TRAILER_STEPS: DemoStep[] = [
       view().setLayer('labels', false);
       view().setLayer('muckpileBlocks', true);
       view().setLayer('muckpile', true);
+      getEngine()?.zoomToFit();
       const { analysis, muckpile } = view();
       if (analysis && muckpile)
         getEngine()?.seekSequence(sequenceTimes(analysis), muckpileEnd(muckpile, null));

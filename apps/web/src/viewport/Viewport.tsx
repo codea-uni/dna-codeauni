@@ -27,6 +27,8 @@ export function Viewport() {
     engine.setHoleTemplate(ui.holeTemplate);
     engine.setTieConnector(ui.tieConnectorId);
     engine.setDecorations(ui.decorations);
+    engine.set3DOptions({ radiusScale: ui.radiusScale });
+    engine.setViewMode(ui.viewMode);
     // `t` lee el idioma al llamarse; volver a pasarlo al cambiar refresca los textos fijos del mapa.
     const applyText = () => {
       engine.setText((key, vars) => t(`engine.${key}`, vars));

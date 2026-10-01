@@ -1,15 +1,18 @@
 import { EXAMPLES } from '@cronos/core';
 import * as actions from '../actions';
-import { sequenceTimes } from '../analysis/visualize';
+import { muckpileEnd, sequenceTimes } from '../analysis/visualize';
 import { useLocale, type Locale, type MessageKey } from '../i18n';
 import { exampleText } from '../i18n/coreText';
 import { getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
+import { analysisReady, pileReady, playDemoSequence, terrainReady } from './runtime';
+
+export { analysisReady } from './runtime';
 
 /**
  * Modo demostración: un recorrido automático por las funciones de Cronos, con un subtítulo por
- * paso, pensado para grabar un video de avance. Usa el ejemplo «Producción estándar».
+ * paso, pensado para grabar un video de avance. Usa «Mina sobre levantamiento DXF».
  */
 export interface DemoStep {
   /** Título corto del capítulo (se muestra con su número). */
@@ -25,19 +28,8 @@ export interface DemoStep {
 const ui = () => useUiStore.getState();
 const view = () => useAnalysisStore.getState();
 
-/** Espera a que el worker termine el análisis del documento actual (máx. 8 s). */
-export async function analysisReady(signal: AbortSignal): Promise<void> {
-  const start = performance.now();
-  while (performance.now() - start < 8000) {
-    signal.throwIfAborted();
-    const a = view();
-    if (a.analysis && a.version === session.document.version && !a.computing) return;
-    await new Promise((r) => setTimeout(r, 150));
-  }
-  throw new Error('El análisis de la voladura no estuvo listo a tiempo.');
-}
-
 let localeBefore: Locale = 'es';
+let mineId: string | null = null;
 
 /**
  * Vista limpia antes de cada paso: así se puede avanzar, retroceder o saltar a cualquier paso y
@@ -55,25 +47,38 @@ export function clean(): void {
     vibEnabled: false,
     energyEnabled: false,
     energyDamage: false,
+    muckpileMode: 'fast',
   });
-  view().setLayer('isochrones', false);
-  view().setLayer('displacement', false);
+  for (const layer of [
+    'isochrones',
+    'displacement',
+    'muckpile',
+    'muckpileBefore',
+    'muckpileVectors',
+    'muckpileBlocks',
+  ] as const)
+    view().setLayer(layer, false);
+  view().setLayer('labels', true);
   if (ui().viewMode !== 'plan') ui().setViewMode('plan');
 }
 
-async function loadProduction(signal: AbortSignal): Promise<void> {
-  const ex = EXAMPLES.find((e) => e.id === 'production');
-  if (ex) await actions.loadExample(ex.id, exampleText(ex.id, ex).name, signal);
+async function loadMine(signal: AbortSignal): Promise<void> {
+  if (mineId !== session.document.project.id) {
+    const ex = EXAMPLES.find((e) => e.id === 'topoMine');
+    if (!ex) throw new Error('Falta el ejemplo topoMine.');
+    await actions.loadExample(ex.id, exampleText(ex.id, ex).name, signal);
+    signal.throwIfAborted();
+    mineId = session.document.project.id;
+  }
+  await terrainReady(session.document.project, signal);
 }
 
-export const DEMO_STEPS: DemoStep[] = [
+const TOUR_STEPS: DemoStep[] = [
   {
     chapter: 'demo.ch.intro',
     caption: 'demo.intro',
     ms: 9000,
-    run: async (signal) => {
-      await loadProduction(signal);
-      signal.throwIfAborted();
+    run: () => {
       useUiStore.setState({ leftTab: 'design', rightTab: 'view' });
       getEngine()?.zoomToFit();
     },
@@ -103,9 +108,12 @@ export const DEMO_STEPS: DemoStep[] = [
   {
     chapter: 'demo.ch.view3d',
     caption: 'demo.view3d',
-    ms: 8000,
+    ms: 11000,
     run: () => {
       ui().setViewMode('3d');
+      view().set({ colorBy: 'kg' });
+      view().setLayer('labels', false);
+      getEngine()?.zoomToFit();
     },
   },
   {
@@ -126,14 +134,9 @@ export const DEMO_STEPS: DemoStep[] = [
     ms: 11000,
     run: async (signal) => {
       useUiStore.setState({ leftTab: 'timing', rightTab: 'view' });
-      await analysisReady(signal);
-      const a = view().analysis;
-      const engine = getEngine();
-      if (!a || !engine) return;
-      // ≈ 1 s de secuencia real en ≈ 9 s de video
-      const speed = Math.max(0.02, (a.timing.lastTime - a.timing.firstTime) / 9);
-      view().set({ sequenceSpeed: speed, sequencePlaying: true });
-      engine.playSequence(sequenceTimes(a), speed);
+      view().set({ colorBy: 'time', labelBy: 'time' });
+      view().setLayer('isochrones', true);
+      await playDemoSequence(signal, 9, false);
     },
   },
   {
@@ -157,10 +160,34 @@ export const DEMO_STEPS: DemoStep[] = [
   {
     chapter: 'demo.ch.displacement',
     caption: 'demo.displacement',
+    ms: 20000,
+    prepare: pileReady,
+    run: async (signal) => {
+      useUiStore.setState({ leftTab: 'muckpile', rightTab: 'view' });
+      ui().setViewMode('3d');
+      view().set({ colorBy: 'kg', muckpileMode: 'fast' });
+      view().setLayer('labels', false);
+      view().setLayer('muckpileBlocks', true);
+      // Incluye el destino del material y deja unos segundos para apreciar la pila final.
+      getEngine()?.zoomToFit();
+      await playDemoSequence(signal, 15, true);
+    },
+  },
+  {
+    chapter: 'demo.ch.muckpile',
+    caption: 'demo.muckpile',
     ms: 9000,
+    prepare: pileReady,
     run: () => {
-      view().setLayer('displacement', true);
-      useUiStore.setState({ rightTab: 'view' });
+      useUiStore.setState({ leftTab: 'muckpile', rightTab: 'view' });
+      ui().setViewMode('3d');
+      view().setLayer('labels', false);
+      view().setLayer('muckpileBlocks', true);
+      view().setLayer('muckpile', true);
+      getEngine()?.zoomToFit();
+      const { analysis, muckpile } = view();
+      if (analysis && muckpile)
+        getEngine()?.seekSequence(sequenceTimes(analysis), muckpileEnd(muckpile, null));
     },
   },
   {
@@ -226,7 +253,18 @@ export const DEMO_STEPS: DemoStep[] = [
   },
 ];
 
+export const DEMO_STEPS: DemoStep[] = TOUR_STEPS.map((step) => ({
+  ...step,
+  prepare: async (signal) => {
+    // También permite saltar directamente a 3D o maza sin depender del primer capítulo.
+    await loadMine(signal);
+    await analysisReady(signal);
+    await step.prepare?.(signal);
+  },
+}));
+
 /** Arranca la demostración desde el primer paso, recordando el idioma del usuario. */
 export function rememberLocale(): void {
   localeBefore = useLocale.getState().locale;
+  mineId = null;
 }

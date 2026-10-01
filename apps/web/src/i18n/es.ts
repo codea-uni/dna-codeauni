@@ -172,6 +172,7 @@ export const es = {
   'demo.ch.burden': 'Burden efectivo',
   'demo.ch.sdob': 'Semáforo de proyección',
   'demo.ch.displacement': 'Desplazamiento',
+  'demo.ch.muckpile': 'Maza final',
   'demo.ch.damage': 'Daño en la roca',
   'demo.ch.fragmentation': 'Fragmentación',
   'demo.ch.vibration': 'Vibración',
@@ -186,12 +187,13 @@ export const es = {
   'demo.next': 'Siguiente',
   'demo.exit': 'Salir (Esc)',
   'demo.intro':
-    'Cronos: diseño y simulación de voladuras en el navegador. Ejemplo: banco de producción de ≈250 taladros, con coordenadas UTM y la cara libre al norte.',
+    'Cronos: diseño y simulación de voladuras en el navegador. Mina sobre levantamiento DXF: topografía real y 141 taladros adaptados al terreno.',
   'demo.design':
-    'Diseño: malla en tresbolillo generada dentro del perímetro y alineada a la cara libre. Grupos de producción y buffer, y burden teórico por Ash, Konya–Walter y Andersen.',
+    'Diseño: malla generada dentro del perímetro, sobre los bancos del levantamiento DXF y alineada a la cara libre. Burden teórico por Ash, Konya–Walter y Andersen.',
   'demo.charge':
     'Carga por tramos: explosivo de fondo, columna y taco, con booster. Kilos por taladro, factor de carga y profundidad escalada de enterramiento (SDOB) del taladro seleccionado.',
-  'demo.view3d': 'Vista 3D del banco: cada tramo de la columna con el color de su material.',
+  'demo.view3d':
+    'La mina del DXF en 3D: relieve real, bancos y taladros ajustados al terreno; cada tramo de la columna conserva el color de su material.',
   'demo.timing':
     'Tiempos: amarre en V desde la cara libre, con retardos de superficie y de fondo. Isócronas y tiempo de cada taladro.',
   'demo.sequence':
@@ -201,7 +203,9 @@ export const es = {
   'demo.sdob':
     'Semáforo de proyección: la profundidad escalada de enterramiento de cada taladro por bandas (cráter, incontrolada, controlada, muy controlada).',
   'demo.displacement':
-    'Desplazamiento: velocidad del burden (Zhang 2021) y alcance hacia la cara que se abre, taladro por taladro.',
+    'Desplazamiento de la maza en 3D: los bloques salen según la secuencia de disparo y se asientan hacia la cara libre sobre el terreno real.',
+  'demo.muckpile':
+    'Maza final: superficie del material desplazado sobre el levantamiento DXF. Volumen, alcance y esponjamiento en el panel de resultados.',
   'demo.damage':
     'Daño en la roca: Holmberg–Persson cerca de la carga, con contornos en ¼, 1, 4 y 8 veces la velocidad crítica de la roca.',
   'demo.vibration':

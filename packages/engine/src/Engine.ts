@@ -727,9 +727,19 @@ export class Engine {
 
   /** Triangulaciones de los levantamientos topográficos cargados (D-16), por id. */
   setTopographyTins(tins: ReadonlyMap<string, TinData>): void {
+    const changed =
+      tins.size !== this.topographyTins.size ||
+      [...tins].some(([id, tin]) => this.topographyTins.get(id) !== tin);
     this.topographyTins = tins;
     this.scene3dDirty = true;
-    if (this.viewMode === '3d') this.rebuild3d();
+    if (this.viewMode === '3d') {
+      this.rebuild3d();
+      // Un levantamiento puede llegar después de entrar a 3D: no conservar la cámara vacía.
+      if (changed && this.designEmpty()) {
+        this.fit3d();
+        this.applyCamera3d();
+      }
+    }
     this.loop.invalidate();
   }
 
@@ -1033,8 +1043,9 @@ export class Engine {
   // ------------------------------------------------------------------ Sincronización con el documento
 
   private onDocumentChange(cs: ChangeSet): void {
-    this.onDocumentChangePlan(cs);
+    // El reset puede encuadrar en 3D dentro de onDocumentChangePlan. Debe usar la escena nueva.
     this.scene3dDirty = true;
+    this.onDocumentChangePlan(cs);
     if (this.viewMode === '3d') {
       this.rebuild3d();
       if (!this.orbit) {
@@ -1049,6 +1060,9 @@ export class Engine {
       this.activeBlastId = undefined;
       this.activeBoundaryId = null;
       this.orbit = null;
+      this.stopSequence();
+      // Un resultado del proyecto anterior no debe extender el encuadre del modelo nuevo.
+      this.setMuckpile(null);
       this.origin = { ...this.document.project.coordinateSystem.origin };
       this.rebuildAll();
       this.zoomToFit();
@@ -1184,11 +1198,13 @@ export class Engine {
       maxY: 50,
       maxZ: 10,
     };
-    this.orbit = fitOrbit(b, (this.camera3d.fov * Math.PI) / 180);
+    this.orbit = fitOrbit(b, (this.camera3d.fov * Math.PI) / 180, this.width / this.height);
   }
 
   /** Agrega la extensión de la pila (puede salir muy por delante de la voladura) al encuadre 3D. */
   private withMuckpileBounds(b: typeof this.scene3d.bounds): typeof this.scene3d.bounds {
+    const layers = this.layerVisible;
+    if (!layers.muckpile && !layers.muckpileBlocks && !layers.muckpileVectors) return b;
     const g = this.muckpileData?.surface?.after;
     if (!g || g.nx === 0) return b;
     const minX = g.originX - this.origin.x;
@@ -1478,8 +1494,21 @@ export class Engine {
       centerX: this.view.centerX + this.origin.x - next.x,
       centerY: this.view.centerY + this.origin.y - next.y,
     };
+    if (this.orbit) {
+      this.orbit = {
+        ...this.orbit,
+        targetX: this.orbit.targetX + this.origin.x - next.x,
+        targetY: this.orbit.targetY + this.origin.y - next.y,
+        targetZ: this.orbit.targetZ + this.origin.z - next.z,
+      };
+    }
     this.origin = next;
+    this.scene3dDirty = true;
     this.rebuildAll(false);
+    if (this.viewMode === '3d') {
+      this.rebuild3d();
+      this.applyCamera3d();
+    }
   }
 
   private updateTypicalSpacing(): void {

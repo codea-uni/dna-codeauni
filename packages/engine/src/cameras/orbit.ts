@@ -63,6 +63,7 @@ export function dollyOrbit(o: OrbitState, factor: number, min = 2, max = 50_000)
 export function fitOrbit(
   box: { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number },
   fovRad: number,
+  aspect = 1,
 ): OrbitState {
   const cx = (box.minX + box.maxX) / 2;
   const cy = (box.minY + box.maxY) / 2;
@@ -71,12 +72,14 @@ export function fitOrbit(
     1,
     Math.hypot(box.maxX - box.minX, box.maxY - box.minY, box.maxZ - box.minZ) / 2,
   );
+  // En un viewport angosto limita el FOV horizontal, no el vertical.
+  const halfFov = Math.atan(Math.tan(fovRad / 2) * Math.min(1, Math.max(0.01, aspect)));
   return {
     targetX: cx,
     targetY: cy,
     targetZ: cz,
     yaw: (150 * Math.PI) / 180,
     pitch: (35 * Math.PI) / 180,
-    distance: (r / Math.sin(fovRad / 2)) * 1.05,
+    distance: (r / Math.sin(halfFov)) * 1.05,
   };
 }
