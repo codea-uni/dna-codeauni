@@ -15,10 +15,10 @@ Opcional. Sin él, la web funciona como siempre (sin login, con autoguardado loc
 - Para activarlo, la primera vez (después basta `./scripts/deploy.sh`):
 
   ```sh
-  CRONOS_SUPERADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server
+  ./scripts/deploy.sh --server
   ```
 
-  Completa `/opt/dna-codeauni/.env` sin tocar lo que ya tenga: `COMPOSE_PROFILES=server`, `VITE_API_URL=/api` y secretos aleatorios para `POSTGRES_PASSWORD` y `BETTER_AUTH_SECRET`. Con `CRONOS_SUPERADMIN_EMAIL` crea el superadministrador de la plataforma y muestra una sola vez su contraseña generada (queda en el `.env`, que manda: al arrancar la API se crea o se actualiza con ella y no pide cambiarla); desde `/platform` crea las empresas con su primer administrador. El superadministrador es el dueño del software y no pertenece a ninguna empresa: usar un correo que no sea de ninguna. Al final espera a que `/api/health` responda. El `.env` nunca va al repositorio (plantilla en `.env.example`).
+  Completa `/opt/dna-codeauni/.env`: `COMPOSE_PROFILES=server`, `VITE_API_URL=/api` y secretos aleatorios para `POSTGRES_PASSWORD` y `BETTER_AUTH_SECRET` si faltan. Usa `plataforma@cronos.local` si no hay correo de superadministrador y fija `CRONOS_SUPERADMIN_PASSWORD=cronos123`, reemplazando la contraseña anterior. El `.env` manda: al arrancar la API se crea o sincroniza esa cuenta sin cambio obligatorio. También se crean las cuentas demo, empresas, minas y proyectos del README, salvo con `CRONOS_DEMO_DATA=false`. Desde `/platform` se pueden crear otras empresas; el superadministrador no pertenece a ninguna. Al final espera a que `/api/health` responda. El `.env` nunca va al repositorio (plantilla en `.env.example`).
 
 - Las migraciones se aplican solas al arrancar `api`. Los datos quedan en el volumen `pgdata`; respaldo: `docker compose exec postgres pg_dump -U cronos cronos > respaldo.sql`.
 - Salud: `https://<dominio>/api/health` (`status` y `database`).

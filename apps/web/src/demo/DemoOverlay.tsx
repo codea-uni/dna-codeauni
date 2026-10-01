@@ -2,7 +2,11 @@ import { Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
 import { useUiStore } from '../stores/uiStore';
-import { DEMO_STEPS, runStep, stopDemo } from './tour';
+import { getEngine } from '../session';
+import { useAnalysisStore } from '../stores/analysisStore';
+import { DEMO_STEPS } from './tour';
+import { TRAILER_STEPS } from './trailer';
+import { runStep, stopDemo } from './playback';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -14,30 +18,35 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export function DemoOverlay() {
   const t = useT();
   const step = useUiStore((s) => s.demoStep);
+  const tour = useUiStore((s) => s.demoTour);
   const paused = useUiStore((s) => s.demoPaused);
+  const ready = useUiStore((s) => s.demoReady);
   const setDemo = useUiStore((s) => s.setDemo);
-  const ran = useRef<number | null>(null);
+  const steps = tour === 'trailer' ? TRAILER_STEPS : DEMO_STEPS;
   // Tiempo que le queda al paso actual: la pausa lo congela y al continuar sigue desde ahí.
   const remaining = useRef(0);
 
   useEffect(() => {
-    if (step === null) {
-      ran.current = null;
-      return;
-    }
-    const current = DEMO_STEPS[step];
+    if (step === null) return;
+    const current = steps[step];
     if (!current) {
       stopDemo();
       return;
     }
-    if (ran.current !== step) {
-      ran.current = step;
-      remaining.current = current.ms;
-      void runStep(current).catch((err: unknown) => {
-        console.error('[demo]', err);
-      });
-    }
-    if (paused) return;
+    remaining.current = current.ms;
+    const running = runStep(current);
+    void running.done.catch((err: unknown) => {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      console.error('[demo]', err);
+      useUiStore.getState().notify(err instanceof Error ? err.message : String(err), 'error');
+      stopDemo();
+    });
+    return running.cancel;
+  }, [step, steps]);
+
+  useEffect(() => {
+    if (step === null || !steps[step]) return;
+    if (paused || !ready) return;
     const start = performance.now();
     const timer = setTimeout(() => {
       setDemo({ demoStep: step + 1 });
@@ -46,7 +55,18 @@ export function DemoOverlay() {
       clearTimeout(timer);
       remaining.current = Math.max(0, remaining.current - (performance.now() - start));
     };
-  }, [step, paused, setDemo]);
+  }, [step, steps, paused, ready, setDemo]);
+
+  useEffect(() => {
+    if (step === null) return;
+    const engine = getEngine();
+    const s = useAnalysisStore.getState();
+    if (paused) engine?.pauseSequence();
+    else if (s.sequencePlaying && s.analysis) {
+      // Reanuda desde el reloj del motor y conserva el final de la maza.
+      engine?.resumeSequence();
+    }
+  }, [paused, step]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -66,24 +86,28 @@ export function DemoOverlay() {
   }, [setDemo]);
 
   if (step === null) return null;
-  const current = DEMO_STEPS[step];
+  const current = steps[step];
   if (!current) return null;
   const go = (s: number) => {
-    setDemo({ demoStep: Math.min(Math.max(0, s), DEMO_STEPS.length - 1) });
+    setDemo({ demoStep: Math.min(Math.max(0, s), steps.length - 1) });
   };
   const playState = paused ? 'paused' : 'running';
 
   return (
-    <div className="demo-root">
+    <div
+      className={`demo-root${tour === 'trailer' ? ' trailer' : ''}`}
+      data-step={step}
+      data-ready={ready}
+    >
       <div className="demo-vignette" />
 
       <div
         className="demo-progress"
         role="progressbar"
         aria-valuenow={step + 1}
-        aria-valuemax={DEMO_STEPS.length}
+        aria-valuemax={steps.length}
       >
-        {DEMO_STEPS.map((s, i) => (
+        {steps.map((s, i) => (
           <button
             key={s.chapter}
             className={`demo-seg${i < step ? ' done' : ''}`}
@@ -111,7 +135,9 @@ export function DemoOverlay() {
       <div className="demo-caption" role="status" aria-live="polite">
         <div key={`text-${String(step)}`} className="demo-caption-text">
           <span className="demo-kicker">
-            {pad(step + 1)} / {pad(DEMO_STEPS.length)} · {t(current.chapter)}
+            {tour === 'trailer'
+              ? `Cronos · ${t(current.chapter)}`
+              : `${pad(step + 1)} / ${pad(steps.length)} · ${t(current.chapter)}`}
           </span>
           <p>{t(current.caption)}</p>
         </div>

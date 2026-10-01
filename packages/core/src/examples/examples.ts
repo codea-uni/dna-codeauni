@@ -6,14 +6,18 @@ import { unitToAzimuth } from '../geometry/vec';
 import { fitPatternToPolygon, generatePatternHoles } from '../patterns/pattern';
 import { electronicTimes, rowTieUp, withDownholeDetonator } from '../timing/tieUp';
 import { degToRad } from '../units/units';
-import { buildPitExample, buildSectorExample, type ExampleBuild } from './topographyExamples';
+import {
+  buildMineExample,
+  buildPitExample,
+  buildSectorExample,
+  type ExampleBuild,
+} from './topographyExamples';
 import type {
   Blast,
   BlastBoundary,
   Deck,
   Hole,
   HoleGroupKind,
-  HoleWater,
   InHoleInitiator,
   Pattern,
   PatternKind,
@@ -100,6 +104,8 @@ export interface ExampleSpec {
   /** Perímetro relativo a `origin` [m] y aristas de cara libre. */
   perimeter: Vec2[];
   freeFaceEdges: number[];
+  /** Dirección de las filas; por defecto, la de la arista libre más larga. */
+  alignment?: Pick<Pattern, 'rowAzimuth' | 'rowAdvance'>;
   pattern: {
     kind: PatternKind;
     burden: number;
@@ -135,8 +141,6 @@ export interface ExampleSpec {
   drillingCostPerMeter?: number;
   /** Grupo de cada fila (RM-18): precorte, buffer, producción… */
   groups?: (row: number, rows: number) => { name: string; kind: HoleGroupKind };
-  /** Estado de agua de cada fila (P-09). */
-  water?: (row: number, rows: number) => HoleWater | undefined;
   /** Variantes guardadas como escenarios para compararlas (R-23): otro amarre. */
   scenarios?: { name: string; timing: ExampleTiming }[];
   /** Filas extra de la tabla de límites de PPV, por tipo de estructura (P-12). */
@@ -179,10 +183,11 @@ export function buildExample(spec: ExampleSpec): Project {
     faceAngle: degToRad(spec.faceAngleDeg),
   };
 
-  const alignment = freeFaceAlignment(boundary) ?? {
-    rowAzimuth: Math.PI / 2,
-    rowAdvance: 'right' as const,
-  };
+  const alignment = spec.alignment ??
+    freeFaceAlignment(boundary) ?? {
+      rowAzimuth: Math.PI / 2,
+      rowAdvance: 'right' as const,
+    };
   // Taladros inclinados: hacia la cara libre (normal exterior de la primera arista libre).
   const face =
     spec.freeFaceEdges[0] !== undefined ? outwardNormal(polygon, spec.freeFaceEdges[0]) : null;
@@ -209,7 +214,7 @@ export function buildExample(spec: ExampleSpec): Project {
     },
   };
   const rows = layout.rows;
-  // Grupos por fila (RM-18) y estado de agua (P-09).
+  // Grupos por fila (RM-18).
   const groups = new Map<string, ReturnType<typeof makeGroup>>();
   const groupOf = (row: number) => {
     const g = spec.groups?.(row, rows);
@@ -226,8 +231,6 @@ export function buildExample(spec: ExampleSpec): Project {
     const hole: Hole = { ...h, ...buildCharge(h, spec.charge(row, rows), lib) };
     const groupId = groupOf(row);
     if (groupId) hole.groupId = groupId;
-    const water = spec.water?.(row, rows);
-    if (water) hole.water = water;
     return hole;
   });
 
@@ -375,9 +378,8 @@ export interface ExampleInfo {
   id: string;
   name: string;
   description: string;
-  build: () => Project;
-  /** Proyecto con los binarios de su topografía (ejemplos con levantamiento, D-16). */
-  buildFull?: () => ExampleBuild;
+  /** Proyecto con los binarios de su topografía (D-16); un levantamiento real se carga al pedirlo. */
+  build: () => Promise<ExampleBuild>;
 }
 
 /** Recetas de los ejemplos (exportadas para tests y variantes). */
@@ -437,36 +439,6 @@ export const EXAMPLE_SPECS = {
         source: 'Valor de demostración, no es norma: reemplazar por el del EIA de la operación',
       },
     ],
-    rock: ROCK,
-  } satisfies ExampleSpec,
-  wet: {
-    projectName: 'Demo · Frente con agua',
-    blastName: 'Banco 3420 · Rampa',
-    origin: ORIGIN,
-    floorElevation: 3420,
-    benchHeight: 15,
-    faceAngleDeg: 70,
-    perimeter: perimeter(110, 60, 12),
-    freeFaceEdges: [NORTH],
-    pattern: { kind: 'staggered', burden: 5.5, spacing: 6.5, diameterMm: 200, subdrill: 1.5 },
-    frontOffset: 2.75,
-    charge: (row, rows) =>
-      row >= rows - 3
-        ? {
-            column: 'Emulsión bombeable',
-            stemming: 4,
-            primer: 'Booster 450',
-            detonator: 'Nonel fondo 500',
-          }
-        : { column: 'ANFO', stemming: 4, primer: 'Booster 450', detonator: 'Nonel fondo 500' },
-    // P-09: agua estática en las filas del fondo → emulsión (el ANFO no es apto).
-    water: (row, rows) => (row >= rows - 3 ? 'static' : 'dry'),
-    groups: (row, rows) =>
-      row >= rows - 3
-        ? { name: 'Con agua (emulsión)', kind: 'production' }
-        : { name: 'Seco (ANFO)', kind: 'production' },
-    timing: { mode: 'line', interHole: 'Nonel superficie 25', interRow: 'Nonel superficie 65' },
-    monitoring: [{ name: 'Chancador', dx: -350, dy: 30, structure: 'planta' }],
     rock: ROCK,
   } satisfies ExampleSpec,
   electronic: {
@@ -571,68 +543,66 @@ export const EXAMPLE_SPECS = {
   } satisfies ExampleSpec,
 };
 
+/** Ejemplo sin levantamiento: el proyecto solo, sin binarios. */
+const plain = (spec: ExampleSpec) => () =>
+  Promise.resolve({ project: buildExample(spec), assets: [] });
+
 export const EXAMPLES: ExampleInfo[] = [
   {
     id: 'production',
     name: 'Producción estándar',
     description:
       '≈250 taladros Ø 229 mm · producción y buffer · salida en V · 2 escenarios para comparar (en fila y en escalón)',
-    build: () => buildExample(EXAMPLE_SPECS.production),
-  },
-  {
-    id: 'wet',
-    name: 'Frente con agua',
-    description:
-      'Filas del fondo con agua estática cargadas con emulsión · resto con ANFO · amarre línea a línea',
-    build: () => buildExample(EXAMPLE_SPECS.wet),
+    build: plain(EXAMPLE_SPECS.production),
   },
   {
     id: 'electronic',
     name: 'Cerca de infraestructura',
     description:
       'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m con límite propio',
-    build: () => buildExample(EXAMPLE_SPECS.electronic),
+    build: plain(EXAMPLE_SPECS.electronic),
   },
   {
     id: 'inclined',
     name: 'Taladros inclinados',
     description: 'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
-    build: () => buildExample(EXAMPLE_SPECS.inclined),
+    build: plain(EXAMPLE_SPECS.inclined),
   },
   {
     id: 'muckpile',
     name: 'Pila de material',
     description:
       'Banco de 10 m · malla 4 × 5 m · 3 filas × 8 taladros · 25 ms entre taladros y 67 ms entre filas · para ver el desplazamiento y la pila (A7)',
-    build: () => buildExample(EXAMPLE_SPECS.muckpile),
+    build: plain(EXAMPLE_SPECS.muckpile),
   },
   {
     id: 'topoPit',
     name: 'Tajo con topografía',
     description:
       'Tajo de 8 bancos con curvas de nivel, cresta y pie · voladura en el banco 3385 apoyada en el terreno, cara libre desde la cresta · próximo perímetro en el fondo con su propio piso',
-    build: () => buildPitExample().project,
-    buildFull: () => buildPitExample(),
+    build: () => Promise.resolve(buildPitExample()),
   },
   {
     id: 'topoSector',
     name: 'Banco sobre topografía (completo)',
     description:
       'Talud de tres bancos con terreno natural y ortofoto · producción y buffer sobre el terreno, salida en V y escenario en escalón · puntos de control · próximo perímetro en el banco 3370',
-    build: () => buildSectorExample().project,
-    buildFull: () => buildSectorExample(),
+    build: () => Promise.resolve(buildSectorExample()),
   },
   {
-    id: 'problems',
-    name: 'Problemas típicos',
+    id: 'topoMine',
+    name: 'Mina sobre levantamiento DXF',
     description:
-      'Taco corto, sin carga, sin detonador, sin booster, ANFO en agua, columna abierta, fila sin amarre, retardos que coinciden, duplicados',
-    build: buildProblems,
+      'Tajo real de un levantamiento DXF (TIN) · voladura en el banco 3465 de la pared Norte: cara libre en la cresta hacia el tajo, piso en el banco 3450, bocas sobre el terreno · salida en V',
+    build: buildMineExample,
   },
 ];
 
-/** Ejemplo con errores frecuentes de terreno, para practicar la revisión (Resultados → Alertas). */
-function buildProblems(): Project {
+/**
+ * Errores frecuentes de terreno, para probar la revisión (Resultados → Alertas). No está en el
+ * menú de ejemplos: lo usan los tests del diagnóstico.
+ */
+export function buildProblems(): Project {
   const project = buildExample({
     projectName: 'Demo · Problemas típicos',
     blastName: 'Banco 3435 · Revisión',

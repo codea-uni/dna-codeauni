@@ -840,6 +840,14 @@ export class Engine {
     if (this.sequence) this.sequence.playing = false;
   }
 
+  /** Continúa una secuencia pausada sin cambiar su tiempo ni su límite final. */
+  resumeSequence(): void {
+    if (!this.sequence) return;
+    this.sequence.playing = true;
+    this.sequence.last = performance.now();
+    this.loop.invalidate();
+  }
+
   setSequenceSpeed(speed: number): void {
     if (this.sequence) this.sequence.speed = speed;
   }

@@ -21,6 +21,7 @@ import {
   type NodeRef,
   type Pattern,
   type PatternId,
+  type Project,
   type SurfaceConnectorId,
 } from '@cronos/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
@@ -765,6 +766,11 @@ const EXAMPLE_VIEWS: Record<string, () => void> = {
     useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: 'plan' });
     fitTopography();
   },
+  topoMine: () => {
+    useAnalysisStore.getState().set({ colorBy: 'time', labelBy: 'label', topoContourInterval: 5 });
+    useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: 'plan' });
+    fitTopography();
+  },
   topoSector: () => {
     useAnalysisStore.getState().set({ colorBy: 'kg', labelBy: 'label', topoContourInterval: 5 });
     useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: 'plan' });
@@ -812,14 +818,21 @@ export async function compareScenarios(): Promise<void> {
 }
 
 /** Abre un proyecto de ejemplo completamente configurado (se genera en el worker). */
-export async function loadExample(id: string, name: string): Promise<void> {
-  if (blockedByReadOnly()) return;
-  if (document.canUndo && !window.confirm(t('actions.discardForExample', { name }))) return;
+export async function loadExample(
+  id: string,
+  name: string,
+  preview?: AbortSignal,
+  prepare?: (project: Project) => Project,
+): Promise<void> {
+  if (preview?.aborted || blockedByReadOnly()) return;
+  if (!preview && document.canUndo && !window.confirm(t('actions.discardForExample', { name })))
+    return;
   await withBusy(t('actions.preparingExample'), async () => {
     const { project, assets } = await getCompute().api.buildExample(id);
     // La topografía del ejemplo se guarda en el navegador antes de abrirlo (D-16).
     await Promise.all(assets.map((a) => putAsset(a.hash, a.bytes)));
-    document.load(project);
+    if (preview?.aborted) return;
+    document.load(prepare ? prepare(project) : project);
     useUiStore.getState().setActiveBoundary(project.blasts[0]?.boundaries[0]?.id ?? null);
     resetView();
     EXAMPLE_VIEWS[id]?.();

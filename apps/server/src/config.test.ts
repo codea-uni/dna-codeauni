@@ -16,8 +16,14 @@ describe('loadConfig', () => {
       logLevel: 'info',
       authSecret: 's'.repeat(32),
       baseUrl: 'http://localhost:3000',
+      demoData: true,
       initialAdmin: null,
     });
+  });
+
+  it('permite desactivar los datos predeterminados explícitamente', () => {
+    expect(loadConfig({ ...BASE, CRONOS_DEMO_DATA: 'false' }).demoData).toBe(false);
+    expect(() => loadConfig({ ...BASE, CRONOS_DEMO_DATA: 'typo' })).toThrow(/CRONOS_DEMO_DATA/);
   });
 
   it('arma el primer administrador solo con correo y contraseña', () => {

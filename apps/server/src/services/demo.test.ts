@@ -1,17 +1,19 @@
 import { meSchema } from '@cronos/api';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createTestApp, signIn, TEST_ORIGIN, type TestApp } from '../test/testApp';
 import { createTestDb, databaseAvailable, type TestDb } from '../test/testDb';
 import { DEMO_ACCOUNTS, seedDemo } from './demo';
 
-describe.runIf(await databaseAvailable())('datos de demostración (desarrollo)', () => {
+describe.runIf(await databaseAvailable())('datos predeterminados en producción', () => {
   let t: TestDb;
   let s: TestApp;
   beforeAll(async () => {
+    vi.stubEnv('NODE_ENV', 'production');
     t = await createTestDb();
     s = createTestApp(t);
   });
   afterAll(async () => {
+    vi.unstubAllEnvs();
     await t.drop();
   });
 
@@ -20,7 +22,7 @@ describe.runIf(await databaseAvailable())('datos de demostración (desarrollo)',
       users: 5,
       organizations: 2,
       mines: 2,
-      projects: 2,
+      projects: 3,
     });
     expect(await seedDemo(t.db, s.auth)).toEqual({
       users: 0,
@@ -44,7 +46,7 @@ describe.runIf(await databaseAvailable())('datos de demostración (desarrollo)',
     }
   });
 
-  it('Cuajone tiene los dos proyectos con su topografía registrada en la mina', async () => {
+  it('Cuajone tiene los tres proyectos con su topografía registrada en la mina', async () => {
     const mine = await t.db
       .selectFrom('mine')
       .selectAll()
@@ -57,6 +59,7 @@ describe.runIf(await databaseAvailable())('datos de demostración (desarrollo)',
       .execute();
     expect(projects.map((p) => p.name).sort()).toEqual([
       'Demo · Banco sobre topografía',
+      'Demo · Mina sobre levantamiento DXF',
       'Demo · Tajo con topografía',
     ]);
     const surveys = await t.db
@@ -64,12 +67,20 @@ describe.runIf(await databaseAvailable())('datos de demostración (desarrollo)',
       .select('name')
       .where('mineId', '=', mine.id)
       .execute();
-    expect(surveys).toHaveLength(2);
+    expect(surveys).toHaveLength(3);
     const assets = await t.db
       .selectFrom('topography_asset')
       .select('kind')
       .where('organizationId', '=', mine.organizationId)
       .execute();
-    expect(assets.map((a) => a.kind).sort()).toEqual(['image', 'lines', 'lines', 'tin', 'tin']);
+    expect(assets.map((a) => a.kind).sort()).toEqual([
+      'image',
+      'lines',
+      'lines',
+      'lines',
+      'tin',
+      'tin',
+      'tin',
+    ]);
   });
 });

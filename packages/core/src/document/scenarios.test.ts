@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { compareScenarios } from '../analysis/compareScenarios';
-import { EXAMPLES } from '../examples/examples';
+import { buildExample, EXAMPLE_SPECS } from '../examples/examples';
 import { DocumentStore } from './DocumentStore';
 import { loadScenario, removeScenario, saveScenario } from './commands';
 
-const production = () => {
-  const ex = EXAMPLES.find((e) => e.id === 'production');
-  if (!ex) throw new Error('sin ejemplo');
-  return ex.build();
-};
+const production = () => buildExample(EXAMPLE_SPECS.production);
 
 describe('escenarios (H-701, R-23)', () => {
   it('guardar, modificar, cargar y deshacer', () => {

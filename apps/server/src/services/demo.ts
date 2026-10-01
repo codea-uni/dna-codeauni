@@ -6,9 +6,9 @@ import { recordAudit } from './audit';
 import { createProject } from './projects';
 
 /**
- * Datos de demostración para desarrollo (`pnpm dev:online` / `pnpm dev:seed`): las cuentas del
- * README, dos empresas con sus minas y dos proyectos con topografía en Cuajone. Idempotente: crea
- * lo que falta y no toca lo que ya existe (ni contraseñas cambiadas). Nunca corre en producción.
+ * Datos predeterminados en desarrollo y producción: las cuentas del README, dos empresas con
+ * sus minas y tres proyectos con topografía en Cuajone. Idempotente: crea lo que falta y no toca
+ * lo que ya existe (ni contraseñas cambiadas). Se desactiva con CRONOS_DEMO_DATA=false.
  */
 
 interface DemoAccount {
@@ -63,7 +63,7 @@ const DEMO_MINES = [
 ] as const;
 
 /** Proyectos de ejemplo que se crean en Cuajone (con su topografía), por id de ejemplo. */
-const DEMO_PROJECTS = ['topoSector', 'topoPit'] as const;
+const DEMO_PROJECTS = ['topoMine', 'topoSector', 'topoPit'] as const;
 
 export interface DemoSeedResult {
   users: number;
@@ -153,8 +153,8 @@ export async function seedDemo(db: Db, auth: Auth): Promise<DemoSeedResult> {
     if (m.name !== 'Cuajone' || !creator) continue;
     for (const exampleId of DEMO_PROJECTS) {
       const example = EXAMPLES.find((e) => e.id === exampleId);
-      if (!example?.buildFull) continue;
-      const built: ExampleBuild = example.buildFull();
+      if (!example) continue;
+      const built: ExampleBuild = await example.build();
       const exists = await db
         .selectFrom('project')
         .select('id')

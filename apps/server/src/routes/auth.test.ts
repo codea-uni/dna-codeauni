@@ -91,6 +91,7 @@ describe.runIf(await databaseAvailable())('login (H-801, NF-07)', () => {
       email: 'nuevo@mina.pe',
       name: 'Nuevo',
       password: 'temporal-123',
+      mustChangePassword: true,
     });
     const cookie = await signIn(s.app, 'nuevo@mina.pe', 'temporal-123');
     const me = await s.app.inject({ method: 'GET', url: '/api/me', headers: { cookie } });

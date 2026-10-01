@@ -1,20 +1,23 @@
-import { analyzeBlast, EXAMPLES } from '@cronos/core';
+import { analyzeBlast, buildProblems, EXAMPLES } from '@cronos/core';
 import { describe, expect, it } from 'vitest';
 import { checkText, exampleText } from './coreText';
 import { useLocale } from './index';
 
 /** Revisión del ejemplo «problemas típicos» (dispara todas las alertas) y de los demás ejemplos. */
-function allChecks() {
-  return EXAMPLES.flatMap((e) => {
-    const p = e.build();
+async function allChecks() {
+  const projects = [
+    buildProblems(),
+    ...(await Promise.all(EXAMPLES.map((e) => e.build()))).map((b) => b.project),
+  ];
+  return projects.flatMap((p) => {
     const blast = p.blasts[0];
     return blast ? (analyzeBlast(p, blast.id)?.checks ?? []) : [];
   });
 }
 
-describe('textos del núcleo traducidos (G8)', () => {
-  const checks = allChecks();
+const checks = await allChecks();
 
+describe('textos del núcleo traducidos (G8)', () => {
   it('en español, la revisión del diseño es idéntica al texto del núcleo', () => {
     useLocale.getState().setLocale('es');
     expect(checks.length).toBeGreaterThan(5);

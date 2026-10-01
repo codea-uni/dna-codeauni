@@ -83,8 +83,15 @@ interface UiState {
   setScenarioKpis: (kpis: ScenarioKpis[] | null) => void;
   /** Paso actual del modo demostración (null = apagado). */
   demoStep: number | null;
+  demoTour: 'tour' | 'trailer';
   demoPaused: boolean;
-  setDemo: (patch: { demoStep?: number | null; demoPaused?: boolean }) => void;
+  demoReady: boolean;
+  setDemo: (patch: {
+    demoStep?: number | null;
+    demoPaused?: boolean;
+    demoReady?: boolean;
+    demoTour?: 'tour' | 'trailer';
+  }) => void;
   versionsOpen: boolean;
   setVersionsOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
@@ -178,7 +185,9 @@ export const useUiStore = create<UiState>()((set) => ({
     set({ scenarioKpis });
   },
   demoStep: null,
+  demoTour: 'tour',
   demoPaused: false,
+  demoReady: false,
   setDemo: (patch) => {
     set(patch);
   },

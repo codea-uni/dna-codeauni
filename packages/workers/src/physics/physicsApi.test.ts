@@ -38,7 +38,7 @@ describe('animación física de la pila (Rapier, A7 nivel 2)', () => {
   });
 
   it('la pila del ejemplo se simula con la velocidad del modelo cinemático', async () => {
-    const project = computeApi.buildExample('muckpile').project;
+    const { project } = await computeApi.buildExample('muckpile');
     const blast = project.blasts[0];
     if (!blast) throw new Error('sin voladura');
     const m = computeMuckpile(project, blast.id);

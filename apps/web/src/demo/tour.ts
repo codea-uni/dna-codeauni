@@ -17,20 +17,24 @@ export interface DemoStep {
   caption: MessageKey;
   /** Duración del paso [ms] antes de pasar al siguiente. */
   ms: number;
-  run: () => void | Promise<void>;
+  /** Preparación fuera del reloj del capítulo (assets, workers). */
+  prepare?: (signal: AbortSignal) => void | Promise<void>;
+  run: (signal: AbortSignal) => void | Promise<void>;
 }
 
 const ui = () => useUiStore.getState();
 const view = () => useAnalysisStore.getState();
 
 /** Espera a que el worker termine el análisis del documento actual (máx. 8 s). */
-async function analysisReady(): Promise<void> {
+export async function analysisReady(signal: AbortSignal): Promise<void> {
   const start = performance.now();
   while (performance.now() - start < 8000) {
+    signal.throwIfAborted();
     const a = view();
     if (a.analysis && a.version === session.document.version && !a.computing) return;
     await new Promise((r) => setTimeout(r, 150));
   }
+  throw new Error('El análisis de la voladura no estuvo listo a tiempo.');
 }
 
 let localeBefore: Locale = 'es';
@@ -39,7 +43,7 @@ let localeBefore: Locale = 'es';
  * Vista limpia antes de cada paso: así se puede avanzar, retroceder o saltar a cualquier paso y
  * cada uno se ve igual que en el recorrido normal.
  */
-function clean(): void {
+export function clean(): void {
   getEngine()?.stopSequence();
   useLocale.getState().setLocale(localeBefore);
   session.selection.set([]);
@@ -57,9 +61,9 @@ function clean(): void {
   if (ui().viewMode !== 'plan') ui().setViewMode('plan');
 }
 
-async function loadProduction(): Promise<void> {
+async function loadProduction(signal: AbortSignal): Promise<void> {
   const ex = EXAMPLES.find((e) => e.id === 'production');
-  if (ex) await actions.loadExample(ex.id, exampleText(ex.id, ex).name);
+  if (ex) await actions.loadExample(ex.id, exampleText(ex.id, ex).name, signal);
 }
 
 export const DEMO_STEPS: DemoStep[] = [
@@ -67,8 +71,9 @@ export const DEMO_STEPS: DemoStep[] = [
     chapter: 'demo.ch.intro',
     caption: 'demo.intro',
     ms: 9000,
-    run: async () => {
-      await loadProduction();
+    run: async (signal) => {
+      await loadProduction(signal);
+      signal.throwIfAborted();
       useUiStore.setState({ leftTab: 'design', rightTab: 'view' });
       getEngine()?.zoomToFit();
     },
@@ -107,11 +112,11 @@ export const DEMO_STEPS: DemoStep[] = [
     chapter: 'demo.ch.timing',
     caption: 'demo.timing',
     ms: 8000,
-    run: async () => {
+    run: async (signal) => {
       view().set({ colorBy: 'time', labelBy: 'time' });
       view().setLayer('isochrones', true);
       useUiStore.setState({ leftTab: 'timing', rightTab: 'view' });
-      await analysisReady();
+      await analysisReady(signal);
       getEngine()?.zoomToFit();
     },
   },
@@ -119,9 +124,9 @@ export const DEMO_STEPS: DemoStep[] = [
     chapter: 'demo.ch.sequence',
     caption: 'demo.sequence',
     ms: 11000,
-    run: async () => {
+    run: async (signal) => {
       useUiStore.setState({ leftTab: 'timing', rightTab: 'view' });
-      await analysisReady();
+      await analysisReady(signal);
       const a = view().analysis;
       const engine = getEngine();
       if (!a || !engine) return;
@@ -222,19 +227,6 @@ export const DEMO_STEPS: DemoStep[] = [
 ];
 
 /** Arranca la demostración desde el primer paso, recordando el idioma del usuario. */
-export function startDemo(): void {
+export function rememberLocale(): void {
   localeBefore = useLocale.getState().locale;
-  ui().setDemo({ demoStep: 0, demoPaused: false });
-}
-
-/** Ejecuta un paso: primero la vista limpia y luego lo propio del paso. */
-export async function runStep(step: DemoStep): Promise<void> {
-  clean();
-  await step.run();
-}
-
-/** Deja la vista en un estado limpio al salir de la demostración. */
-export function stopDemo(): void {
-  clean();
-  ui().setDemo({ demoStep: null, demoPaused: false });
 }

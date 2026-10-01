@@ -46,10 +46,7 @@ describe.runIf(await databaseAvailable())('empresas, miembros y minas (D-14, H-8
       name: 'Ana Admin',
       organization: 'Minera Sur',
     });
-    const temporary = await signIn(s.app, 'admin@sur.pe', 'admin-inicial');
-    const blocked = await call(temporary, 'GET', '/organizations');
-    expect(blocked).toMatchObject({ status: 403, body: { code: 'password_change_required' } });
-    admin = await activate(s.app, 'admin@sur.pe', 'admin-inicial');
+    admin = await signIn(s.app, 'admin@sur.pe', 'admin-inicial');
     const orgs = organizationListSchema.parse((await call(admin, 'GET', '/organizations')).body);
     expect(orgs.organizations).toHaveLength(1);
     expect(orgs.organizations[0]).toMatchObject({ name: 'Minera Sur', role: 'admin' });

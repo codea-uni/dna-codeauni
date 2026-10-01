@@ -4,17 +4,13 @@
  * solo paso de deshacer; `removePatterns` borra una malla de la lista.
  */
 import { describe, expect, it } from 'vitest';
-import { EXAMPLES } from '../examples/examples';
+import { buildExample, EXAMPLE_SPECS } from '../examples/examples';
 import { newId } from '../model/ids';
 import type { Pattern } from '../model/types';
 import { DocumentStore } from './DocumentStore';
 import { removePatterns, replacePatterns } from './commands';
 
-const production = () => {
-  const ex = EXAMPLES.find((e) => e.id === 'production');
-  if (!ex) throw new Error('sin ejemplo');
-  return ex.build();
-};
+const production = () => buildExample(EXAMPLE_SPECS.production);
 
 describe('reemplazo y borrado de mallas', () => {
   it('reemplazar deja una sola malla, sin taladros ni amarres de la anterior; un deshacer la restaura', () => {

@@ -138,9 +138,6 @@ export const es = {
   'example.production.name': 'Producción estándar',
   'example.production.description':
     '≈250 taladros Ø 229 mm · producción y buffer · salida en V · 2 escenarios para comparar (en fila y en escalón)',
-  'example.wet.name': 'Frente con agua',
-  'example.wet.description':
-    'Filas del fondo con agua estática cargadas con emulsión · resto con ANFO · amarre línea a línea',
   'example.electronic.name': 'Cerca de infraestructura',
   'example.electronic.description':
     'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m con límite propio',
@@ -156,9 +153,9 @@ export const es = {
   'example.topoSector.name': 'Banco sobre topografía (completo)',
   'example.topoSector.description':
     'Talud de tres bancos con terreno natural y ortofoto · producción y buffer sobre el terreno, salida en V y escenario en escalón · puntos de control · próximo perímetro en el banco 3370',
-  'example.problems.name': 'Problemas típicos',
-  'example.problems.description':
-    'Taco corto, sin carga, sin detonador, sin booster, ANFO en agua, columna abierta, fila sin amarre, retardos que coinciden, duplicados',
+  'example.topoMine.name': 'Mina sobre levantamiento DXF',
+  'example.topoMine.description':
+    'Tajo real de un levantamiento DXF (TIN) · voladura en el banco 3465 de la pared Norte: cara libre en la cresta hacia el tajo, piso en el banco 3450, bocas sobre el terreno · salida en V',
 
   // Engine (packages/engine/src/text.ts)
   'engine.undo.addHole': 'Agregar taladro',
@@ -309,9 +306,6 @@ export const en = {
   'example.production.name': 'Standard production',
   'example.production.description':
     '≈250 holes Ø 229 mm · production and buffer · V firing · 2 scenarios to compare (row by row and echelon)',
-  'example.wet.name': 'Wet face',
-  'example.wet.description':
-    'Back rows with static water charged with emulsion · rest with ANFO · row-by-row tie-up',
   'example.electronic.name': 'Near infrastructure',
   'example.electronic.description':
     'Hole-by-hole electronics (no overlaps) · air deck · plant at 180 m with its own limit',
@@ -326,9 +320,9 @@ export const en = {
   'example.topoSector.name': 'Bench on topography (complete)',
   'example.topoSector.description':
     'Three-bench slope with natural ground and orthophoto · production and buffer on the ground, V firing and echelon scenario · monitoring points · next boundary on bench 3370',
-  'example.problems.name': 'Typical problems',
-  'example.problems.description':
-    'Short stemming, uncharged, no detonator, no booster, ANFO in water, open column, untied row, overlapping delays, duplicates',
+  'example.topoMine.name': 'Mine on a DXF survey',
+  'example.topoMine.description':
+    'Real pit from a DXF survey (TIN) · blast on the 3465 bench of the North wall: free face on the crest toward the pit, floor on the 3450 bench, collars on the ground · V firing',
 
   'engine.undo.addHole': 'Add hole',
   'engine.undo.addNamed': 'Add {name}',

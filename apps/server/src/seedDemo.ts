@@ -4,14 +4,10 @@ import { createDb, createPool, migrateToLatest } from './db/db';
 import { seedDemo } from './services/demo';
 
 /**
- * Datos de demostración en la base de desarrollo (cuentas del README, empresas, minas y proyectos
+ * Datos de demostración (cuentas del README, empresas, minas y proyectos
  * con topografía). Idempotente. Lo corre `pnpm dev:online`; a mano: `pnpm dev:seed`.
  */
 const config = loadConfig();
-if (process.env.NODE_ENV === 'production') {
-  console.error('Los datos de demostración son solo para desarrollo.');
-  process.exit(1);
-}
 const pool = createPool(config.databaseUrl);
 const db = createDb(pool);
 try {

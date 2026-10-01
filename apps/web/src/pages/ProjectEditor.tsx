@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 import { App } from '../App';
+import { stopDemo } from '../demo/playback';
 import { AuthShell } from '../auth/AuthGate';
 import { useFormatDate, useT } from '../i18n';
 import { ComparePanel } from '../server/ComparePanel';
@@ -22,6 +23,7 @@ export function ProjectEditor() {
   const { projectId = '', number } = useParams();
   const version = number === undefined ? undefined : Number(number);
   const status = useProjectSession((s) => s.status);
+  const demoOn = useUiStore((s) => s.demoStep !== null);
   const current = useProjectSession((s) => s.current);
   const error = useProjectSession((s) => s.error);
   const open = useProjectSession((s) => s.open);
@@ -30,7 +32,9 @@ export function ProjectEditor() {
   const showDialog = useServerDialogs((s) => s.show);
 
   useEffect(() => {
+    stopDemo();
     void open(projectId, version);
+    return stopDemo;
   }, [projectId, version, open]);
   useEffect(
     () => () => {
@@ -77,9 +81,10 @@ export function ProjectEditor() {
       </AuthShell>
     );
   const loaded =
-    status === 'ready' &&
-    current?.projectId === projectId &&
-    (version === undefined ? !current.viewingOld : current.base.number === version);
+    demoOn ||
+    (status === 'ready' &&
+      current?.projectId === projectId &&
+      (version === undefined ? !current.viewingOld : current.base.number === version));
   if (!loaded)
     return (
       <div className="loading-screen" role="status">

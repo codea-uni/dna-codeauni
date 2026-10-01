@@ -5,10 +5,10 @@
 #   ./scripts/deploy.sh            # despliega según .env (solo la web si no activa el servidor)
 #   ./scripts/deploy.sh --server   # activa login, empresas, minas e historial (D-14)
 #
-# Con --server completa en .env lo que falte (nunca reemplaza un valor existente):
+# Con --server completa en .env lo que falte:
 #   COMPOSE_PROFILES=server, VITE_API_URL=/api, y secretos aleatorios para POSTGRES_PASSWORD y
-#   BETTER_AUTH_SECRET. Para el superadministrador de la plataforma (crea las empresas), exportar
-#   CRONOS_SUPERADMIN_EMAIL la primera vez: su contraseña se genera, queda en el .env y se muestra una sola vez.
+#   BETTER_AUTH_SECRET. El superadministrador usa plataforma@cronos.local si falta el correo,
+#   y su contraseña se fija en cronos123 (también reemplaza la anterior).
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -35,17 +35,9 @@ if [ "${1:-}" = "--server" ]; then
   if [ -z "${CRONOS_SUPERADMIN_EMAIL:-}" ]; then
     CRONOS_SUPERADMIN_EMAIL="$(grep '^CRONOS_SUPERADMIN_EMAIL=' .env | tail -1 | cut -d= -f2-)"
   fi
-  if [ -n "${CRONOS_SUPERADMIN_EMAIL:-}" ]; then
-    ensure_var CRONOS_SUPERADMIN_EMAIL "$CRONOS_SUPERADMIN_EMAIL" || true
-    admin_password="$(random | cut -c1-16)"
-    if ensure_var CRONOS_SUPERADMIN_PASSWORD "$admin_password"; then
-      echo "Superadministrador de la plataforma: $CRONOS_SUPERADMIN_EMAIL"
-      echo "Contraseña: $admin_password (queda en .env como CRONOS_SUPERADMIN_PASSWORD; para cambiarla, editar el .env y reiniciar)"
-    fi
-  elif ! grep -q '^CRONOS_SUPERADMIN_EMAIL=.' .env; then
-    echo "Aviso: sin CRONOS_SUPERADMIN_EMAIL no se crea el superadministrador (quien crea las empresas)."
-    echo "       Repetir con: CRONOS_SUPERADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server"
-  fi
+  ensure_var CRONOS_SUPERADMIN_EMAIL "${CRONOS_SUPERADMIN_EMAIL:-plataforma@cronos.local}" || true
+  sed -i '/^CRONOS_SUPERADMIN_PASSWORD=/d' .env
+  printf '%s\n' 'CRONOS_SUPERADMIN_PASSWORD=cronos123' >>.env
 fi
 
 git pull --ff-only

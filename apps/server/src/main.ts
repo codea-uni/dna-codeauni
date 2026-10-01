@@ -3,6 +3,7 @@ import { createAuth } from './auth/auth';
 import { ensureSuperAdmin } from './auth/seed';
 import { loadConfig } from './config';
 import { createDb, createPool, migrateToLatest } from './db/db';
+import { seedDemo } from './services/demo';
 import { SERVER_VERSION } from './version';
 
 const config = loadConfig();
@@ -39,6 +40,10 @@ const shutdown = async () => {
   await db.destroy();
   process.exit(0);
 };
+if (config.demoData) {
+  const result = await seedDemo(db, auth);
+  app.log.info(result, 'Datos de demostración disponibles');
+}
 process.once('SIGINT', () => void shutdown());
 process.once('SIGTERM', () => void shutdown());
 

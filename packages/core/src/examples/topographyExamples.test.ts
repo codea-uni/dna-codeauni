@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { analyzeBlast } from '../analysis/analyzeBlast';
 import { holeBench } from '../geometry/boundary';
 import { lengthToFloor } from '../geometry/hole';
@@ -7,21 +7,38 @@ import { bytesToBase64, decodeAsset } from '../topography/asset';
 import { blastHolesOffBench } from '../topography/design';
 import { imageSize } from '../topography/raster';
 import { SurfaceIndex } from '../topography/surfaceIndex';
-import { buildPitExample, buildSectorExample } from './topographyExamples';
+import type { Blast, Project, TopographySurvey } from '../model/types';
+import {
+  buildMineExample,
+  buildPitExample,
+  buildSectorExample,
+  type ExampleBuild,
+} from './topographyExamples';
 
 describe.each([
-  ['tajo con curvas de nivel', buildPitExample, 3370, 3325],
-  ['sector con ortofoto', buildSectorExample, 3370, 3355],
+  ['tajo con curvas de nivel', () => Promise.resolve(buildPitExample()), 3370, 3325],
+  ['sector con ortofoto', () => Promise.resolve(buildSectorExample()), 3370, 3355],
+  ['mina sobre levantamiento DXF', buildMineExample, 3450, undefined],
 ] as const)('ejemplo con topografía: %s', (_name, build, floor, nextFloor) => {
-  const { project, assets } = build();
-  const blast = project.blasts[0];
-  const survey = project.topography[0];
-  if (!blast || !survey) throw new Error('ejemplo incompleto');
-  const byHash = new Map(assets.map((a) => [a.hash, a.bytes]));
-  const tinAsset = survey.assets.tin ? byHash.get(survey.assets.tin) : undefined;
-  const tin = tinAsset ? decodeAsset(tinAsset) : undefined;
-  if (tin?.kind !== 'tin') throw new Error('sin TIN');
-  const ground = SurfaceIndex.build(tin.tin);
+  let project: Project;
+  let assets: ExampleBuild['assets'];
+  let blast: Blast;
+  let survey: TopographySurvey;
+  let byHash: Map<string, Uint8Array>;
+  let ground: SurfaceIndex;
+  beforeAll(async () => {
+    ({ project, assets } = await build());
+    const b = project.blasts[0];
+    const t = project.topography[0];
+    if (!b || !t) throw new Error('ejemplo incompleto');
+    blast = b;
+    survey = t;
+    byHash = new Map(assets.map((a) => [a.hash, a.bytes]));
+    const tinAsset = survey.assets.tin ? byHash.get(survey.assets.tin) : undefined;
+    const tin = tinAsset ? decodeAsset(tinAsset) : undefined;
+    if (tin?.kind !== 'tin') throw new Error('sin TIN');
+    ground = SurfaceIndex.build(tin.tin);
+  });
 
   it('el banco usa el levantamiento y sus assets vienen con el proyecto', () => {
     expect(blast.bench.topographyId).toBe(survey.id);
@@ -44,8 +61,11 @@ describe.each([
     const [first, next] = blast.boundaries;
     expect(first?.freeFaceEdges.length).toBeGreaterThan(3);
     expect(first?.floorElevation).toBe(floor);
-    expect(next?.floorElevation).toBe(nextFloor);
-    expect(next?.freeFaceEdges).toEqual([]);
+    if (nextFloor === undefined) expect(next).toBeUndefined();
+    else {
+      expect(next?.floorElevation).toBe(nextFloor);
+      expect(next?.freeFaceEdges).toEqual([]);
+    }
   });
 
   it('se analiza completo y se guarda y abre con la topografía embebida', () => {
@@ -71,5 +91,27 @@ describe('ortofoto del sector', () => {
     if (asset.kind !== 'image') throw new Error('no es imagen');
     expect(imageSize(asset.image.bytes)).toEqual({ mime: 'image/png', width: 520, height: 400 });
     expect(asset.image.georef).toMatchObject({ pixelSizeX: 0.5, pixelSizeY: -0.5, rotation: 0 });
+  });
+});
+
+describe('mina sobre levantamiento DXF', () => {
+  it('el TIN recortado del DXF llega completo y la malla sigue a la cresta', async () => {
+    const { project } = await buildMineExample();
+    // Conteos del recorte que imprime scripts/topo-example.js sobre «new topo.dxf».
+    expect(project.topography[0]?.stats).toEqual({ points: 45396, triangles: 89873, lines: 2 });
+    const blast = project.blasts[0];
+    const boundary = blast?.boundaries[0];
+    if (!blast || !boundary) throw new Error('sin voladura');
+    // Todo el frente (los tramos de 5 m de la cresta) es cara libre; los costados y el fondo no.
+    const n = boundary.polygon.length;
+    expect(boundary.freeFaceEdges).toEqual(Array.from({ length: n - 3 }, (_, i) => i));
+    // Filas paralelas a la cresta: la primera fila es la más cercana a ella (al Sur).
+    const rows = Math.max(...blast.holes.map((h) => h.row ?? 0));
+    const meanY = (r: number) => {
+      const ys = blast.holes.filter((h) => h.row === r).map((h) => h.collar.y);
+      return ys.reduce((a, b) => a + b, 0) / ys.length;
+    };
+    expect(rows + 1).toBe(7);
+    expect(meanY(0)).toBeLessThan(meanY(rows));
   });
 });

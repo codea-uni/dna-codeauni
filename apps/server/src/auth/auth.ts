@@ -63,7 +63,7 @@ export interface NewUser {
   name: string;
   password: string;
   locale?: 'es' | 'en';
-  /** Por defecto la contraseña es temporal y se pide cambiarla al entrar. */
+  /** Por defecto no se pide cambiar la contraseña al entrar. */
   mustChangePassword?: boolean;
 }
 
@@ -82,7 +82,7 @@ export async function createUserWithPassword(auth: Auth, input: NewUser): Promis
       name: input.name.trim(),
       emailVerified: true,
       locale: input.locale ?? 'es',
-      mustChangePassword: input.mustChangePassword ?? true,
+      mustChangePassword: input.mustChangePassword ?? false,
     },
     { method: 'admin' },
   );
