@@ -14,7 +14,7 @@ El cálculo corre en el navegador (Web Workers y WebGL). Un servidor opcional ag
    pnpm dev:online
    ```
 
-3. Abrir <http://localhost:5173> y entrar con `luis@cronos.local` / `luis-definitiva-1` (diseñador).
+3. Abrir <http://localhost:5173> y entrar con `luis@cronos.local` / `cronos123` (diseñador).
    Otras cuentas en [Usuarios de desarrollo](#usuarios-de-desarrollo).
 4. Entrar a la mina **Cuajone** y abrir **Demo · Banco sobre topografía**: una voladura sobre el
    terreno con ortofoto (en 3D, tecla **3**). También está **Demo · Tajo con topografía**.
@@ -72,23 +72,23 @@ proyectos de demostración (`pnpm dev:seed` lo repite; solo agrega lo que falte)
 desarrollo**: en producción el superadministrador sale de su propio `.env` y las demás cuentas las
 crea cada empresa.
 
-| Correo                    | Contraseña           | Rol                                     |
-| ------------------------- | -------------------- | --------------------------------------- |
-| `plataforma@cronos.local` | `admin-cronos-dev`   | Superadministrador (dueño del software) |
-| `qa@cronos.local`         | `qa-definitiva-1`    | Superadministrador                      |
-| `admin@cronos.local`      | `admin-definitiva-1` | Administrador de Minera Sur             |
-| `luis@cronos.local`       | `luis-definitiva-1`  | Diseñador de Minera Sur                 |
-| `rosa@cronos.local`       | `rosa-definitiva-1`  | Revisora de Minera Sur (solo lectura)   |
-| `beto@norte.local`        | `beto-definitiva-1`  | Administrador de Minera Norte           |
+| Correo                    | Contraseña  | Rol                                     |
+| ------------------------- | ----------- | --------------------------------------- |
+| `plataforma@cronos.local` | `cronos123` | Superadministrador (dueño del software) |
+| `qa@cronos.local`         | `cronos123` | Superadministrador                      |
+| `admin@cronos.local`      | `cronos123` | Administrador de Minera Sur             |
+| `luis@cronos.local`       | `cronos123` | Diseñador de Minera Sur                 |
+| `rosa@cronos.local`       | `cronos123` | Revisora de Minera Sur (solo lectura)   |
+| `beto@norte.local`        | `cronos123` | Administrador de Minera Norte           |
 
 - **Superadministrador:** se define en `apps/server/.env` (`CRONOS_SUPERADMIN_EMAIL`,
   `CRONOS_SUPERADMIN_PASSWORD`, `CRONOS_SUPERADMIN_NAME`). El `.env` manda: al arrancar el servidor
   se crea o se actualiza con esa contraseña y no pide cambiarla. Para cambiarla, se edita el `.env`
   y se reinicia.
 - **Restablecer otra cuenta:** `pnpm --filter @cronos/server reset-password <correo> <contraseña>`
-  (temporal: se cambia al entrar); con `--permanente` queda fija.
+  (queda fija); con `--temporal` se pide cambiarla al entrar.
 - Las cuentas nuevas que crea un administrador (o el superadministrador al crear una empresa)
-  reciben una contraseña temporal que se cambia al entrar.
+  entran con la contraseña indicada, sin tener que cambiarla.
 
 ## Estructura
 

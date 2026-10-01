@@ -37,11 +37,11 @@ export const es = {
   'platform.accountDisabled': 'Desactivada',
   'platform.newCompany': 'Nueva empresa',
   'platform.newCompanyHint':
-    'Se crea con su primer administrador, que recibe una contraseña temporal y la cambia al entrar. Él da de alta al resto de su equipo.',
+    'Se crea con su primer administrador, que entra con la contraseña indicada sin tener que cambiarla. Él da de alta al resto de su equipo.',
   'platform.companyName': 'Nombre de la empresa',
   'platform.adminName': 'Nombre del administrador',
   'platform.adminEmail': 'Correo del administrador',
-  'platform.adminPassword': 'Contraseña temporal',
+  'platform.adminPassword': 'Contraseña',
   'platform.create': 'Crear empresa',
   'platform.created': 'Empresa «{name}» creada',
   'platform.error.cannotDisableSelf': 'No puedes desactivar tu propia cuenta.',
@@ -50,7 +50,7 @@ export const es = {
   'platform.noAdmin': 'Sin administrador: asígnale uno para que pueda usarse.',
   'platform.addAdmin': 'Asignar administrador',
   'platform.addAdminHint':
-    'Una cuenta nueva (con contraseña temporal) o una existente que no pertenezca a otra empresa.',
+    'Una cuenta nueva (con su contraseña) o una existente que no pertenezca a otra empresa.',
   'platform.assign': 'Asignar',
   'platform.noPeople': 'Esta empresa todavía no tiene personas.',
 };
@@ -90,11 +90,11 @@ export const en = {
   'platform.accountDisabled': 'Disabled',
   'platform.newCompany': 'New company',
   'platform.newCompanyHint':
-    'It is created with its first administrator, who gets a temporary password to change on first sign-in and then adds the rest of the team.',
+    'It is created with its first administrator, who signs in with the given password without having to change it and then adds the rest of the team.',
   'platform.companyName': 'Company name',
   'platform.adminName': 'Administrator name',
   'platform.adminEmail': 'Administrator email',
-  'platform.adminPassword': 'Temporary password',
+  'platform.adminPassword': 'Password',
   'platform.create': 'Create company',
   'platform.created': 'Company “{name}” created',
   'platform.error.cannotDisableSelf': 'You cannot disable your own account.',
@@ -103,7 +103,7 @@ export const en = {
   'platform.noAdmin': 'No administrator: assign one so the company can be used.',
   'platform.addAdmin': 'Assign administrator',
   'platform.addAdminHint':
-    'A new account (with a temporary password) or an existing one that does not belong to another company.',
+    'A new account (with its password) or an existing one that does not belong to another company.',
   'platform.assign': 'Assign',
   'platform.noPeople': 'This company has no people yet.',
 } satisfies Record<keyof typeof es, string>;

@@ -22,7 +22,7 @@ Opcional. Sin él, la web funciona como siempre (sin login, con autoguardado loc
 
 - Las migraciones se aplican solas al arrancar `api`. Los datos quedan en el volumen `pgdata`; respaldo: `docker compose exec postgres pg_dump -U cronos cronos > respaldo.sql`.
 - Salud: `https://<dominio>/api/health` (`status` y `database`).
-- Contraseña olvidada: `docker compose exec api node dist/resetPassword.js <correo> <contraseña temporal>` (en local: `pnpm --filter @cronos/server reset-password <correo> <contraseña>`). Queda temporal y cierra las sesiones de esa cuenta.
+- Contraseña olvidada: `docker compose exec api node dist/resetPassword.js <correo> <contraseña>` (en local: `pnpm --filter @cronos/server reset-password <correo> <contraseña>`). Queda fija (con `--temporal` se pide cambiarla al entrar) y cierra las sesiones de esa cuenta.
 - El límite de 5 inicios de sesión por minuto e IP solo rige en producción (`NODE_ENV=production`, lo fija la imagen).
 
 ### Desarrollo local
@@ -33,7 +33,7 @@ pnpm dev:online   # PostgreSQL (Docker), API en :3000 y web con login en http://
 
 `pnpm dev:online` levanta PostgreSQL con `docker-compose.dev.yml`, crea `apps/server/.env` desde su plantilla si falta, reutiliza una API que ya esté corriendo en :3000 y arranca la web en :5173 (puerto fijo: el login solo se acepta desde ese origen). Ctrl+C detiene la API y la web; PostgreSQL queda arriba para las pruebas. Por separado: `pnpm dev:server` y `VITE_API_URL=/api pnpm dev`.
 
-El `.env` de ejemplo crea el superadministrador `plataforma@cronos.local` con la contraseña `admin-cronos-dev` (la del `.env`; no se pide cambiarla). Usuarios de desarrollo en el README. No hay registro público: el administrador crea las cuentas (guía H-801). Sin `VITE_API_URL`, `pnpm dev` sigue en modo local, sin login.
+El `.env` de ejemplo crea el superadministrador `plataforma@cronos.local` con la contraseña `cronos123` (la del `.env`; no se pide cambiarla). Usuarios de desarrollo en el README. No hay registro público: el administrador crea las cuentas (guía H-801). Sin `VITE_API_URL`, `pnpm dev` sigue en modo local, sin login.
 
 Las pruebas del servidor usan ese PostgreSQL (o `TEST_DATABASE_URL`) y crean un esquema aislado por archivo; sin base se saltan con un aviso, salvo en CI.
 

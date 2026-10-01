@@ -56,7 +56,7 @@ export type SignIn = z.infer<typeof signInSchema>;
 /** `POST /api/me/password`. */
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
-  newPassword: z.string().min(10),
+  newPassword: z.string().min(8),
 });
 export type ChangePassword = z.infer<typeof changePasswordSchema>;
 

@@ -41,7 +41,7 @@ if (docker.status !== 0) {
 const envFile = `${root}apps/server/.env`;
 if (!existsSync(envFile)) {
   copyFileSync(`${root}apps/server/.env.example`, envFile);
-  log('Creado apps/server/.env desde la plantilla (plataforma@cronos.local / admin-cronos-dev).');
+  log('Creado apps/server/.env desde la plantilla (plataforma@cronos.local / cronos123).');
 }
 
 // 3. Datos de demostración (idempotente: solo crea lo que falta)

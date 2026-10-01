@@ -323,7 +323,7 @@ function NewCompany({ onCreated }: { onCreated: (org: PlatformOrganization) => v
           <label>
             {t('platform.adminPassword')}
             <input
-              minLength={10}
+              minLength={8}
               autoComplete="new-password"
               spellCheck={false}
               {...field('password')}
@@ -417,7 +417,7 @@ function AddAdmin({
         <label>
           {t('admin.tempPassword')}
           <input
-            minLength={10}
+            minLength={8}
             name="admin-password"
             autoComplete="new-password"
             {...field('password')}

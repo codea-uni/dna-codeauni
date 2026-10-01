@@ -197,16 +197,12 @@ export function organizationRoutes(app: FastifyInstance, deps: OrganizationRoute
       let created = false;
       if (!target) {
         if (!body.password)
-          return sendError(
-            reply,
-            400,
-            'password_required',
-            'New accounts need a temporary password',
-          );
+          return sendError(reply, 400, 'password_required', 'New accounts need a password');
         target = await createUserWithPassword(deps.auth, {
           email,
           name: body.name,
           password: body.password,
+          mustChangePassword: false,
         });
         created = true;
       } else {

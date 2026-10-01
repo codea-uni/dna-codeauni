@@ -47,14 +47,14 @@ export const es = {
   'admin.saveAccess': 'Guardar acceso',
   'admin.detail': 'Detalle',
   'admin.membersHint':
-    'El administrador crea las cuentas con una contraseña temporal que cada persona cambia al entrar (H-801).',
+    'El administrador crea las cuentas con una contraseña que no hace falta cambiar al entrar (H-801).',
   'admin.email': 'Correo',
   'admin.role': 'Rol',
   'admin.since': 'Desde',
   'admin.remove': 'Quitar',
   'admin.removeConfirm': '¿Quitar a {name} de la empresa? Su cuenta sigue existiendo.',
   'admin.addMember': 'Agregar usuario',
-  'admin.tempPassword': 'Contraseña temporal',
+  'admin.tempPassword': 'Contraseña',
   'admin.tempPasswordHint':
     'Solo para cuentas nuevas; si el correo ya tiene cuenta, se deja vacía.',
   'admin.you': '(tú)',
@@ -92,7 +92,7 @@ export const es = {
 
   'workspace.error.lastAdmin': 'La empresa necesita al menos un administrador.',
   'workspace.error.alreadyMember': 'Ese usuario ya es miembro de la empresa.',
-  'workspace.error.passwordRequired': 'Es una cuenta nueva: indica una contraseña temporal.',
+  'workspace.error.passwordRequired': 'Es una cuenta nueva: indica una contraseña.',
   'workspace.error.forbidden': 'Tu rol no permite esta acción.',
   'workspace.error.notFound': 'No existe o no tienes acceso.',
   'workspace.error.otherOrganization':
@@ -147,14 +147,14 @@ export const en = {
   'admin.saveAccess': 'Save access',
   'admin.detail': 'Detail',
   'admin.membersHint':
-    'The administrator creates accounts with a temporary password that each person changes on first sign-in (H-801).',
+    'The administrator creates accounts with a password that does not need to be changed on sign-in (H-801).',
   'admin.email': 'Email',
   'admin.role': 'Role',
   'admin.since': 'Since',
   'admin.remove': 'Remove',
   'admin.removeConfirm': 'Remove {name} from the company? Their account still exists.',
   'admin.addMember': 'Add user',
-  'admin.tempPassword': 'Temporary password',
+  'admin.tempPassword': 'Password',
   'admin.tempPasswordHint':
     'Only for new accounts; leave empty if the email already has an account.',
   'admin.you': '(you)',
@@ -191,7 +191,7 @@ export const en = {
 
   'workspace.error.lastAdmin': 'The company needs at least one administrator.',
   'workspace.error.alreadyMember': 'That user is already a member of the company.',
-  'workspace.error.passwordRequired': 'This is a new account: enter a temporary password.',
+  'workspace.error.passwordRequired': 'This is a new account: enter a password.',
   'workspace.error.forbidden': 'Your role does not allow this action.',
   'workspace.error.notFound': 'It does not exist or you have no access.',
   'workspace.error.otherOrganization':

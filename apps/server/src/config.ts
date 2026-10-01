@@ -14,7 +14,7 @@ const envSchema = z.object({
   // Superadministrador de la plataforma: se crea si no existe (con contraseña temporal) o se
   // promueve la cuenta existente.
   CRONOS_SUPERADMIN_EMAIL: z.email().optional(),
-  CRONOS_SUPERADMIN_PASSWORD: z.string().min(10).optional(),
+  CRONOS_SUPERADMIN_PASSWORD: z.string().min(8).optional(),
   CRONOS_SUPERADMIN_NAME: z.string().min(1).default('Administrador de la plataforma'),
 });
 

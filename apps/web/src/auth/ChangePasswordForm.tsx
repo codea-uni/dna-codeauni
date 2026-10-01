@@ -49,7 +49,7 @@ export function ChangePasswordForm({ onDone }: { onDone?: () => void }) {
           name="new-password"
           autoComplete="new-password"
           required
-          minLength={10}
+          minLength={8}
           value={next}
           onChange={(e) => {
             setNext(e.target.value);
@@ -63,7 +63,7 @@ export function ChangePasswordForm({ onDone }: { onDone?: () => void }) {
           name="repeat-password"
           autoComplete="new-password"
           required
-          minLength={10}
+          minLength={8}
           value={repeat}
           onChange={(e) => {
             setRepeat(e.target.value);

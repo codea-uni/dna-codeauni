@@ -12,8 +12,8 @@ export interface AuthConfig {
   rateLimit: boolean;
 }
 
-/** Contraseña mínima: 10 caracteres (supuesto de seguridad, no de dominio; NIST SP 800-63B pide ≥ 8). */
-export const MIN_PASSWORD_LENGTH = 10;
+/** Contraseña mínima: 8 caracteres (NIST SP 800-63B pide ≥ 8). */
+export const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Better Auth (D-14): correo y contraseña, sesión en cookie `httpOnly`. **Sin registro público**:

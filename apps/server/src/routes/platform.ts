@@ -145,7 +145,7 @@ async function listUsers(db: Db, orgId: string, onlyUserId?: string): Promise<Pl
 }
 
 /**
- * Cuenta para un administrador: una existente sin empresa, o una nueva con contraseña temporal.
+ * Cuenta para un administrador: una existente sin empresa, o una nueva con su contraseña.
  * Responde 409 si ya es de otra empresa (una por persona) y devuelve `null`.
  */
 async function resolveAdmin(
@@ -181,13 +181,14 @@ async function resolveAdmin(
     return { id: existing.id, email };
   }
   if (!input.password) {
-    await sendError(reply, 400, 'password_required', 'New accounts need a temporary password');
+    await sendError(reply, 400, 'password_required', 'New accounts need a password');
     return null;
   }
   const created = await createUserWithPassword(deps.auth, {
     email,
     name: input.name,
     password: input.password,
+    mustChangePassword: false,
   });
   return { id: created.id, email };
 }

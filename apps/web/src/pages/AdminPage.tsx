@@ -224,7 +224,7 @@ function AddMember() {
             name="member-password"
             autoComplete="new-password"
             spellCheck={false}
-            minLength={10}
+            minLength={8}
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);

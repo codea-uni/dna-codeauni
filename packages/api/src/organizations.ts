@@ -33,7 +33,7 @@ export const addMemberSchema = z.object({
   email: z.email(),
   name: z.string().trim().min(1).max(120),
   role: roleSchema,
-  password: z.string().min(10).optional(),
+  password: z.string().min(8).optional(),
 });
 export type AddMember = z.infer<typeof addMemberSchema>;
 
@@ -105,13 +105,13 @@ export const platformOrganizationListSchema = z.object({
   organizations: z.array(platformOrganizationSchema),
 });
 
-/** Empresa nueva con su primer administrador (cuenta nueva con contraseña temporal). */
+/** Empresa nueva con su primer administrador (cuenta nueva con su contraseña). */
 export const createPlatformOrganizationSchema = z.object({
   name: z.string().trim().min(1).max(120),
   admin: z.object({
     email: z.email(),
     name: z.string().trim().min(1).max(120),
-    password: z.string().min(10).optional(),
+    password: z.string().min(8).optional(),
   }),
 });
 export type CreatePlatformOrganization = z.infer<typeof createPlatformOrganizationSchema>;
