@@ -7,12 +7,12 @@ import { holeSegments3d } from '../geometry/solid';
 import { parseProjectFile, serializeProject } from '../io/projectFile';
 import type { Project } from '../model/types';
 import { computeVibration, DEFAULT_VIBRATION_OPTIONS } from '../vibration/vibration';
-import { EXAMPLES } from './examples';
+import { buildProblems, EXAMPLES } from './examples';
 
-function build(id: string): Project {
+async function build(id: string): Promise<Project> {
   const s = EXAMPLES.find((x) => x.id === id);
   if (!s) throw new Error(`sin ejemplo ${id}`);
-  return s.build();
+  return (await s.build()).project;
 }
 
 function analyze(p: Project) {
@@ -26,8 +26,8 @@ function analyze(p: Project) {
 describe('proyectos de ejemplo', () => {
   it.each(EXAMPLES.map((s) => s.id))(
     '%s: se construye, se guarda/abre y se analiza completo',
-    (id) => {
-      const p = build(id);
+    async (id) => {
+      const p = await build(id);
       const { blast, a } = analyze(p);
       // Los ejemplos con topografía tienen la cara libre en la cresta (curva): pruebas aparte.
       // El de la pila (A7) es chico a propósito (3 × 8) y su perímetro es un rectángulo.
@@ -57,8 +57,8 @@ describe('proyectos de ejemplo', () => {
     },
   );
 
-  it('producción: ≈250 taladros, todos cargados e iniciados, fondo de ANFO pesado', () => {
-    const { blast, a } = analyze(build('production'));
+  it('producción: ≈250 taladros, todos cargados e iniciados, fondo de ANFO pesado', async () => {
+    const { blast, a } = analyze(await build('production'));
     expect(blast.holes.length).toBeGreaterThanOrEqual(200);
     expect(blast.holes.length).toBeLessThanOrEqual(300);
     expect(a.charge.loadedHoles).toBe(blast.holes.length);
@@ -72,21 +72,8 @@ describe('proyectos de ejemplo', () => {
     expect(firstRowY).toBeGreaterThan(lastRowY);
   });
 
-  it('frente con agua: emulsión en las filas del fondo y ANFO en el resto', () => {
-    const p = build('wet');
-    const { blast } = analyze(p);
-    const emulsion = p.library.explosives.find((e) => e.name.startsWith('Emulsión bombeable'))?.id;
-    const rows = Math.max(...blast.holes.map((h) => h.row ?? 0));
-    for (const h of blast.holes) {
-      const usesEmulsion = h.decks.some(
-        (d) => d.kind === 'explosive' && d.explosiveId === emulsion,
-      );
-      expect(usesEmulsion).toBe((h.row ?? 0) >= rows + 1 - 3);
-    }
-  });
-
-  it('cerca de infraestructura: electrónicos sin coincidencias, un taladro por retardo', () => {
-    const p = build('electronic');
+  it('cerca de infraestructura: electrónicos sin coincidencias, un taladro por retardo', async () => {
+    const p = await build('electronic');
     const { blast, a } = analyze(p);
     expect(a.timing.notInitiated).toBe(0);
     expect(a.timing.coincidentGroups).toHaveLength(0);
@@ -97,8 +84,8 @@ describe('proyectos de ejemplo', () => {
     expect(vib.mic).toBeCloseTo(Math.max(...a.charge.perHole), 6);
   });
 
-  it('inclinados: 15° hacia la cara libre (Norte) y se dibujan en 3D', () => {
-    const { blast } = analyze(build('inclined'));
+  it('inclinados: 15° hacia la cara libre (Norte) y se dibujan en 3D', async () => {
+    const { blast } = analyze(await build('inclined'));
     for (const h of blast.holes) {
       expect((h.inclination * 180) / Math.PI).toBeCloseTo(15, 6);
       expect(h.azimuth).toBeCloseTo(0, 6); // azimut Norte
@@ -107,8 +94,8 @@ describe('proyectos de ejemplo', () => {
     }
   });
 
-  it('problemas típicos: el diagnóstico detecta cada situación', () => {
-    const { blast, a } = analyze(build('problems'));
+  it('problemas típicos: el diagnóstico detecta cada situación', async () => {
+    const { blast, a } = analyze(buildProblems());
     const ids = designChecks(blast, a.timing).map((c) => c.id);
     for (const expected of [
       'shortStemming',
@@ -121,21 +108,21 @@ describe('proyectos de ejemplo', () => {
       expect(ids).toContain(expected);
     }
     // Revisión de la carga (G4): agua, columna abierta y booster
-    const all = analyze(build('problems')).a.checks.map((c) => c.id);
+    const all = a.checks.map((c) => c.id);
     for (const expected of ['waterIncompatible', 'openColumn', 'noBooster'])
       expect(all).toContain(expected);
     // Los ejemplos "buenos" no tienen errores ni advertencias (las notas informativas, reglas R0,
     // pueden aparecer).
-    for (const id of ['production', 'wet', 'electronic', 'inclined']) {
+    for (const id of ['production', 'electronic', 'inclined', 'topoMine']) {
       expect(
-        analyze(build(id)).a.checks.filter((c) => c.severity !== 'info'),
+        analyze(await build(id)).a.checks.filter((c) => c.severity !== 'info'),
         id,
       ).toEqual([]);
     }
   });
 
-  it('los ejemplos usan grupos, agua, límites y escenarios (G1–G7)', () => {
-    const production = build('production');
+  it('los ejemplos usan grupos, límites y escenarios (G1–G7)', async () => {
+    const production = await build('production');
     const blast = production.blasts[0];
     expect(blast?.groups.map((g) => [g.name, g.kind])).toEqual([
       ['Producción', 'production'],
@@ -147,8 +134,6 @@ describe('proyectos de ejemplo', () => {
       'En escalón',
     ]);
     expect(production.ppvLimits?.some((l) => l.structure === 'vivienda')).toBe(true);
-    const wet = build('wet').blasts[0];
-    expect(wet?.holes.some((h) => h.water === 'static')).toBe(true);
-    expect(build('electronic').monitoringPoints?.[0]?.ppvLimit).toBeCloseTo(0.025, 12);
+    expect((await build('electronic')).monitoringPoints?.[0]?.ppvLimit).toBeCloseTo(0.025, 12);
   });
 });

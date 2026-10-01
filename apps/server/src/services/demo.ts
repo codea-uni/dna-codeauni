@@ -63,7 +63,7 @@ const DEMO_MINES = [
 ] as const;
 
 /** Proyectos de ejemplo que se crean en Cuajone (con su topografía), por id de ejemplo. */
-const DEMO_PROJECTS = ['topoSector', 'topoPit'] as const;
+const DEMO_PROJECTS = ['topoMine', 'topoSector', 'topoPit'] as const;
 
 export interface DemoSeedResult {
   users: number;
@@ -153,8 +153,8 @@ export async function seedDemo(db: Db, auth: Auth): Promise<DemoSeedResult> {
     if (m.name !== 'Cuajone' || !creator) continue;
     for (const exampleId of DEMO_PROJECTS) {
       const example = EXAMPLES.find((e) => e.id === exampleId);
-      if (!example?.buildFull) continue;
-      const built: ExampleBuild = example.buildFull();
+      if (!example) continue;
+      const built: ExampleBuild = await example.build();
       const exists = await db
         .selectFrom('project')
         .select('id')

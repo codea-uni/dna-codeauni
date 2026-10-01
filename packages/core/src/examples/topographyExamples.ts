@@ -1,10 +1,11 @@
 import { applyHoleEdit } from '../document/commands';
 import { holeBench } from '../geometry/boundary';
+import { unitToAzimuth } from '../geometry/vec';
 import { newId } from '../model/ids';
 import type { BlastBoundary, Project, TopographySurvey, Vec2 } from '../model/types';
 import { degToRad } from '../units/units';
 import { packLines } from '../topography/assemble';
-import type { OrthoImageData, TinData } from '../topography/asset';
+import { base64ToBytes, type OrthoImageData, type TinData } from '../topography/asset';
 import type { TopoLine } from '../topography/data';
 import { freeFaceEdgesFromLines } from '../topography/design';
 import { encodePngRgb } from '../topography/png';
@@ -41,11 +42,16 @@ function onTopography(
   project: Project,
   spec: ExampleSpec,
   parts: SurveyParts & { tin: TinData },
-  survey: { name: string; surveyDate: string; format: TopographySurvey['source']['format'] },
+  survey: {
+    name: string;
+    surveyDate: string;
+    format: TopographySurvey['source']['format'];
+    files?: string[];
+  },
   boundaryFloor: number,
-  nextBoundary: { name: string; polygon: Vec2[]; floor: number },
+  nextBoundary?: { name: string; polygon: Vec2[]; floor: number },
 ): ExampleBuild {
-  const built = buildSurvey({ ...survey, files: [`${survey.name}.sintético`] }, parts);
+  const built = buildSurvey({ files: [`${survey.name}.sintético`], ...survey }, parts);
   const topo: TopographySurvey = { ...built.survey, id: newId<'TopographySurvey'>() };
   const index = SurfaceIndex.build(parts.tin);
   const ground = (x: number, y: number, fallback: number) => index.elevationAt(x, y) ?? fallback;
@@ -53,13 +59,17 @@ function onTopography(
   if (!base) throw new Error('sin voladura');
   const boundaries: BlastBoundary[] = [
     ...base.boundaries.map((b, i) => (i === 0 ? { ...b, floorElevation: boundaryFloor } : b)),
-    {
-      id: newId<'Boundary'>(),
-      name: nextBoundary.name,
-      polygon: nextBoundary.polygon,
-      freeFaceEdges: [],
-      floorElevation: nextBoundary.floor,
-    },
+    ...(nextBoundary
+      ? [
+          {
+            id: newId<'Boundary'>(),
+            name: nextBoundary.name,
+            polygon: nextBoundary.polygon,
+            freeFaceEdges: [],
+            floorElevation: nextBoundary.floor,
+          },
+        ]
+      : []),
   ];
   const blast = { ...base, bench: { ...base.bench, topographyId: topo.id }, boundaries };
   const rows = Math.max(0, ...blast.holes.map((h) => h.row ?? 0)) + 1;
@@ -433,5 +443,125 @@ export function buildSectorExample(): ExampleBuild {
     { name: 'Sector Sur · levantamiento con dron', surveyDate: '2026-09-20', format: 'image' },
     3370,
     { name: 'Próxima voladura · banco 3370', polygon: next, floor: 3355 },
+  );
+}
+
+// ------------------------------------------------------------------ Mina sobre un levantamiento DXF
+
+/** Descompresión deflate cruda nativa (navegador, workers y Node). */
+async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
+  const body = new Response(bytes).body;
+  if (!body) throw new Error('sin datos');
+  const out = new Response(body.pipeThrough(new DecompressionStream('deflate-raw')));
+  return new Uint8Array(await out.arrayBuffer());
+}
+
+/** TIN codificado por `scripts/topo-example.js`: varint de deltas al cm e índices relativos. */
+export function decodeMineTin(bytes: Uint8Array, base: readonly number[]): TinData {
+  let p = 0;
+  const read = () => {
+    let n = 0;
+    let m = 1;
+    let b: number;
+    do {
+      b = bytes[p++] ?? 0;
+      n += (b & 127) * m;
+      m *= 128;
+    } while (b & 128);
+    return n;
+  };
+  const nv = read();
+  const nt = read();
+  const vertices = new Float64Array(nv * 3);
+  const q = [0, 0, 0];
+  for (let i = 0; i < nv; i++)
+    for (let k = 0; k < 3; k++) {
+      const d = read();
+      q[k] = (q[k] ?? 0) + (d % 2 ? -(d + 1) / 2 : d / 2);
+      vertices[i * 3 + k] = (base[k] ?? 0) + (q[k] ?? 0) / 100;
+    }
+  const triangles = new Uint32Array(nt * 3);
+  let next = 0;
+  for (let i = 0; i < triangles.length; i++) {
+    const d = read();
+    triangles[i] = d === 0 ? next++ : next - d;
+  }
+  return { vertices, triangles };
+}
+
+/** Puntos x, y, z intercalados → polilínea en planta. */
+const plan = (xyz: readonly number[]): Vec2[] =>
+  Array.from({ length: xyz.length / 3 }, (_, i) => ({
+    x: xyz[i * 3] ?? 0,
+    y: xyz[i * 3 + 1] ?? 0,
+  }));
+
+/**
+ * Tajo real del levantamiento `new topo.dxf` (TIN de 3DFACE, recortado al tajo). Voladura en el
+ * banco 3465 de la pared Norte: la cara libre es la cresta hacia el tajo (trazada sobre el TIN),
+ * el piso es el banco 3450 de abajo y las bocas se apoyan en el terreno. El ángulo de la cara es
+ * el medido en el levantamiento. El TIN se carga al pedir el ejemplo (no pesa en el arranque).
+ */
+export async function buildMineExample(): Promise<ExampleBuild> {
+  const data = await import('./mineTopoData');
+  const tin = decodeMineTin(
+    await inflateRaw(base64ToBytes(data.MINE_TOPO_TIN)),
+    data.MINE_TOPO_BASE,
+  );
+  const lineSet = packLines([
+    { coords: data.MINE_TOPO_CREST, role: 'crest', closed: false },
+    { coords: data.MINE_TOPO_TOE, role: 'toe', closed: false },
+  ]);
+  // Frente de 140 m sobre la cresta y 40 m hacia atrás, perpendicular a la cuerda de la cresta.
+  const front = plan(data.MINE_TOPO_CREST).filter((p) => p.x >= 327_090 && p.x <= 327_230);
+  const a = front[0];
+  const b = front.at(-1);
+  if (!a || !b) throw new Error('sin cresta');
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  const back = { x: (-(b.y - a.y) / len) * 40, y: ((b.x - a.x) / len) * 40 };
+  const polygon: Vec2[] = [
+    ...front,
+    { x: b.x + back.x, y: b.y + back.y },
+    { x: a.x + back.x, y: a.y + back.y },
+  ];
+  const freeFaceEdges = freeFaceEdgesFromLines(polygon, [lineSet], 1.0);
+  const origin = { x: 327_000, y: 8_108_600 };
+  const spec: ExampleSpec = {
+    projectName: 'Demo · Mina sobre levantamiento DXF',
+    blastName: 'Banco 3465 · Pared Norte',
+    origin,
+    floorElevation: 3450,
+    benchHeight: BENCH,
+    faceAngleDeg: data.MINE_TOPO_FACE_ANGLE_DEG,
+    perimeter: polygon.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y })),
+    freeFaceEdges,
+    // Filas paralelas a la cuerda de la cresta (no a su tramo de 5 m más largo, que ondula).
+    alignment: { rowAzimuth: unitToAzimuth(b.x - a.x, b.y - a.y), rowAdvance: 'left' },
+    pattern: { kind: 'staggered', burden: 6, spacing: 7, diameterMm: 229, subdrill: 1.5 },
+    frontOffset: 3,
+    drillingCostPerMeter: 9,
+    charge: () => ({
+      bottom: { explosive: 'ANFO pesado', length: 3 },
+      column: 'ANFO',
+      stemming: 4.5,
+      primer: 'Booster 450',
+      detonator: 'Nonel fondo 500',
+    }),
+    groups: () => ({ name: 'Producción', kind: 'production' }),
+    timing: { mode: 'v', interHole: 'Nonel superficie 17', interRow: 'Nonel superficie 42' },
+    monitoring: [{ name: 'Borde Norte del tajo', dx: 250, dy: 450, structure: 'planta' }],
+    rock: ROCK,
+  };
+  return onTopography(
+    buildExample(spec),
+    spec,
+    { tin, lines: lineSet },
+    {
+      name: 'Tajo · levantamiento DXF',
+      surveyDate: '2026-10-01',
+      format: 'dxf',
+      files: ['new topo.dxf'],
+    },
+    3450,
   );
 }

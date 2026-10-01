@@ -355,12 +355,10 @@ export const computeApi = {
   },
 
   /** Proyecto de ejemplo completamente configurado, con los binarios de su topografía si tiene. */
-  buildExample(id: string): ExampleBuild {
+  async buildExample(id: string): Promise<ExampleBuild> {
     const example = EXAMPLES.find((s) => s.id === id);
     if (!example) throw new Error(`Ejemplo desconocido: ${id}`);
-    const built = example.buildFull
-      ? example.buildFull()
-      : { project: example.build(), assets: [] };
+    const built = await example.build();
     return transfer(
       built,
       built.assets.map((a) => a.bytes.buffer as ArrayBuffer),

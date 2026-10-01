@@ -9,3 +9,12 @@ declare const crypto: {
 declare const performance: {
   now(): number;
 };
+
+/** Descompresión nativa (navegador, workers y Node ≥ 18): solo lo que usa el ejemplo de mina. */
+declare const DecompressionStream: new (format: 'deflate' | 'deflate-raw' | 'gzip') => object;
+
+declare class Response {
+  constructor(body: Uint8Array | object);
+  readonly body: { pipeThrough(transform: object): object } | null;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}

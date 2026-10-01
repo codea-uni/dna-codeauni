@@ -757,6 +757,11 @@ kbd {
   display: flex;
   flex-direction: column;
   min-width: 260px;
+  /* Nunca más ancha que la ventana (las descripciones se parten); el alto lo acota MenuButton. */
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 16px));
+  overflow: hidden auto;
   padding: 4px;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -770,8 +775,13 @@ kbd {
   align-items: center;
   padding: 0.4rem 0.5rem;
   text-align: left;
+  white-space: normal;
   border: 0;
   background: transparent;
+}
+
+.menu-list button svg {
+  flex: none;
 }
 
 .menu-list button:hover {

@@ -99,7 +99,7 @@ describe.runIf(await databaseAvailable())('proyectos de una mina (D-14, NF-08)',
   it('guarda el contenido completo y lo devuelve válido (ida y vuelta)', async () => {
     const example = EXAMPLES[0];
     if (!example) throw new Error('sin ejemplos');
-    const project = example.build();
+    const { project } = await example.build();
     project.coordinateSystem = { ...project.coordinateSystem, epsg: 32719 };
     const holes = project.blasts.reduce((n, b) => n + b.holes.length, 0);
     expect(holes).toBeGreaterThan(0);

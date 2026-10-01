@@ -65,8 +65,8 @@ describe('computeApi', () => {
     expect(r.ok).toBe(true);
   });
 
-  it('pila de material: cálculo, sección, exportación y comparación (A7)', () => {
-    const example = computeApi.buildExample('muckpile');
+  it('pila de material: cálculo, sección, exportación y comparación (A7)', async () => {
+    const example = await computeApi.buildExample('muckpile');
     const project = example.project;
     const blast = project.blasts[0];
     if (!blast) throw new Error('sin voladura');

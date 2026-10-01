@@ -17,7 +17,9 @@ El cálculo corre en el navegador (Web Workers y WebGL). Un servidor opcional ag
 3. Abrir <http://localhost:5173> y entrar con `luis@cronos.local` / `cronos123` (diseñador).
    Otras cuentas en [Usuarios de desarrollo](#usuarios-de-desarrollo).
 4. Entrar a la mina **Cuajone** y abrir **Demo · Banco sobre topografía**: una voladura sobre el
-   terreno con ortofoto (en 3D, tecla **3**). También está **Demo · Tajo con topografía**.
+   terreno con ortofoto (en 3D, tecla **3**). También están **Demo · Mina sobre levantamiento DXF**
+   (tajo real de un TIN, regenerable con `node scripts/topo-example.js`) y
+   **Demo · Tajo con topografía**.
 
 Ctrl+C lo detiene. Sin Docker, `pnpm dev` abre la aplicación sin login (se guarda en el navegador).
 

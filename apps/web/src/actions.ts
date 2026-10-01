@@ -765,6 +765,11 @@ const EXAMPLE_VIEWS: Record<string, () => void> = {
     useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: 'plan' });
     fitTopography();
   },
+  topoMine: () => {
+    useAnalysisStore.getState().set({ colorBy: 'time', labelBy: 'label', topoContourInterval: 5 });
+    useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: 'plan' });
+    fitTopography();
+  },
   topoSector: () => {
     useAnalysisStore.getState().set({ colorBy: 'kg', labelBy: 'label', topoContourInterval: 5 });
     useUiStore.setState({ leftTab: 'design', rightTab: 'view', viewMode: 'plan' });

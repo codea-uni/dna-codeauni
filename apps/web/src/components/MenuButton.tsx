@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 export interface MenuItem {
   icon: LucideIcon;
@@ -21,6 +21,18 @@ export function MenuButton({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  // La lista queda dentro de la ventana: se corre a la izquierda lo justo si se sale por la
+  // derecha (botón cerca del borde) y se desplaza si no cabe hacia abajo.
+  useLayoutEffect(() => {
+    const el = list.current;
+    if (!open || !el) return;
+    el.style.left = '';
+    const r = el.getBoundingClientRect();
+    const overflow = r.right - (window.innerWidth - 8);
+    if (overflow > 0) el.style.left = `${-overflow}px`;
+    el.style.maxHeight = `${Math.max(120, window.innerHeight - r.top - 8)}px`;
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
@@ -52,7 +64,7 @@ export function MenuButton({
         <Icon size={17} strokeWidth={1.8} aria-hidden />
       </button>
       {open && (
-        <div className="menu-list" role="menu">
+        <div className="menu-list" role="menu" ref={list}>
           {items.map((it) => (
             <button
               key={it.label}
