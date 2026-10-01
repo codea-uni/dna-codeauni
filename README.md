@@ -40,9 +40,38 @@ Detalle, respaldos y contraseñas olvidadas en [`docs/DEPLOY.md`](docs/DEPLOY.md
 
 ## Demostración
 
-El botón de la claqueta en la barra lanza un recorrido automático de 16 pasos (≈ 2 min) pensado para grabar un video tutorial: capítulo numerado, subtítulo y barra de progreso. Cubre diseño, carga, 3D, secuencia, burden efectivo, semáforo de proyección, desplazamiento, daño, fragmentación, vibración, escenarios, revisión e idiomas.
+El botón 🎬 **Videos**, disponible también en producción, ofrece dos reproducciones:
+
+- **Recorrido guiado:** 16 pasos (≈ 2 min), con capítulos, subtítulos y barra de progreso. Cubre
+  diseño, carga, 3D, secuencia, burden efectivo, proyección, desplazamiento, daño, fragmentación,
+  vibración, escenarios, revisión e idiomas.
+- **Tráiler (presentación):** ≈ 58 s sobre la mina del levantamiento DXF, sin portada y en todo el
+  lienzo. Muestra el terreno, 141 taladros agregados fila por fila, 140 amarres, el disparo,
+  el desplazamiento de la maza en 3D y la pila final. Usa la animación cinemática.
+
+Los videos usan un documento temporal: al salir se restaura el proyecto, su historial y sus
+permisos. La presentación no se autoguarda ni se publica como versión del proyecto abierto.
 
 Controles: **← →** paso anterior o siguiente, **espacio** pausa, **Esc** sale; también con los botones del subtítulo o haciendo clic en la barra de progreso. Cada paso parte de una vista limpia, así que se puede retroceder o saltar a cualquiera.
+
+Para exportar el tráiler a MP4 (Node ≥ 24, Chromium headless de Playwright en caché y ffmpeg):
+
+```sh
+node scripts/record-trailer.js
+# O reutilizar una web local abierta:
+node scripts/record-trailer.js --url http://127.0.0.1:5173 --output artifacts/cronos-trailer.mp4
+# Destino de esta presentación en Windows / WSL:
+node scripts/record-trailer.js --output /mnt/c/Users/Augusto/Videos/cronos-trailer.mp4
+```
+
+El grabador inicia la app por el menú, avanza el tiempo virtual en pasos de 1/30 s y renderiza
+un PNG por fotograma antes de codificar H.264 a 1920×1080, 30 fps. Guarda también capturas por
+escena y metadatos junto al video. `--mode realtime` usa screencast con timestamps si el tiempo
+virtual no está disponible; `--overwrite` permite reemplazar una salida anterior.
+Cada ejecución escribe en un archivo temporal y valida la decodificación completa antes de
+reemplazar el MP4 de destino.
+Las librerías NSS se pueden extraer localmente sin instalarlas: instrucciones en la cabecera
+de [`scripts/record-trailer.js`](scripts/record-trailer.js). Los videos no se versionan.
 
 ## Ventanas flotantes
 

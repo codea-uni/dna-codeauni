@@ -39,7 +39,7 @@ import {
 import { EXAMPLES } from '@cronos/core';
 import { useRef } from 'react';
 import * as actions from '../actions';
-import { startDemo, stopDemo } from '../demo/tour';
+import { startDemo, stopDemo } from '../demo/playback';
 import { useHistory } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { IconButton } from './IconButton';
@@ -198,17 +198,29 @@ export function Toolbar() {
           shortcut="Ctrl+S"
           onClick={() => void actions.saveProject()}
         />
+        <MenuButton
+          icon={Clapperboard}
+          label={tr('toolbar.demo')}
+          items={[
+            {
+              icon: Presentation,
+              label: tr('demo.tour'),
+              onSelect: () => {
+                startDemo('tour');
+              },
+            },
+            {
+              icon: Clapperboard,
+              label: tr('demo.trailer.menu'),
+              onSelect: () => {
+                startDemo('trailer');
+              },
+            },
+            ...(demoOn ? [{ icon: Clapperboard, label: tr('demo.exit'), onSelect: stopDemo }] : []),
+          ]}
+        />
         {!serverMode && (
           <>
-            <IconButton
-              icon={Clapperboard}
-              label={tr('toolbar.demo')}
-              active={demoOn}
-              onClick={() => {
-                if (demoOn) stopDemo();
-                else startDemo();
-              }}
-            />
             <IconButton
               icon={HistoryIcon}
               label={tr('toolbar.versions')}

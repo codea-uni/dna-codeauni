@@ -954,6 +954,30 @@ kbd {
   pointer-events: auto;
 }
 
+.demo-root.trailer .demo-progress,
+.demo-root.trailer .demo-chapter,
+.demo-root.trailer .demo-controls {
+  display: none;
+}
+
+.demo-root.trailer .demo-caption {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.app.trailer-on {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: 'view';
+}
+
+.app.trailer-on > .toolbar,
+.app.trailer-on > .sidebar,
+.app.trailer-on > .statusbar,
+.app.trailer-on .overlay-3d {
+  display: none;
+}
+
 .demo-vignette {
   position: absolute;
   inset: 0;

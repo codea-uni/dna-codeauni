@@ -53,6 +53,31 @@ function setup(n = 5) {
 const labels = (store: DocumentStore) => store.project.blasts[0]?.holes.map((h) => h.label);
 
 describe('DocumentStore', () => {
+  it('restaura proyecto, undo/redo, índice y permisos tras una presentación temporal', () => {
+    const { store, blastId, holes } = setup(3);
+    store.dispatch(moveHoles(store, [at(holes, 0).id], 10, 0), 'Mover');
+    store.undo();
+    const original = store.project;
+    store.setReadOnly(true);
+    const restore = store.beginPreview();
+    store.load(createEmptyProject('Tráiler'));
+    expect(store.findHole(at(holes, 0).id)).toBeUndefined();
+    expect(store.readOnly).toBe(false);
+    const version = store.version;
+    restore();
+    restore();
+    expect(store.project).toBe(original);
+    expect(store.version).toBe(version + 1);
+    expect(store.readOnly).toBe(true);
+    expect(store.getBlast(blastId)?.holes).toHaveLength(3);
+    expect(store.findHole(at(holes, 0).id)?.index).toBe(0);
+    expect(store.undoLabel).toBe('Agregar');
+    expect(store.redoLabel).toBe('Mover');
+    store.setReadOnly(false);
+    store.redo();
+    expect(store.findHole(at(holes, 0).id)?.hole.collar.x).toBe(10);
+  });
+
   it('agrega, deshace y rehace', () => {
     const { store, events } = setup(3);
     expect(labels(store)).toEqual(['1', '2', '3']);

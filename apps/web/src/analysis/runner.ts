@@ -33,7 +33,7 @@ export function startAnalysisRunner(): () => void {
       const analysis = await getCompute().api.analyzeBlast(document.project, blast.id, {
         isochroneInterval: isochroneIntervalMs / 1000,
       });
-      if (requested !== version) return; // llegó otra versión mientras calculaba
+      if (requested !== version || session.document.version !== version) return;
       useAnalysisStore.getState().set({ analysis, version, computing: false });
     } catch (err) {
       console.error('[análisis]', err);
@@ -269,6 +269,10 @@ export function startMuckpileRunner(): () => void {
         tin,
       );
       if (mine !== token) return;
+      if (session.document.version !== version) {
+        useAnalysisStore.getState().set({ muckpileComputing: false });
+        return;
+      }
       useAnalysisStore.getState().set({
         muckpile,
         muckpileVersion: version,
@@ -301,5 +305,9 @@ export function startMuckpileRunner(): () => void {
     if (s.muckpileRequest !== prev.muckpileRequest) void run();
     if (s.muckpile !== prev.muckpile || s.muckpileSection !== prev.muckpileSection) void section();
   });
-  return off;
+  return () => {
+    token++;
+    sectionToken++;
+    off();
+  };
 }

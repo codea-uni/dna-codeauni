@@ -10,6 +10,7 @@ import {
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { StatusBar } from './components/StatusBar';
 import { DemoOverlay } from './demo/DemoOverlay';
+import { stopDemo } from './demo/playback';
 import { Toolbar } from './components/Toolbar';
 import { useShortcuts } from './hooks/useShortcuts';
 import { RightSidebar } from './panels/RightSidebar';
@@ -37,6 +38,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
   const tr = useT();
   const tab = useUiStore((s) => s.leftTab);
   const demoOn = useUiStore((s) => s.demoStep !== null);
+  const trailerOn = useUiStore((s) => s.demoStep !== null && s.demoTour === 'trailer');
   const workflow = useWorkflow();
   // Si la pestaña actual queda sin datos (proyecto nuevo, se borró la malla), vuelve a Diseño.
   const current = LEFT_TABS.find((x) => x.id === tab);
@@ -71,6 +73,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
       startMuckpileRunner(),
     ];
     return () => {
+      stopDemo();
       stopAnalysis();
       stopAutosave();
       stopTopography();
@@ -78,7 +81,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
     };
   }, [restoreLocalDraft]);
   return (
-    <div className="app">
+    <div className={`app${trailerOn ? ' trailer-on' : ''}`}>
       <Toolbar />
       <aside className="sidebar left">
         <ErrorBoundary>

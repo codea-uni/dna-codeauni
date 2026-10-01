@@ -108,6 +108,20 @@ async function write(project: Project): Promise<void> {
  * suscrito en ese momento (el editor se está montando) y se saltaría un cambio real después.
  */
 let skipVersion = -1;
+let suspended = 0;
+const flushers = new Set<() => void>();
+
+/** Guarda el trabajo pendiente y excluye el documento temporal de los videos del autoguardado. */
+export function suspendAutosave(): () => void {
+  for (const flush of flushers) flush();
+  suspended++;
+  let resumed = false;
+  return () => {
+    if (resumed) return;
+    resumed = true;
+    suspended--;
+  };
+}
 /** Carga un proyecto sin volver a guardarlo como versión nueva. */
 export function loadWithoutSaving(project: Project): void {
   skipVersion = session.document.version + 1;
@@ -131,7 +145,7 @@ export function startAutosave(): () => void {
     });
   };
   const off = session.document.subscribe((_changes, store) => {
-    if (store.version === skipVersion) return;
+    if (suspended > 0 || store.version === skipVersion) return;
     dirty = true;
     if (timer) clearTimeout(timer);
     timer = setTimeout(flush, DEBOUNCE_MS);
@@ -140,7 +154,9 @@ export function startAutosave(): () => void {
     if (document.visibilityState === 'hidden') flush();
   };
   document.addEventListener('visibilitychange', onHide);
+  flushers.add(flush);
   return () => {
+    flushers.delete(flush);
     flush();
     off();
     document.removeEventListener('visibilitychange', onHide);

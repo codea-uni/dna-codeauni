@@ -154,6 +154,29 @@ export class DocumentStore implements DocumentReader {
     this.commit(changes);
   }
 
+  /** Documento temporal para una presentación. Al salir restaura proyecto, historial y permisos. */
+  beginPreview(): () => void {
+    const project = this._project;
+    const undo = [...this.undoStack];
+    const redo = [...this.redoStack];
+    const readOnly = this._readOnly;
+    this.setReadOnly(false);
+    this.undoStack.length = 0;
+    this.redoStack.length = 0;
+    let restored = false;
+    return () => {
+      if (restored) return;
+      restored = true;
+      this._project = project;
+      this._readOnly = readOnly;
+      this.undoStack.splice(0, this.undoStack.length, ...undo);
+      this.redoStack.splice(0, this.redoStack.length, ...redo);
+      const changes = new ChangeSetBuilder();
+      changes.markReset();
+      this.commit(changes);
+    };
+  }
+
   subscribe(listener: DocumentListener): () => void {
     this.listeners.add(listener);
     return () => {
