@@ -34,6 +34,7 @@ services:
       CRONOS_SUPERADMIN_EMAIL: ${CRONOS_SUPERADMIN_EMAIL:-}
       CRONOS_SUPERADMIN_PASSWORD: ${CRONOS_SUPERADMIN_PASSWORD:-}
       CRONOS_SUPERADMIN_NAME: ${CRONOS_SUPERADMIN_NAME:-Administrador de la plataforma}
+      CRONOS_DEMO_DATA: ${CRONOS_DEMO_DATA:-true}
     depends_on:
       postgres:
         condition: service_healthy

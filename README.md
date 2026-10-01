@@ -15,7 +15,7 @@ El cálculo corre en el navegador (Web Workers y WebGL). Un servidor opcional ag
    ```
 
 3. Abrir <http://localhost:5173> y entrar con `luis@cronos.local` / `cronos123` (diseñador).
-   Otras cuentas en [Usuarios de desarrollo](#usuarios-de-desarrollo).
+   Otras cuentas en [Usuarios predeterminados](#usuarios-predeterminados).
 4. Entrar a la mina **Cuajone** y abrir **Demo · Banco sobre topografía**: una voladura sobre el
    terreno con ortofoto (en 3D, tecla **3**). También están **Demo · Mina sobre levantamiento DXF**
    (tajo real de un TIN, regenerable con `node scripts/topo-example.js`) y
@@ -31,7 +31,7 @@ Para el agente de Claude en el VPS: el código está en `/opt/dna-codeauni` y se
 ```sh
 cd /opt/dna-codeauni
 ./scripts/deploy.sh                                              # actualizar (git pull + docker compose)
-CRONOS_SUPERADMIN_EMAIL=correo@empresa ./scripts/deploy.sh --server   # solo la primera vez, con login
+./scripts/deploy.sh --server                                  # con login y cuentas predeterminadas
 curl -s https://dna.codeadevelopment.com/api/health              # debe responder status ok
 ```
 
@@ -66,13 +66,14 @@ pnpm lint
 pnpm format
 ```
 
-## Usuarios de desarrollo
+## Usuarios predeterminados
 
-Cuentas de la base local de `pnpm dev:online` (PostgreSQL de `docker-compose.dev.yml`), en
-http://localhost:5173. Se crean solas al arrancar, junto con las empresas, las minas y los
-proyectos de demostración (`pnpm dev:seed` lo repite; solo agrega lo que falte). **Solo para
-desarrollo**: en producción el superadministrador sale de su propio `.env` y las demás cuentas las
-crea cada empresa.
+Cuentas disponibles en desarrollo (`pnpm dev:online`, http://localhost:5173) y producción.
+Se crean solas al arrancar, junto con las empresas, las minas y los proyectos de demostración
+(`pnpm dev:seed` lo repite; solo agrega lo que falte y conserva las cuentas existentes).
+`CRONOS_DEMO_DATA=false` desactiva esta carga. `deploy.sh --server` usa
+`plataforma@cronos.local` si falta el correo y fija su contraseña en `cronos123`, sin cambio
+obligatorio al entrar.
 
 | Correo                    | Contraseña  | Rol                                     |
 | ------------------------- | ----------- | --------------------------------------- |

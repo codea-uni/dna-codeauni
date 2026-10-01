@@ -6,9 +6,9 @@ import { recordAudit } from './audit';
 import { createProject } from './projects';
 
 /**
- * Datos de demostración para desarrollo (`pnpm dev:online` / `pnpm dev:seed`): las cuentas del
- * README, dos empresas con sus minas y dos proyectos con topografía en Cuajone. Idempotente: crea
- * lo que falta y no toca lo que ya existe (ni contraseñas cambiadas). Nunca corre en producción.
+ * Datos predeterminados en desarrollo y producción: las cuentas del README, dos empresas con
+ * sus minas y tres proyectos con topografía en Cuajone. Idempotente: crea lo que falta y no toca
+ * lo que ya existe (ni contraseñas cambiadas). Se desactiva con CRONOS_DEMO_DATA=false.
  */
 
 interface DemoAccount {

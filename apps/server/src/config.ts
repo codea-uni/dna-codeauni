@@ -11,8 +11,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
-  // Superadministrador de la plataforma: se crea si no existe (con contraseña temporal) o se
-  // promueve la cuenta existente.
+  CRONOS_DEMO_DATA: z.enum(['true', 'false']).default('true'),
+  // Superadministrador: se crea o sincroniza desde el entorno, sin cambio obligatorio.
   CRONOS_SUPERADMIN_EMAIL: z.email().optional(),
   CRONOS_SUPERADMIN_PASSWORD: z.string().min(8).optional(),
   CRONOS_SUPERADMIN_NAME: z.string().min(1).default('Administrador de la plataforma'),
@@ -25,6 +25,7 @@ export interface ServerConfig {
   logLevel: string;
   authSecret: string;
   baseUrl: string;
+  demoData: boolean;
   initialAdmin: { email: string; password: string; name: string } | null;
 }
 
@@ -53,6 +54,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     logLevel: e.LOG_LEVEL,
     authSecret: e.BETTER_AUTH_SECRET,
     baseUrl: e.BETTER_AUTH_URL,
+    demoData: e.CRONOS_DEMO_DATA !== 'false',
     initialAdmin:
       e.CRONOS_SUPERADMIN_EMAIL && e.CRONOS_SUPERADMIN_PASSWORD
         ? {

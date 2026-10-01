@@ -1,17 +1,19 @@
 import { meSchema } from '@cronos/api';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createTestApp, signIn, TEST_ORIGIN, type TestApp } from '../test/testApp';
 import { createTestDb, databaseAvailable, type TestDb } from '../test/testDb';
 import { DEMO_ACCOUNTS, seedDemo } from './demo';
 
-describe.runIf(await databaseAvailable())('datos de demostración (desarrollo)', () => {
+describe.runIf(await databaseAvailable())('datos predeterminados en producción', () => {
   let t: TestDb;
   let s: TestApp;
   beforeAll(async () => {
+    vi.stubEnv('NODE_ENV', 'production');
     t = await createTestDb();
     s = createTestApp(t);
   });
   afterAll(async () => {
+    vi.unstubAllEnvs();
     await t.drop();
   });
 
