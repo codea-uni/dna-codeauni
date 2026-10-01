@@ -24,6 +24,8 @@ import { rowTieUp, withDownholeDetonator } from './timing/tieUp';
 import { effectiveBurden } from './timing/effectiveBurden';
 import { timingChecks } from './timing/timingChecks';
 import { checkOptionsOf } from './diagnostics/designChecks';
+import { buildExample, EXAMPLE_SPECS } from './examples/examples';
+import { computeMuckpile } from './muckpile/simulate';
 
 function best(runs: number, fn: () => void): number {
   let min = Infinity;
@@ -175,5 +177,27 @@ describe('rendimiento con 5.000 taladros', () => {
       computeVibration({ ...project, blasts: [blast] }, blast, DEFAULT_VIBRATION_OPTIONS),
     );
     expect(ms).toBeLessThan(800);
+  });
+});
+
+describe('pila de material (A7)', () => {
+  it('≈ 500 taladros con bloques de 1,5 m en < 1 s', () => {
+    // Producción estándar ampliada a 190 × 120 m: ≈ 500 taladros de 229 mm, banco de 15 m.
+    const project = buildExample({
+      ...EXAMPLE_SPECS.production,
+      perimeter: [
+        { x: 0, y: 0 },
+        { x: 190, y: 0 },
+        { x: 190, y: 120 },
+        { x: 0, y: 120 },
+      ],
+      freeFaceEdges: [2],
+      scenarios: [],
+    });
+    const blast = project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    expect(blast.holes.length).toBeGreaterThanOrEqual(450);
+    const ms = best(3, () => computeMuckpile(project, blast.id));
+    expect(ms).toBeLessThan(1000);
   });
 });

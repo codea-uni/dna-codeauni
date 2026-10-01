@@ -1,6 +1,11 @@
 import { createEditorSession, type EditorSession } from '@cronos/core';
 import type { Engine } from '@cronos/engine';
-import { createComputeClient, type ComputeClient } from '@cronos/workers';
+import {
+  createComputeClient,
+  createPhysicsClient,
+  type ComputeClient,
+  type PhysicsClient,
+} from '@cronos/workers';
 
 /**
  * Singletons de la aplicación: documento + selección (core), cliente de cómputo (workers)
@@ -12,6 +17,13 @@ let compute: ComputeClient | null = null;
 export function getCompute(): ComputeClient {
   compute ??= createComputeClient();
   return compute;
+}
+
+let physics: PhysicsClient | null = null;
+/** Worker de la animación física de la pila (A7): se crea (y carga Rapier) solo al pedirlo. */
+export function getPhysics(): PhysicsClient {
+  physics ??= createPhysicsClient();
+  return physics;
 }
 
 let engine: Engine | null = null;

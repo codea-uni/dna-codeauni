@@ -1,4 +1,9 @@
 import type {
+  CalibrationResult,
+  MuckpileProfile,
+  MuckpileResult,
+  SurfaceComparison,
+  Vec2,
   BlastAnalysis,
   EnergyMetric,
   EnergyResult,
@@ -8,11 +13,17 @@ import type {
   VibrationResult,
 } from '@cronos/core';
 import type { EngineLayer } from '@cronos/engine';
+import type { PhysicsFrames } from '@cronos/workers';
 import { create } from 'zustand';
 
 export type ColorBy =
   'none' | 'time' | 'kg' | 'powderFactor' | 'effectiveBurden' | 'sdob' | 'group';
 export type LabelBy = 'label' | 'time' | 'kg';
+/**
+ * Color de la pila (A7): desplazamiento, tamaño de fragmento, dominio (dilución), tiempo de salida
+ * o error frente a un levantamiento post-voladura (calibración; solo la superficie).
+ */
+export type MuckpileColorBy = 'displacement' | 'fragment' | 'domain' | 'launch' | 'error';
 
 interface AnalysisState {
   analysis: BlastAnalysis | null;
@@ -62,6 +73,27 @@ interface AnalysisState {
   vibOpacity: number;
   vibration: VibrationResult | null;
   vibComputing: boolean;
+  /** Pila de material (A7): se calcula a pedido (botón), no en cada edición. */
+  muckpile: MuckpileResult | null;
+  /** Versión del documento con la que se calculó (distinta = desactualizada). */
+  muckpileVersion: number;
+  muckpileComputing: boolean;
+  /** Pedido de cálculo (contador): el runner lo atiende. */
+  muckpileRequest: number;
+  muckpileColorBy: MuckpileColorBy;
+  muckpileOpacity: number;
+  /** Animación: interpolar trayectorias (rápido) o reproducir la simulación física (Rapier). */
+  muckpileMode: 'fast' | 'physics';
+  muckpileFrames: PhysicsFrames | null;
+  /** Avance de la simulación física (0–1) o null si no está corriendo. */
+  muckpilePhysicsProgress: number | null;
+  /** Sección trazada y su perfil. */
+  muckpileSection: { a: Vec2; b: Vec2 } | null;
+  muckpileProfile: MuckpileProfile | null;
+  /** Comparación con un levantamiento post-voladura y calibración de k, n. */
+  muckpileCompare: SurfaceComparison | null;
+  muckpileCalibration: CalibrationResult | null;
+  muckpileCalibrating: number | null;
   /** Topografía: intervalo de curvas [m] (0 = automático) y opacidad del sombreado. */
   topoContourInterval: number;
   topoShadeOpacity: number;
@@ -93,6 +125,13 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
     topoShade: true,
     topoContours: true,
     topoLines: true,
+    muckpile: true,
+    muckpileBefore: false,
+    muckpileVectors: true,
+    muckpileBlocks: true,
+    domains: true,
+    faces: true,
+    benchPlanes: true,
   },
   sequenceTime: null,
   sequencePlaying: false,
@@ -122,6 +161,20 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   vibOpacity: 0.45,
   vibration: null,
   vibComputing: false,
+  muckpile: null,
+  muckpileVersion: -1,
+  muckpileComputing: false,
+  muckpileRequest: 0,
+  muckpileColorBy: 'fragment',
+  muckpileOpacity: 0.85,
+  muckpileMode: 'fast',
+  muckpileFrames: null,
+  muckpilePhysicsProgress: null,
+  muckpileSection: null,
+  muckpileProfile: null,
+  muckpileCompare: null,
+  muckpileCalibration: null,
+  muckpileCalibrating: null,
   topoContourInterval: 0,
   topoShadeOpacity: 0.85,
   topoImageOpacity: 1,

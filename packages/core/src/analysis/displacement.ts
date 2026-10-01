@@ -1,9 +1,12 @@
 import { deckIntervals, explosiveDeckMass, indexLibrary } from '../charging/charge';
 import type { Blast, CalcParams, KgPerM3, Meters, ProductLibrary, Radians } from '../model/types';
 import type { EffectiveBurden } from '../timing/effectiveBurden';
+import { holeBoundary } from '../geometry/boundary';
+import { boundaryFace } from '../geometry/face';
 
 /** Gravedad estándar [m/s²]. */
-const G = 9.80665;
+export const STANDARD_GRAVITY = 9.80665;
+const G = STANDARD_GRAVITY;
 
 /**
  * B/Ø mínimo del modelo: el menor de los casos citados de Zhang et al. (2021) es Malmberget,
@@ -46,6 +49,16 @@ export function ballisticRange(v: number, launchAngle: Radians, height: Meters):
   return (vx / G) * (vy + Math.sqrt(vy * vy + 2 * G * height));
 }
 
+/**
+ * Fila contada desde la cara libre original (1 = primera): una fila por cada burden nominal de
+ * distancia a la cara, redondeando a la mitad (A5). Sin cara o sin malla, 1.
+ */
+export function rowFromFace(faceDistance: number, nominalBurden: number): number {
+  return Number.isFinite(faceDistance) && Number.isFinite(nominalBurden) && nominalBurden > 0
+    ? Math.max(1, Math.floor(faceDistance / nominalBurden + 0.5))
+    : 1;
+}
+
 export interface Displacement {
   /** Velocidad de burden por taladro [m/s] (NaN sin carga, sin superficie libre o desacoplado). */
   velocity: Float64Array;
@@ -63,7 +76,7 @@ export interface Displacement {
  * Las filas posteriores se reducen con v·k^(n−1): k es de calibración de sitio (R0, S-01).
  */
 export function computeDisplacement(
-  blast: Pick<Blast, 'holes' | 'bench'>,
+  blast: Pick<Blast, 'holes' | 'bench'> & Partial<Pick<Blast, 'boundaries' | 'patterns'>>,
   library: ProductLibrary,
   rockDensity: KgPerM3,
   eb: EffectiveBurden,
@@ -75,7 +88,9 @@ export function computeDisplacement(
   const range = new Float64Array(n).fill(NaN);
   const row = new Float64Array(n).fill(NaN);
   const H = blast.bench.height;
-  const launch = Math.PI / 2 - blast.bench.faceAngle;
+  // α = 90° − ángulo de la cara del perímetro del taladro (propio o el del banco; A7b).
+  const launchOf = (h: Blast['holes'][number]) =>
+    Math.PI / 2 - boundaryFace(blast.bench, holeBoundary(blast, h)).angle;
   let excluded = 0;
   blast.holes.forEach((h, i) => {
     const b = eb.effective[i] ?? NaN;
@@ -113,16 +128,11 @@ export function computeDisplacement(
       cB: params.cB,
       theta: params.theta,
     });
-    // Fila desde la cara libre original: 1 dentro de la primera mitad de burden más allá, etc.
-    const fd = eb.faceDistance[i] ?? Infinity;
-    const r =
-      Number.isFinite(fd) && Number.isFinite(nominal) && nominal > 0
-        ? Math.max(1, Math.floor(fd / nominal + 0.5))
-        : 1;
+    const r = rowFromFace(eb.faceDistance[i] ?? Infinity, nominal);
     const vRow = v * params.rowFactor ** (r - 1);
     velocity[i] = v;
     row[i] = r;
-    range[i] = ballisticRange(vRow, launch, H / 2);
+    range[i] = ballisticRange(vRow, launchOf(h), H / 2);
   });
   return { velocity, range, row, excluded };
 }

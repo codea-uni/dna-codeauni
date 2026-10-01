@@ -96,6 +96,27 @@ import {
   type Pattern,
   type Project,
   type SerializeOptions,
+  computeMuckpile,
+  muckpileInput,
+  measureFace,
+  type FaceMeasurement,
+  type BlastBoundary,
+  calibrateMuckpile,
+  compareSurface,
+  sampleProfile,
+  surfaceToXyz,
+  surfaceToObj,
+  surfaceToStl,
+  blocksToCsv,
+  type CalibrationRange,
+  type CalibrationResult,
+  type MuckpileGrids,
+  type MuckpileBlocks,
+  type MuckpileOptions,
+  type MuckpileProfile,
+  type MuckpileResult,
+  type SurfaceComparison,
+  type Vec3,
 } from '@cronos/core';
 
 import { transfer } from 'comlink';
@@ -145,10 +166,17 @@ export const computeApi = {
   },
 
   /** Distribución de energía en un plano horizontal (PPV de campo cercano o densidad de carga). */
-  computeEnergy(project: Project, blastId: BlastId, options: EnergyOptions): EnergyResult | null {
+  computeEnergy(
+    project: Project,
+    blastId: BlastId,
+    options: EnergyOptions,
+    /** Topografía del banco: arriba del terreno es aire (A7b). */
+    tin: TinData | null = null,
+  ): EnergyResult | null {
     const blast = project.blasts.find((b) => b.id === blastId);
     if (!blast) return null;
-    const result = computeEnergyGrid(blast, project.library, options);
+    const surface = tin ? SurfaceIndex.build(tin) : null;
+    const result = computeEnergyGrid(blast, project.library, options, surface);
     return transfer(result, [
       result.values.buffer,
       result.rgba.buffer,
@@ -190,6 +218,84 @@ export const computeApi = {
       r.contours.segments.buffer,
       r.contours.levels.buffer,
     ] as ArrayBuffer[]);
+  },
+
+  /**
+   * Pila de material (A7): modelo cinemático con la topografía del banco (su TIN, si la voladura
+   * la usa) como terreno pre-voladura.
+   */
+  computeMuckpile(
+    project: Project,
+    blastId: BlastId,
+    tin: TinData | null,
+    options: MuckpileOptions = {},
+  ): MuckpileResult | null {
+    const r = computeMuckpile(project, blastId, tin ? SurfaceIndex.build(tin) : null, options);
+    return r ? transfer(r, muckpileBuffers(r)) : null;
+  },
+
+  /** Perfil de la pila en la sección a–b (antes, después y terreno). */
+  muckpileSection(
+    grids: Pick<MuckpileGrids, 'base' | 'before' | 'after'>,
+    a: Vec2,
+    b: Vec2,
+  ): MuckpileProfile {
+    const p = sampleProfile(grids, a, b);
+    return transfer(p, uniqueBuffers([p.s, p.before, p.after, p.base]));
+  },
+
+  /** Exportaciones de la pila: superficie (XYZ, OBJ, STL relativo al origen) y vectores (CSV). */
+  muckpileExport(
+    kind: 'xyz' | 'obj' | 'stl' | 'vectors',
+    data: {
+      after: MuckpileGrids['after'];
+      blocks?: MuckpileBlocks;
+      blast?: Pick<Blast, 'holes' | 'domains'>;
+      origin: Vec3;
+      name?: string;
+    },
+  ): string | Uint8Array {
+    switch (kind) {
+      case 'xyz':
+        return surfaceToXyz(data.after);
+      case 'obj':
+        return surfaceToObj(data.after, data.name);
+      case 'stl': {
+        const bytes = surfaceToStl(data.after, data.origin);
+        return transfer(bytes, [bytes.buffer as ArrayBuffer]);
+      }
+      case 'vectors':
+        return data.blocks && data.blast ? blocksToCsv(data.blocks, data.blast) : '';
+    }
+  },
+
+  /** Pila simulada frente a un levantamiento post-voladura (mapa de error y RMSE). */
+  muckpileCompare(
+    grids: Pick<MuckpileGrids, 'base' | 'before' | 'after'>,
+    measured: TinData,
+  ): SurfaceComparison {
+    const c = compareSurface(grids, SurfaceIndex.build(measured));
+    return transfer(c, uniqueBuffers([c.error.values]));
+  },
+
+  /** Calibración de k y n por búsqueda en grilla contra un levantamiento post-voladura. */
+  muckpileCalibrate(
+    project: Project,
+    blastId: BlastId,
+    tin: TinData | null,
+    measured: TinData,
+    ranges: { k: CalibrationRange; n: CalibrationRange },
+    onProgress?: (done: number, total: number) => void,
+  ): CalibrationResult | null {
+    const input = muckpileInput(project, blastId, tin ? SurfaceIndex.build(tin) : null);
+    if (!input) return null;
+    return calibrateMuckpile(
+      input,
+      input.blast.calcParams.muckpile,
+      SurfaceIndex.build(measured),
+      ranges,
+      onProgress,
+    );
   },
 
   /** Informe PDF de la voladura (bytes del archivo). */
@@ -400,6 +506,16 @@ export const computeApi = {
     return drapeHoles(holes, (x, y) => index.elevationAt(x, y), blast);
   },
 
+  /** Ángulo y alto de la cara libre de un perímetro medidos en la topografía (A7b, S-26). */
+  topographyMeasureFace(
+    tin: TinData,
+    boundary: Pick<BlastBoundary, 'polygon' | 'freeFaceEdges'>,
+    benchHeight: number,
+  ): FaceMeasurement | null {
+    const index = SurfaceIndex.build(tin);
+    return measureFace((x, y) => index.elevationAt(x, y), boundary, benchHeight);
+  },
+
   /** Mediana de la cota de los vértices del levantamiento (piso inicial del banco), o `null`. */
   topographyMedianElevation(tin: TinData): number | null {
     return medianVertexElevation(tin);
@@ -446,6 +562,37 @@ export const computeApi = {
 export type ComputeApi = typeof computeApi;
 
 /** Buffers distintos de los arreglos dados (Comlink falla si uno se repite en la lista). */
+/** Buffers de un resultado de la pila (sin repetir), para transferirlos. */
+function muckpileBuffers(r: MuckpileResult): ArrayBuffer[] {
+  const b = r.blocks;
+  const g = r.grids;
+  const v = r.vectors;
+  return uniqueBuffers([
+    v.hole,
+    v.from,
+    v.to,
+    v.magnitude,
+    b.origin,
+    b.impact,
+    b.destination,
+    b.velocity,
+    b.launchTime,
+    b.impactTime,
+    b.hole,
+    b.volume,
+    b.height,
+    b.fragmentSize,
+    b.domain,
+    g.base.values,
+    g.before.values,
+    g.after.values,
+    g.displacement,
+    g.fragmentSize,
+    g.domain,
+    g.domainPurity,
+  ]);
+}
+
 function uniqueBuffers(arrays: readonly (ArrayBufferView | undefined)[]): ArrayBuffer[] {
   const set = new Set<ArrayBuffer>();
   for (const a of arrays) if (a && a.buffer instanceof ArrayBuffer) set.add(a.buffer);

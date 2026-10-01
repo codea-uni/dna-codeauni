@@ -1,5 +1,6 @@
-import { sdobBand, type BlastAnalysis, type HoleId } from '@cronos/core';
-import type { Engine, HoleScalars, IsochroneData } from '@cronos/engine';
+import { sdobBand, type BlastAnalysis, type HoleId, type MuckpileResult } from '@cronos/core';
+import type { Engine, HoleScalars, IsochroneData, MuckpileView } from '@cronos/engine';
+import { blockColors, cellColors, planRaster } from './muckpileColors';
 import { session } from '../session';
 import { useAnalysisStore, type ColorBy, type LabelBy } from '../stores/analysisStore';
 
@@ -121,6 +122,53 @@ function groupColors(): HoleScalars {
   return { values: new Map(), min: 0, max: 1, colors };
 }
 
+/** Pila de material lista para el engine (A7): colores del modo actual y cuadros de física. */
+function muckpileView(s: ReturnType<typeof useAnalysisStore.getState>): MuckpileView | null {
+  const r = s.muckpile;
+  if (!r || r.blocks.count === 0) return null;
+  const domains = session.document.project.blasts[0]?.domains ?? [];
+  const cells = cellColors(r, s.muckpileColorBy, domains, s.muckpileCompare);
+  const frames = s.muckpileMode === 'physics' ? s.muckpileFrames : null;
+  return {
+    surface: { after: r.grids.after, base: r.grids.base, colors: cells },
+    plan: planRaster(r, cells),
+    before: { before: r.grids.before, base: r.grids.base },
+    vectors: {
+      from: r.vectors.from,
+      to: r.vectors.to,
+      values: r.vectors.magnitude,
+      min: 0,
+      max: Math.max(1e-3, ...Array.from(r.vectors.magnitude)),
+    },
+    blocks: {
+      count: r.blocks.count,
+      origin: r.blocks.origin,
+      impact: r.blocks.impact,
+      destination: r.blocks.destination,
+      velocity: r.blocks.velocity,
+      launchTime: r.blocks.launchTime,
+      impactTime: r.blocks.impactTime,
+      height: r.blocks.height,
+      size: session.document.project.blasts[0]?.calcParams.muckpile.blockSize ?? 1.5,
+      colors: blockColors(r, s.muckpileColorBy, domains),
+      frames: frames
+        ? { ...frames, origin: session.document.project.coordinateSystem.origin }
+        : null,
+    },
+    end: muckpileEnd(r, frames),
+  };
+}
+
+/** Fin de la animación de la pila [s]: último impacto más el asentamiento (y la física). */
+export function muckpileEnd(
+  r: MuckpileResult,
+  frames: { t0: number; dt: number; frames: number } | null,
+): number {
+  const kin = Number.isFinite(r.stats.lastImpact) ? r.stats.lastImpact + 0.5 : NaN;
+  const phys = frames ? frames.t0 + frames.dt * (frames.frames - 1) : NaN;
+  return Math.max(Number.isFinite(kin) ? kin : -Infinity, Number.isFinite(phys) ? phys : -Infinity);
+}
+
 /** Sincroniza el engine con el análisis y las opciones de visualización. */
 export function bindVisualization(engine: Engine): () => void {
   const apply = (
@@ -155,6 +203,20 @@ export function bindVisualization(engine: Engine): () => void {
       engine.setFlyrockZone(v ? v.flyrock.zone : null);
     }
     if (changed('analysis')) engine.setDisplacement(analysis ? displacementArrows(analysis) : null);
+    if (changed('muckpile') || changed('muckpileFrames') || changed('muckpileMode'))
+      engine.setMuckpile(muckpileView(s));
+    else if ((changed('muckpileColorBy') || changed('muckpileCompare')) && s.muckpile) {
+      const domains = session.document.project.blasts[0]?.domains ?? [];
+      const cells = cellColors(s.muckpile, s.muckpileColorBy, domains, s.muckpileCompare);
+      engine.setMuckpileColors(
+        cells,
+        planRaster(s.muckpile, cells),
+        blockColors(s.muckpile, s.muckpileColorBy, domains),
+      );
+    }
+    if (changed('muckpileOpacity')) engine.setMuckpileOpacity(s.muckpileOpacity);
+    if (changed('muckpileSection'))
+      engine.setSectionLine(s.muckpileSection?.a ?? null, s.muckpileSection?.b ?? null);
     if (changed('analysis')) {
       const iso = analysis?.isochrones;
       const t = analysis?.timing;
@@ -177,9 +239,13 @@ export function bindVisualization(engine: Engine): () => void {
   const offEnd = engine.on('sequenceEnded', () => {
     useAnalysisStore.getState().set({ sequencePlaying: false });
   });
+  const offSection = engine.on('section', (section) => {
+    useAnalysisStore.getState().set({ muckpileSection: section });
+  });
   return () => {
     unsubscribe();
     offSeq();
     offEnd();
+    offSection();
   };
 }

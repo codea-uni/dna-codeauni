@@ -30,11 +30,13 @@ describe('proyectos de ejemplo', () => {
       const p = build(id);
       const { blast, a } = analyze(p);
       // Los ejemplos con topografía tienen la cara libre en la cresta (curva): pruebas aparte.
+      // El de la pila (A7) es chico a propósito (3 × 8) y su perímetro es un rectángulo.
       if (!id.startsWith('topo')) {
-        expect(blast.holes.length).toBeGreaterThan(50);
-        expect(blast.boundaries[0]?.freeFaceEdges).toEqual([3]);
+        const edge = id === 'muckpile' ? 2 : 3;
+        expect(blast.holes.length).toBeGreaterThan(id === 'muckpile' ? 20 : 50);
+        expect(blast.boundaries[0]?.freeFaceEdges).toEqual([edge]);
         // Cara libre al Norte: normal exterior (0, 1)
-        const n = outwardNormal(blast.boundaries[0]?.polygon ?? [], 3);
+        const n = outwardNormal(blast.boundaries[0]?.polygon ?? [], edge);
         expect(n?.y).toBeCloseTo(1);
       }
       expect(a.charge.totalExplosive).toBeGreaterThan(0);

@@ -1,3 +1,4 @@
+import { inFrontOfFace } from '../geometry/face';
 import { deckIntervals, indexLibrary, linearChargeDensity } from '../charging/charge';
 import { azimuthToUnit } from '../geometry/vec';
 import type { Blast, Hole, MetersPerSecond, ProductLibrary, RockMass } from '../model/types';
@@ -75,6 +76,11 @@ export interface EnergyOptions {
   levels: number[];
   /** Límite de celdas de la grilla. */
   maxCells: number;
+  /**
+   * Solo en la roca (A7b): sin valor en el aire, delante de la cara libre (con su ángulo y alto) o
+   * sobre el terreno si hay topografía. La energía es del macizo, no del hueco frente al talud.
+   */
+  clipToRock: boolean;
 }
 
 export const DEFAULT_ENERGY_OPTIONS: Omit<EnergyOptions, 'elevation'> = {
@@ -85,6 +91,7 @@ export const DEFAULT_ENERGY_OPTIONS: Omit<EnergyOptions, 'elevation'> = {
   sigma: 2,
   levels: [],
   maxCells: 160_000,
+  clipToRock: true,
 };
 
 export interface EnergyResult extends ScalarGrid {
@@ -197,6 +204,8 @@ export function computeEnergyGrid(
   blast: Blast,
   library: ProductLibrary,
   options: EnergyOptions,
+  /** Terreno (topografía del banco): arriba de él es aire. */
+  surface?: { elevationAt(x: number, y: number): number | null } | null,
 ): EnergyResult {
   const t0 = performance.now();
   const lib = indexLibrary(library);
@@ -381,6 +390,21 @@ export function computeEnergyGrid(
         const k = j * nx + i;
         // PPV: máximo entre taladros (v es monótono en S); densidad: suma de masas.
         sum[k] = isPpv ? Math.max(sum[k] ?? 0, v) : (sum[k] ?? 0) + v;
+      }
+    }
+  }
+
+  if (options.clipToRock) {
+    const inAir = inFrontOfFace(blast);
+    const z = options.elevation;
+    for (let j = 0; j < ny; j++) {
+      const y = minY + (j + 0.5) * cell;
+      for (let i = 0; i < nx; i++) {
+        const k = j * nx + i;
+        if (!(sum[k] ?? 0)) continue;
+        const x = minX + (i + 0.5) * cell;
+        const ground = surface?.elevationAt(x, y) ?? null;
+        if (ground !== null ? z > ground + 0.05 : inAir(x, y, z)) sum[k] = 0;
       }
     }
   }

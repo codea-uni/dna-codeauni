@@ -1,6 +1,7 @@
 import { deckIntervals } from '../charging/charge';
 import type { Bench, BlastBoundary, Hole, Vec3 } from '../model/types';
 import { outwardNormal, polygonEdge } from './boundary';
+import { boundaryFace } from './face';
 import { holeToe } from './hole';
 
 export type SegmentKind = 'explosive' | 'stemming' | 'air' | 'water' | 'plug' | 'empty';
@@ -46,15 +47,12 @@ export function holeSegments3d(hole: Hole): HoleSegment[] {
 
 /**
  * Caras de talud de un perímetro: por cada arista de cara libre, un cuadrilátero desde la cresta
- * (cota superior del banco) hasta el pie (cota de piso), desplazado hacia afuera H / tan(ángulo de cara).
+ * (techo del banco) hasta el pie (alto de la cara más abajo), desplazado hacia afuera alto / tan β.
+ * Ángulo y alto propios del perímetro o, si faltan, los del banco (A7b).
  * Vértices: [cresta A, cresta B, pie B, pie A].
  */
 export function freeFaceQuads(boundary: BlastBoundary, bench: Bench): [Vec3, Vec3, Vec3, Vec3][] {
-  const top = bench.floorElevation + bench.height;
-  const run =
-    bench.faceAngle > 0 && bench.faceAngle < Math.PI / 2
-      ? bench.height / Math.tan(bench.faceAngle)
-      : 0;
+  const face = boundaryFace(bench, boundary);
   const quads: [Vec3, Vec3, Vec3, Vec3][] = [];
   for (const i of boundary.freeFaceEdges) {
     const e = polygonEdge(boundary.polygon, i);
@@ -62,10 +60,10 @@ export function freeFaceQuads(boundary: BlastBoundary, bench: Bench): [Vec3, Vec
     if (!e || !nrm) continue;
     const [a, b] = e;
     quads.push([
-      { x: a.x, y: a.y, z: top },
-      { x: b.x, y: b.y, z: top },
-      { x: b.x + nrm.x * run, y: b.y + nrm.y * run, z: bench.floorElevation },
-      { x: a.x + nrm.x * run, y: a.y + nrm.y * run, z: bench.floorElevation },
+      { x: a.x, y: a.y, z: face.crestZ },
+      { x: b.x, y: b.y, z: face.crestZ },
+      { x: b.x + nrm.x * face.run, y: b.y + nrm.y * face.run, z: face.toeZ },
+      { x: a.x + nrm.x * face.run, y: a.y + nrm.y * face.run, z: face.toeZ },
     ]);
   }
   return quads;

@@ -1,4 +1,13 @@
-import { commands, type BoundaryId, type SubdrillConvention } from '@cronos/core';
+import {
+  boundaryFace,
+  commands,
+  degToRad,
+  radToDeg,
+  type Blast,
+  type BlastBoundary,
+  type BoundaryId,
+  type SubdrillConvention,
+} from '@cronos/core';
 import { boundaryColorCss } from '@cronos/engine';
 import { Mountain, Pentagon } from 'lucide-react';
 import { NumberCell, TextCell } from '../components/CellInput';
@@ -8,7 +17,10 @@ import { useActiveBlast } from '../hooks/useDocument';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
-import { useT } from '../i18n';
+import { useFormat, useT } from '../i18n';
+import { getCompute } from '../session';
+import { topographyTin } from '../topography/session';
+import { useAnalysisStore } from '../stores/analysisStore';
 
 export function BlastPanel() {
   const t = useT();
@@ -61,6 +73,17 @@ export function BlastPanel() {
           onCommit={(raw) => {
             const v = len.parse(raw);
             setBench({ height: v }, t('blast.benchHeight'));
+          }}
+        />
+        <NumberField
+          label={t('blast.faceAngle')}
+          unit="°"
+          decimals={1}
+          min={1}
+          max={90}
+          value={radToDeg(blast.bench.faceAngle)}
+          onCommit={(deg) => {
+            setBench({ faceAngle: degToRad(deg) }, t('blast.faceAngle'));
           }}
         />
         <label className="field">
@@ -197,6 +220,149 @@ export function BlastPanel() {
         </div>
         <p className="hint">{t('blast.freeFaceHint')}</p>
       </section>
+      <FacesSection blast={blast} />
     </>
+  );
+}
+
+/**
+ * Cara libre (talud) de cada perímetro (A7b): ángulo y alto propios o los del banco, y medición
+ * en la topografía. Se usan en la vista 3D, la energía, el desplazamiento y la pila.
+ */
+function FacesSection({ blast }: { blast: Blast }) {
+  const t = useT();
+  const fmt = useFormat();
+  const { len } = useUnits();
+  const notify = useUiStore((s) => s.notify);
+  const layers = useAnalysisStore((s) => s.layers);
+  const setLayer = useAnalysisStore((s) => s.setLayer);
+  const withFaces = blast.boundaries.filter((b) => b.freeFaceEdges.length > 0);
+  const tinId = blast.bench.topographyId;
+  const setFace = (b: BlastBoundary, face: { angle?: number | null; height?: number | null }) => {
+    session.document.dispatch(
+      commands.setBoundaryFace(session.document, blast.id, b.id, face),
+      t('blast.face.undo', { name: b.name }),
+    );
+  };
+  const measure = async (b: BlastBoundary) => {
+    const tin = tinId ? topographyTin(tinId) : undefined;
+    if (!tin) {
+      notify(t('blast.face.noTopography'), 'error');
+      return;
+    }
+    const m = await getCompute().api.topographyMeasureFace(
+      tin,
+      { polygon: b.polygon, freeFaceEdges: b.freeFaceEdges },
+      blast.bench.height,
+    );
+    if (!m) {
+      notify(t('blast.face.measureFailed'), 'error');
+      return;
+    }
+    setFace(b, { angle: m.angle, height: m.height });
+    notify(
+      t('blast.face.measured', {
+        name: b.name,
+        angle: fmt(radToDeg(m.angle), 1),
+        height: fmt(len.show(m.height), 1),
+        unit: len.unit,
+        n: m.samples,
+      }),
+    );
+  };
+  return (
+    <section className="panel">
+      <h2>{t('blast.face.title')}</h2>
+      <p className="hint">{t('blast.face.hint')}</p>
+      {withFaces.length === 0 ? (
+        <p className="hint">{t('blast.face.none')}</p>
+      ) : (
+        <table className="grid-table compact">
+          <thead>
+            <tr>
+              <th>{t('blast.face.boundary')}</th>
+              <th>{t('blast.face.angle')}</th>
+              <th>{t('blast.face.height', { unit: len.unit })}</th>
+              <th>{t('blast.face.run', { unit: len.unit })}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {withFaces.map((b) => {
+              const f = boundaryFace(blast.bench, b);
+              const own = b.faceAngle !== undefined || b.faceHeight !== undefined;
+              return (
+                <tr key={b.id}>
+                  <td>{b.name}</td>
+                  <td className={b.faceAngle === undefined ? 'inherited' : ''}>
+                    <NumberCell
+                      value={radToDeg(f.angle)}
+                      decimals={1}
+                      onCommit={(v) => {
+                        if (v > 0 && v <= 90) setFace(b, { angle: degToRad(v) });
+                      }}
+                    />
+                  </td>
+                  <td className={b.faceHeight === undefined ? 'inherited' : ''}>
+                    <NumberCell
+                      value={len.show(f.height)}
+                      decimals={2}
+                      onCommit={(v) => {
+                        const h = len.parse(v);
+                        if (h > 0) setFace(b, { height: h });
+                      }}
+                    />
+                  </td>
+                  <td className="num">{fmt(len.show(f.run), 2)}</td>
+                  <td>
+                    <button
+                      className="icon"
+                      title={t('blast.face.measure')}
+                      disabled={!tinId}
+                      onClick={() => void measure(b)}
+                    >
+                      ⛰
+                    </button>
+                    {own && (
+                      <button
+                        className="icon"
+                        title={t('blast.face.reset')}
+                        onClick={() => {
+                          setFace(b, { angle: null, height: null });
+                        }}
+                      >
+                        ↺
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      <div className="checks">
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={layers.faces}
+            onChange={(e) => {
+              setLayer('faces', e.target.checked);
+            }}
+          />
+          {t('blast.face.show3d')}
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={layers.benchPlanes}
+            onChange={(e) => {
+              setLayer('benchPlanes', e.target.checked);
+            }}
+          />
+          {t('blast.face.showPlanes')}
+        </label>
+      </div>
+    </section>
   );
 }

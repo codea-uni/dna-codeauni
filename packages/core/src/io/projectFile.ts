@@ -166,6 +166,16 @@ export const MIGRATIONS: Record<number, (data: Json) => Json> = {
    * perímetro usa el piso del banco, como hasta ahora: no hay nada que convertir.
    */
   11: (data) => data,
+  /**
+   * v12 → v13 (A7, pila de material): parámetros de la pila con sus valores por defecto. Los
+   * dominios de material (`blast.domains`) son opcionales: sin ellos no hay nada que convertir.
+   */
+  12: fillCalcParams,
+  /**
+   * v13 → v14 (A7b, cara libre configurable): ángulo y alto propios por perímetro (opcionales: sin
+   * ellos rige el banco) y lanzamiento de la pila según la cara (defecto activado).
+   */
+  13: fillCalcParams,
 };
 
 /** Caja envolvente de vértices x, y, z intercalados. */
@@ -201,7 +211,13 @@ function fillCalcParams(data: Json): Json {
     if (!isObject(b)) return b;
     const cp = isObject(b.calcParams) ? b.calcParams : {};
     const checks = isObject(cp.checks) ? cp.checks : {};
-    const calcParams: Json = { ...d, ...cp, checks: { ...d.checks, ...checks } };
+    const muckpile = isObject(cp.muckpile) ? cp.muckpile : {};
+    const calcParams: Json = {
+      ...d,
+      ...cp,
+      checks: { ...d.checks, ...checks },
+      muckpile: { ...d.muckpile, ...muckpile },
+    };
     delete calcParams.reliefTime;
     return { ...b, calcParams };
   });

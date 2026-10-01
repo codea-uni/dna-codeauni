@@ -147,6 +147,9 @@ export const es = {
   'example.inclined.name': 'Taladros inclinados',
   'example.inclined.description':
     'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
+  'example.muckpile.name': 'Pila de material',
+  'example.muckpile.description':
+    'Banco de 10 m · malla 4 × 5 m · 3 filas × 8 taladros · 25 ms entre taladros y 67 ms entre filas · para ver el desplazamiento y la pila (A7)',
   'example.topoPit.name': 'Tajo con topografía',
   'example.topoPit.description':
     'Tajo de 8 bancos con curvas de nivel, cresta y pie · voladura en el banco 3385 apoyada en el terreno, cara libre desde la cresta · próximo perímetro en el fondo con su propio piso',
@@ -162,6 +165,7 @@ export const es = {
   'engine.undo.addNamed': 'Agregar {name}',
   'engine.undo.deleteNamed': 'Borrar {name}',
   'engine.undo.drawNamed': 'Dibujar {name}',
+  'engine.domain.defaultName': 'Dominio {n}',
   'engine.undo.moveHole': 'Mover taladro',
   'engine.undo.moveHoles': 'Mover {n} taladros',
   'engine.undo.deleteConnection': 'Borrar conexión',
@@ -313,6 +317,9 @@ export const en = {
     'Hole-by-hole electronics (no overlaps) · air deck · plant at 180 m with its own limit',
   'example.inclined.name': 'Angled holes',
   'example.inclined.description': 'Angled 15° toward the free face · ideal for the 3D view (key 3)',
+  'example.muckpile.name': 'Muckpile',
+  'example.muckpile.description':
+    '10 m bench · 4 × 5 m pattern · 3 rows × 8 holes · 25 ms between holes and 67 ms between rows · to see blast movement and the muckpile (A7)',
   'example.topoPit.name': 'Pit with topography',
   'example.topoPit.description':
     '8-bench pit with contours, crest and toe · blast on bench 3385 set on the ground, free face from the crest · next boundary on the pit floor with its own floor',
@@ -327,6 +334,7 @@ export const en = {
   'engine.undo.addNamed': 'Add {name}',
   'engine.undo.deleteNamed': 'Delete {name}',
   'engine.undo.drawNamed': 'Draw {name}',
+  'engine.domain.defaultName': 'Domain {n}',
   'engine.undo.moveHole': 'Move hole',
   'engine.undo.moveHoles': 'Move {n} holes',
   'engine.undo.deleteConnection': 'Delete connection',

@@ -6,6 +6,7 @@ import * as app from './ns/app';
 import * as auth from './ns/auth';
 import * as core from './ns/core';
 import * as history from './ns/history';
+import * as muckpile from './ns/muckpile';
 import * as panelsA from './ns/panelsA';
 import * as panelsB from './ns/panelsB';
 import * as platform from './ns/platform';
@@ -18,6 +19,7 @@ export const es = {
   ...auth.es,
   ...core.es,
   ...history.es,
+  ...muckpile.es,
   ...panelsA.es,
   ...panelsB.es,
   ...platform.es,

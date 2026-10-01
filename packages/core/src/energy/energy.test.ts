@@ -246,3 +246,27 @@ describe('VPPc (P-17)', () => {
     expect(criticalPpv({ youngModulus: 45e9 })).toBeNull();
   });
 });
+
+describe('energía solo en la roca (A7b)', () => {
+  it('delante de la cara libre, más allá del talud, no hay energía', async () => {
+    const { buildExample, EXAMPLE_SPECS } = await import('../examples/examples');
+    const project = buildExample(EXAMPLE_SPECS.muckpile);
+    const blast = project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    // Plano a media altura (3505): la cara a 75° está 5·cot 75° = 1,34 m delante de la cresta.
+    const opts = { ...DEFAULT_ENERGY_OPTIONS, elevation: 3505, cellSize: 0.5 };
+    const clipped = computeEnergyGrid(blast, project.library, opts);
+    const open = computeEnergyGrid(blast, project.library, { ...opts, clipToRock: false });
+    const at = (g: typeof clipped, x: number, y: number) => {
+      const i = Math.floor((x - g.originX) / g.cellSize);
+      const j = Math.floor((y - g.originY) / g.cellSize);
+      return g.values[j * g.nx + i] ?? NaN;
+    };
+    const x = 345_200 + 22.5; // frente a un taladro de la primera fila
+    const crest = 8_512_400 + 14;
+    expect(at(open, x, crest + 1.8)).toBeGreaterThan(0);
+    expect(at(clipped, x, crest + 1.8)).toBe(0); // aire: 1,8 m > 1,34 m
+    expect(at(clipped, x, crest + 0.5)).toBeGreaterThan(0); // roca del talud
+    expect(at(clipped, x, crest - 2)).toBe(at(open, x, crest - 2)); // dentro del perímetro, igual
+  });
+});

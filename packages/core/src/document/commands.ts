@@ -289,6 +289,30 @@ export function setFreeFaceEdges(
  * perímetro recalculan su largo hasta el piso nuevo + sobreperforación (su boca no cambia); los de
  * otros perímetros no se tocan.
  */
+/**
+ * Ángulo y alto propios de la cara libre de un perímetro (A7b); `null` vuelve al valor del banco.
+ * No mueve taladros: la cara solo cambia la geometría del talud y los cálculos que la usan.
+ */
+export function setBoundaryFace(
+  doc: DocumentReader,
+  blastId: BlastId,
+  id: BoundaryId,
+  face: { angle?: number | null; height?: number | null },
+): Op[] {
+  const blast = doc.getBlast(blastId);
+  if (!blast) return [];
+  const boundaries = blast.boundaries.map((b) => {
+    if (b.id !== id) return b;
+    const next = { ...b };
+    if (face.angle === null) delete next.faceAngle;
+    else if (face.angle !== undefined) next.faceAngle = face.angle;
+    if (face.height === null) delete next.faceHeight;
+    else if (face.height !== undefined) next.faceHeight = face.height;
+    return next;
+  });
+  return [{ type: 'blast/patch', blastId, patch: { boundaries } }];
+}
+
 export function setBoundaryFloor(
   doc: DocumentReader,
   blastId: BlastId,

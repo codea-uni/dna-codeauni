@@ -1436,3 +1436,15 @@ button.link {
   width: 100%;
   min-width: 0;
 }
+
+/* Botones en dos columnas (exportaciones de la pila). */
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* Valor heredado del banco (cara libre por perímetro, A7b). */
+.grid-table td.inherited .cell {
+  color: var(--muted, #8b949e);
+}

@@ -64,4 +64,30 @@ describe('computeApi', () => {
     const r = computeApi.parseProject(computeApi.serializeProject(project, { appVersion: 't' }));
     expect(r.ok).toBe(true);
   });
+
+  it('pila de material: cálculo, sección, exportación y comparación (A7)', () => {
+    const example = computeApi.buildExample('muckpile');
+    const project = example.project;
+    const blast = project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    const r = computeApi.computeMuckpile(project, blast.id, null);
+    if (!r) throw new Error('sin pila');
+    expect(r.stats.blocks).toBeGreaterThan(1000);
+    expect(Math.abs(r.stats.volumeError)).toBeLessThan(0.02);
+    const x = 345_220;
+    const p = computeApi.muckpileSection(r.grids, { x, y: 8_512_390 }, { x, y: 8_512_460 });
+    expect(p.throw.value).toBeGreaterThan(0);
+    const stl = computeApi.muckpileExport('stl', {
+      after: r.grids.after,
+      origin: project.coordinateSystem.origin,
+    });
+    expect(stl).toBeInstanceOf(Uint8Array);
+    const csv = computeApi.muckpileExport('vectors', {
+      after: r.grids.after,
+      blocks: r.blocks,
+      blast,
+      origin: project.coordinateSystem.origin,
+    });
+    expect(typeof csv === 'string' && csv.split('\n').length).toBeGreaterThan(r.stats.blocks);
+  });
 });

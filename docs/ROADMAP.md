@@ -17,7 +17,7 @@
 | ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
 | **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
 | Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                            | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
-| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · A5 · A6                                                                                       | Caso de referencia de cada modelo reproducido          | ✅ código                |
+| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · A5 · A6 · A7 (pila, adelantado D-17)                                                          | Caso de referencia de cada modelo reproducido          | ✅ código                |
 | Evaluación 2                  | Ingenieros externos                              | **▶ E2.1** manual · E2.2 comentarios · E2.3 sesión                                                                           | Hallazgos críticos resueltos                           | ⏳ en curso              |
 | **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                 | Ronda completa dentro de sección; casos de referencia  | —                        |
 | **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                               | Un diseño calibrado con datos reales                   | —                        |
@@ -50,7 +50,7 @@ Detalle y trazabilidad R-01…R-27 en `docs/REPORTS.md`.
 | G8 Idiomas              | Español e inglés completos                                                                     | —                                                          |
 | G9 Cierre               | Indicadores, ejemplos actualizados, modo demostración                                          | I1 e I6 con el ingeniero                                   |
 
-## Fase 2: análisis avanzado (A0–A6, más A1b)
+## Fase 2: análisis avanzado (A0–A6, más A1b y A7)
 
 Guía `01 §3` y `§19`: energía y daño, fragmentación, onda aérea, desplazamiento y proyección. **Salida: el caso de referencia de cada modelo reproducido.** Primero se especifica cada modelo con fuente y caso; lo que no tiene fuente numérica queda como aviso configurable (regla de dominio 3). F2 no tiene R-xx ni H-xxx propios: las tareas salen de `02 §5`, `R1` F12 y F23–F28, `04` (CR-01, CR-02 #15–#17) y `docs/RULES.md` (FC-26…FC-37).
 
@@ -115,6 +115,53 @@ Corrección de G5 pedida por el ingeniero. Va antes que A2 porque toca un cálcu
 ### A6: cierre de F2 ✅
 
 - Hecho: reporte y tabla de cierre en la sección «Fase 2» de `docs/REPORTS.md`; demostración tipo tutorial con capítulos, barra de progreso y navegación ← → (16 pasos, ≈ 2 min); módulos con tablas en ventanas flotantes; ejemplos con RT, Vp (VPPc calculada) y costo de perforación; revisión visual en el navegador sin interfaz. Luego **Evaluación 2**.
+
+### A7: pila de material (adelantado, D-17) ✅
+
+Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso). Módulo en `core/src/muckpile/`, con su README (fórmulas, supuestos y limitaciones).
+
+- **Nivel 1, modelo cinemático** (Yang & Kavetsky, FC-39):
+  - bloques Voronoi a la cota de cada bloque;
+  - salida al detonar hacia la superficie libre de ese instante (burden efectivo, FC-22);
+  - velocidad intercambiable: Zhang FC-36 por defecto, ley de potencia FC-40 en R0 o Richards & Moore FC-45;
+  - tiro parabólico contra la superficie actual;
+  - depósito esponjado (FC-41: 1,5) y relajación al reposo (FC-42: 37°) conservando el volumen.
+- **Salidas:** superficie de la pila, vectores por bloque y por taladro, throw, drop, esponjamiento lateral, altura máxima, volumen in situ frente al esponjado, perfil en cualquier sección y clases de tamaño.
+- **Atributos:** tamaño de fragmento (Kuz-Ram por taladro repartido por cuantiles, FC-44) y dominios de material (`Blast.domains`, dilución).
+- **Nivel 2, animación:**
+  - modo rápido que interpola las trayectorias en `BlocksLayer`;
+  - modo física con Rapier en `workers/src/physics/` (worker aparte, cargado al pedirlo);
+  - reproductor sincronizado con la secuencia de 0,1× a 2×.
+- **Interfaz:** pestaña **Pila**.
+  - Parámetros y botón «Calcular desplazamiento».
+  - Resultados y tabla de fragmentación.
+  - Capas: pila (transparencia), techo in situ, vectores, vóxeles y dominios.
+  - Colores por tamaño, desplazamiento, dominio, salida o error.
+  - Herramientas de sección (perfil con throw y drop) y de dominio.
+  - Exportación XYZ, OBJ, STL y vectores CSV.
+  - Calibración contra un levantamiento post-voladura de la mina (mapa de error, RMSE y búsqueda de k y n).
+- **Esquema v13:** `calcParams.muckpile` y `Blast.domains`, con migración y test.
+- **Salida:** FC-39 y FC-45 en R1, FC-40 y FC-43 en R0 (calibración, F4 C4), FC-41 y FC-42 en R1 con fuente, FC-44 en R1 + R0. Ejemplo «Pila de material» (demostración, no CR).
+- **Informe del caso de dos escalones** (`docs/MUCKPILE-REPORT.md`): matemática paso a paso, registro del diagnóstico del «lado derecho que sale lejos» (burden frontal de 2,24 m contra la cresta curva) y dos correcciones: perímetros sin taladros no se vuelan, y fuera del levantamiento se prolonga su borde.
+- **Pendiente:**
+  - P-23: taladros fuera de la validez de Zhang (B/Ø < 7) hoy quedan quietos;
+  - calibrar con perfiles reales de pila (F4 C3–C4);
+  - un CR publicado de forma de pila (Yang & Kavetsky 1989–1990 no dan números en el resumen; tesis de Yang, UQ, doi 10.14264/366174);
+  - dominios desde un modelo de bloques (CSV).
+
+### A7b: cara libre configurable (pedido del usuario) ✅
+
+- **Ángulo y alto de la cara:**
+  - Ángulo de cara (talud) del banco, editable en Diseño (antes no estaba en la interfaz).
+  - Ángulo y alto **propios por perímetro** (`BlastBoundary.faceAngle`, `faceHeight`, esquema v14), en la tabla «Cara libre (talud)».
+  - Botón que los **mide en la topografía** del banco (S-26). En el ejemplo sintético mide 69,8° y 15,0 m sobre caras de 70° y 15 m.
+- **Se usan en** (FC-46):
+  - la vista 3D (caras hasta su pie);
+  - el alcance de A5 (α = 90° − β del perímetro);
+  - la energía (sin valor en el aire delante de la cara o sobre el terreno, S-25);
+  - la pila: roca bajo el talud, burden que crece hacia el pie (la base del frente sale más lenta) y lanzamiento según la cara (`launchFromFace`).
+- **3D:** conmutadores para ocultar las caras libres y los planos del banco. Con la pila calculada, la topografía se recorta en los perímetros volados y su talud, así se ve la pila también delante de la cara.
+- **Caso de dos escalones** (`docs/MUCKPILE-REPORT.md` §9): in situ 75 647 m³ (+4897 m³ de cuña); throw de 183,8 a 72,8 m.
 
 ## Evaluación 2 (después de A6)
 

@@ -22,7 +22,9 @@ export type ToolName =
   | 'tie'
   | 'initiate'
   | 'monitor'
-  | 'measure';
+  | 'measure'
+  | 'section'
+  | 'domain';
 
 /** Evento de puntero ya traducido a coordenadas de proyecto [m]. */
 export interface ToolPointer {
@@ -65,6 +67,8 @@ export interface ToolContext {
   pickConnection(x: number, y: number): ConnectionId | null;
   /** Etiqueta de medición entre a y b (null la oculta). */
   showMeasure(a: Vec2 | null, b: Vec2 | null): void;
+  /** Sección vertical trazada para el perfil de la pila (A7). */
+  setSection(a: Vec2, b: Vec2): void;
   /** Perímetro activo (resaltado; destino de la generación de mallas). */
   setActiveBoundary(id: BoundaryId | null): void;
   showPolyline(points: readonly Vec2[] | null): void;

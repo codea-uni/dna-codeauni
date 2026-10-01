@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@cronos/core": "workspace:*",
+    "@dimforge/rapier3d-compat": "^0.21.0",
     "@mapbox/martini": "^0.2.0",
     "comlink": "^4.4.2",
     "geotiff": "^3.0.5",

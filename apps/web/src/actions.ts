@@ -641,6 +641,11 @@ export async function exportCsv(): Promise<void> {
   });
 }
 
+/** Descarga un archivo generado (exportaciones de otros módulos, p. ej. la pila). */
+export function downloadFile(data: string | Uint8Array, fileName: string, type: string): void {
+  download(data, fileName, type);
+}
+
 function download(data: string | Uint8Array, fileName: string, type: string): void {
   const url = URL.createObjectURL(new Blob([data as BlobPart], { type }));
   const a = window.document.createElement('a');

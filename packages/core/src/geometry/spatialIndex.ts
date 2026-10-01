@@ -46,6 +46,12 @@ export class PointIndex<T> {
     return { id: this.ids[i] as T, x: this.xs[i] ?? 0, y: this.ys[i] ?? 0 };
   }
 
+  /** Los `k` puntos más cercanos dentro de `maxDistance`, de menor a mayor distancia. */
+  neighbors(x: number, y: number, k: number, maxDistance = Infinity): T[] {
+    if (!this.tree) return [];
+    return this.tree.neighbors(x, y, k, maxDistance).map((i) => this.ids[i] as T);
+  }
+
   inBox(minX: number, minY: number, maxX: number, maxY: number): T[] {
     if (!this.tree) return [];
     return this.tree.search(minX, minY, maxX, maxY).map((i) => this.ids[i] as T);

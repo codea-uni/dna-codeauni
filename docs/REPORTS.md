@@ -171,7 +171,38 @@ Indicadores: I4 245 + 6 pruebas en verde · No verificado: k por fila (calibraci
 
 Hito: A6 · Cierre de F2 · Demostración con 3 pasos nuevos; ejemplos con RT, Vp y costo de perforación; revisión visual
 en el navegador sin interfaz (semáforo, flechas, daño, fragmentación) sin errores de consola · Supuesto S-09 (B/Ø ≥ 7)
+
+Hito: A7 (adelantado, D-17) · Reglas: FC-39 (R1), FC-40 (R0), FC-41 (R1), FC-42 (R1), FC-43 (R0), FC-44 (R1 + R0),
+FC-45 (R1); RM-20 cita Yang & Kavetsky · Supuestos: S-19…S-24 · CR: — (sin caso publicado de forma de pila);
+invariantes: volumen in situ 5600 m³ exacto, pila = in situ × 1,5 (error 3e-8), pendiente ≤ reposo, cono de reposo
+±15 %, la secuencia invierte el sentido lateral, calibración recupera k = 14 y n = 1,2
+Indicadores: I4 481 + 8 pruebas en verde (19 de la pila en el núcleo; 3 en workers: API y física); pila en < 1 s con
+≈ 500 taladros; esquema v13 con migración probada
+Revisión en el navegador sin interfaz: pila en planta y 3D (vóxeles por tamaño), sección con throw 14,7 m y drop
+3,2 m, dominio transportado, animación rápida y física (1890 bloques en ≈ 8 s con render por software), sin errores
+No verificado: forma de la pila contra un levantamiento real (F4 C3–C4); Rapier no es determinista entre equipos
+(solo visual)
+
+Seguimiento A7 (2026-09-30) · Caso «Banco sobre topografía (completo)», dos escalones: docs/MUCKPILE-REPORT.md
+Correcciones: perímetro sin taladros ya no se vuela (in situ 89 214 → 70 750 m³, test nuevo); fuera del levantamiento
+se prolonga su borde (throw 159,8 → 183,8 m, el material cae a 3355 y no a una pared falsa en 3370)
+Abierta: P-23 (taladros con B/Ø < 7 quedan quietos) · Hallazgo: el escenario «En escalón» deja 79/107 taladros sin tiempo
+
+Hito: A7b (cara libre configurable) · Reglas: FC-46 nueva (R1, geometría) · Supuestos: S-25 (energía solo en la roca),
+S-26 (medición del talud) · Esquema v14 · Pruebas: cuña ½·H²·cot β·L a 75° y 60° (±1 %), cara propia de 6 m, burden
+creciente hacia el pie, energía en el aire = 0, medición de un talud sintético de 65° (±2°); 490 + 8 en verde
+Navegador: medición 69,8° y 15,0 m en el ejemplo (caras de 70° y 15 m); 3D sin caras y con la topografía recortada
 ```
+
+**Comprensión A7** (paso 4 del ciclo):
+
+1. _¿Por qué la dirección de salida de cada bloque depende de la secuencia y no solo de la cara libre dibujada?_ Porque
+   un taladro que ya detonó deja un frente abierto: el burden efectivo (FC-22) mide la distancia a la superficie libre
+   **en el instante del disparo**, y `toward` apunta a ella. Con salida desde el Oeste, cada taladro se alivia en su
+   vecino del Oeste y la masa se abre hacia allí; al invertir el amarre se invierte el sentido lateral (test).
+2. _¿Por qué la pila conserva exactamente el volumen aunque se relaje?_ Porque cada bloque deposita V·esponjamiento con
+   pesos bilineales que suman 1 y la avalancha solo traslada material suelto entre celdas iguales (lo que sale de una
+   entra en la otra), sin tocar el terreno fijo; el error medido es de redondeo (≈ 3·10⁻⁸).
 
 ### Cierre de la Fase 2 (2026-09-29)
 
