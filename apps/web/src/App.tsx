@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { tabAvailable, useWorkflow } from './hooks/useWorkflow';
 import {
   startAnalysisRunner,
@@ -7,7 +7,6 @@ import {
   startVibrationRunner,
   startMuckpileRunner,
 } from './analysis/runner';
-import { ErrorBoundary } from './components/ErrorBoundary';
 import { StatusBar } from './components/StatusBar';
 import { DemoOverlay } from './demo/DemoOverlay';
 import { stopDemo } from './demo/playback';
@@ -25,9 +24,9 @@ import { startTopographySync } from './topography/session';
 import { openTopography, requireCrs, restoreLatestAutosave } from './actions';
 import { getCompute } from './session';
 import { useUiStore } from './stores/uiStore';
-import { useT } from './i18n';
-import { LEFT_TABS, PanelContent } from './panels/registry';
+import { LEFT_TABS } from './panels/registry';
 import { Viewport } from './viewport/Viewport';
+import { WorkspaceWindows } from './components/WorkspaceWindows';
 
 /**
  * Editor. `restoreLocalDraft`: al abrir, recupera el último autoguardado del navegador (modo
@@ -35,7 +34,6 @@ import { Viewport } from './viewport/Viewport';
  */
 export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean }) {
   useShortcuts();
-  const tr = useT();
   const tab = useUiStore((s) => s.leftTab);
   const demoOn = useUiStore((s) => s.demoStep !== null);
   const trailerOn = useUiStore((s) => s.demoStep !== null && s.demoTour === 'trailer');
@@ -44,6 +42,8 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
   const current = LEFT_TABS.find((x) => x.id === tab);
   const currentAvailable = demoOn || tabAvailable(current?.requires ?? null, workflow);
   const setTab = useUiStore((s) => s.setLeftTab);
+  const rightCollapsed = useUiStore((s) => s.rightCollapsed);
+  const rightWidth = useUiStore((s) => s.rightWidth);
   const csvPreview = useUiStore((s) => s.csvPreview);
   const setCsvPreview = useUiStore((s) => s.setCsvPreview);
   const shortcutsOpen = useUiStore((s) => s.shortcutsOpen);
@@ -81,44 +81,15 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
     };
   }, [restoreLocalDraft]);
   return (
-    <div className={`app${trailerOn ? ' trailer-on' : ''}`}>
+    <div
+      className={`app${trailerOn ? ' trailer-on' : ''}`}
+      style={
+        {
+          '--right-sidebar-width': rightCollapsed ? '42px' : `${rightWidth}px`,
+        } as CSSProperties
+      }
+    >
       <Toolbar />
-      <aside className="sidebar left">
-        <ErrorBoundary>
-          <nav className="tabs" role="tablist">
-            {LEFT_TABS.map((t, i) => {
-              const available = demoOn || tabAvailable(t.requires, workflow);
-              const label = tr('title' in t ? t.title : t.label);
-              return (
-                <Fragment key={t.id}>
-                  {i > 0 && LEFT_TABS[i - 1]?.group !== t.group && (
-                    <span className="tabs-sep" aria-hidden />
-                  )}
-                  <button
-                    role="tab"
-                    aria-selected={tab === t.id}
-                    aria-disabled={!available}
-                    disabled={!available}
-                    className={`${tab === t.id ? 'active' : ''}${t.group === 'analysis' ? ' analysis' : ''}`}
-                    title={
-                      available
-                        ? label
-                        : `${label} · ${tr(t.requires === 'charged' ? 'tabs.needCharge' : 'tabs.needHoles')}`
-                    }
-                    onClick={() => {
-                      setTab(t.id);
-                    }}
-                  >
-                    <t.icon size={16} strokeWidth={1.8} aria-hidden />
-                    <span>{tr(t.label)}</span>
-                  </button>
-                </Fragment>
-              );
-            })}
-          </nav>
-          <PanelContent id={tab} />
-        </ErrorBoundary>
-      </aside>
       <main
         className="viewport-host"
         onDragOver={(e) => {
@@ -136,6 +107,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
       </main>
       <RightSidebar />
       <StatusBar />
+      <WorkspaceWindows />
       <DemoOverlay />
       {shortcutsOpen && (
         <ShortcutsDialog

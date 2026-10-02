@@ -35,6 +35,43 @@ export interface FloatingPanel {
 }
 
 const FLOATING_KEY = 'cronos.floating.v2';
+const LAYOUT_KEY = 'cronos.editor-layout.v2';
+
+interface EditorLayout {
+  rightCollapsed: boolean;
+  rightWidth: number;
+}
+
+const DEFAULT_LAYOUT: EditorLayout = {
+  rightCollapsed: false,
+  rightWidth: 290,
+};
+
+function loadLayout(): EditorLayout {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEY);
+    if (!raw) return DEFAULT_LAYOUT;
+    const value = JSON.parse(raw) as Partial<EditorLayout>;
+    return {
+      rightCollapsed: value.rightCollapsed === true,
+      rightWidth:
+        typeof value.rightWidth === 'number'
+          ? Math.max(240, Math.min(520, value.rightWidth))
+          : DEFAULT_LAYOUT.rightWidth,
+    };
+  } catch {
+    return DEFAULT_LAYOUT;
+  }
+}
+
+function saveLayout(layout: EditorLayout): EditorLayout {
+  try {
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+  } catch {
+    // El diseño del editor sigue siendo utilizable si el navegador no permite persistencia.
+  }
+  return layout;
+}
 
 /** Ventanas recordadas entre sesiones (preferencia local; si el almacenamiento falla, ninguna). */
 function loadFloating(): FloatingPanel[] {
@@ -57,6 +94,12 @@ function saveFloating(list: FloatingPanel[]): FloatingPanel[] {
 }
 
 interface UiState {
+  ribbonTab: 'home' | 'view' | 'tools' | 'charge' | 'timing' | 'analysis' | 'library';
+  setRibbonTab: (tab: UiState['ribbonTab']) => void;
+  rightCollapsed: boolean;
+  rightWidth: number;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  setSidebarWidth: (width: number) => void;
   tool: ToolName;
   snap: SnapSettings;
   holeTemplate: HoleTemplate;
@@ -137,6 +180,22 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>()((set) => ({
+  ribbonTab: 'home',
+  setRibbonTab: (ribbonTab) => {
+    set({ ribbonTab });
+  },
+  ...loadLayout(),
+  setSidebarCollapsed: (rightCollapsed) => {
+    set((s) => saveLayout({ rightCollapsed, rightWidth: s.rightWidth }));
+  },
+  setSidebarWidth: (width) => {
+    set((s) =>
+      saveLayout({
+        rightCollapsed: s.rightCollapsed,
+        rightWidth: Math.max(240, Math.min(520, width)),
+      }),
+    );
+  },
   tool: 'select',
   snap: {
     grid: false,
@@ -154,10 +213,19 @@ export const useUiStore = create<UiState>()((set) => ({
     set((s) => {
       if (s.floating.some((f) => f.id === id)) return {};
       const n = s.floating.length;
+      const workspace = id.startsWith('workspace.');
+      const ribbonBottom =
+        document.querySelector('.toolbar')?.getBoundingClientRect().bottom ?? 150;
+      const y = workspace
+        ? Math.min(ribbonBottom + 12 + n * 16, Math.max(0, window.innerHeight - 220))
+        : 70 + n * 28;
       const w = Math.min(width, window.innerWidth - 40);
-      const h = Math.min(Math.round(window.innerHeight * 0.72), window.innerHeight - 80);
-      const x = Math.max(20, Math.round((window.innerWidth - w) / 2) + n * 28);
-      const y = 70 + n * 28;
+      const h = Math.min(Math.round(window.innerHeight * 0.72), window.innerHeight - y - 40);
+      const availableWidth = workspace
+        ? (document.querySelector('.viewport-host')?.getBoundingClientRect().width ??
+          window.innerWidth)
+        : window.innerWidth;
+      const x = Math.max(20, Math.round((availableWidth - w) / 2) + n * 28);
       return { floating: saveFloating([...s.floating, { id, x, y, w, h }]) };
     });
   },
@@ -250,6 +318,7 @@ export const useUiStore = create<UiState>()((set) => ({
   },
   setLeftTab: (leftTab) => {
     set({ leftTab });
+    useUiStore.getState().floatPanel(`workspace.${leftTab}`, 640);
   },
   setFrameStats: (frameStats) => {
     set({ frameStats });

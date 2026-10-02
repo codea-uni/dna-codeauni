@@ -17,7 +17,14 @@ export function FirstSteps() {
   const steps: { done: boolean; label: MessageKey; hint: MessageKey; go?: () => void }[] = [
     { done: w.boundary, label: 'steps.boundary', hint: 'steps.boundaryHint' },
     { done: w.freeFace, label: 'steps.freeFace', hint: 'steps.freeFaceHint' },
-    { done: w.holes, label: 'steps.pattern', hint: 'steps.patternHint' },
+    {
+      done: w.holes,
+      label: 'steps.pattern',
+      hint: 'steps.patternHint',
+      go: () => {
+        useUiStore.getState().floatPanel('workspace.pattern', 640);
+      },
+    },
     {
       done: w.charged,
       label: 'steps.charge',

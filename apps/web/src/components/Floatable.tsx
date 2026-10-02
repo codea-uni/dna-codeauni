@@ -73,11 +73,15 @@ export function Floatable({
   );
 }
 
-function FloatingWindow({
+export function FloatingWindow({
   win,
   title,
   children,
+  closeLabel,
+  className,
 }: {
+  closeLabel?: string;
+  className?: string;
   win: FloatingPanel;
   title: string;
   children: ReactNode;
@@ -137,7 +141,7 @@ function FloatingWindow({
   return (
     <div
       ref={ref}
-      className="floating-window"
+      className={`floating-window${className ? ` ${className}` : ''}`}
       role="dialog"
       aria-label={title}
       style={{ left: x, top: y, width: win.w, height: win.h, zIndex: z }}
@@ -150,8 +154,8 @@ function FloatingWindow({
         <span className="floating-spacer" />
         <button
           className="icon"
-          title={t('float.dock')}
-          aria-label={t('float.dock')}
+          title={closeLabel ?? t('float.dock')}
+          aria-label={closeLabel ?? t('float.dock')}
           onClick={() => {
             dockPanel(win.id);
           }}

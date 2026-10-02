@@ -232,13 +232,16 @@ function DesignFactors({ charge: c }: { charge: BlastAnalysis['charge'] }) {
             value={`${fmt(volume.show(n.volume))} ${volume.unit}`}
           />
           <Row label={t('results.nominalTonnage')} value={`${fmt(tonnes / 1000)} t`} />
-          <Row label="loading_factor" value={`${fmt(n.explosive / n.volume, 3)} kg/m³`} />
           <Row
-            label="powder_factor"
+            label={t('results.designLoadingFactor')}
+            value={`${fmt(n.explosive / n.volume, 3)} kg/m³`}
+          />
+          <Row
+            label={t('results.designPowderFactor')}
             value={tonnes > 0 ? `${fmt((n.explosive / tonnes) * 1000, 3)} kg/t` : '—'}
           />
           <Row
-            label="energy_factor"
+            label={t('results.designEnergyFactor')}
             value={tonnes > 0 ? `${fmt(n.energy / 1e6 / (tonnes / 1000), 3)} MJ/t` : '—'}
           />
           <Row

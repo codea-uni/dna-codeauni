@@ -30,12 +30,14 @@ Para el agente de Claude en el VPS: el código está en `/opt/dna-codeauni` y se
 
 ```sh
 cd /opt/dna-codeauni
-./scripts/deploy.sh                                              # actualizar (git pull + docker compose)
-./scripts/deploy.sh --server                                  # con login y cuentas predeterminadas
+./deploy.sh                      # actualizar y desplegar con el .env existente
+./deploy.sh --server             # primera activación de login y cuentas predeterminadas
 curl -s https://dna.codeadevelopment.com/api/health              # debe responder status ok
 ```
 
 El `.env` del VPS no se sube al repositorio; ahí están el superadministrador y los secretos.
+Si acabas de recibir un commit con `amend`, usa el comando de primera actualización de
+[`docs/DEPLOY.md`](docs/DEPLOY.md#primera-actualización-después-de-un-amend).
 Detalle, respaldos y contraseñas olvidadas en [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Demostración

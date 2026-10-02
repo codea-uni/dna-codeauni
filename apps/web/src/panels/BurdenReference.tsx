@@ -87,7 +87,7 @@ export function BurdenReference({
         <NumberField label="Kb (Ash)" value={kb} decimals={1} min={1} onCommit={setKb} />
         <NumberField label="Kd (Konya)" value={kd} decimals={2} min={0.1} onCommit={setKd} />
         <NumberField label="Ks (Konya)" value={ks} decimals={2} min={0.1} onCommit={setKs} />
-        <table className="grid-table compact">
+        <table className="grid-table compact burden-reference-table">
           <thead>
             <tr>
               <th>{t('burden.reference')}</th>

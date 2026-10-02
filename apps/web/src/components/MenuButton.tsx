@@ -1,88 +1,158 @@
-import type { LucideIcon } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronDown, type LucideIcon } from 'lucide-react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface MenuItem {
   icon: LucideIcon;
   label: string;
-  /** Segunda línea descriptiva (opcional). */
   hint?: string;
   onSelect: () => void;
 }
 
-/** Botón con ícono que despliega un menú corto (Esc o clic afuera lo cierra). */
+/** Menús anclados al botón, fuera del scroll de la cinta. */
 export function MenuButton({
   icon: Icon,
   label,
+  displayLabel,
   items,
+  showLabel = false,
 }: {
   icon: LucideIcon;
   label: string;
+  displayLabel?: string;
   items: MenuItem[];
+  showLabel?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  // La lista queda dentro de la ventana: se corre a la izquierda lo justo si se sale por la
-  // derecha (botón cerca del borde) y se desplaza si no cabe hacia abajo.
+  const focusLast = useRef(false);
+
   useLayoutEffect(() => {
-    const el = list.current;
-    if (!open || !el) return;
-    el.style.left = '';
-    const r = el.getBoundingClientRect();
-    const overflow = r.right - (window.innerWidth - 8);
-    if (overflow > 0) el.style.left = `${-overflow}px`;
-    el.style.maxHeight = `${Math.max(120, window.innerHeight - r.top - 8)}px`;
+    if (!open) return;
+    const position = () => {
+      const menu = list.current;
+      const button = trigger.current;
+      if (!menu || !button) return;
+      const anchor = button.getBoundingClientRect();
+      const width = menu.getBoundingClientRect().width;
+      const below = window.innerHeight - anchor.bottom - 12;
+      const above = anchor.top - 12;
+      const upwards = below < Math.min(menu.scrollHeight, 280) && above > below;
+      const available = Math.max(48, upwards ? above : below);
+      menu.style.maxHeight = `${available}px`;
+      menu.style.left = `${Math.max(8, Math.min(anchor.left, window.innerWidth - width - 8))}px`;
+      menu.style.top = `${upwards ? Math.max(8, anchor.top - Math.min(menu.scrollHeight, available) - 4) : anchor.bottom + 4}px`;
+    };
+    position();
+    const buttons = list.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+    buttons?.[focusLast.current ? buttons.length - 1 : 0]?.focus({ preventScroll: true });
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, true);
+    return () => {
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', position, true);
+    };
   }, [open]);
+
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (
-        e instanceof KeyboardEvent ? e.key === 'Escape' : !ref.current?.contains(e.target as Node)
-      )
-        setOpen(false);
+    const outside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!trigger.current?.contains(target) && !list.current?.contains(target)) setOpen(false);
     };
-    window.addEventListener('mousedown', close);
-    window.addEventListener('keydown', close);
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        trigger.current?.focus();
+      }
+    };
+    window.addEventListener('pointerdown', outside);
+    window.addEventListener('keydown', escape);
     return () => {
-      window.removeEventListener('mousedown', close);
-      window.removeEventListener('keydown', close);
+      window.removeEventListener('pointerdown', outside);
+      window.removeEventListener('keydown', escape);
     };
   }, [open]);
+
   return (
-    <div className="menu" ref={ref}>
+    <div className="menu">
       <button
+        ref={trigger}
         type="button"
         className={`icon-btn${open ? ' active' : ''}`}
         title={label}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={open ? id : undefined}
         onClick={() => {
-          setOpen((o) => !o);
+          focusLast.current = false;
+          setOpen((value) => !value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            focusLast.current = event.key === 'ArrowUp';
+            setOpen(true);
+          }
         }}
       >
-        <Icon size={17} strokeWidth={1.8} aria-hidden />
+        <Icon size={18} strokeWidth={1.6} aria-hidden />
+        {showLabel && <span>{displayLabel ?? label}</span>}
+        {showLabel && <ChevronDown className="menu-chevron" size={12} aria-hidden />}
       </button>
-      {open && (
-        <div className="menu-list" role="menu" ref={list}>
-          {items.map((it) => (
-            <button
-              key={it.label}
-              role="menuitem"
-              onClick={() => {
+      {open &&
+        createPortal(
+          <div
+            id={id}
+            className="menu-list menu-popover"
+            role="menu"
+            aria-label={label}
+            ref={list}
+            onKeyDown={(event) => {
+              const buttons = Array.from(
+                event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+              );
+              const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+              let next: number | undefined;
+              if (event.key === 'ArrowDown') next = (index + 1) % buttons.length;
+              if (event.key === 'ArrowUp') next = (index - 1 + buttons.length) % buttons.length;
+              if (event.key === 'Home') next = 0;
+              if (event.key === 'End') next = buttons.length - 1;
+              if (next !== undefined) {
+                event.preventDefault();
+                buttons[next]?.focus();
+              }
+              if (event.key === 'Tab') {
                 setOpen(false);
-                it.onSelect();
-              }}
-            >
-              <it.icon size={15} aria-hidden />
-              <span>
-                {it.label}
-                {it.hint && <small>{it.hint}</small>}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+                trigger.current?.focus();
+              }
+            }}
+          >
+            {items.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                onClick={() => {
+                  setOpen(false);
+                  trigger.current?.focus();
+                  item.onSelect();
+                }}
+              >
+                <item.icon size={16} aria-hidden />
+                <span>
+                  {item.label}
+                  {item.hint && <small>{item.hint}</small>}
+                </span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -24,7 +24,17 @@ ensure_var() {
   return 1
 }
 
-if [ "${1:-}" = "--server" ]; then
+enable_server=false
+skip_pull=false
+for arg in "$@"; do
+  case "$arg" in
+    --server) enable_server=true ;;
+    --no-pull) skip_pull=true ;;
+    *) printf 'Opción desconocida: %s\n' "$arg" >&2; exit 1 ;;
+  esac
+done
+
+if [ "$enable_server" = true ]; then
   touch .env
   chmod 600 .env
   ensure_var COMPOSE_PROFILES server || true
@@ -40,7 +50,10 @@ if [ "${1:-}" = "--server" ]; then
   printf '%s\n' 'CRONOS_SUPERADMIN_PASSWORD=cronos123' >>.env
 fi
 
-git pull --ff-only
+if [ "$skip_pull" = false ]; then
+  git pull --ff-only
+fi
+docker compose config --quiet
 docker compose up -d --build
 docker image prune -f >/dev/null
 docker compose ps

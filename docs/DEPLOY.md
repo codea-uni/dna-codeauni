@@ -37,11 +37,43 @@ El `.env` de ejemplo crea el superadministrador `plataforma@cronos.local` con la
 
 Las pruebas del servidor usan ese PostgreSQL (o `TEST_DATABASE_URL`) y crean un esquema aislado por archivo; sin base se saltan con un aviso, salvo en CI.
 
-## Actualizar
+## Actualizar con un solo script
+
+En el VPS, dentro del checkout:
 
 ```sh
 cd /opt/dna-codeauni
-./scripts/deploy.sh   # git pull + docker compose up -d --build (con el servidor si .env lo activa)
+./deploy.sh
 ```
+
+El script descarga la rama remota de seguimiento, actualiza por fast-forward y ejecuta el
+build y arranque de Docker Compose. Usa el `.env` existente: no hace falta pasar `--server`
+para mantener un servidor ya activado. Requiere Docker Compose, acceso a Git y la red
+`proxy` de Traefik. Se detiene si hay cambios locales o archivos sin seguimiento.
+
+### Primera actualización después de un amend
+
+Si el checkout todavía no tiene el nuevo `deploy.sh`, obtén el script desde Git sin hacer
+`pull` (el historial anterior puede haber divergido):
+
+```sh
+cd /opt/dna-codeauni
+git fetch origin main && git show FETCH_HEAD:deploy.sh > /tmp/kronos-deploy.sh && sh /tmp/kronos-deploy.sh --sync-amended
+```
+
+Para actualizaciones posteriores con historial reescrito:
+
+```sh
+./deploy.sh --sync-amended
+```
+
+`--sync-amended` autoriza reemplazar el historial local por el remoto. Antes guarda el commit
+local en una rama `backup/deploy-…` y exige que el checkout esté limpio. Conserva el `.env`
+ignorado y los volúmenes de PostgreSQL. La rama de respaldo conserva **código**, no es un
+respaldo de la base de datos; las migraciones siguen aplicándose al arrancar la API.
+
+Para activar el servidor por primera vez: `./deploy.sh --server` (consulta arriba el efecto
+sobre las cuentas). `./deploy.sh --help` muestra las opciones. Si el build o el arranque
+fallan, el script termina con error; consulta `docker compose logs --tail=100`.
 
 En local: `pnpm install` y `pnpm dev` (sin login) o `pnpm dev:online` (con login).

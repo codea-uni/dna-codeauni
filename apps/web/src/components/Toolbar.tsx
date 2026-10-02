@@ -1,5 +1,6 @@
 import type { ToolName } from '@cronos/engine';
 import {
+  BookOpen,
   Box,
   Cable,
   CircleDot,
@@ -15,10 +16,15 @@ import {
   FileUp,
   FolderOpen,
   Grid3x3,
+  Layers,
+  Timer,
+  ChartColumn,
+  Library,
+  Home,
+  Eye,
   Hand,
   Keyboard,
   Lasso,
-  Magnet,
   Map as MapIcon,
   MapPin,
   Maximize2,
@@ -33,6 +39,7 @@ import {
   Shapes,
   Sheet,
   Undo2,
+  Wrench,
   Zap,
   type LucideIcon,
 } from 'lucide-react';
@@ -49,6 +56,8 @@ import { BackToMine, ProjectActions, ProjectContext } from '../server/ProjectCon
 import { serverMode } from '../server/api';
 import { t as translate, useT, type MessageKey } from '../i18n';
 import { exampleText } from '../i18n/coreText';
+import { tabAvailable, useWorkflow } from '../hooks/useWorkflow';
+import { WORKSPACE_PANELS, openWorkspacePanel } from './WorkspaceWindows';
 
 export interface ToolDef {
   name: ToolName;
@@ -164,7 +173,11 @@ export function Toolbar() {
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
   const viewMode = useUiStore((s) => s.viewMode);
   const setViewMode = useUiStore((s) => s.setViewMode);
+  const ribbonTab = useUiStore((s) => s.ribbonTab);
+  const setRibbonTab = useUiStore((s) => s.setRibbonTab);
   const history = useHistory();
+  const workflow = useWorkflow();
+  const floating = useUiStore((s) => s.floating);
   const fileInput = useRef<HTMLInputElement>(null);
   const csvInput = useRef<HTMLInputElement>(null);
   const dxfInput = useRef<HTMLInputElement>(null);
@@ -176,349 +189,508 @@ export function Toolbar() {
     <header className="toolbar">
       <strong className="brand">Cronos</strong>
       {serverMode && <ProjectContext />}
-      <div className="toolbar-group">
-        {/* En modo servidor el proyecto viene de la mina: nuevo y abrir están en la página de la mina. */}
-        {!serverMode && (
-          <>
+      <nav
+        className="ribbon-tabs"
+        role="tablist"
+        aria-label={tr('toolbar.sections')}
+        onKeyDown={(event) => {
+          const tabs = Array.from(
+            event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+          );
+          const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
+          let next: number | undefined;
+          if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+          if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+          if (event.key === 'Home') next = 0;
+          if (event.key === 'End') next = tabs.length - 1;
+          if (next !== undefined) {
+            event.preventDefault();
+            tabs[next]?.focus();
+            tabs[next]?.click();
+          }
+        }}
+      >
+        {(
+          [
+            ['home', Home, 'toolbar.home'],
+            ['tools', Wrench, 'app.tab.design'],
+            ['charge', Layers, 'app.tab.charge'],
+            ['timing', Timer, 'app.tab.timing'],
+            ['analysis', ChartColumn, 'toolbar.analysis'],
+            ['view', Eye, 'toolbar.view'],
+            ['library', Library, 'app.tab.library'],
+          ] as const
+        ).map(([id, , label]) => (
+          <button
+            key={id}
+            role="tab"
+            id={`ribbon-tab-${id}`}
+            aria-controls="ribbon-panel"
+            tabIndex={ribbonTab === id ? 0 : -1}
+            aria-selected={ribbonTab === id}
+            className={ribbonTab === id ? 'active' : ''}
+            onClick={() => {
+              setRibbonTab(id);
+            }}
+          >
+            {tr(label)}
+          </button>
+        ))}
+      </nav>
+      <button
+        className="toolbar-documentation"
+        onClick={() => {
+          openWorkspacePanel('documentation');
+        }}
+        aria-haspopup="dialog"
+        title={tr('toolbar.documentation')}
+      >
+        <BookOpen size={16} aria-hidden="true" />
+        {tr('toolbar.documentation')}
+      </button>
+      <div
+        className="ribbon-body"
+        id="ribbon-panel"
+        role="tabpanel"
+        aria-labelledby={`ribbon-tab-${ribbonTab}`}
+      >
+        {ribbonTab === 'home' && (
+          <div className="toolbar-group" data-group={tr('ribbon.project')}>
+            {/* En modo servidor el proyecto viene de la mina: nuevo y abrir están en la página de la mina. */}
+            {!serverMode && (
+              <>
+                <IconButton
+                  showLabel
+                  icon={FilePlus}
+                  label={tr('toolbar.newProject')}
+                  onClick={actions.newProject}
+                />
+                <IconButton
+                  showLabel
+                  icon={FolderOpen}
+                  label={tr('toolbar.openProject')}
+                  onClick={() => fileInput.current?.click()}
+                />
+              </>
+            )}
             <IconButton
-              icon={FilePlus}
-              label={tr('toolbar.newProject')}
-              onClick={actions.newProject}
+              showLabel
+              icon={Save}
+              label={tr('toolbar.saveProject')}
+              shortcut="Ctrl+S"
+              onClick={() => void actions.saveProject()}
             />
-            <IconButton
-              icon={FolderOpen}
-              label={tr('toolbar.openProject')}
-              onClick={() => fileInput.current?.click()}
+            <MenuButton
+              showLabel
+              icon={Clapperboard}
+              label={tr('toolbar.demo')}
+              items={[
+                {
+                  icon: Presentation,
+                  label: tr('demo.tour'),
+                  onSelect: () => {
+                    startDemo('tour');
+                  },
+                },
+                {
+                  icon: Clapperboard,
+                  label: tr('demo.trailer.menu'),
+                  onSelect: () => {
+                    startDemo('trailer');
+                  },
+                },
+                ...(demoOn
+                  ? [{ icon: Clapperboard, label: tr('demo.exit'), onSelect: stopDemo }]
+                  : []),
+              ]}
             />
-          </>
-        )}
-        <IconButton
-          icon={Save}
-          label={tr('toolbar.saveProject')}
-          shortcut="Ctrl+S"
-          onClick={() => void actions.saveProject()}
-        />
-        <MenuButton
-          icon={Clapperboard}
-          label={tr('toolbar.demo')}
-          items={[
-            {
-              icon: Presentation,
-              label: tr('demo.tour'),
-              onSelect: () => {
-                startDemo('tour');
-              },
-            },
-            {
-              icon: Clapperboard,
-              label: tr('demo.trailer.menu'),
-              onSelect: () => {
-                startDemo('trailer');
-              },
-            },
-            ...(demoOn ? [{ icon: Clapperboard, label: tr('demo.exit'), onSelect: stopDemo }] : []),
-          ]}
-        />
-        {!serverMode && (
-          <>
+            {!serverMode && (
+              <>
+                <IconButton
+                  showLabel
+                  icon={HistoryIcon}
+                  label={tr('toolbar.versions')}
+                  onClick={() => {
+                    useUiStore.getState().setVersionsOpen(true);
+                  }}
+                />
+              </>
+            )}
             <IconButton
-              icon={HistoryIcon}
-              label={tr('toolbar.versions')}
+              showLabel
+              icon={Settings}
+              label={tr('toolbar.settings')}
               onClick={() => {
-                useUiStore.getState().setVersionsOpen(true);
+                useUiStore.getState().setSettingsOpen(true);
               }}
             />
-          </>
+            <MenuButton
+              showLabel
+              icon={FileUp}
+              label={tr('toolbar.import')}
+              items={[
+                {
+                  icon: Sheet,
+                  label: tr('toolbar.importCsv'),
+                  onSelect: () => {
+                    if (actions.requireCrs()) csvInput.current?.click();
+                  },
+                },
+                {
+                  icon: DraftingCompass,
+                  label: tr('toolbar.importDxf'),
+                  onSelect: () => {
+                    if (actions.requireCrs()) dxfInput.current?.click();
+                  },
+                },
+                {
+                  icon: Mountain,
+                  label: tr('topo.importMenu'),
+                  onSelect: () => {
+                    if (actions.requireCrs()) topographyInput.current?.click();
+                  },
+                },
+                {
+                  icon: MapIcon,
+                  label: tr('toolbar.importGeoJson'),
+                  onSelect: () => {
+                    if (actions.requireCrs()) geoJsonInput.current?.click();
+                  },
+                },
+                {
+                  icon: Pentagon,
+                  label: tr('toolbar.importBoundariesCsv'),
+                  onSelect: () => {
+                    if (actions.requireCrs()) boundariesInput.current?.click();
+                  },
+                },
+              ]}
+            />
+            <MenuButton
+              showLabel
+              icon={FileDown}
+              label={tr('toolbar.export')}
+              items={[
+                {
+                  icon: Sheet,
+                  label: tr('toolbar.exportCsv'),
+                  onSelect: () => void actions.exportCsv(),
+                },
+                {
+                  icon: DraftingCompass,
+                  label: tr('toolbar.exportDxf'),
+                  onSelect: () => void actions.exportDxf(),
+                },
+                {
+                  icon: MapIcon,
+                  label: tr('toolbar.exportGeoJson'),
+                  onSelect: () => void actions.exportGeoJson(),
+                },
+                {
+                  icon: ImageIcon,
+                  label: tr('toolbar.exportPng'),
+                  onSelect: actions.exportPlanPng,
+                },
+                {
+                  icon: ClipboardCopy,
+                  label: tr('toolbar.copyTsv'),
+                  onSelect: () => void actions.copyHolesTsv(),
+                },
+                {
+                  icon: FileText,
+                  label: tr('toolbar.exportPdf'),
+                  onSelect: () => void actions.exportReport(),
+                },
+              ]}
+            />
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void actions.openProject(file);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={dxfInput}
+              type="file"
+              accept=".dxf"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void actions.openDxf(file);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={topographyInput}
+              type="file"
+              accept={actions.TOPOGRAPHY_ACCEPT}
+              multiple
+              hidden
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                if (files.length > 0) void actions.openTopography(files);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={geoJsonInput}
+              type="file"
+              accept=".geojson,.json,application/geo+json"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void actions.openGeoJson(file);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={boundariesInput}
+              type="file"
+              accept=".csv,.txt,.tsv,text/csv"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void actions.openBoundariesCsv(file);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={csvInput}
+              type="file"
+              accept=".csv,.txt,.tsv,text/csv"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void actions.openCsv(file);
+                e.target.value = '';
+              }}
+            />
+          </div>
         )}
-        <IconButton
-          icon={Settings}
-          label={tr('toolbar.settings')}
-          onClick={() => {
-            useUiStore.getState().setSettingsOpen(true);
-          }}
-        />
-        <MenuButton
-          icon={FileUp}
-          label={tr('toolbar.import')}
-          items={[
-            {
-              icon: Sheet,
-              label: tr('toolbar.importCsv'),
-              onSelect: () => {
-                if (actions.requireCrs()) csvInput.current?.click();
-              },
-            },
-            {
-              icon: DraftingCompass,
-              label: tr('toolbar.importDxf'),
-              onSelect: () => {
-                if (actions.requireCrs()) dxfInput.current?.click();
-              },
-            },
-            {
-              icon: Mountain,
-              label: tr('topo.importMenu'),
-              onSelect: () => {
-                if (actions.requireCrs()) topographyInput.current?.click();
-              },
-            },
-            {
-              icon: MapIcon,
-              label: tr('toolbar.importGeoJson'),
-              onSelect: () => {
-                if (actions.requireCrs()) geoJsonInput.current?.click();
-              },
-            },
-            {
-              icon: Pentagon,
-              label: tr('toolbar.importBoundariesCsv'),
-              onSelect: () => {
-                if (actions.requireCrs()) boundariesInput.current?.click();
-              },
-            },
-          ]}
-        />
-        <MenuButton
-          icon={FileDown}
-          label={tr('toolbar.export')}
-          items={[
-            {
-              icon: Sheet,
-              label: tr('toolbar.exportCsv'),
-              onSelect: () => void actions.exportCsv(),
-            },
-            {
-              icon: DraftingCompass,
-              label: tr('toolbar.exportDxf'),
-              onSelect: () => void actions.exportDxf(),
-            },
-            {
-              icon: MapIcon,
-              label: tr('toolbar.exportGeoJson'),
-              onSelect: () => void actions.exportGeoJson(),
-            },
-            { icon: ImageIcon, label: tr('toolbar.exportPng'), onSelect: actions.exportPlanPng },
-            {
-              icon: ClipboardCopy,
-              label: tr('toolbar.copyTsv'),
-              onSelect: () => void actions.copyHolesTsv(),
-            },
-            {
-              icon: FileText,
-              label: tr('toolbar.exportPdf'),
-              onSelect: () => void actions.exportReport(),
-            },
-          ]}
-        />
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".json,application/json"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void actions.openProject(file);
-            e.target.value = '';
-          }}
-        />
-        <input
-          ref={dxfInput}
-          type="file"
-          accept=".dxf"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void actions.openDxf(file);
-            e.target.value = '';
-          }}
-        />
-        <input
-          ref={topographyInput}
-          type="file"
-          accept={actions.TOPOGRAPHY_ACCEPT}
-          multiple
-          hidden
-          onChange={(e) => {
-            const files = [...(e.target.files ?? [])];
-            if (files.length > 0) void actions.openTopography(files);
-            e.target.value = '';
-          }}
-        />
-        <input
-          ref={geoJsonInput}
-          type="file"
-          accept=".geojson,.json,application/geo+json"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void actions.openGeoJson(file);
-            e.target.value = '';
-          }}
-        />
-        <input
-          ref={boundariesInput}
-          type="file"
-          accept=".csv,.txt,.tsv,text/csv"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void actions.openBoundariesCsv(file);
-            e.target.value = '';
-          }}
-        />
-        <input
-          ref={csvInput}
-          type="file"
-          accept=".csv,.txt,.tsv,text/csv"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void actions.openCsv(file);
-            e.target.value = '';
-          }}
-        />
-      </div>
-      <div className="toolbar-group">
-        <IconButton
-          icon={Undo2}
-          label={
-            history.undoLabel
-              ? tr('toolbar.undoNamed', { label: history.undoLabel })
-              : tr('toolbar.undo')
-          }
-          shortcut="Ctrl+Z"
-          disabled={!history.canUndo}
-          onClick={actions.undo}
-        />
-        <IconButton
-          icon={Redo2}
-          label={
-            history.redoLabel
-              ? tr('toolbar.redoNamed', { label: history.redoLabel })
-              : tr('toolbar.redo')
-          }
-          shortcut="Ctrl+Shift+Z"
-          disabled={!history.canRedo}
-          onClick={actions.redo}
-        />
-      </div>
-      <div className="toolbar-group" role="radiogroup" aria-label={tr('tools.viewGroup')}>
-        <IconButton
-          icon={MapIcon}
-          label={tr('tools.planView')}
-          shortcut="3"
-          active={viewMode === 'plan'}
-          onClick={() => {
-            setViewMode('plan');
-          }}
-        />
-        <IconButton
-          icon={Box}
-          label={tr('tools.view3d')}
-          shortcut="3"
-          active={viewMode === '3d'}
-          onClick={() => {
-            setViewMode('3d');
-          }}
-        />
-      </div>
-      {TOOLS.map((group, g) => (
-        <div key={g} className="toolbar-group" role="radiogroup" aria-label={tr('tools.group')}>
-          {group.map((t) => (
+        <div className="toolbar-group toolbar-history" data-group={tr('ribbon.edit')}>
+          <IconButton
+            showLabel
+            icon={Undo2}
+            displayLabel={tr('toolbar.undo')}
+            label={
+              history.undoLabel
+                ? tr('toolbar.undoNamed', { label: history.undoLabel })
+                : tr('toolbar.undo')
+            }
+            shortcut="Ctrl+Z"
+            disabled={!history.canUndo}
+            onClick={actions.undo}
+          />
+          <IconButton
+            showLabel
+            icon={Redo2}
+            displayLabel={tr('toolbar.redo')}
+            label={
+              history.redoLabel
+                ? tr('toolbar.redoNamed', { label: history.redoLabel })
+                : tr('toolbar.redo')
+            }
+            shortcut="Ctrl+Shift+Z"
+            disabled={!history.canRedo}
+            onClick={actions.redo}
+          />
+        </div>
+        {ribbonTab === 'view' && (
+          <div
+            className="toolbar-group"
+            data-group={tr('toolbar.view')}
+            role="group"
+            aria-label={tr('tools.viewGroup')}
+          >
             <IconButton
-              key={t.name}
-              icon={t.icon}
-              label={tr(t.label)}
-              shortcut={t.key}
-              hint={tr(t.hint)}
-              active={tool === t.name}
+              showLabel
+              icon={MapIcon}
+              label={tr('tools.planView')}
+              displayLabel={tr('ribbon.plan')}
+              shortcut="3"
+              active={viewMode === 'plan'}
               onClick={() => {
                 setViewMode('plan');
-                setTool(t.name);
               }}
             />
-          ))}
-        </div>
-      ))}
-      <div className="toolbar-group snap" title={tr('tools.snapTitle')}>
-        <Magnet size={16} aria-hidden className="muted" />
-        <IconButton
-          icon={CircleDot}
-          label={tr('tools.snapHoles')}
-          active={snap.holes}
-          onClick={() => {
-            setSnap({ holes: !snap.holes });
-          }}
-        />
-        <IconButton
-          icon={Shapes}
-          label={tr('tools.snapPattern')}
-          active={snap.pattern}
-          onClick={() => {
-            setSnap({ pattern: !snap.pattern });
-          }}
-        />
-        <IconButton
-          icon={Mountain}
-          label={tr('tools.snapTopography')}
-          active={snap.topography}
-          onClick={() => {
-            setSnap({ topography: !snap.topography });
-          }}
-        />
-        <IconButton
-          icon={Grid3x3}
-          label={tr('tools.snapGrid')}
-          active={snap.grid}
-          onClick={() => {
-            setSnap({ grid: !snap.grid });
-          }}
-        />
-        {snap.grid && (
-          <input
-            className="grid-size"
-            type="number"
-            min={0.01}
-            step={0.5}
-            value={snap.gridSize}
-            title={tr('tools.gridSize')}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              if (v > 0) setSnap({ gridSize: v });
-            }}
-          />
+            <IconButton
+              showLabel
+              icon={Box}
+              label={tr('tools.view3d')}
+              displayLabel="3D"
+              shortcut="3"
+              active={viewMode === '3d'}
+              onClick={() => {
+                setViewMode('3d');
+              }}
+            />
+          </div>
         )}
-      </div>
-      <div className="toolbar-group">
-        <IconButton
-          icon={Maximize2}
-          label={tr('tools.zoomFit')}
-          shortcut="F"
-          onClick={() => {
-            actions.zoomToFit();
-          }}
-        />
-        <MenuButton
-          icon={Presentation}
-          label={tr('tools.examples')}
-          items={EXAMPLES.map((sc) => {
-            const text = exampleText(sc.id, { name: sc.name, description: sc.description });
-            return {
-              icon: Presentation,
-              label: text.name,
-              hint: text.description,
-              onSelect: () => void actions.loadExample(sc.id, text.name),
-            };
+        {(ribbonTab === 'tools' || ribbonTab === 'timing') &&
+          TOOLS.filter((_, i) => (ribbonTab === 'timing' ? i === 2 : i !== 2)).map((group, g) => (
+            <div
+              key={g}
+              className="toolbar-group"
+              role="group"
+              aria-label={tr('tools.group')}
+              data-group={tr(
+                ribbonTab === 'timing'
+                  ? 'ribbon.initiation'
+                  : ((
+                      [
+                        'ribbon.selection',
+                        'ribbon.geometry',
+                        'ribbon.monitor',
+                        'ribbon.navigation',
+                      ] as const
+                    )[g] ?? 'toolbar.tools'),
+              )}
+            >
+              {group.map((t) => (
+                <IconButton
+                  showLabel
+                  key={t.name}
+                  icon={t.icon}
+                  label={tr(t.label)}
+                  shortcut={t.key}
+                  hint={tr(t.hint)}
+                  active={tool === t.name}
+                  onClick={() => {
+                    setViewMode('plan');
+                    setTool(t.name);
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        {ribbonTab === 'view' && (
+          <div
+            className="toolbar-group snap"
+            data-group={tr('ribbon.snap')}
+            title={tr('tools.snapTitle')}
+          >
+            <IconButton
+              showLabel
+              icon={CircleDot}
+              label={tr('tools.snapHoles')}
+              active={snap.holes}
+              onClick={() => {
+                setSnap({ holes: !snap.holes });
+              }}
+            />
+            <IconButton
+              showLabel
+              icon={Shapes}
+              label={tr('tools.snapPattern')}
+              active={snap.pattern}
+              onClick={() => {
+                setSnap({ pattern: !snap.pattern });
+              }}
+            />
+            <IconButton
+              showLabel
+              icon={Mountain}
+              label={tr('tools.snapTopography')}
+              displayLabel={tr('topo.section')}
+              active={snap.topography}
+              onClick={() => {
+                setSnap({ topography: !snap.topography });
+              }}
+            />
+            <IconButton
+              showLabel
+              icon={Grid3x3}
+              label={tr('tools.snapGrid')}
+              active={snap.grid}
+              onClick={() => {
+                setSnap({ grid: !snap.grid });
+              }}
+            />
+            {snap.grid && (
+              <input
+                className="grid-size"
+                type="number"
+                min={0.01}
+                step={0.5}
+                value={snap.gridSize}
+                title={tr('tools.gridSize')}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (v > 0) setSnap({ gridSize: v });
+                }}
+              />
+            )}
+          </div>
+        )}
+        {ribbonTab === 'view' && (
+          <div className="toolbar-group" data-group={tr('ribbon.navigation')}>
+            <IconButton
+              showLabel
+              icon={Maximize2}
+              label={tr('tools.zoomFit')}
+              shortcut="F"
+              onClick={() => {
+                actions.zoomToFit();
+              }}
+            />
+          </div>
+        )}
+        {ribbonTab === 'home' && (
+          <div className="toolbar-group" data-group={tr('ribbon.help')}>
+            <MenuButton
+              showLabel
+              icon={Presentation}
+              label={tr('tools.examples')}
+              displayLabel={tr('ribbon.examples')}
+              items={EXAMPLES.map((sc) => {
+                const text = exampleText(sc.id, { name: sc.name, description: sc.description });
+                return {
+                  icon: Presentation,
+                  label: text.name,
+                  hint: text.description,
+                  onSelect: () => void actions.loadExample(sc.id, text.name),
+                };
+              })}
+            />
+            <IconButton
+              showLabel
+              icon={Keyboard}
+              label={tr('tools.shortcuts')}
+              shortcut="?"
+              onClick={() => {
+                setShortcutsOpen(true);
+              }}
+            />
+          </div>
+        )}
+        <div className="toolbar-group workspace-actions" data-group={tr('ribbon.parameters')}>
+          {WORKSPACE_PANELS.filter((panel) => panel.section === ribbonTab).map((panel) => {
+            const available = demoOn || tabAvailable(panel.requires, workflow);
+            return (
+              <IconButton
+                key={panel.id}
+                icon={panel.icon}
+                label={tr(panel.label)}
+                showLabel
+                active={floating.some((win) => win.id === `workspace.${panel.id}`)}
+                disabled={!available}
+                hint={
+                  !available
+                    ? tr(panel.requires === 'charged' ? 'tabs.needCharge' : 'tabs.needHoles')
+                    : tr('workspace.openWindow')
+                }
+                onClick={() => {
+                  openWorkspacePanel(panel.id);
+                }}
+              />
+            );
           })}
-        />
-        <IconButton
-          icon={Keyboard}
-          label={tr('tools.shortcuts')}
-          shortcut="?"
-          onClick={() => {
-            setShortcutsOpen(true);
-          }}
-        />
+        </div>
       </div>
       {serverMode && (
         <div className="toolbar-group toolbar-account">

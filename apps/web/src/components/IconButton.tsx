@@ -5,6 +5,7 @@ export interface IconButtonProps {
   icon: LucideIcon;
   /** Nombre de la acción (tooltip y lector de pantalla). */
   label: string;
+  displayLabel?: string;
   /** Atajo de teclado; se muestra en el botón y en el tooltip. */
   shortcut?: string;
   /** Detalle extra del tooltip. */
@@ -22,6 +23,7 @@ export interface IconButtonProps {
 export function IconButton({
   icon: Icon,
   label,
+  displayLabel,
   shortcut,
   hint,
   active,
@@ -42,7 +44,7 @@ export function IconButton({
       onClick={onClick}
     >
       <Icon size={17} strokeWidth={1.8} aria-hidden />
-      {showLabel && <span>{label}</span>}
+      {showLabel && <span>{displayLabel ?? label}</span>}
       {shortcut && shortcut.length <= 2 && <kbd>{shortcut}</kbd>}
     </button>
   );

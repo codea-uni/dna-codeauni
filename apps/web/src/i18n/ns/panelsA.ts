@@ -6,7 +6,7 @@ export const es = {
   'common.warning': 'Advertencia',
 
   'float.open': 'Abrir en ventana (se puede mover y agrandar)',
-  'float.dock': 'Volver a la barra lateral',
+  'float.dock': 'Volver al panel',
   'float.show': 'Traer al frente',
   'float.placeholder': 'Este panel está abierto en una ventana flotante.',
   'steps.title': 'Primeros pasos',
@@ -17,7 +17,7 @@ export const es = {
   'steps.freeFaceHint':
     'Herramienta C: haz clic junto al lado del perímetro que da al talud. Es hacia donde sale la roca.',
   'steps.pattern': 'Genera la malla',
-  'steps.patternHint': 'Más abajo, en «Generar malla»: tipo, burden y espaciamiento.',
+  'steps.patternHint': 'Diseño → Generar malla: tipo, burden y espaciamiento.',
   'steps.charge': 'Carga los taladros',
   'steps.chargeHint': 'Pestaña Carguío: explosivo, taco y booster para todos o por grupo.',
   'steps.tie': 'Amarra la secuencia',
@@ -314,7 +314,7 @@ export const en = {
   'common.warning': 'Warning',
 
   'float.open': 'Open in a window (movable and resizable)',
-  'float.dock': 'Back to the sidebar',
+  'float.dock': 'Return to panel',
   'float.show': 'Bring to front',
   'float.placeholder': 'This panel is open in a floating window.',
   'steps.title': 'Getting started',
@@ -324,7 +324,7 @@ export const en = {
   'steps.freeFaceHint':
     'Tool C: click next to the boundary edge facing the bench face. That is where the rock moves.',
   'steps.pattern': 'Generate the pattern',
-  'steps.patternHint': 'Below, in “Generate pattern”: type, burden and spacing.',
+  'steps.patternHint': 'Design → Generate pattern: type, burden and spacing.',
   'steps.charge': 'Charge the holes',
   'steps.chargeHint': 'Charging tab: explosive, stemming and booster for all holes or per group.',
   'steps.tie': 'Tie up the sequence',
