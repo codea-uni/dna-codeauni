@@ -25,6 +25,7 @@ const app = buildApp({
   baseUrl: config.baseUrl,
   version: SERVER_VERSION,
   logger: { level: config.logLevel },
+  ai: config.ai,
 });
 const superAdmin = await ensureSuperAdmin(db, auth, config.initialAdmin);
 if (superAdmin?.created) app.log.info('Superadministrador creado desde CRONOS_SUPERADMIN_EMAIL');

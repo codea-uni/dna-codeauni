@@ -1,6 +1,6 @@
 import { uuidv7 } from '@cronos/core';
 import type { FastifyInstance } from 'fastify';
-import { buildApp } from '../app';
+import { buildApp, type AppDeps } from '../app';
 import { createAuth, createUserWithPassword, type Auth, type NewUser } from '../auth/auth';
 import type { Db } from '../db/db';
 import { recordAudit } from '../services/audit';
@@ -14,14 +14,25 @@ export interface TestApp {
   auth: Auth;
 }
 
-export function createTestApp(t: TestDb, options: { rateLimit?: boolean } = {}): TestApp {
+export function createTestApp(
+  t: TestDb,
+  options: { rateLimit?: boolean } & Pick<AppDeps, 'ai' | 'fetch'> = {},
+): TestApp {
   const auth = createAuth({
     pool: t.pool,
     secret: 'test-secret-with-at-least-32-characters!',
     baseUrl: TEST_BASE_URL,
     rateLimit: options.rateLimit ?? false,
   });
-  return { app: buildApp({ db: t.db, auth, baseUrl: TEST_BASE_URL, version: 'test' }), auth };
+  const app = buildApp({
+    db: t.db,
+    auth,
+    baseUrl: TEST_BASE_URL,
+    version: 'test',
+    ai: options.ai ?? null,
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+  });
+  return { app, auth };
 }
 
 /** Crea el usuario y devuelve el header `cookie` de su sesión. */

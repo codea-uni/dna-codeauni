@@ -75,6 +75,21 @@ reemplazar el MP4 de destino.
 Las librerías NSS se pueden extraer localmente sin instalarlas: instrucciones en la cabecera
 de [`scripts/record-trailer.js`](scripts/record-trailer.js). Los videos no se versionan.
 
+## Asistente IA
+
+La pestaña **Asistente IA** de la cinta abre una conversación con un agente (Gemini) que diseña sobre
+el proyecto abierto, por voz (micrófono; Chrome o Edge) o por escrito: malla cuadrada, rectangular
+o al tresbolillo, diámetro, inclinación y sobreperforación, carga por taladro o por fila, amarre en
+V, línea a línea o en escalón, electrónicos y retardos taladro por taladro. Siempre trabaja sobre el
+perímetro activo; si no hay perímetro sugiere dibujarlo y solo lo crea si se le confirma. Cada
+cambio es un paso de deshacer (Ctrl+Z o «deshaz eso») y después revisa el análisis (coincidencias,
+kg, tiempos) para responder con datos.
+
+Necesita el servidor (`pnpm dev:online` o producción) con la clave en `apps/server/.env` (o en el
+`.env` de la raíz en el VPS): `GEMINI_API_KEY=` (de <https://aistudio.google.com/apikey>). El modelo
+por defecto es `gemini-flash-latest` (`GEMINI_MODEL` para cambiarlo). La clave queda en el servidor:
+el navegador habla con `/api/ai/generate` y solo con sesión iniciada.
+
 ## Ventanas flotantes
 
 Las barras laterales no cambian. Los módulos con tablas o muchos campos juntos tienen un botón de expandir (⤢) en su título que los abre en una **ventana flotante**: se arrastra por el título, se agranda desde la esquina y se cierra con ✕ (vuelve a la barra). Están en la Librería (explosivos, detonadores, conectores, primas y tacos), el editor de columna, los grupos, el burden teórico, la fragmentación (con su gráfico), los puntos de monitoreo, los límites de PPV y los escenarios. Las posiciones se recuerdan en el navegador; durante la demostración todo vuelve a la barra.

@@ -35,6 +35,8 @@ services:
       CRONOS_SUPERADMIN_PASSWORD: ${CRONOS_SUPERADMIN_PASSWORD:-}
       CRONOS_SUPERADMIN_NAME: ${CRONOS_SUPERADMIN_NAME:-Administrador de la plataforma}
       CRONOS_DEMO_DATA: ${CRONOS_DEMO_DATA:-true}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
     depends_on:
       postgres:
         condition: service_healthy

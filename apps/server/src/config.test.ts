@@ -18,7 +18,19 @@ describe('loadConfig', () => {
       baseUrl: 'http://localhost:3000',
       demoData: true,
       initialAdmin: null,
+      ai: null,
     });
+  });
+
+  it('activa el asistente de IA solo con GEMINI_API_KEY (modelo configurable)', () => {
+    expect(loadConfig({ ...BASE, GEMINI_API_KEY: 'k' }).ai).toEqual({
+      apiKey: 'k',
+      model: 'gemini-flash-latest',
+    });
+    expect(loadConfig({ ...BASE, GEMINI_API_KEY: 'k', GEMINI_MODEL: 'gemini-x' }).ai?.model).toBe(
+      'gemini-x',
+    );
+    expect(loadConfig({ ...BASE, GEMINI_API_KEY: '' }).ai).toBeNull();
   });
 
   it('permite desactivar los datos predeterminados explícitamente', () => {

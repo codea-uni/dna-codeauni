@@ -1,5 +1,6 @@
 import type { ToolName } from '@cronos/engine';
 import {
+  Bot,
   BookOpen,
   Box,
   Cable,
@@ -219,6 +220,7 @@ export function Toolbar() {
             ['analysis', ChartColumn, 'toolbar.analysis'],
             ['view', Eye, 'toolbar.view'],
             ['library', Library, 'app.tab.library'],
+            ['ai', Bot, 'toolbar.ai'],
           ] as const
         ).map(([id, , label]) => (
           <button
@@ -231,6 +233,8 @@ export function Toolbar() {
             className={ribbonTab === id ? 'active' : ''}
             onClick={() => {
               setRibbonTab(id);
+              // La sección de IA abre directamente la conversación.
+              if (id === 'ai') openWorkspacePanel('ai');
             }}
           >
             {tr(label)}

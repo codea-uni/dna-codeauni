@@ -14,6 +14,7 @@ import {
   type Hole,
   type HoleGroup,
   type HoleGroupId,
+  type HoleTemplate,
   type Op,
   type Polygon2,
   type DetonatorId,
@@ -192,15 +193,32 @@ export function removePattern(patternId: PatternId): void {
   );
 }
 
+/** Resultado de generar una malla (lo usa el asistente de IA para responder con datos). */
+export interface PatternResult {
+  patternId: PatternId;
+  name: string;
+  holes: number;
+  /** Taladros de la malla anterior del perímetro, reemplazados. */
+  replacedHoles: number;
+  hasFreeFace: boolean;
+  /** Taladros fuera del levantamiento (sin cota de terreno). */
+  outside: number;
+}
+
 /**
  * Genera una malla en el worker y la agrega como un solo paso de undo. Si el perímetro ya tiene
- * malla, la reemplaza (con confirmación).
+ * malla, la reemplaza (con confirmación). El asistente de IA la llama sin confirmaciones (el
+ * pedido ya es explícito) y con su propia plantilla de taladro.
  */
-export async function generatePattern(form: PatternForm): Promise<void> {
+export async function generatePattern(
+  form: PatternForm,
+  options: { confirm?: boolean; template?: HoleTemplate } = {},
+): Promise<PatternResult | undefined> {
   const blast = document.project.blasts[0];
   const engine = getEngine();
   if (!blast || !engine) return;
-  const { holeTemplate } = useUiStore.getState();
+  const ask = options.confirm ?? true;
+  const holeTemplate = options.template ?? useUiStore.getState().holeTemplate;
   const geometry = {
     kind: form.kind,
     burden: form.burden,
@@ -241,6 +259,7 @@ export async function generatePattern(form: PatternForm): Promise<void> {
     replaced.some((p) => p.id === h.patternId),
   ).length;
   if (
+    ask &&
     replaced.length > 0 &&
     !window.confirm(
       t('pattern.replaceConfirm', {
@@ -261,12 +280,13 @@ export async function generatePattern(form: PatternForm): Promise<void> {
   // P-03: sin cara libre no se bloquea (cortes, rampas, primera voladura), pero el ingeniero la
   // acepta explícitamente.
   if (
+    ask &&
     !hasFreeFace &&
     !window.confirm(`${t('pattern.noFreeFace')}\n\n${t('actions.generateAnyway')}`)
   )
     return;
 
-  await withBusy(t('actions.generatingPattern'), async () => {
+  return withBusy(t('actions.generatingPattern'), async (): Promise<PatternResult> => {
     const t0 = performance.now();
     // Cada perímetro con su piso: la malla se genera en el banco de su perímetro.
     const generated = await getCompute().api.generatePattern(
@@ -324,6 +344,14 @@ export async function generatePattern(form: PatternForm): Promise<void> {
     if (hasFreeFace && outside === 0) notify(`${summary}.${offGround}`);
     else
       notify(`${summary}.${hasFreeFace ? '' : ` ${t('pattern.noFreeFace')}`}${offGround}`, 'error');
+    return {
+      patternId: pattern.id,
+      name: pattern.name,
+      holes: holes.length,
+      replacedHoles,
+      hasFreeFace,
+      outside,
+    };
   });
 }
 
@@ -337,18 +365,23 @@ export interface TieUpForm {
   mode?: 'rows' | 'echelon';
 }
 
-/** Reemplaza las conexiones y puntos de inicio de los taladros del patrón por un amarre por filas. */
+/**
+ * Reemplaza las conexiones y puntos de inicio de los taladros del patrón por un amarre por filas.
+ * Devuelve las conexiones creadas (0 si no hay filas y columnas). `extra` va en el mismo paso de
+ * deshacer (p. ej. el detonador en el taladro que pone el asistente de IA).
+ */
 export function generateRowTieUp(
   form: TieUpForm,
   interHoleConnectorId: SurfaceConnectorId,
   interRowConnectorId: SurfaceConnectorId,
-): void {
+  extra: Op[] = [],
+): number {
   const blast = document.project.blasts[0];
-  if (!blast) return;
+  if (!blast) return 0;
   const generated = rowTieUp(blast, { ...form, interHoleConnectorId, interRowConnectorId });
   if (generated.connections.length === 0) {
     notify(t('actions.noRowCol'), 'error');
-    return;
+    return 0;
   }
   const inPattern = new Set<string>(
     blast.holes.filter((h) => h.patternId === form.patternId).map((h) => h.id),
@@ -356,37 +389,44 @@ export function generateRowTieUp(
   const touches = (ref: NodeRef) => ref.kind === 'hole' && inPattern.has(ref.holeId);
   const plan = blast.initiation;
   document.dispatch(
-    commands.setInitiation(blast.id, {
-      ...plan,
-      system: plan.system === 'electronic' ? 'mixed' : plan.system,
-      connections: [
-        ...plan.connections.filter((c) => !touches(c.from) && !touches(c.to)),
-        ...generated.connections,
-      ],
-      initiationPoints: [
-        ...plan.initiationPoints.filter((p) => !touches(p.at)),
-        ...generated.initiationPoints,
-      ],
-    }),
+    [
+      ...extra,
+      ...commands.setInitiation(blast.id, {
+        ...plan,
+        system: plan.system === 'electronic' ? 'mixed' : plan.system,
+        connections: [
+          ...plan.connections.filter((c) => !touches(c.from) && !touches(c.to)),
+          ...generated.connections,
+        ],
+        initiationPoints: [
+          ...plan.initiationPoints.filter((p) => !touches(p.at)),
+          ...generated.initiationPoints,
+        ],
+      }),
+    ],
     form.mode === 'echelon' ? t('actions.tieUpEchelon') : t('actions.tieUpRows'),
   );
   notify(t('actions.tieUpGenerated', { n: generated.connections.length }));
+  return generated.connections.length;
 }
 
-/** Programa detonadores electrónicos en los taladros del patrón y quita su red de superficie. */
+/**
+ * Programa detonadores electrónicos en los taladros del patrón y quita su red de superficie.
+ * Devuelve los taladros programados (0 si no hay filas y columnas).
+ */
 export function assignElectronicTimes(
   form: TieUpForm,
   detonatorId: DetonatorId,
   interHole: number,
   interRow: number,
   offset: number,
-): void {
+): number {
   const blast = document.project.blasts[0];
-  if (!blast) return;
+  if (!blast) return 0;
   const times = electronicTimes(blast, { ...form, detonatorId, interHole, interRow, offset });
   if (times.size === 0) {
     notify(t('actions.noRowCol'), 'error');
-    return;
+    return 0;
   }
   const ids = [...times.keys()];
   const idSet = new Set<string>(ids);
@@ -407,6 +447,7 @@ export function assignElectronicTimes(
     t('actions.electronicUndo', { n: ids.length }),
   );
   notify(t('actions.electronicAssigned', { n: ids.length }));
+  return ids.length;
 }
 
 export function clearConnections(onlySelection: boolean): void {

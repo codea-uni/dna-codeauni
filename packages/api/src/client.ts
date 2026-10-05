@@ -53,6 +53,7 @@ import {
   type Timeline,
   type TimelineQuery,
 } from './projects';
+import { aiGenerateResponseSchema, type AiGenerateRequest, type AiGenerateResponse } from './ai';
 import {
   assetInfoSchema,
   missingAssetsResultSchema,
@@ -128,6 +129,15 @@ export class ApiClient {
     const text = await res.text();
     if (!res.ok) throw errorFrom(res.status, text);
     return text;
+  }
+
+  /** Un turno del asistente de IA (Gemini detrás del servidor). */
+  aiGenerate(body: AiGenerateRequest, signal?: AbortSignal): Promise<AiGenerateResponse> {
+    return this.request('/ai/generate', aiGenerateResponseSchema, {
+      method: 'POST',
+      body,
+      ...(signal ? { signal } : {}),
+    });
   }
 
   health(signal?: AbortSignal): Promise<Health> {

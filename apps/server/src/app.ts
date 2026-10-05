@@ -2,6 +2,8 @@ import type { ApiErrorBody } from '@cronos/api';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Auth } from './auth/auth';
 import type { Db } from './db/db';
+import type { AiConfig } from './config';
+import { aiRoutes } from './routes/ai';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
 import { organizationRoutes } from './routes/organizations';
@@ -17,6 +19,10 @@ export interface AppDeps {
   baseUrl: string;
   version: string;
   logger?: FastifyServerOptions['logger'];
+  /** Asistente de IA; null o ausente = sin configurar (responde 503). */
+  ai?: AiConfig | null;
+  /** `fetch` hacia Gemini (inyectable en las pruebas). */
+  fetch?: typeof fetch;
 }
 
 /** Arma la app sin escuchar un puerto: `main.ts` la inicia y las pruebas usan `app.inject`. */
@@ -49,6 +55,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       projectRoutes(api, deps);
       versionRoutes(api, deps);
       topographyRoutes(api, deps);
+      aiRoutes(api, deps);
       done();
     },
     { prefix: '/api' },

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, type ComponentType } from 'react';
-import { BookOpen, Layers, LayoutGrid, Mountain, Shapes } from 'lucide-react';
+import { BookOpen, Bot, Layers, LayoutGrid, Mountain, Shapes } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { tabAvailable, useWorkflow, type TabRequirement } from '../hooks/useWorkflow';
 import { useT, type MessageKey } from '../i18n';
@@ -14,8 +14,9 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { FloatingWindow } from './Floatable';
 
 const DocumentationPanel = lazy(() => import('../documentation/DocumentationPanel'));
+const AiPanel = lazy(() => import('../ai/AiPanel'));
 
-type Section = 'home' | 'tools' | 'charge' | 'timing' | 'analysis' | 'library' | 'reference';
+type Section = 'home' | 'tools' | 'charge' | 'timing' | 'analysis' | 'library' | 'ai' | 'reference';
 interface WorkspacePanel {
   id: string;
   section: Section;
@@ -27,6 +28,14 @@ interface WorkspacePanel {
 
 /** Every former left panel remains accessible from the ribbon, without reserving canvas space. */
 export const WORKSPACE_PANELS: WorkspacePanel[] = [
+  {
+    id: 'ai',
+    section: 'ai',
+    label: 'ai.title',
+    icon: Bot,
+    requires: null,
+    Content: AiPanel,
+  },
   {
     id: 'documentation',
     section: 'reference',
@@ -89,7 +98,13 @@ export function openWorkspacePanel(id: string) {
   else
     ui.floatPanel(
       windowId,
-      id === 'documentation' ? 1100 : id === 'library' || id === 'scenarios' ? 900 : 640,
+      id === 'documentation'
+        ? 1100
+        : id === 'library' || id === 'scenarios'
+          ? 900
+          : id === 'ai'
+            ? 440
+            : 640,
     );
 }
 

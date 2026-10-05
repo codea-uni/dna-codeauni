@@ -16,6 +16,9 @@ const envSchema = z.object({
   CRONOS_SUPERADMIN_EMAIL: z.email().optional(),
   CRONOS_SUPERADMIN_PASSWORD: z.string().min(8).optional(),
   CRONOS_SUPERADMIN_NAME: z.string().min(1).default('Administrador de la plataforma'),
+  // Asistente de IA (Gemini): sin clave, la pestaña IA avisa que no está configurado.
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().min(1).default('gemini-flash-latest'),
 });
 
 export interface ServerConfig {
@@ -27,6 +30,13 @@ export interface ServerConfig {
   baseUrl: string;
   demoData: boolean;
   initialAdmin: { email: string; password: string; name: string } | null;
+  ai: AiConfig | null;
+}
+
+/** Clave y modelo de Gemini para el asistente (`/api/ai`). */
+export interface AiConfig {
+  apiKey: string;
+  model: string;
 }
 
 /** Nombres anteriores de las variables del superadministrador (siguen valiendo). */
@@ -63,5 +73,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
             name: e.CRONOS_SUPERADMIN_NAME,
           }
         : null,
+    ai: e.GEMINI_API_KEY ? { apiKey: e.GEMINI_API_KEY, model: e.GEMINI_MODEL } : null,
   };
 }

@@ -1,6 +1,7 @@
 import type { Messages } from './es';
 
 /** English UI texts. `satisfies Messages`: a missing or extra key is a compile error (D-11). */
+import * as ai from './ns/ai';
 import * as app from './ns/app';
 import * as auth from './ns/auth';
 import * as core from './ns/core';
@@ -14,6 +15,7 @@ import * as topography from './ns/topography';
 import * as workspace from './ns/workspace';
 
 export const en = {
+  ...ai.en,
   ...app.en,
   ...auth.en,
   ...core.en,

@@ -2,6 +2,7 @@
  * Textos de la interfaz en español: fuente de las claves (D-11). Términos mineros según el
  * glosario de docs/theory/references/R1 §2. `{nombre}` se reemplaza con `t(clave, { nombre })`.
  */
+import * as ai from './ns/ai';
 import * as app from './ns/app';
 import * as auth from './ns/auth';
 import * as core from './ns/core';
@@ -15,6 +16,7 @@ import * as topography from './ns/topography';
 import * as workspace from './ns/workspace';
 
 export const es = {
+  ...ai.es,
   ...app.es,
   ...auth.es,
   ...core.es,
