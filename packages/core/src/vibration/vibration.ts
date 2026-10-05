@@ -312,6 +312,11 @@ export function computeVibration(
   project: Project,
   blast: Blast,
   options: VibrationOptions,
+  /**
+   * Terreno (topografía del banco): cada celda es un receptor sobre el terreno, a su cota real. Sin
+   * él, todos a la cota del banco (`receiverElevation`).
+   */
+  surface?: { elevationAt(x: number, y: number): number | null } | null,
 ): VibrationResult {
   const t0 = performance.now();
   const site = project.siteModels;
@@ -560,12 +565,13 @@ export function computeVibration(
     const y = minY + (j + 0.5) * cell;
     for (let i = 0; i < nx; i++) {
       const x = minX + (i + 0.5) * cell;
+      const rz = surface?.elevationAt(x, y) ?? receiverZ;
       let v = 0;
       for (const c of indexed) {
         const [k] = c.idx.neighbors(x, y, 1);
         const s = c.list[k ?? 0];
         if (!s) continue;
-        v = Math.max(v, valueAt(Math.hypot(x - s.x, y - s.y, receiverZ - s.z), c.w));
+        v = Math.max(v, valueAt(Math.hypot(x - s.x, y - s.y, rz - s.z), c.w));
       }
       values[j * nx + i] = v;
     }

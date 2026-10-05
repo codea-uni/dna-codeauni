@@ -6,6 +6,7 @@ import {
   DEFAULT_HOLE_TEMPLATE,
   newId,
   type Project,
+  type TopographySurveyId,
 } from '@cronos/core';
 import type { InstancedMesh } from 'three';
 import { Color, Matrix4, Vector3 } from 'three';
@@ -162,5 +163,79 @@ describe('escena 3D', () => {
     expect((first as unknown as { material: { opacity: number } }).material.opacity).toBe(0.3);
     scene.rebuild(p, p.blasts, origin, DEFAULT_3D_OPTIONS, new Map());
     expect(surfaces()).toHaveLength(0);
+  });
+
+  it('con el terreno del banco, la cara libre y el techo siguen el relieve (no la cota del banco)', () => {
+    const base = projectWith(2, 0);
+    const blast = base.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    const p = {
+      ...base,
+      blasts: [{ ...blast, bench: { ...blast.bench, topographyId: 's1' as TopographySurveyId } }],
+    };
+    // Terreno: plano z = 15 + 0,1·x − 0,2·y (el banco plano estaría a z = 15).
+    const ground = (x: number, y: number) => 15 + 0.1 * x - 0.2 * y;
+    const tin = {
+      vertices: Float64Array.from([
+        -50,
+        -50,
+        ground(-50, -50),
+        50,
+        -50,
+        ground(50, -50),
+        0,
+        50,
+        ground(0, 50),
+      ]),
+      triangles: Uint32Array.from([0, 1, 2]),
+    };
+    const origin = { x: 1, y: 2, z: 3 };
+    const scene = new Scene3D();
+    scene.rebuild(
+      p,
+      p.blasts,
+      origin,
+      DEFAULT_3D_OPTIONS,
+      new Map([['s1', tin]]),
+      new Map([['s1', ground]]),
+    );
+    const vertices = (group: { children: unknown[] }) =>
+      group.children.flatMap((c) => {
+        const mesh = c as {
+          position: { z: number };
+          geometry: { getAttribute(n: string): { array: ArrayLike<number> } };
+        };
+        const pos = mesh.geometry.getAttribute('position').array;
+        return Array.from({ length: pos.length / 3 }, (_, i) => ({
+          x: (pos[i * 3] ?? 0) + origin.x,
+          y: (pos[i * 3 + 1] ?? 0) + origin.y,
+          z: (pos[i * 3 + 2] ?? 0) + mesh.position.z + origin.z,
+        }));
+      });
+    const face = vertices(scene.faces);
+    expect(face.length).toBeGreaterThan(10);
+    for (const v of face) expect(v.z).toBeCloseTo(ground(v.x, v.y), 4);
+    // Techo apoyado en el terreno (además del piso plano de referencia a la cota del piso).
+    const planes = vertices(scene.benchPlanes);
+    const onGround = planes.filter((v) => Math.abs(v.z - ground(v.x, v.y)) < 1e-4);
+    const atFloor = planes.filter((v) => Math.abs(v.z - DEFAULT_BENCH.floorElevation) < 1e-4);
+    expect(onGround.length).toBeGreaterThan(10);
+    expect(onGround.length + atFloor.length).toBe(planes.length);
+  });
+
+  it('sin terreno la cara libre es el talud analítico: de la cresta (piso + H) al pie (piso)', () => {
+    const p = projectWith(2, 0);
+    const scene = new Scene3D();
+    scene.rebuild(p, p.blasts, { x: 0, y: 0, z: 0 }, DEFAULT_3D_OPTIONS);
+    const zs = scene.faces.children.flatMap((c) =>
+      Array.from(
+        (
+          c as unknown as { geometry: { getAttribute(n: string): { array: ArrayLike<number> } } }
+        ).geometry.getAttribute('position').array,
+      ).filter((_, i) => i % 3 === 2),
+    );
+    const top = DEFAULT_BENCH.floorElevation + DEFAULT_BENCH.height;
+    expect(Math.max(...zs)).toBeCloseTo(top, 4);
+    expect(Math.min(...zs)).toBeCloseTo(DEFAULT_BENCH.floorElevation, 4);
   });
 });

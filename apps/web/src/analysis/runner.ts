@@ -7,7 +7,7 @@ import {
   type EnergyOptions,
 } from '@cronos/core';
 import { getCompute, session } from '../session';
-import { topographyTin } from '../topography/session';
+import { onTopographyChange, topographyTin } from '../topography/session';
 import { useAnalysisStore } from '../stores/analysisStore';
 
 const DEBOUNCE_MS = 120;
@@ -72,6 +72,7 @@ function energyOptions(): EnergyOptions | null {
     ...DEFAULT_ENERGY_OPTIONS,
     metric: s.energyMetric,
     elevation: s.energyElevation ?? blast.bench.floorElevation + blast.bench.height / 2,
+    onTerrain: s.energyOnTerrain,
     cellSize: s.energyCellSize,
     cutoff: s.energyCutoff,
     sigma: s.energySigma,
@@ -120,10 +121,15 @@ export function startEnergyRunner(): () => void {
   const offDoc = session.document.subscribe(() => {
     if (useAnalysisStore.getState().energyEnabled) schedule();
   });
+  // El levantamiento puede cargarse después: con él cambia la cota de evaluación y el aire.
+  const offTopo = onTopographyChange(() => {
+    if (useAnalysisStore.getState().energyEnabled) schedule();
+  });
   const keys = [
     'energyEnabled',
     'energyMetric',
     'energyElevation',
+    'energyOnTerrain',
     'energyCellSize',
     'energyCutoff',
     'energySigma',
@@ -138,6 +144,7 @@ export function startEnergyRunner(): () => void {
   });
   return () => {
     offDoc();
+    offTopo();
     offOptions();
     if (timer) clearTimeout(timer);
   };
@@ -221,6 +228,8 @@ export function startVibrationRunner(): () => void {
           extent: s.vibExtent,
           levels,
         },
+        // Receptores sobre el terreno del banco (su topografía, si está cargada).
+        blast.bench.topographyId ? (topographyTin(blast.bench.topographyId) ?? null) : null,
       );
       if (mine !== token) return;
       useAnalysisStore.getState().set({ vibration, vibComputing: false });
@@ -236,6 +245,9 @@ export function startVibrationRunner(): () => void {
   const offDoc = session.document.subscribe(() => {
     if (useAnalysisStore.getState().vibEnabled) schedule();
   });
+  const offTopo = onTopographyChange(() => {
+    if (useAnalysisStore.getState().vibEnabled) schedule();
+  });
   const keys = ['vibEnabled', 'vibMetric', 'vibLawId', 'vibExtent', 'vibLevels'] as const;
   const offOptions = useAnalysisStore.subscribe((s, prev) => {
     if (!keys.some((k) => s[k] !== prev[k])) return;
@@ -244,6 +256,7 @@ export function startVibrationRunner(): () => void {
   });
   return () => {
     offDoc();
+    offTopo();
     offOptions();
     if (timer) clearTimeout(timer);
   };

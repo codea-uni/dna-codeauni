@@ -81,6 +81,11 @@ export interface EnergyOptions {
    * sobre el terreno si hay topografía. La energía es del macizo, no del hueco frente al talud.
    */
   clipToRock: boolean;
+  /**
+   * Evaluar sobre el terreno (con topografía): cada celda a la cota del levantamiento en vez del
+   * plano a `elevation` (que queda donde no hay terreno). Es la energía en la superficie del banco.
+   */
+  onTerrain?: boolean;
 }
 
 export const DEFAULT_ENERGY_OPTIONS: Omit<EnergyOptions, 'elevation'> = {
@@ -97,6 +102,8 @@ export const DEFAULT_ENERGY_OPTIONS: Omit<EnergyOptions, 'elevation'> = {
 export interface EnergyResult extends ScalarGrid {
   metric: EnergyMetric;
   elevation: number;
+  /** Se evaluó sobre el terreno (cota por celda) y no en el plano a `elevation`. */
+  onTerrain: boolean;
   min: number;
   max: number;
   contours: Contours;
@@ -288,6 +295,7 @@ export function computeEnergyGrid(
     values: new Float32Array(0),
     metric: options.metric,
     elevation: options.elevation,
+    onTerrain: false,
     min: 0,
     max: 0,
     contours: { segments: new Float64Array(0), levels: new Float32Array(0) },
@@ -314,6 +322,15 @@ export function computeEnergyGrid(
   const nx = Math.max(2, Math.ceil((maxX - minX) / cell));
   const ny = Math.max(2, Math.ceil((maxY - minY) / cell));
   const sum = new Float64Array(nx * ny);
+  // Sobre el terreno: cota de cada celda (la del plano donde el levantamiento no llega).
+  const onTerrain = options.onTerrain === true && !!surface;
+  const zAt = new Float64Array(onTerrain ? nx * ny : 0);
+  if (onTerrain)
+    for (let j = 0; j < ny; j++)
+      for (let i = 0; i < nx; i++)
+        zAt[j * nx + i] =
+          surface.elevationAt(minX + (i + 0.5) * cell, minY + (j + 0.5) * cell) ??
+          options.elevation;
   // Taladros verticales: s es constante en el plano → perfil radial 1D indexado por ρ²
   // (sin raíces por celda), compartido por los taladros con igual carga y cota de boca.
   const RADIAL_N = 4096;
@@ -346,7 +363,8 @@ export function computeEnergyGrid(
     const j1 = Math.min(ny - 1, Math.ceil((y1 - minY) / cell));
     const dz = options.elevation - hole.collar.z;
     // Taladro vertical: la zona de influencia es un disco; se recorre solo su ancho en cada fila.
-    const vertical = ux === 0 && uy === 0;
+    // Sobre el terreno la cota cambia por celda: va por el recorrido general.
+    const vertical = ux === 0 && uy === 0 && !onTerrain;
     const r2 = cutoff * cutoff;
     if (vertical) {
       const radial = radialFor(table, dz * uz, key);
@@ -379,11 +397,12 @@ export function computeEnergyGrid(
       const py = minY + (j + 0.5) * cell - hole.collar.y;
       for (let i = i0; i <= i1; i++) {
         const px = minX + (i + 0.5) * cell - hole.collar.x;
+        const dzc = onTerrain ? (zAt[j * nx + i] ?? options.elevation) - hole.collar.z : dz;
         // s = proyección sobre el eje; ρ = distancia al eje.
-        const s = px * ux + py * uy + dz * uz;
+        const s = px * ux + py * uy + dzc * uz;
         const rx = px - ux * s;
         const ry = py - uy * s;
-        const rz = dz - uz * s;
+        const rz = dzc - uz * s;
         const rho = Math.sqrt(rx * rx + ry * ry + rz * rz);
         const v = sampleProfile(table, rho, s);
         if (v <= 0) continue;
@@ -396,12 +415,12 @@ export function computeEnergyGrid(
 
   if (options.clipToRock) {
     const inAir = inFrontOfFace(blast);
-    const z = options.elevation;
     for (let j = 0; j < ny; j++) {
       const y = minY + (j + 0.5) * cell;
       for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
         if (!(sum[k] ?? 0)) continue;
+        const z = onTerrain ? (zAt[k] ?? options.elevation) : options.elevation;
         const x = minX + (i + 0.5) * cell;
         const ground = surface?.elevationAt(x, y) ?? null;
         if (ground !== null ? z > ground + 0.05 : inAir(x, y, z)) sum[k] = 0;
@@ -462,6 +481,7 @@ export function computeEnergyGrid(
     ...grid,
     metric: options.metric,
     elevation: options.elevation,
+    onTerrain,
     min,
     max,
     contours,

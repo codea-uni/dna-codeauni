@@ -359,3 +359,46 @@ describe('cara libre configurable (A7b)', () => {
     expect(low / lowN).toBeLessThan(top / topN);
   });
 });
+
+describe('pila sobre el terreno (topografía del banco)', () => {
+  // Terreno de prueba: plano inclinado que pasa por el techo del banco (piso 3500 + 10 m) en el
+  // centroide del perímetro: z = 3510 + 0,05·(x − cx) + 0,02·(y − cy).
+  const project = example();
+  const blast = project.blasts[0];
+  const poly = blast?.boundaries[0]?.polygon ?? [];
+  const cx = poly.reduce((a, p) => a + p.x, 0) / poly.length;
+  const cy = poly.reduce((a, p) => a + p.y, 0) / poly.length;
+  const surface = {
+    elevationAt: (x: number, y: number) => 3510 + 0.05 * (x - cx) + 0.02 * (y - cy),
+  };
+  if (!blast) throw new Error('sin voladura');
+  const r = computeMuckpile(project, blast.id, surface);
+  if (!r) throw new Error('sin resultado');
+
+  it('el volumen in situ del perímetro es área × espesor medio del terreno (40 × 14 × 10 = 5600 m³)', () => {
+    // En el rectángulo el espesor medio sobre el piso es el del centroide: 10 m.
+    const footprint = r.stats.inSituVolume - r.stats.wedgeVolume;
+    expect(Math.abs(footprint / 5600 - 1)).toBeLessThan(0.005);
+  });
+
+  it('la cara de arriba de cada columna toma la pendiente del terreno (0,05; 0,02) y el resto queda recto', () => {
+    const b = r.blocks;
+    let tilted = 0;
+    for (let k = 0; k < b.count; k++) {
+      const sx = b.topSlope[2 * k] ?? 0;
+      const sy = b.topSlope[2 * k + 1] ?? 0;
+      if (sx === 0 && sy === 0) continue;
+      tilted++;
+      expect(sx).toBeCloseTo(0.05, 6); // Float32
+      expect(sy).toBeCloseTo(0.02, 6);
+    }
+    expect(tilted).toBeGreaterThan(0);
+    expect(tilted).toBeLessThan(b.count);
+  });
+
+  it('sin topografía todos los bloques son cajas rectas', () => {
+    const flat = run(example());
+    expect(flat.blocks.topSlope.every((v) => v === 0)).toBe(true);
+    expect(flat.blocks.topSlope.length).toBe(2 * flat.blocks.count);
+  });
+});

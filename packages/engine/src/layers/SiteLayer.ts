@@ -7,7 +7,13 @@ import {
   LineLoop,
   LineSegments,
 } from 'three';
-import type { MonitoringPoint, Vec2, Vec3 } from '@cronos/core';
+import {
+  drapePolyline,
+  type Ground,
+  type MonitoringPoint,
+  type Vec2,
+  type Vec3,
+} from '@cronos/core';
 
 /**
  * Elementos de sitio: zona de exclusión por proyecciones (línea roja discontinua) y puntos de
@@ -35,14 +41,34 @@ export class SiteLayer {
     this.root.add(this.zone, this.markers);
   }
 
-  setZone(points: readonly Vec2[] | null, origin: Vec3, metersPerPixel: number): void {
+  /**
+   * Zona de proyecciones. Con `ground` (3D con levantamiento) el contorno se densifica cada 2 m y
+   * va sobre el terreno (las cotas descuentan la del conjunto, `setElevation`).
+   */
+  setZone(
+    points: readonly Vec2[] | null,
+    origin: Vec3,
+    metersPerPixel: number,
+    ground: Ground | null = null,
+  ): void {
     if (!points || points.length < 3) {
       this.hasZone = false;
       this.zone.visible = false;
       return;
     }
     const pos: number[] = [];
-    for (const p of points) pos.push(p.x - origin.x, p.y - origin.y, 0);
+    if (ground) {
+      const flat = this.root.position.z + origin.z;
+      const draped = drapePolyline(
+        points.map((p) => ({ x: p.x, y: p.y, z: flat })),
+        ground,
+        2,
+        0.5,
+        true,
+      );
+      for (const p of draped)
+        pos.push(p.x - origin.x, p.y - origin.y, p.z - origin.z - this.root.position.z);
+    } else for (const p of points) pos.push(p.x - origin.x, p.y - origin.y, 0);
     this.zone.geometry.setAttribute('position', new Float32BufferAttribute(pos, 3));
     this.zone.computeLineDistances();
     this.setDashScale(metersPerPixel);

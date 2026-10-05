@@ -88,6 +88,23 @@ export function EnergyPanel() {
             <option value="chargeDensity">{t('energy.metric.density')}</option>
           </select>
         </label>
+        {blast?.bench.topographyId && (
+          <label className="field">
+            <span className="field-label">{t('energy.surface')}</span>
+            <select
+              value={s.energyOnTerrain ? 'terrain' : 'plane'}
+              onChange={(ev) => {
+                s.set({ energyOnTerrain: ev.target.value === 'terrain' });
+              }}
+            >
+              <option value="terrain">{t('energy.surface.terrain')}</option>
+              <option value="plane">{t('energy.surface.plane')}</option>
+            </select>
+          </label>
+        )}
+        {blast?.bench.topographyId && s.energyOnTerrain && (
+          <p className="hint">{t('energy.surface.terrainHint')}</p>
+        )}
         <NumberField
           label={t('energy.elevation')}
           unit={len.unit}

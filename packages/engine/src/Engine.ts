@@ -20,6 +20,7 @@ import {
   type ConnectionId,
   type DiffMarker,
   type TinData,
+  type Ground,
   type ScalarGrid,
   type SurfaceConnectorId,
   type DocumentStore,
@@ -196,6 +197,8 @@ export class Engine {
   private scene3dDirty = true;
   /** Triangulaciones de los levantamientos cargados (D-16), por id de levantamiento. */
   private topographyTins: ReadonlyMap<string, TinData> = new Map();
+  /** Cota del terreno de cada levantamiento (índice O(log n)): el 3D se apoya en el relieve. */
+  private topographyGrounds: ReadonlyMap<string, Ground> = new Map();
   /** Topografía en planta: sombreado, curvas y líneas de referencia. */
   private readonly topography = new TopographyLayer();
   private topographyData: readonly TopographyViewData[] = [];
@@ -703,7 +706,7 @@ export class Engine {
     this.energy.setOpacity(opacity);
     this.energy.set(data, this.origin);
     this.energy3d.setOpacity(Math.min(1, opacity + 0.15));
-    if (this.viewMode === '3d') this.energy3d.set(data, this.origin, true);
+    if (this.viewMode === '3d') this.energy3d.set(data, this.origin, true, this.ground());
     this.loop.invalidate();
   }
 
@@ -725,12 +728,19 @@ export class Engine {
     this.applyView();
   }
 
-  /** Triangulaciones de los levantamientos topográficos cargados (D-16), por id. */
-  setTopographyTins(tins: ReadonlyMap<string, TinData>): void {
+  /**
+   * Triangulaciones de los levantamientos topográficos cargados (D-16), por id, y la cota del
+   * terreno de cada uno: con ella la cara libre, el techo, la cresta y los mapas siguen el relieve.
+   */
+  setTopographyTins(
+    tins: ReadonlyMap<string, TinData>,
+    grounds: ReadonlyMap<string, Ground> = new Map(),
+  ): void {
     const changed =
       tins.size !== this.topographyTins.size ||
       [...tins].some(([id, tin]) => this.topographyTins.get(id) !== tin);
     this.topographyTins = tins;
+    this.topographyGrounds = grounds;
     this.scene3dDirty = true;
     if (this.viewMode === '3d') {
       this.rebuild3d();
@@ -810,7 +820,8 @@ export class Engine {
   setIsochrones(data: IsochroneData | null): void {
     this.isochroneData = data;
     this.isochrones.set(data, this.origin);
-    if (this.viewMode === '3d') this.isochrones3d.set(data, this.origin, this.topZ() + 0.25);
+    if (this.viewMode === '3d')
+      this.isochrones3d.set(data, this.origin, this.topZ() + 0.25, this.ground());
     this.loop.invalidate();
   }
 
@@ -1113,7 +1124,14 @@ export class Engine {
 
   private rebuild3d(): void {
     const project = this.document.project;
-    this.scene3d.rebuild(project, project.blasts, this.origin, this.options3d, this.topographyTins);
+    this.scene3d.rebuild(
+      project,
+      project.blasts,
+      this.origin,
+      this.options3d,
+      this.topographyTins,
+      this.topographyGrounds,
+    );
     this.scene3dDirty = false;
     this.rebuild3dOverlays();
     this.loop.invalidate();
@@ -1125,21 +1143,34 @@ export class Engine {
     return (b ? b.floorElevation + b.height : 0) - this.origin.z;
   }
 
+  /**
+   * Cota del terreno del banco activo (su levantamiento cargado), o null: con ella los mapas, las
+   * isócronas y la zona de proyecciones se apoyan en el relieve en 3D.
+   */
+  private ground(): Ground | null {
+    const id = this.document.project.blasts[0]?.bench.topographyId;
+    return id && this.topographyTins.has(id) ? (this.topographyGrounds.get(id) ?? null) : null;
+  }
+
   /** Amarres, isócronas, mapas, sitio y etiquetas en 3D (baratos: se rehacen enteros). */
   private rebuild3dOverlays(): void {
     const project = this.document.project;
     const top = this.topZ();
+    const ground = this.ground();
     this.initiation3d.rebuild(project.blasts, project.library, this.origin, true);
-    this.isochrones3d.set(this.isochroneData, this.origin, top + 0.25);
-    this.energy3d.set(this.energyData, this.origin, true);
-    // La vibración se evalúa en la superficie del banco (cota de los receptores).
+    this.isochrones3d.set(this.isochroneData, this.origin, top + 0.25, ground);
+    this.energy3d.set(this.energyData, this.origin, true, ground);
+    // La vibración se evalúa en los receptores sobre el terreno (o a la cota del banco sin él).
     this.vibration3d.set(
-      this.vibrationData ? { ...this.vibrationData, elevation: top + this.origin.z } : null,
+      this.vibrationData
+        ? { ...this.vibrationData, elevation: top + this.origin.z, onTerrain: true }
+        : null,
       this.origin,
       true,
+      ground,
     );
     this.site3d.setElevation(top + 0.3);
-    this.site3d.setZone(this.flyrockZone, this.origin, 0.6);
+    this.site3d.setZone(this.flyrockZone, this.origin, 0.6, ground);
     const points = this.document.project.monitoringPoints ?? [];
     this.site3d.setMarkers(points, this.origin, 3);
     this.siteLabels3d.clear();

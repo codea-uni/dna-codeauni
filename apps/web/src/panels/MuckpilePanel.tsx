@@ -10,7 +10,7 @@ import {
   type TopographySurveyId,
 } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useSyncExternalStore } from 'react';
 import {
   calibrateMuckpileParams,
   compareMuckpile,
@@ -26,6 +26,7 @@ import { useUnits } from '../hooks/useUnits';
 import { useFormat, useT, type MessageKey } from '../i18n';
 import { getEngine, session } from '../session';
 import { useAnalysisStore, type MuckpileColorBy } from '../stores/analysisStore';
+import { onTopographyChange, topographyTin } from '../topography/session';
 import { useUiStore } from '../stores/uiStore';
 
 const ProfileChart = lazy(() => import('../charts/ProfileChart'));
@@ -54,6 +55,11 @@ export function MuckpilePanel() {
   const blast = useActiveBlast();
   const s = useAnalysisStore();
   const version = useAnalysisStore((x) => x.muckpileVersion);
+  // El banco usa un levantamiento que no está cargado: la pila saldría sobre un banco plano.
+  const terrainMissing = useSyncExternalStore(onTopographyChange, () => {
+    const id = session.document.project.blasts[0]?.bench.topographyId;
+    return !!id && !topographyTin(id);
+  });
   if (!blast) return null;
   const r = s.muckpile;
   const stale = r !== null && version !== session.document.version;
@@ -62,6 +68,11 @@ export function MuckpilePanel() {
       <section className="panel">
         <h2>{t('muckpile.title')}</h2>
         <p className="hint">{t('muckpile.intro')}</p>
+        {terrainMissing && (
+          <p className="hint warn" role="status">
+            {t('muckpile.terrainMissing')}
+          </p>
+        )}
         <MuckpileParamsForm blast={blast} />
         <button
           className="primary"

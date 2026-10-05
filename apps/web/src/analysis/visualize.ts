@@ -149,6 +149,7 @@ function muckpileView(s: ReturnType<typeof useAnalysisStore.getState>): Muckpile
       launchTime: r.blocks.launchTime,
       impactTime: r.blocks.impactTime,
       height: r.blocks.height,
+      topSlope: r.blocks.topSlope,
       size: session.document.project.blasts[0]?.calcParams.muckpile.blockSize ?? 1.5,
       colors: blockColors(r, s.muckpileColorBy, domains),
       frames: frames

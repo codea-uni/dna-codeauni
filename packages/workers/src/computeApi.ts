@@ -208,10 +208,12 @@ export const computeApi = {
     project: Project,
     blastId: BlastId,
     options: VibrationOptions,
+    /** Topografía del banco: cada celda se evalúa a la cota del terreno (receptor en superficie). */
+    tin: TinData | null = null,
   ): VibrationResult | null {
     const blast = project.blasts.find((b) => b.id === blastId);
     if (!blast) return null;
-    const r = computeVibration(project, blast, options);
+    const r = computeVibration(project, blast, options, tin ? SurfaceIndex.build(tin) : null);
     return transfer(r, [
       r.values.buffer,
       r.rgba.buffer,

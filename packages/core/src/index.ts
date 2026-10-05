@@ -13,6 +13,7 @@ export * from './geometry/snap';
 export * from './geometry/boundary';
 export * from './geometry/solid';
 export * from './geometry/face';
+export * from './geometry/drape';
 export * from './geometry/measure';
 export { PointIndex } from './geometry/spatialIndex';
 

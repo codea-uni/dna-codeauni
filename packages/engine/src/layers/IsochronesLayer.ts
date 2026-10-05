@@ -5,7 +5,7 @@ import {
   LineBasicMaterial,
   LineSegments,
 } from 'three';
-import type { Vec3 } from '@cronos/core';
+import type { Ground, Vec3 } from '@cronos/core';
 import { turbo } from './colormap';
 
 export interface IsochroneData {
@@ -33,18 +33,31 @@ export class IsochronesLayer {
     this.lines.renderOrder = 0;
   }
 
-  /** `z`: cota de render donde dibujar (0 en planta; la superficie del banco en 3D). */
-  set(data: IsochroneData | null, origin: Vec3, z = 0): void {
-    this.lines.position.z = z;
+  /**
+   * `z`: cota de render donde dibujar (0 en planta; la superficie del banco en 3D). Con `ground`
+   * (3D con levantamiento) cada extremo va sobre el terreno.
+   */
+  set(data: IsochroneData | null, origin: Vec3, z = 0, ground: Ground | null = null): void {
+    this.lines.position.z = ground ? 0 : z;
     const n = data ? data.levels.length : 0;
     const pos = new Float32Array(n * 6);
     const col = new Float32Array(n * 6);
     const c = new Color();
     for (let k = 0; k < n && data; k++) {
-      pos[k * 6] = (data.segments[k * 4] ?? 0) - origin.x;
-      pos[k * 6 + 1] = (data.segments[k * 4 + 1] ?? 0) - origin.y;
-      pos[k * 6 + 3] = (data.segments[k * 4 + 2] ?? 0) - origin.x;
-      pos[k * 6 + 4] = (data.segments[k * 4 + 3] ?? 0) - origin.y;
+      const x1 = data.segments[k * 4] ?? 0;
+      const y1 = data.segments[k * 4 + 1] ?? 0;
+      const x2 = data.segments[k * 4 + 2] ?? 0;
+      const y2 = data.segments[k * 4 + 3] ?? 0;
+      pos[k * 6] = x1 - origin.x;
+      pos[k * 6 + 1] = y1 - origin.y;
+      pos[k * 6 + 3] = x2 - origin.x;
+      pos[k * 6 + 4] = y2 - origin.y;
+      if (ground) {
+        const z1 = ground(x1, y1);
+        const z2 = ground(x2, y2);
+        pos[k * 6 + 2] = z1 === null ? z : z1 - origin.z + 0.4;
+        pos[k * 6 + 5] = z2 === null ? z : z2 - origin.z + 0.4;
+      }
       const span = data.max - data.min;
       turbo(span > 0 ? ((data.levels[k] ?? 0) - data.min) / span : 0.5, c);
       col.set([c.r, c.g, c.b, c.r, c.g, c.b], k * 6);

@@ -44,6 +44,8 @@ interface AnalysisState {
   energyMetric: EnergyMetric;
   /** Cota del plano [m]; null = mitad del banco. */
   energyElevation: number | null;
+  /** Con topografía: evaluar sobre el terreno (true) o en el plano a `energyElevation` (false). */
+  energyOnTerrain: boolean;
   energyCellSize: number;
   energyCutoff: number;
   energySigma: number;
@@ -139,6 +141,7 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   energyEnabled: false,
   energyMetric: 'nearFieldPpv',
   energyElevation: null,
+  energyOnTerrain: true,
   energyCellSize: 0,
   energyCutoff: 0,
   energySigma: 2,
@@ -178,7 +181,7 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   topoContourInterval: 0,
   topoShadeOpacity: 0.85,
   topoImageOpacity: 1,
-  topoOpacity3d: 0.55,
+  topoOpacity3d: 0.7,
   set: (patch) => {
     set(patch);
   },

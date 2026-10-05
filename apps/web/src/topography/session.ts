@@ -21,6 +21,7 @@ import {
   type SurveyInput,
   type SurveyParts,
   type TinData,
+  type Ground,
   type TopographySurvey,
 } from '@cronos/core';
 import type { TopographyViewData } from '@cronos/engine';
@@ -73,8 +74,13 @@ export function applyTopographyToEngine(): void {
   const engine = getEngine();
   if (!engine) return;
   const tins = new Map<string, TinData>();
-  for (const [id, s] of loaded) if (s.tin) tins.set(id, s.tin);
-  engine.setTopographyTins(tins);
+  const grounds = new Map<string, Ground>();
+  for (const [id, s] of loaded) {
+    if (s.tin) tins.set(id, s.tin);
+    const index = s.index;
+    if (index) grounds.set(id, (x, y) => index.elevationAt(x, y));
+  }
+  engine.setTopographyTins(tins, grounds);
   engine.setElevationSource(
     loaded.size > 0
       ? (x, y) => topographyElevation(x, y, session.document.project.blasts[0]?.bench.topographyId)

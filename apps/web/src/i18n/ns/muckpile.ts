@@ -4,6 +4,8 @@
  */
 export const es = {
   'muckpile.title': 'Desplazamiento de material',
+  'muckpile.terrainMissing':
+    'El banco usa un levantamiento que todavía no está cargado: la pila se calcularía sobre un banco plano. Espera a que cargue la topografía (o ábrela) antes de calcular.',
   'muckpile.intro':
     'Modelo cinemático (Yang y Kavetsky): cada bloque in situ sale al detonar su taladro, hacia la superficie libre de ese instante, vuela en tiro parabólico y se deposita esponjado; la pila se relaja al ángulo de reposo. Es un modelo empírico: calibrar con levantamientos de la pila del sitio (no reemplaza un DEM).',
   'muckpile.velocityModel': 'Velocidad inicial',
@@ -151,6 +153,8 @@ export const es = {
 };
 
 export const en = {
+  'muckpile.terrainMissing':
+    'The bench uses a survey that is not loaded yet: the muckpile would be computed on a flat bench. Wait for the topography to load (or open it) before computing.',
   'muckpile.title': 'Blast movement',
   'muckpile.intro':
     'Kinematic model (Yang and Kavetsky): each in-situ block leaves when its hole fires, towards the free surface at that moment, flies ballistically and is deposited with swell; the muckpile relaxes to the angle of repose. It is an empirical model: calibrate with site muckpile surveys (it does not replace DEM).',

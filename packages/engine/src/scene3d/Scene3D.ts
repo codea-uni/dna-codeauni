@@ -22,15 +22,21 @@ import {
 } from 'three';
 import {
   boundaryBench,
-  freeFaceQuads,
+  drapedFaceStrips,
+  drapedPolygonSurface,
+  drapePolyline,
+  drapeStep,
   holeSegments3d,
   holeToe,
+  polygonSignedArea,
   type Blast,
   type HoleId,
   type Project,
   type SegmentKind,
   type Vec3,
   type TinData,
+  type Ground,
+  type DrapedMesh,
 } from '@cronos/core';
 import { writeSegmentMatrix } from './segmentMatrix';
 
@@ -68,7 +74,7 @@ export interface Scene3DOptions {
 export const DEFAULT_3D_OPTIONS: Scene3DOptions = {
   radiusScale: 2,
   minRadius: 0.15,
-  surfaceOpacity: 0.55,
+  surfaceOpacity: 0.7,
 };
 
 export interface Bounds3 {
@@ -112,18 +118,22 @@ export class Scene3D {
   private colorSource: ((id: HoleId) => Color | null) | null = null;
 
   constructor() {
-    const ambient = new AmbientLight(0xffffff, 1.1);
-    const sun = new DirectionalLight(0xffffff, 1.6);
-    sun.position.set(0.4, -0.6, 1);
-    const fill = new DirectionalLight(0xffffff, 0.5);
-    fill.position.set(-0.5, 0.7, 0.3);
+    // Sol rasante (≈ 30° de elevación, desde el Sudeste) y poca luz ambiente: el relieve del
+    // levantamiento (crestas, pies, rugosidad) se lee como en un sombreado de colinas.
+    const ambient = new AmbientLight(0xffffff, 0.6);
+    const sun = new DirectionalLight(0xffffff, 2.2);
+    sun.position.set(0.6, -0.7, 0.55);
+    const fill = new DirectionalLight(0xffffff, 0.45);
+    fill.position.set(-0.5, 0.7, 0.4);
     this.root.add(ambient, sun, fill, this.dynamic, this.surfaces, this.faces, this.benchPlanes);
     this.root.visible = false;
   }
 
   /**
    * `tins`: triangulaciones de los levantamientos topográficos cargados, por id (D-16). La del
-   * banco (`bench.topographyId`) reemplaza el plano superior.
+   * banco (`bench.topographyId`) reemplaza el plano superior. `grounds`: cota del terreno de cada
+   * levantamiento (índice O(log n)): con ella el techo del perímetro, la cresta y las caras libres
+   * siguen el relieve real; sin ella se dibujan como antes, a la cota del banco.
    */
   rebuild(
     project: Project,
@@ -131,6 +141,7 @@ export class Scene3D {
     origin: Vec3,
     options: Scene3DOptions,
     tins: ReadonlyMap<string, TinData> = new Map(),
+    grounds: ReadonlyMap<string, Ground> = new Map(),
   ): void {
     this.clearDynamic();
     const explosiveIndex = new Map(project.library.explosives.map((e, i) => [e.id as string, i]));
@@ -221,87 +232,76 @@ export class Scene3D {
     // ---------------------------------------------------------------- Banco, caras y topografía
     const wanted = new Set<TinData>();
     for (const blast of blasts) {
-      const surface = blast.bench.topographyId ? tins.get(blast.bench.topographyId) : undefined;
+      const id = blast.bench.topographyId;
+      const surface = id ? tins.get(id) : undefined;
+      // Sin el TIN del banco no hay relieve que seguir: todo a la cota del banco, como antes.
+      const ground = surface && id ? (grounds.get(id) ?? null) : null;
       // Cada perímetro a la cota de su propio piso (pueden estar en bancos distintos del tajo).
       let outlines = blast.boundaries
         .filter((x) => x.polygon.length >= 3)
-        .map((x) => ({
-          poly: x.polygon.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y })),
-          bench: boundaryBench(blast.bench, x),
-        }));
+        .map((x) => ({ poly: x.polygon, bench: boundaryBench(blast.bench, x) }));
       if (outlines.length === 0 && Number.isFinite(b.minX)) {
         const pad = 5;
         outlines = [
           {
             poly: [
-              { x: b.minX - pad, y: b.minY - pad },
-              { x: b.maxX + pad, y: b.minY - pad },
-              { x: b.maxX + pad, y: b.maxY + pad },
-              { x: b.minX - pad, y: b.maxY + pad },
+              { x: b.minX - pad + origin.x, y: b.minY - pad + origin.y },
+              { x: b.maxX + pad + origin.x, y: b.minY - pad + origin.y },
+              { x: b.maxX + pad + origin.x, y: b.maxY + pad + origin.y },
+              { x: b.minX - pad + origin.x, y: b.maxY + pad + origin.y },
             ],
             bench: blast.bench,
           },
         ];
       }
       for (const { poly, bench } of outlines) {
-        const top = bench.floorElevation + bench.height - origin.z;
+        const topZ = bench.floorElevation + bench.height;
+        const relPoly = poly.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y }));
         const floor = bench.floorElevation - origin.z;
-        for (const p of poly) {
-          grow(p.x, p.y, top);
-          grow(p.x, p.y, floor);
+        for (const p of relPoly) grow(p.x, p.y, floor);
+        // Techo del banco: con terreno, la superficie real del levantamiento dentro del perímetro
+        // (encima del TIN, teñida); sin terreno, el plano a piso + H.
+        if (ground) {
+          const area = Math.abs(polygonSignedArea(poly));
+          const top = drapedPolygonSurface(poly, ground, drapeStep(area, 1, 20_000), topZ);
+          this.benchPlanes.add(this.drapedMesh(top, origin, 0x9a8a74, 0.4, grow));
+        } else {
+          const top = topZ - origin.z;
+          for (const p of relPoly) grow(p.x, p.y, top);
+          this.addFlat(relPoly, top, 0x6e7681, 0.28);
         }
-        if (!surface) this.addFlat(poly, top, 0x6e7681, 0.28);
-        this.addFlat(poly, floor, 0x30363d, 0.35);
+        // Piso: cota de diseño (plano por definición), solo como referencia.
+        this.addFlat(relPoly, floor, 0x30363d, ground ? 0.18 : 0.35);
+        // Contorno (cresta en las aristas libres) apoyado en el terreno.
+        const outline = drapePolyline(
+          poly.map((p) => ({ x: p.x, y: p.y, z: topZ })),
+          ground,
+          1,
+          0.15,
+          true,
+        );
         const lines: number[] = [];
-        poly.forEach((p, i) => {
-          const q = poly[(i + 1) % poly.length] ?? p;
-          lines.push(p.x, p.y, top, q.x, q.y, top);
-        });
+        for (let i = 0; i + 1 < outline.length; i++) {
+          const p = outline[i];
+          const q = outline[i + 1];
+          if (!p || !q) continue;
+          lines.push(
+            p.x - origin.x,
+            p.y - origin.y,
+            p.z - origin.z,
+            q.x - origin.x,
+            q.y - origin.y,
+            q.z - origin.z,
+          );
+        }
         this.addLines(lines, 0xff7b54);
       }
-      // Caras de talud (hacia donde se desplaza el material).
-      const faceVerts: number[] = [];
+      // Caras libres (talud, hacia donde se desplaza el material): siguen el terreno real.
       for (const boundary of blast.boundaries) {
-        for (const q of freeFaceQuads(boundary, boundaryBench(blast.bench, boundary))) {
-          const [a, bb, c, d] = q.map(rel) as [Vec3, Vec3, Vec3, Vec3];
-          faceVerts.push(
-            a.x,
-            a.y,
-            a.z,
-            bb.x,
-            bb.y,
-            bb.z,
-            c.x,
-            c.y,
-            c.z,
-            a.x,
-            a.y,
-            a.z,
-            c.x,
-            c.y,
-            c.z,
-            d.x,
-            d.y,
-            d.z,
-          );
-          for (const p of [c, d]) grow(p.x, p.y, p.z);
-        }
-      }
-      if (faceVerts.length > 0) {
-        const g = new BufferGeometry();
-        g.setAttribute('position', new Float32BufferAttribute(faceVerts, 3));
-        g.computeVertexNormals();
-        this.faces.add(
-          new Mesh(
-            g,
-            new MeshLambertMaterial({
-              color: 0x8a6a4a,
-              side: DoubleSide,
-              transparent: true,
-              opacity: 0.85,
-            }),
-          ),
-        );
+        if (boundary.freeFaceEdges.length === 0) continue;
+        const strips = drapedFaceStrips(boundary, boundaryBench(blast.bench, boundary), ground, 1);
+        if (strips.indices.length > 0)
+          this.faces.add(this.drapedMesh(strips, origin, 0x8a6a4a, 0.65, grow));
       }
       if (surface) wanted.add(surface);
     }
@@ -377,6 +377,51 @@ export class Scene3D {
     this.benchPlanes.add(mesh);
   }
 
+  /**
+   * Malla apoyada en el terreno (coordenadas de proyecto → render). Facetas planas para que se vea
+   * la rugosidad del levantamiento, y desplazamiento de polígono para dibujarse sobre el TIN sin
+   * parpadear (comparten la misma superficie).
+   */
+  private drapedMesh(
+    m: DrapedMesh,
+    origin: Vec3,
+    color: number,
+    opacity: number,
+    grow: (x: number, y: number, z: number) => void,
+  ): Mesh {
+    const n = m.positions.length / 3;
+    const pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const x = (m.positions[i * 3] ?? 0) - origin.x;
+      const y = (m.positions[i * 3 + 1] ?? 0) - origin.y;
+      const z = (m.positions[i * 3 + 2] ?? 0) - origin.z;
+      pos[i * 3] = x;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = z;
+      grow(x, y, z);
+    }
+    const g = new BufferGeometry();
+    g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    g.setIndex(new BufferAttribute(m.indices, 1));
+    g.computeVertexNormals();
+    const mesh = new Mesh(
+      g,
+      new MeshLambertMaterial({
+        color,
+        side: DoubleSide,
+        transparent: true,
+        opacity,
+        flatShading: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      }),
+    );
+    mesh.renderOrder = 2;
+    return mesh;
+  }
+
   private addLines(positions: number[], color: number): void {
     const g = new BufferGeometry();
     g.setAttribute('position', new Float32BufferAttribute(positions, 3));
@@ -438,14 +483,19 @@ export class Scene3D {
     });
     const keep = new Uint32Array(tri.length);
     let n = 0;
+    const within = (m: (typeof boxes)[number], x: number, y: number) =>
+      x >= m.minX && x <= m.maxX && y >= m.minY && y <= m.maxY && inside(x, y, m.poly);
     for (let t = 0; t + 2 < tri.length; t += 3) {
       const a = (tri[t] ?? 0) * 3;
       const b = (tri[t + 1] ?? 0) * 3;
       const c = (tri[t + 2] ?? 0) * 3;
-      const x = ((v[a] ?? 0) + (v[b] ?? 0) + (v[c] ?? 0)) / 3;
-      const y = ((v[a + 1] ?? 0) + (v[b + 1] ?? 0) + (v[c + 1] ?? 0)) / 3;
+      // Solo se quitan los triángulos enteros dentro de la roca volada: los que cruzan el borde
+      // quedan (se superponen un poco a los bloques) en vez de dejar huecos negros en el contorno.
       const cut = boxes.some(
-        (m) => x >= m.minX && x <= m.maxX && y >= m.minY && y <= m.maxY && inside(x, y, m.poly),
+        (m) =>
+          within(m, v[a] ?? 0, v[a + 1] ?? 0) &&
+          within(m, v[b] ?? 0, v[b + 1] ?? 0) &&
+          within(m, v[c] ?? 0, v[c + 1] ?? 0),
       );
       if (cut) continue;
       keep[n++] = tri[t] ?? 0;
@@ -525,6 +575,8 @@ export class Scene3D {
         transparent: !opaque,
         opacity: this.surfaceOpacity,
         depthWrite: opaque,
+        // Facetas del TIN tal cual: el relieve (rugosidad, crestas, pies) se lee con la luz.
+        flatShading: true,
       }),
     );
     // Después de los taladros (opacos): así se ven a través del terreno.

@@ -30,6 +30,11 @@ export interface MuckpileBlocks {
   volume: Float32Array;
   /** Alto del bloque in situ [m] (el lado en planta es `blockSize`). */
   height: Float32Array;
+  /**
+   * Pendiente del terreno sobre el bloque superior de cada columna [dz/dx, dz/dy, …] (0 en los
+   * demás y sin topografía): in situ, su cara de arriba sigue el relieve del levantamiento.
+   */
+  topSlope: Float32Array;
   /** Tamaño de fragmento representativo [m] (Kuz-Ram del taladro, FC-44); NaN sin datos. */
   fragmentSize: Float32Array;
   /** Índice del dominio en `blast.domains` (−1 = sin dominio). */

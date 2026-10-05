@@ -42,6 +42,11 @@ export interface BlocksData {
   launchTime: Float64Array;
   impactTime: Float64Array;
   height: Float32Array;
+  /**
+   * Pendiente del terreno sobre el bloque superior de cada columna [dz/dx, dz/dy, …]: in situ su
+   * cara de arriba sigue el relieve (ausente o 0 = caja recta).
+   */
+  topSlope?: Float32Array;
   /** Lado en planta [m]. */
   size: number;
   /** Color sRGB por bloque [r, g, b, …] (0–255). */
@@ -56,7 +61,9 @@ export interface BlocksData {
  */
 export class BlocksLayer {
   private readonly geometry = new BoxGeometry(1, 1, 1);
-  private readonly material = new MeshLambertMaterial({ color: 0xffffff });
+  private readonly material = tiltedTopMaterial();
+  /** Inclinación de la cara superior por instancia, en unidades locales de la caja. */
+  private tilt: InstancedBufferAttribute | null = null;
   mesh: InstancedMesh | null = null;
   private data: BlocksData | null = null;
   private origin: Vec3 = { x: 0, y: 0, z: 0 };
@@ -83,6 +90,8 @@ export class BlocksLayer {
       previous?.dispose();
       return;
     }
+    this.tilt = new InstancedBufferAttribute(new Float32Array(n * 2), 2).setUsage(DynamicDrawUsage);
+    this.geometry.setAttribute('aTilt', this.tilt);
     const mesh = new InstancedMesh(this.geometry, this.material, n);
     mesh.instanceMatrix.setUsage(DynamicDrawUsage);
     mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(n * 3), 3);
@@ -128,6 +137,7 @@ export class BlocksLayer {
     if (data.frames) this.updateFrames(t, data, data.frames);
     else this.updateKinematic(t, data);
     mesh.instanceMatrix.needsUpdate = true;
+    if (this.tilt) this.tilt.needsUpdate = true;
   }
 
   private updateKinematic(t: number | null, d: BlocksData): void {
@@ -135,6 +145,7 @@ export class BlocksLayer {
     if (!mesh) return;
     const o = this.origin;
     const arr = mesh.instanceMatrix.array as Float32Array;
+    const tilt = this.tilt?.array as Float32Array | undefined;
     this.q.identity();
     for (let k = 0; k < d.count; k++) {
       const launch = d.launchTime[k] ?? NaN;
@@ -142,6 +153,14 @@ export class BlocksLayer {
       let x: number;
       let y: number;
       let z: number;
+      // In situ (antes de salir) la cara de arriba sigue el terreno; en vuelo y en la pila, caja recta.
+      const inSitu = t !== null && (!Number.isFinite(launch) || t < launch);
+      if (tilt) {
+        // Pendiente del mundo → unidades locales de la caja (lado / alto).
+        const f = inSitu ? d.size / (d.height[k] ?? d.size) : 0;
+        tilt[2 * k] = (d.topSlope?.[2 * k] ?? 0) * f;
+        tilt[2 * k + 1] = (d.topSlope?.[2 * k + 1] ?? 0) * f;
+      }
       if (t === null) {
         x = d.destination[3 * k] ?? 0;
         y = d.destination[3 * k + 1] ?? 0;
@@ -213,11 +232,34 @@ export class BlocksLayer {
   }
 
   dispose(): void {
+    this.tilt = null;
     this.mesh?.dispose();
     this.mesh = null;
     this.geometry.dispose();
     this.material.dispose();
   }
+}
+
+/**
+ * Lambert con la cara superior inclinable por instancia (`aTilt`, pendiente en unidades locales):
+ * los vértices de arriba suben `aTilt · xy` y su normal se inclina igual. Con `aTilt` = 0 es la
+ * caja de siempre.
+ */
+function tiltedTopMaterial(): MeshLambertMaterial {
+  const material = new MeshLambertMaterial({ color: 0xffffff });
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec2 aTilt;')
+      .replace(
+        '#include <beginnormal_vertex>',
+        '#include <beginnormal_vertex>\nif (objectNormal.z > 0.5) objectNormal = normalize(vec3(-aTilt.x, -aTilt.y, 1.0));',
+      )
+      .replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\nif (position.z > 0.0) transformed.z += dot(aTilt, position.xy);',
+      );
+  };
+  return material;
 }
 
 function lerp(a: number, b: number, w: number): number {

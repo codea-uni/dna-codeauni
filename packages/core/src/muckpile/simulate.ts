@@ -333,6 +333,7 @@ export function simulateMuckpile(
   const bRel: number[] = [];
   const bFloorLayer: number[] = [];
   const bDist: number[] = [];
+  const bSlope: number[] = [];
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -348,8 +349,28 @@ export function simulateMuckpile(
   }
   const wedgeDone = new Set<number>();
   let wedgeVolume = 0;
+  /** Pendiente del terreno en (x, y) por diferencias centradas a media celda (acotada a ±1,5). */
+  const slopeAt = (x: number, y: number): [number, number] => {
+    const s = input.surface;
+    if (!s) return [0, 0];
+    const h = cell / 2;
+    const xa = s.elevationAt(x - h, y);
+    const xb = s.elevationAt(x + h, y);
+    const ya = s.elevationAt(x, y - h);
+    const yb = s.elevationAt(x, y + h);
+    if (xa === null || xb === null || ya === null || yb === null) return [0, 0];
+    const clamp = (v: number) => Math.max(-1.5, Math.min(1.5, v));
+    return [clamp((xb - xa) / (2 * h)), clamp((yb - ya) / (2 * h))];
+  };
   /** Parte una columna (piso → techo) en capas de ≈ `cell` y asigna cada bloque a su taladro. */
-  const addColumn = (cx: number, cy: number, area: number, floor: number, top: number): void => {
+  const addColumn = (
+    cx: number,
+    cy: number,
+    area: number,
+    floor: number,
+    top: number,
+    slope: [number, number] = [0, 0],
+  ): void => {
     const thick = top - floor;
     if (!(thick > 0.1 * cell)) return;
     const nz = Math.max(1, Math.round(thick / cell));
@@ -383,6 +404,7 @@ export function simulateMuckpile(
       bRel.push((z - floor) / thick);
       bFloorLayer.push(k === 0 ? 1 : 0);
       bDist.push(bestD);
+      bSlope.push(k === nz - 1 ? slope[0] : 0, k === nz - 1 ? slope[1] : 0);
     }
   };
   // Columnas: celdas de la retícula recortadas con cada perímetro (área exacta en el borde).
@@ -409,7 +431,27 @@ export function simulateMuckpile(
         if (area < 1e-6 * cell * cell) continue;
         const local = polygonCentroid(piece) ?? { x: 0.5 * cell, y: 0.5 * cell };
         const c = { x: local.x + i * cell, y: local.y + j * cell };
-        addColumn(c.x, c.y, area, f.floor, topAt(c.x, c.y, f));
+        // Techo: promedio del terreno en 3 × 3 puntos de la celda dentro del perímetro (en un
+        // plano es exacto con el centroide; en terreno rugoso el volumen sale más fiel).
+        let top = 0;
+        let samples = 0;
+        if (input.surface)
+          for (let q = 0; q < 3; q++)
+            for (let r = 0; r < 3; r++) {
+              const x = (i + (r + 0.5) / 3) * cell;
+              const y = (j + (q + 0.5) / 3) * cell;
+              if (!pointInPolygon(x, y, f.polygon)) continue;
+              top += topAt(x, y, f);
+              samples++;
+            }
+        addColumn(
+          c.x,
+          c.y,
+          area,
+          f.floor,
+          samples > 0 ? top / samples : topAt(c.x, c.y, f),
+          slopeAt(c.x, c.y),
+        );
       }
   }
   // Cuña del talud: celdas fuera de los perímetros, frente a una cara libre, hasta su pie.
@@ -451,7 +493,7 @@ export function simulateMuckpile(
         const cx = sx / areaW;
         const cy = sy / areaW;
         const top = floor + volW / areaW;
-        addColumn(cx, cy, areaW, floor, top);
+        addColumn(cx, cy, areaW, floor, top, slopeAt(cx, cy));
         if (top - floor > 0.1 * cell) wedgeVolume += volW;
         minX = Math.min(minX, cx - cell);
         minY = Math.min(minY, cy - cell);
@@ -645,6 +687,7 @@ export function simulateMuckpile(
     hole: Int32Array.from(bHole),
     volume: Float32Array.from(bVol),
     height: Float32Array.from(bh),
+    topSlope: Float32Array.from(bSlope),
     fragmentSize,
     domain,
   };
@@ -1227,6 +1270,7 @@ function emptyResult(warnings: MuckpileWarning[], t0: number): MuckpileResult {
       hole: new Int32Array(0),
       volume: new Float32Array(0),
       height: new Float32Array(0),
+      topSlope: new Float32Array(0),
       fragmentSize: new Float32Array(0),
       domain: new Int16Array(0),
     },

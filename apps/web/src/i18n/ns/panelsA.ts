@@ -165,6 +165,11 @@ export const es = {
   'energy.metric.ppv': 'PPV campo cercano (Holmberg–Persson)',
   'energy.metric.density': 'Densidad de carga',
   'energy.elevation': 'Cota del plano',
+  'energy.surface': 'Dónde se evalúa',
+  'energy.surface.terrain': 'Sobre el terreno (topografía)',
+  'energy.surface.plane': 'Plano horizontal a una cota',
+  'energy.surface.terrainHint':
+    'Cada punto del mapa se evalúa a la cota real del levantamiento (superficie del banco, zona del taco) y en 3D se dibuja sobre el relieve. La cota del plano solo se usa donde no hay topografía.',
   'energy.midBench': 'Usar mitad del banco ({v} {unit})',
   'energy.cellSize': 'Tamaño de celda',
   'energy.cutoff': 'Radio de influencia',
@@ -471,6 +476,11 @@ export const en = {
   'energy.metric.ppv': 'Near-field PPV (Holmberg–Persson)',
   'energy.metric.density': 'Charge density',
   'energy.elevation': 'Plane elevation',
+  'energy.surface': 'Evaluated on',
+  'energy.surface.terrain': 'The terrain (topography)',
+  'energy.surface.plane': 'A horizontal plane at an elevation',
+  'energy.surface.terrainHint':
+    'Each point of the map is evaluated at the real survey elevation (bench surface, stemming zone) and drawn on the relief in 3D. The plane elevation is only used where there is no topography.',
   'energy.midBench': 'Use mid-bench ({v} {unit})',
   'energy.cellSize': 'Cell size',
   'energy.cutoff': 'Influence radius',
