@@ -3,11 +3,8 @@ import { RectangleGoggles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { IconButton } from '../components/IconButton';
 import { useT } from '../i18n';
-import { serverMode } from '../server/api';
-import { useProjectSession } from '../server/projectSession';
 import { getEngine } from '../session';
 import { useUiStore } from '../stores/uiStore';
-import { joinRoom } from './room';
 
 // ponytail: escala del framebuffer por modelo de visor; medir en el Quest 2 y ajustar (D-19).
 const framebufferScale = () => (navigator.userAgent.includes('Quest 2') ? 0.8 : 1);
@@ -15,14 +12,13 @@ const framebufferScale = () => (navigator.userAgent.includes('Quest 2') ? 0.8 : 
 /**
  * Un solo botón «Entrar en VR» en la pestaña Vista; los escenarios (maqueta sobre la mesa, dentro
  * de la voladura, maqueta aislada) se eligen dentro del visor. La sesión es AR si el visor la
- * admite (passthrough para ver la mesa real); si no, VR. Con un proyecto del servidor abierto se
- * entra a su sala: quien esté en el mismo proyecto se ve como avatar.
+ * admite (passthrough para ver la mesa real); si no, VR. La sala del proyecto la mantiene
+ * `bindRoom` (también desde la web).
  */
 export function XrButtons() {
   const t = useT();
   const [mode, setMode] = useState<XrMode | null>(null);
   const [active, setActive] = useState(false);
-  const project = useProjectSession((s) => s.current);
 
   useEffect(() => {
     let alive = true;
@@ -44,21 +40,10 @@ export function XrButtons() {
     const engine = getEngine();
     if (!engine) return;
     // Sin await antes de enterXr: el navegador exige el gesto del usuario para abrir la sesión.
-    engine
-      .enterXr(mode, { framebufferScale: framebufferScale() })
-      .then(() => {
-        if (!serverMode || !project) return;
-        const leave = joinRoom(engine, project.projectId);
-        const off = engine.on('xrSession', (m) => {
-          if (m) return;
-          leave();
-          off();
-        });
-      })
-      .catch((e: unknown) => {
-        const message = e instanceof Error ? e.message : String(e);
-        useUiStore.getState().notify(t('xr.error', { message }), 'error');
-      });
+    engine.enterXr(mode, { framebufferScale: framebufferScale() }).catch((e: unknown) => {
+      const message = e instanceof Error ? e.message : String(e);
+      useUiStore.getState().notify(t('xr.error', { message }), 'error');
+    });
   };
 
   return (

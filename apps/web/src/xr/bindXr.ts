@@ -1,5 +1,5 @@
 import { diameterToDisplay, lengthToDisplay, type HoleId } from '@cronos/core';
-import type { Engine, XrRow, XrView } from '@cronos/engine';
+import type { Engine, XrLine, XrRow, XrView } from '@cronos/engine';
 import { playDemoSequence } from '../demo/runtime';
 import { formatNumber, t, useLocale } from '../i18n';
 import { session } from '../session';
@@ -27,47 +27,63 @@ export function bindXr(engine: Engine): () => void {
   let lastMenu = '';
   let lastInfo = '';
 
-  const menuRows = (): XrRow[] => {
+  /**
+   * Menú compacto: botones agrupados por fila (escenario, maqueta, capas, secuencia, sala). Aparece
+   * al mirar la mano izquierda.
+   */
+  const menuRows = (): XrLine[] => {
     const s = store();
     const l = xrLayers();
     const room = useXrRoom.getState();
-    const rows: XrRow[] = [];
-    if (room.role === 'presenter') rows.push({ label: t('xr.room.presenting', { n: room.peers }) });
-    else if (room.role === 'viewer')
-      rows.push({
-        label: room.presenter
-          ? t('xr.room.following', { name: room.presenter })
-          : t('xr.room.noPresenter'),
-      });
+    const lines: XrLine[] = [];
+    if (room.role === 'presenter')
+      lines.push({ label: t('xr.room.presenting', { n: room.peers }) });
+    else if (room.role === 'viewer' && room.presenter)
+      lines.push({ label: t('xr.room.following', { name: room.presenter }) });
     // Escenarios: maqueta sobre la mesa real, dentro de la voladura o maqueta aislada.
-    rows.push(
+    lines.push([
       { id: 'view:table', label: t('xr.menu.table'), active: view === 'table' },
       { id: 'view:walk', label: t('xr.menu.walk'), active: view === 'walk' },
       { id: 'view:model', label: t('xr.menu.model'), active: view === 'model' },
-    );
-    if (view === 'table') rows.push({ id: 'place', label: t('xr.menu.place') });
+    ]);
     if (view !== 'walk')
-      rows.push(
+      lines.push([
+        { id: 'zoomOut', label: t('xr.menu.zoomOut') },
         { label: t('xr.menu.scale', { n: formatNumber(Math.round(1 / scale)) }) },
         { id: 'zoomIn', label: t('xr.menu.zoomIn') },
-        { id: 'zoomOut', label: t('xr.menu.zoomOut') },
-      );
-    rows.push(
-      { id: 'energy', label: t('xr.menu.energy'), active: l.energy },
-      { id: 'vibration', label: t('xr.menu.vibration'), active: l.vibration },
-      { id: 'labels', label: t('xr.menu.labels'), active: l.labels },
-      { id: 'pile', label: t('xr.menu.pile'), active: l.pile },
-      { id: 'play', label: t(s.sequencePlaying ? 'xr.menu.pause' : 'xr.menu.play') },
-      { id: 'reset', label: t('xr.menu.reset') },
+        ...(view === 'table' ? [{ id: 'place', label: t('xr.menu.place') }] : []),
+      ]);
+    lines.push(
+      [
+        { id: 'energy', label: t('xr.menu.energy'), active: l.energy },
+        { id: 'vibration', label: t('xr.menu.vibration'), active: l.vibration },
+      ],
+      [
+        { id: 'labels', label: t('xr.menu.labels'), active: l.labels },
+        { id: 'pile', label: t('xr.menu.pile'), active: l.pile },
+      ],
+      [
+        {
+          id: 'play',
+          label: t(s.sequencePlaying ? 'xr.menu.pause' : 'xr.menu.play'),
+          active: s.sequencePlaying,
+        },
+        { id: 'reset', label: t('xr.menu.reset') },
+      ],
+      [
+        ...(room.role
+          ? [
+              {
+                id: 'present',
+                label: t(room.role === 'presenter' ? 'xr.menu.stopPresenting' : 'xr.menu.present'),
+                active: room.role === 'presenter',
+              },
+            ]
+          : []),
+        { id: 'exit', label: t('xr.menu.exit') },
+      ],
     );
-    if (room.role)
-      rows.push({
-        id: 'present',
-        label: t(room.role === 'presenter' ? 'xr.menu.stopPresenting' : 'xr.menu.present'),
-        active: room.role === 'presenter',
-      });
-    rows.push({ id: 'exit', label: t('xr.menu.exit') });
-    return rows;
+    return lines;
   };
 
   const infoRows = (): XrRow[] => {

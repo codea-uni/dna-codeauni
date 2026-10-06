@@ -7,6 +7,7 @@ import { applyTopographyToEngine } from '../topography/session';
 import { useUiStore } from '../stores/uiStore';
 import { Legend3D } from './Legend3D';
 import { bindXr } from '../xr/bindXr';
+import { bindRoom } from '../xr/room';
 
 /**
  * Monta el canvas y crea el Engine una sola vez. React no vuelve a tocar el render:
@@ -38,6 +39,7 @@ export function Viewport() {
     const unsubscribeLocale = useLocale.subscribe(applyText);
     const unbindVisualization = bindVisualization(engine);
     const unbindXr = bindXr(engine);
+    const unbindRoom = bindRoom(engine);
 
     const unsubscribeUi = useUiStore.subscribe((state, prev) => {
       if (state.tool !== prev.tool) engine.setTool(state.tool);
@@ -76,6 +78,7 @@ export function Viewport() {
       unsubscribeLocale();
       unbindVisualization();
       unbindXr();
+      unbindRoom();
       for (const off of offs) off();
       setEngine(null);
       engine.dispose();

@@ -10,7 +10,8 @@ import {
 import type { HoleId } from '@cronos/core';
 import type { Engine, XrAvatar } from '@cronos/engine';
 import { muckpileEnd, sequenceTimes } from '../analysis/visualize';
-import { API_BASE } from '../server/api';
+import { API_BASE, serverMode } from '../server/api';
+import { useProjectSession } from '../server/projectSession';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { applyXrLayers, useXrRoom, xrLayers } from './xrState';
 
@@ -19,6 +20,8 @@ const SYNC_DRIFT = 0.1;
 /** El presentador reenvía su estado cada tanto aunque no cambie (quien se desincronizó vuelve). */
 const STATE_EVERY_MS = 1000;
 const RETRY_MS = 2000;
+/** Sin poses durante este tiempo, la persona se oculta (salió a la planta o cerró la vista 3D). */
+const STALE_MS = 2000;
 
 const store = () => useAnalysisStore.getState();
 
@@ -63,9 +66,9 @@ export function followSequence(engine: Engine, seq: RoomState['sequence']): void
 }
 
 /**
- * Entra a la sala del proyecto abierto mientras dura la sesión XR (D-19): manda la propia pose a
- * ROOM_POSE_HZ y dibuja a los demás como avatares (a su escala: gigantes sobre la maqueta o
- * chicos dentro de ella). Quien presenta comparte la secuencia, las capas y el taladro; los demás
+ * Entra a la sala del proyecto abierto (D-19), desde la web o desde el visor: manda la propia pose
+ * a ROOM_POSE_HZ (la cabeza en el visor, la cámara en la vista 3D) y dibuja a los demás como
+ * avatares, a su escala: gigantes sobre la maqueta o chicos dentro de ella. Quien presenta comparte la secuencia, las capas y el taladro; los demás
  * lo siguen. Devuelve la función para salir.
  */
 export function joinRoom(engine: Engine, projectId: string): () => void {
@@ -80,7 +83,7 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
   let lastSent = '';
   let lastLayers = '';
   let lastHole: string | null = null;
-  const peers = new Map<string, RoomPeer & { pose?: RoomPose }>();
+  const peers = new Map<string, RoomPeer & { pose?: RoomPose; seen?: number }>();
 
   const send = (m: RoomClientMessage) => {
     if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));
@@ -94,8 +97,9 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
   };
   const drawAvatars = () => {
     const list: XrAvatar[] = [];
+    const now = performance.now();
     for (const p of peers.values())
-      if (p.pose)
+      if (p.pose && now - (p.seen ?? 0) < STALE_MS)
         list.push({
           id: p.id,
           name: p.name,
@@ -104,10 +108,11 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
           hands: p.pose.hands.map((h) => ({ p: vec(h.p), q: h.q })),
           scale: p.pose.scale,
         });
-    engine.setXrAvatars(list);
+    engine.setAvatars(list);
   };
   const applyState = (state: RoomState) => {
-    if (role() !== 'viewer') return;
+    // Desde la web no se sigue al presentador: solo se lo ve (no se le cambia la vista a nadie).
+    if (role() !== 'viewer' || !engine.xrMode) return;
     // Capas y taladro solo cuando el presentador los cambia: entre medio, cada uno mira lo suyo.
     const layers = JSON.stringify(state.layers);
     if (layers !== lastLayers) {
@@ -156,7 +161,10 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
           break;
         case 'pose': {
           const p = peers.get(m.id);
-          if (p) p.pose = m.pose;
+          if (p) {
+            p.pose = m.pose;
+            p.seen = performance.now();
+          }
           drawAvatars();
           break;
         }
@@ -181,7 +189,7 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
     };
   };
   const shareState = (force: boolean) => {
-    if (role() !== 'presenter') return;
+    if (role() !== 'presenter' || !engine.xrMode) return;
     const state = current();
     // El tiempo avanza solo: cambia la clave solo lo que el presentador decide.
     const key = JSON.stringify({ ...state, sequence: { ...state.sequence, t: null } });
@@ -191,7 +199,7 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
   };
 
   const poseTimer = setInterval(() => {
-    const pose = engine.getXrPose();
+    const pose = engine.getViewerPose();
     if (pose)
       send({
         type: 'pose',
@@ -204,6 +212,7 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
   }, 1000 / ROOM_POSE_HZ);
   const stateTimer = setInterval(() => {
     shareState(true);
+    drawAvatars();
   }, STATE_EVERY_MS);
   const offs = [
     useAnalysisStore.subscribe(() => {
@@ -212,6 +221,11 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
     engine.on('xrSelectHole', (id) => {
       hole = id;
       shareState(false);
+    }),
+    // Al salir del visor se deja de presentar; la sala sigue (desde la web se ve a los demás).
+    engine.on('xrSession', (mode) => {
+      if (!mode && role() === 'presenter') send({ type: 'release' });
+      drawAvatars();
     }),
   ];
 
@@ -228,10 +242,33 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
     clearInterval(stateTimer);
     for (const off of offs) off();
     ws?.close();
-    engine.setXrAvatars([]);
+    engine.setAvatars([]);
     useXrRoom.setState({ role: null, presenter: null, peers: 0 });
   };
 }
 
 const vec = ([x, y, z]: readonly [number, number, number]) => ({ x, y, z });
 const arr = (v: { x: number; y: number; z: number }): [number, number, number] => [v.x, v.y, v.z];
+
+/**
+ * Mantiene la sala del proyecto del servidor que esté abierto (D-19): se entra al abrirlo y se sale
+ * al cerrarlo o cambiar de proyecto, haya o no sesión XR.
+ */
+export function bindRoom(engine: Engine): () => void {
+  let projectId: string | null = null;
+  let leave: (() => void) | null = null;
+  const sync = () => {
+    const next = serverMode ? (useProjectSession.getState().current?.projectId ?? null) : null;
+    if (next === projectId) return;
+    leave?.();
+    leave = null;
+    projectId = next;
+    if (next) leave = joinRoom(engine, next);
+  };
+  sync();
+  const off = useProjectSession.subscribe(sync);
+  return () => {
+    off();
+    leave?.();
+  };
+}
