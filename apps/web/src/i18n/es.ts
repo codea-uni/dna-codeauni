@@ -14,6 +14,7 @@ import * as platform from './ns/platform';
 import * as projects from './ns/projects';
 import * as topography from './ns/topography';
 import * as workspace from './ns/workspace';
+import * as xr from './ns/xr';
 
 export const es = {
   ...ai.es,
@@ -28,6 +29,7 @@ export const es = {
   ...projects.es,
   ...topography.es,
   ...workspace.es,
+  ...xr.es,
   'toolbar.documentation': 'Documentación',
   'workspace.loading': 'Cargando documentación…',
   'toolbar.newProject': 'Proyecto nuevo',

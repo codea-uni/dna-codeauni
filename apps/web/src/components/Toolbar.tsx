@@ -59,6 +59,7 @@ import { t as translate, useT, type MessageKey } from '../i18n';
 import { exampleText } from '../i18n/coreText';
 import { tabAvailable, useWorkflow } from '../hooks/useWorkflow';
 import { WORKSPACE_PANELS, openWorkspacePanel } from './WorkspaceWindows';
+import { XrButtons } from '../xr/XrButtons';
 
 export interface ToolDef {
   name: ToolName;
@@ -535,6 +536,7 @@ export function Toolbar() {
             />
           </div>
         )}
+        {ribbonTab === 'view' && <XrButtons />}
         {(ribbonTab === 'tools' || ribbonTab === 'timing') &&
           TOOLS.filter((_, i) => (ribbonTab === 'timing' ? i === 2 : i !== 2)).map((group, g) => (
             <div
