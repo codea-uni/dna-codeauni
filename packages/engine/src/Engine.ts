@@ -86,8 +86,8 @@ import { PanTool } from './tools/PanTool';
 import { SelectTool } from './tools/SelectTool';
 import type { Tool, ToolContext, ToolName, ToolPointer } from './tools/types';
 import { XrSession, type XrMode, type XrStartOptions, type XrView } from './xr/XrSession';
-import type { XrRow } from './xr/XrPanel';
-import type { XrAvatar, XrTransform } from './xr/Avatars';
+import type { XrLine, XrRow } from './xr/XrPanel';
+import { Avatars, type XrAvatar, type XrTransform } from './xr/Avatars';
 import { defaultEngineText, type EngineText } from './text';
 
 export interface EngineOptions {
@@ -180,6 +180,8 @@ export interface SnapSettings {
   tolerancePx: number;
 }
 
+/** Avatares en la vista 3D: cabeza de ~1 % de la distancia de la cámara como mínimo. */
+const DESKTOP_AVATAR_SIZE = 1.2;
 /** Distancia a partir de la cual se recentra el origen de render (precisión float32). */
 const REBASE_DISTANCE_M = 5_000;
 /** Separación mínima en pantalla entre taladros para mostrar etiquetas. */
@@ -303,6 +305,9 @@ export class Engine {
   private readonly overlay = new OverlayLayer();
   private readonly picker: HolePicker;
   private xr: XrSession | null = null;
+  /** Personas de la sala vistas desde la vista 3D del escritorio (fuera de una sesión XR). */
+  private readonly avatars3d = new Avatars();
+  private avatarList: readonly XrAvatar[] = [];
 
   private readonly document: DocumentStore;
   private readonly selection: SelectionStore;
@@ -381,6 +386,7 @@ export class Engine {
       this.muckpileBefore3d.root,
       this.muckpileVectors3d.root,
       this.muckpileBlocksRoot,
+      this.avatars3d.root,
     );
     this.muckpileBlocks.onMeshChange = (mesh, previous) => {
       if (previous) this.muckpileBlocksRoot.remove(previous);
@@ -416,6 +422,8 @@ export class Engine {
       () => {
         this.flushPointer();
         this.xr?.update();
+        if (!this.xr && this.viewMode === '3d' && this.avatarList.length > 0)
+          this.avatars3d.faceViewer(this.camera3d.position);
         this.advanceSequence();
         this.renderer.render(this.scene, this.viewMode === '3d' ? this.camera3d : this.camera);
       },
@@ -661,6 +669,8 @@ export class Engine {
     }
     this.camera3d.near = 0.05;
     this.camera3d.far = 20_000;
+    this.avatars3d.set([], 1);
+    xr.setAvatars(this.avatarList);
     this.loop.setXr(this.renderer);
     this.events.emit('xrSession', mode);
   }
@@ -670,7 +680,7 @@ export class Engine {
   }
 
   /** Botones del menú de la muñeca (textos ya traducidos). */
-  setXrMenu(rows: readonly XrRow[]): void {
+  setXrMenu(rows: readonly XrLine[]): void {
     this.xr?.setMenu(rows);
   }
 
@@ -693,26 +703,56 @@ export class Engine {
     this.xr?.zoom(factor);
   }
 
-  /** Pose de este visor en coordenadas de proyecto (para la sala multiusuario), o null. */
-  getXrPose(): { head: XrTransform; hands: XrTransform[]; scale: number } | null {
-    const pose = this.xr?.pose();
-    if (!pose) return null;
+  /**
+   * Dónde está y hacia dónde mira quien usa este navegador, en coordenadas de proyecto (para la
+   * sala): la cabeza y los controles en una sesión XR, o la cámara de la vista 3D (escala 1, sin
+   * manos). En planta no hay pose: los demás dejan de verlo.
+   */
+  getViewerPose(): { head: XrTransform; hands: XrTransform[]; scale: number } | null {
     const o = this.origin;
     const abs = (t: XrTransform): XrTransform => ({
       p: { x: t.p.x + o.x, y: t.p.y + o.y, z: t.p.z + o.z },
       q: t.q,
     });
-    return { head: abs(pose.head), hands: pose.hands.map(abs), scale: pose.scale };
+    const pose = this.xr?.pose();
+    if (pose) return { head: abs(pose.head), hands: pose.hands.map(abs), scale: pose.scale };
+    if (this.viewMode !== '3d') return null;
+    const c = this.camera3d;
+    return {
+      head: abs({
+        p: { x: c.position.x, y: c.position.y, z: c.position.z },
+        q: c.quaternion.toArray(),
+      }),
+      hands: [],
+      scale: 1,
+    };
   }
 
-  /** Otras personas de la sala, en coordenadas de proyecto. */
-  setXrAvatars(list: readonly XrAvatar[]): void {
+  /**
+   * Otras personas de la sala, en coordenadas de proyecto. En XR las dibuja la sesión; en la vista
+   * 3D del escritorio se ven en la escena con un tamaño mínimo según la distancia de la cámara, para
+   * que quien está dentro de la voladura se vea aunque se mire el tajo completo.
+   */
+  setAvatars(list: readonly XrAvatar[]): void {
     const o = this.origin;
     const rel = (t: XrTransform): XrTransform => ({
       p: { x: t.p.x - o.x, y: t.p.y - o.y, z: t.p.z - o.z },
       q: t.q,
     });
-    this.xr?.setAvatars(list.map((a) => ({ ...a, head: rel(a.head), hands: a.hands.map(rel) })));
+    this.avatarList = list.map((a) => ({ ...a, head: rel(a.head), hands: a.hands.map(rel) }));
+    if (this.xr) {
+      this.xr.setAvatars(this.avatarList);
+      return;
+    }
+    this.applyDesktopAvatars();
+  }
+
+  /** Avatares en la vista 3D: escala de «visor» equivalente a la distancia de la órbita. */
+  private applyDesktopAvatars(): void {
+    // ponytail: el tamaño se actualiza con cada pose recibida (15 Hz), no con cada zoom.
+    const viewerScale = DESKTOP_AVATAR_SIZE / Math.max(1, this.orbit?.distance ?? 100);
+    this.avatars3d.set(this.xr ? [] : this.avatarList, viewerScale);
+    if (this.viewMode === '3d') this.loop.invalidate();
   }
 
   /** Marca un taladro como si se hubiera apuntado (el que eligió el presentador). */
@@ -798,6 +838,7 @@ export class Engine {
       },
       onEnd: () => {
         this.xr = null;
+        this.applyDesktopAvatars();
         this.loop.setXr(null);
         this.applyCamera3d();
         this.events.emit('xrSession', null);

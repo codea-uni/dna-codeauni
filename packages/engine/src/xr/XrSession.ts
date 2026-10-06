@@ -36,7 +36,7 @@ import {
 } from './placement';
 import { MIN_CLEARANCE, flySpeed, flyVelocity, snapTurn } from './locomotion';
 import { rayGround } from './rayGround';
-import { XrPanel, type XrRow } from './XrPanel';
+import { XrPanel, type XrLine, type XrRow } from './XrPanel';
 import { Avatars, type XrAvatar, type XrTransform } from './Avatars';
 import { pickTable, type XrSurface } from './planes';
 
@@ -102,6 +102,9 @@ const LABEL_SIZE = 0.35;
 const RAY_LENGTH = 5;
 /** Separación entre el control y el borde inferior de su panel [m]. */
 const PANEL_GAP = 0.06;
+/** Ángulo entre la mirada y la mano izquierda para abrir y cerrar el menú [rad] (con histéresis). */
+const MENU_OPEN = (35 * Math.PI) / 180;
+const MENU_CLOSE = (55 * Math.PI) / 180;
 /** Cuánto se espera a que el visor detecte una mesa antes de dejar la maqueta en el aire [ms]. */
 const AUTO_PLACE_MS = 4000;
 /** La maqueta ocupa a lo sumo esta fracción del lado menor de la mesa. */
@@ -131,7 +134,9 @@ export class XrSession {
   private readonly world = new Group();
   private placement: XrPlacement = { scale: 1, yaw: 0, offset: { x: 0, y: 0, z: 0 } };
   private currentView: XrView = 'walk';
-  private readonly menu = new XrPanel(0.24);
+  private readonly menu = new XrPanel(0.3);
+  /** El menú se abre al mirar la mano izquierda y se cierra al dejar de mirarla. */
+  private menuOpen = false;
   private readonly info = new XrPanel(0.28);
   private readonly hands: Hand[] = [];
   private readonly beam: Mesh<CylinderGeometry, MeshBasicMaterial>;
@@ -252,7 +257,7 @@ export class XrSession {
     void this.session?.end();
   }
 
-  setMenu(rows: readonly XrRow[]): void {
+  setMenu(rows: readonly XrLine[]): void {
     this.menu.setRows(rows);
   }
 
@@ -369,8 +374,9 @@ export class XrSession {
 
     this.backdrop.position.copy(head);
     this.avatars.faceViewer(head);
-    this.placePanel(this.menu, left, head);
-    this.placePanel(this.info, right, head);
+    this.updateMenuOpen(left, head, forward);
+    this.placePanel(this.menu, left, head, this.menuOpen);
+    this.placePanel(this.info, right, head, true);
     this.menu.mesh.updateMatrixWorld();
     this.updateRay(right);
     if (left) left.line.visible = false;
@@ -434,9 +440,9 @@ export class XrSession {
    * Panel sobre un control y siempre de frente a la cabeza (pegado al control se ve espejado al
    * girar la mano). Sin control, el panel se oculta.
    */
-  private placePanel(panel: XrPanel, hand: Hand | undefined, head: Vector3): void {
+  private placePanel(panel: XrPanel, hand: Hand | undefined, head: Vector3, open: boolean): void {
     const mesh = panel.mesh;
-    if (!hand?.source) {
+    if (!hand?.source || !open) {
       mesh.visible = false;
       return;
     }
@@ -444,6 +450,21 @@ export class XrSession {
     hand.grip.getWorldPosition(mesh.position);
     mesh.position.y += PANEL_GAP + mesh.scale.y / 2;
     mesh.lookAt(head);
+  }
+
+  /**
+   * Menú dinámico: aparece al mirar la mano izquierda (como un reloj) y se va al dejar de mirarla,
+   * salvo mientras el rayo lo apunta. Así no tapa la vista.
+   */
+  private updateMenuOpen(left: Hand | undefined, head: Vector3, forward: Vector3): void {
+    if (!left?.source) {
+      this.menuOpen = false;
+      return;
+    }
+    const toHand = new Vector3().setFromMatrixPosition(left.grip.matrixWorld).sub(head).normalize();
+    const angle = toHand.angleTo(forward);
+    if (angle < MENU_OPEN) this.menuOpen = true;
+    else if (angle > MENU_CLOSE && this.menuHover === null) this.menuOpen = false;
   }
 
   private requestHitTest(source: XRInputSource): void {
@@ -505,7 +526,7 @@ export class XrSession {
     this.groundHit = null;
     this.groundDist = Infinity;
     if (!hand?.source) {
-      this.menuHover = this.menu.hover(-1);
+      this.menuHover = this.menu.hover(0, -1);
       return;
     }
     hand.line.visible = true;
@@ -515,7 +536,7 @@ export class XrSession {
     const menuHit = this.menu.mesh.visible
       ? this.raycaster.intersectObject(this.menu.mesh)[0]
       : undefined;
-    this.menuHover = this.menu.hover(menuHit?.uv?.y ?? -1);
+    this.menuHover = this.menu.hover(menuHit?.uv?.x ?? 0, menuHit?.uv?.y ?? -1);
     let length = menuHit?.distance ?? RAY_LENGTH;
     if (!menuHit) {
       const s = this.placement.scale;

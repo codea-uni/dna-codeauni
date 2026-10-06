@@ -9,23 +9,35 @@ import {
 } from 'three';
 
 /**
- * Fila de un panel XR. Con `id` es un botón (el rayo lo resalta y el gatillo emite la acción); sin
- * `id`, una línea de texto. Los textos ya vienen traducidos de la web (`t()`), el engine solo dibuja.
+ * Celda de un panel XR. Con `id` es un botón (el rayo lo resalta y el gatillo emite la acción); sin
+ * `id`, texto. Los textos ya vienen traducidos de la web (`t()`), el engine solo dibuja.
  */
 export interface XrRow {
   id?: string;
   label: string;
-  /** Botón encendido (capa visible, secuencia en curso…). */
+  /** Botón encendido (capa visible, escenario elegido…). */
   active?: boolean;
 }
 
-const CANVAS_W = 512;
+/** Línea del panel: una celda a todo el ancho o varias lado a lado (botones agrupados). */
+export type XrLine = XrRow | readonly XrRow[];
+
+const CANVAS_W = 640;
 const ROW_PX = 64;
+const GAP = 6;
+
+const cellsOf = (line: XrLine): readonly XrRow[] => ('label' in line ? [line] : line);
 
 /** Fila bajo la coordenada `v` de la textura (0 abajo, 1 arriba), o −1 fuera del panel. */
 export function rowAt(v: number, rows: number): number {
   if (v < 0 || v > 1 || rows <= 0) return -1;
   return Math.min(rows - 1, Math.floor((1 - v) * rows));
+}
+
+/** Celda bajo la coordenada `u` (0 izquierda, 1 derecha) en una fila de `cells` celdas. */
+export function cellAt(u: number, cells: number): number {
+  if (u < 0 || u > 1 || cells <= 0) return -1;
+  return Math.min(cells - 1, Math.floor(u * cells));
 }
 
 /**
@@ -36,8 +48,8 @@ export class XrPanel {
   readonly mesh: Mesh<PlaneGeometry, MeshBasicMaterial>;
   private readonly canvas = document.createElement('canvas');
   private readonly texture: CanvasTexture;
-  private rows: readonly XrRow[] = [];
-  private hovered = -1;
+  private lines: readonly (readonly XrRow[])[] = [];
+  private hovered = '';
 
   /** `width` = ancho del panel [m]; el alto sale de la cantidad de filas. */
   constructor(private readonly width: number) {
@@ -55,23 +67,30 @@ export class XrPanel {
   }
 
   get hasRows(): boolean {
-    return this.rows.length > 0;
+    return this.lines.length > 0;
   }
 
-  setRows(rows: readonly XrRow[]): void {
-    this.rows = rows;
-    this.hovered = -1;
-    this.mesh.visible = rows.length > 0;
+  /** Celdas actuales, fila por fila (para depurar y para las pruebas en el emulador). */
+  get rows(): readonly (readonly XrRow[])[] {
+    return this.lines;
+  }
+
+  setRows(lines: readonly XrLine[]): void {
+    this.lines = lines.map(cellsOf);
+    this.hovered = '';
+    this.mesh.visible = lines.length > 0;
     this.draw();
   }
 
-  /** Resalta el botón bajo `v` (o ninguno con −1); devuelve su id. */
-  hover(v: number): string | null {
-    const i = v < 0 ? -1 : rowAt(v, this.rows.length);
-    const id = this.rows[i]?.id;
-    const next = id === undefined ? -1 : i;
-    if (next !== this.hovered) {
-      this.hovered = next;
+  /** Resalta el botón bajo (u, v) (fuera del panel con v < 0); devuelve su id. */
+  hover(u: number, v: number): string | null {
+    const r = v < 0 ? -1 : rowAt(v, this.lines.length);
+    const line = this.lines[r] ?? [];
+    const c = cellAt(u, line.length);
+    const id = line[c]?.id;
+    const key = id === undefined ? '' : `${r}:${c}`;
+    if (key !== this.hovered) {
+      this.hovered = key;
       this.draw();
     }
     return id ?? null;
@@ -84,7 +103,7 @@ export class XrPanel {
   }
 
   private draw(): void {
-    const n = this.rows.length;
+    const n = this.lines.length;
     if (n === 0) return;
     const h = n * ROW_PX;
     if (this.canvas.height !== h) {
@@ -95,19 +114,31 @@ export class XrPanel {
     const ctx = this.canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, CANVAS_W, h);
-    ctx.fillStyle = 'rgba(16, 20, 28, 0.88)';
-    ctx.fillRect(0, 0, CANVAS_W, h);
+    ctx.fillStyle = 'rgba(16, 20, 28, 0.9)';
+    ctx.beginPath();
+    ctx.roundRect(0, 0, CANVAS_W, h, 18);
+    ctx.fill();
     ctx.textBaseline = 'middle';
-    this.rows.forEach((row, i) => {
-      const y = i * ROW_PX;
-      if (row.id !== undefined) {
-        ctx.fillStyle =
-          i === this.hovered ? '#3b82f6' : row.active ? 'rgba(59,130,246,0.35)' : '#1f2937';
-        ctx.fillRect(8, y + 6, CANVAS_W - 16, ROW_PX - 12);
-      }
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `${row.id === undefined && i === 0 ? 'bold ' : ''}30px system-ui, sans-serif`;
-      ctx.fillText(row.label, 24, y + ROW_PX / 2, CANVAS_W - 48);
+    this.lines.forEach((cells, r) => {
+      const y = r * ROW_PX;
+      const w = (CANVAS_W - GAP) / cells.length;
+      cells.forEach((cell, c) => {
+        const x = GAP + c * w;
+        const cw = w - GAP;
+        if (cell.id !== undefined) {
+          ctx.fillStyle =
+            this.hovered === `${r}:${c}` ? '#3b82f6' : cell.active ? '#1e3a8a' : '#1f2937';
+          ctx.beginPath();
+          ctx.roundRect(x, y + GAP, cw, ROW_PX - 2 * GAP, 12);
+          ctx.fill();
+        }
+        // Texto suelto a todo el ancho (títulos, fichas) a la izquierda; botones y celdas, centrados.
+        const alone = cells.length === 1 && cell.id === undefined;
+        ctx.fillStyle = cell.id === undefined ? '#cbd5e1' : '#ffffff';
+        ctx.font = `${alone && r === 0 ? 'bold ' : ''}28px system-ui, sans-serif`;
+        ctx.textAlign = alone ? 'left' : 'center';
+        ctx.fillText(cell.label, alone ? x + 18 : x + cw / 2, y + ROW_PX / 2, cw - 16);
+      });
     });
     this.texture.needsUpdate = true;
     this.mesh.scale.set(this.width, (this.width * h) / CANVAS_W, 1);
