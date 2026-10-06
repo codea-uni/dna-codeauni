@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { dirToModel, headingOf, moveBy, placeAt, toModel, toXr, turnAbout } from './placement';
+import {
+  dirToModel,
+  dragPlacement,
+  headingOf,
+  moveBy,
+  placeAt,
+  toModel,
+  toXr,
+  turnAbout,
+} from './placement';
 
 // Convención (D-19, CLAUDE.md regla 3): modelo X Este, Y Norte, Z arriba; WebXR Y arriba, −Z adelante.
 const id = { scale: 1, yaw: 0, offset: { x: 0, y: 0, z: 0 } };
@@ -51,5 +60,18 @@ describe('ubicación del modelo en XR', () => {
   it('rumbo de la cabeza: 0 mirando a −Z, π/2 mirando a −X', () => {
     expect(headingOf({ x: 0, y: 0, z: -1 })).toBeCloseTo(0, 12);
     expect(headingOf({ x: -1, y: 0, z: 0 })).toBeCloseTo(Math.PI / 2, 12);
+  });
+
+  it('arrastrar: el modelo sigue al control y gira alrededor de la mano', () => {
+    const p0 = { scale: 1 / 1000, yaw: 0, offset: { x: 0, y: 0.9, z: -1 } };
+    const hand = { pos: { x: 0.2, y: 1, z: -0.6 }, yaw: 0 };
+    const grabbed = toModel(p0, hand.pos);
+    // Mover la mano 0,5 m a la derecha y 0,1 m arriba: el punto tomado va con ella.
+    const moved = dragPlacement(p0, hand, { pos: { x: 0.7, y: 1.1, z: -0.6 }, yaw: 0 });
+    close(toXr(moved, grabbed), { x: 0.7, y: 1.1, z: -0.6 });
+    // Girar la muñeca 90° en el lugar: el punto tomado no se mueve y el modelo gira 90°.
+    const turned = dragPlacement(p0, hand, { pos: hand.pos, yaw: Math.PI / 2 });
+    close(toXr(turned, grabbed), hand.pos);
+    expect(turned.yaw).toBeCloseTo(Math.PI / 2, 12);
   });
 });

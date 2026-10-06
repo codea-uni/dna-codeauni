@@ -1,5 +1,8 @@
 import {
+  BackSide,
   BoxGeometry,
+  Color,
+  Matrix4,
   BufferGeometry,
   CylinderGeometry,
   Float32BufferAttribute,
@@ -13,6 +16,7 @@ import {
   Raycaster,
   RingGeometry,
   type Scene,
+  SphereGeometry,
   Vector3,
   type WebGLRenderer,
   type XRGripSpace,
@@ -21,6 +25,7 @@ import {
 import type { HoleId, Vec3 } from '@cronos/core';
 import {
   dirToModel,
+  dragPlacement,
   headingOf,
   moveBy,
   placeAt,
@@ -33,11 +38,15 @@ import { MIN_CLEARANCE, flySpeed, flyVelocity, snapTurn } from './locomotion';
 import { rayGround } from './rayGround';
 import { XrPanel, type XrRow } from './XrPanel';
 import { Avatars, type XrAvatar, type XrTransform } from './Avatars';
+import { pickTable, type XrSurface } from './planes';
 
 /** Visor inmersivo (`immersive-vr`) o realidad aumentada con passthrough (`immersive-ar`). */
 export type XrMode = 'vr' | 'ar';
-/** A escala real dentro del tajo, o maqueta sobre una mesa. */
-export type XrView = 'walk' | 'table';
+/**
+ * Escenario dentro del visor: maqueta sobre la mesa real (passthrough si la sesión es AR), dentro de
+ * la voladura a escala real, o maqueta aislada frente al usuario con fondo oscuro.
+ */
+export type XrView = 'table' | 'walk' | 'model';
 
 interface Box3 {
   minX: number;
@@ -93,6 +102,10 @@ const LABEL_SIZE = 0.35;
 const RAY_LENGTH = 5;
 /** Separación entre el control y el borde inferior de su panel [m]. */
 const PANEL_GAP = 0.06;
+/** Cuánto se espera a que el visor detecte una mesa antes de dejar la maqueta en el aire [ms]. */
+const AUTO_PLACE_MS = 4000;
+/** La maqueta ocupa a lo sumo esta fracción del lado menor de la mesa. */
+const TABLE_FILL = 0.85;
 
 const v3 = (v: Vector3): Vec3 => ({ x: v.x, y: v.y, z: v.z });
 
@@ -125,8 +138,17 @@ export class XrSession {
   private beamAt: Vec3 | null = null;
   private readonly marker: Mesh<RingGeometry, MeshBasicMaterial>;
   private readonly reticle: Mesh<RingGeometry, MeshBasicMaterial>;
+  /**
+   * Fondo opaco en una sesión AR: con passthrough three limpia la pantalla en transparente aunque la
+   * escena tenga color de fondo, así que una esfera alrededor de la cabeza tapa la habitación.
+   */
+  private readonly backdrop: Mesh<SphereGeometry, MeshBasicMaterial>;
   private hitSource: XRHitTestSource | null = null;
   private teleporting = false;
+  /** Maqueta tomada con un control (agarre): sigue su posición y su giro. */
+  private grab: { hand: Hand; from: { pos: Vec3; yaw: number }; p0: XrPlacement } | null = null;
+  /** Hasta cuándo se busca una mesa para apoyar la maqueta (null = no se busca). */
+  private autoPlaceUntil: number | null = null;
   private snapArmed = true;
   private last = 0;
   private menuHover: string | null = null;
@@ -178,6 +200,19 @@ export class XrSession {
       new MeshBasicMaterial({ color: 0xffffff }),
     );
     this.reticle.visible = false;
+    const bg = host.scene.background;
+    this.backdrop = new Mesh(
+      new SphereGeometry(10_000, 16, 8),
+      new MeshBasicMaterial({
+        color: bg instanceof Color ? bg : 0x10141c,
+        side: BackSide,
+        depthTest: false,
+        depthWrite: false,
+      }),
+    );
+    this.backdrop.renderOrder = -1000;
+    this.backdrop.frustumCulled = false;
+    this.backdrop.visible = false;
     this.world.add(this.beam, this.marker, this.avatars.root);
   }
 
@@ -194,7 +229,7 @@ export class XrSession {
     if (!xr) throw new Error('WebXR no disponible');
     // requestSession debe ir antes de cualquier await: necesita el gesto del usuario.
     const session = await xr.requestSession(this.mode === 'vr' ? 'immersive-vr' : 'immersive-ar', {
-      optionalFeatures: ['local-floor', 'hit-test', 'hand-tracking'],
+      optionalFeatures: ['local-floor', 'hit-test', 'plane-detection', 'hand-tracking'],
     });
     const { renderer, scene, model } = this.host;
     renderer.xr.enabled = true;
@@ -205,15 +240,11 @@ export class XrSession {
     this.session = session;
     session.addEventListener('end', this.onSessionEnd);
 
-    scene.add(this.world, this.reticle, this.menu.mesh, this.info.mesh);
+    scene.add(this.world, this.reticle, this.menu.mesh, this.info.mesh, this.backdrop);
     this.world.add(model);
-    if (this.mode === 'ar') {
-      scene.background = null;
-      renderer.setClearAlpha(0);
-    }
     for (let i = 0; i < 2; i++) this.addHand(i);
     this.last = performance.now();
-    this.setView(this.mode === 'ar' ? 'table' : 'walk');
+    this.setView('table');
   }
 
   /** Termina la sesión; la limpieza corre en el evento `end` (también si sale el sistema). */
@@ -229,30 +260,40 @@ export class XrSession {
     this.info.setRows(rows);
   }
 
-  /** A escala real (parado en el aire al Sur de los taladros) o maqueta frente al usuario. */
+  /**
+   * Cambia de escenario. A escala real se empieza en el aire al Sur de los taladros; las maquetas,
+   * frente al usuario a la altura de una mesa. Sobre la mesa real, además, se busca una mesa
+   * detectada por el visor para apoyarla sola.
+   */
   setView(view: XrView): void {
     this.currentView = view;
+    this.grab = null;
     const focus = this.host.focus();
     if (view === 'walk') {
       const start = { x: focus.x, y: focus.y - START_BACK, z: focus.z + START_UP };
       this.placement = placeAt(start, { x: 0, y: 0, z: 0 }, 0, 1);
     } else {
-      const b = this.host.bounds();
-      const size = b ? Math.max(b.maxX - b.minX, b.maxY - b.minY, 1) : 200;
-      const scale = TABLE_SIZE / size;
       this.placement = placeAt(
         this.tableAnchor(),
         { x: 0, y: TABLE_HEIGHT, z: -TABLE_DISTANCE },
         0,
-        scale,
+        TABLE_SIZE / this.modelSize(),
       );
     }
+    this.autoPlaceUntil = view === 'table' ? performance.now() + AUTO_PLACE_MS : null;
+    this.applyBackground();
     this.applyScale();
+  }
+
+  /** Vuelve a buscar una mesa del cuarto y apoya la maqueta en ella (escenario de la mesa). */
+  placeOnTable(): void {
+    if (this.currentView !== 'table') this.setView('table');
+    else this.autoPlaceUntil = performance.now() + AUTO_PLACE_MS;
   }
 
   /** Acerca (> 1) o aleja (< 1) la maqueta sin mover su centro sobre la mesa. */
   zoom(factor: number): void {
-    if (this.currentView !== 'table') return;
+    if (this.currentView === 'walk') return;
     const anchor = this.tableAnchor();
     const at = toXr(this.placement, anchor);
     this.placement = placeAt(anchor, at, this.placement.yaw, this.placement.scale * factor);
@@ -271,7 +312,7 @@ export class XrSession {
   }
 
   /** Cabeza y controles de quien usa este visor, en coordenadas de render (para la sala). */
-  pose(): { head: XrTransform; hands: XrTransform[] } | null {
+  pose(): { head: XrTransform; hands: XrTransform[]; scale: number } | null {
     if (!this.session) return null;
     // q_modelo = q_ubicación⁻¹ · q_xr
     const inv = this.placementQ.clone().invert();
@@ -287,7 +328,7 @@ export class XrSession {
       const h = this.hand(side);
       return h?.source ? [toT(h.grip)] : [];
     });
-    return { head: toT(this.host.renderer.xr.getCamera()), hands };
+    return { head: toT(this.host.renderer.xr.getCamera()), hands, scale: this.placement.scale };
   }
 
   /** Avance por cuadro: locomoción, rayos, menú y retícula. Lo llama el loop del engine. */
@@ -321,8 +362,12 @@ export class XrSession {
     this.snapArmed = snap.armed;
     if (snap.angle !== 0) this.placement = turnAbout(this.placement, v3(head), snap.angle);
     if (this.currentView === 'walk') this.keepAboveGround(v3(head));
+    if (this.grab)
+      this.placement = dragPlacement(this.grab.p0, this.grab.from, this.gripPose(this.grab.hand));
+    if (this.autoPlaceUntil !== null) this.tryAutoPlace(v3(head));
     this.applyPlacement();
 
+    this.backdrop.position.copy(head);
     this.avatars.faceViewer(head);
     this.placePanel(this.menu, left, head);
     this.placePanel(this.info, right, head);
@@ -371,10 +416,15 @@ export class XrSession {
     ray.addEventListener('select', () => {
       if (hand === this.hand('right')) this.onSelect();
     });
+    // Agarre: a escala real, teletransporte (mano derecha); con una maqueta, tomarla y moverla.
     ray.addEventListener('squeezestart', () => {
-      if (hand === this.hand('right') && this.currentView === 'walk') this.teleporting = true;
+      if (this.currentView !== 'walk') {
+        this.grab = { hand, from: this.gripPose(hand), p0: this.placement };
+        this.autoPlaceUntil = null;
+      } else if (hand === this.hand('right')) this.teleporting = true;
     });
     ray.addEventListener('squeezeend', () => {
+      if (this.grab?.hand === hand) this.grab = null;
       if (hand === this.hand('right')) this.finishTeleport();
     });
     scene.add(ray, grip);
@@ -498,7 +548,7 @@ export class XrSession {
     const source = this.hitSource;
     const ref = this.host.renderer.xr.getReferenceSpace();
     if (!source || !ref || this.currentView !== 'table') return;
-    const pose = this.host.renderer.xr.getFrame().getHitTestResults(source)[0]?.getPose(ref);
+    const pose = this.frame()?.getHitTestResults(source)[0]?.getPose(ref);
     if (!pose) return;
     const p = pose.transform.position;
     this.reticle.position.set(p.x, p.y, p.z);
@@ -517,6 +567,85 @@ export class XrSession {
     if (g === null || m.z >= g + MIN_CLEARANCE) return;
     const lift = (g + MIN_CLEARANCE - m.z) * this.placement.scale;
     this.placement = moveBy(this.placement, { x: 0, y: lift, z: 0 });
+  }
+
+  /** Cuadro XR en curso; three lo da en null en los primeros cuadros (su tipo no lo dice). */
+  private frame(): XRFrame | null {
+    return this.host.renderer.xr.getFrame();
+  }
+
+  /** Posición y rumbo de un control (espacio XR). */
+  private gripPose(hand: Hand): { pos: Vec3; yaw: number } {
+    const pos = new Vector3().setFromMatrixPosition(hand.grip.matrixWorld);
+    const fwd = new Vector3(0, 0, -1).transformDirection(hand.grip.matrixWorld);
+    return { pos: v3(pos), yaw: headingOf(v3(fwd)) };
+  }
+
+  /**
+   * Apoya la maqueta en la mesa que detecta el visor (`plane-detection`; el Quest usa la
+   * configuración del espacio). Mientras no aparezca ninguna, la maqueta queda en el aire.
+   */
+  private tryAutoPlace(head: Vec3): void {
+    if (this.autoPlaceUntil !== null && performance.now() > this.autoPlaceUntil) {
+      this.autoPlaceUntil = null;
+      return;
+    }
+    const frame = this.frame();
+    const ref = this.host.renderer.xr.getReferenceSpace();
+    const planes = frame?.detectedPlanes;
+    if (!frame || !ref || !planes || planes.size === 0) return;
+    const surfaces: XrSurface[] = [];
+    for (const plane of planes) {
+      if (plane.orientation !== 'horizontal') continue;
+      const pose = frame.getPose(plane.planeSpace, ref);
+      if (!pose) continue;
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      for (const q of plane.polygon) {
+        minX = Math.min(minX, q.x);
+        maxX = Math.max(maxX, q.x);
+        minZ = Math.min(minZ, q.z);
+        maxZ = Math.max(maxZ, q.z);
+      }
+      if (!Number.isFinite(minX)) continue;
+      const c = new Vector3((minX + maxX) / 2, 0, (minZ + maxZ) / 2).applyMatrix4(
+        new Matrix4().fromArray(pose.transform.matrix),
+      );
+      surfaces.push({
+        center: v3(c),
+        width: maxX - minX,
+        depth: maxZ - minZ,
+        ...(plane.semanticLabel ? { label: plane.semanticLabel } : {}),
+      });
+    }
+    const table = pickTable(surfaces, head);
+    if (!table) return;
+    const fit = Math.min(TABLE_SIZE, TABLE_FILL * Math.min(table.width, table.depth));
+    this.placement = placeAt(
+      this.tableAnchor(),
+      table.center,
+      this.placement.yaw,
+      fit / this.modelSize(),
+    );
+    this.autoPlaceUntil = null;
+    this.applyScale();
+  }
+
+  /** Lado mayor de la escena en planta [m del modelo]. */
+  private modelSize(): number {
+    const b = this.host.bounds();
+    return b ? Math.max(b.maxX - b.minX, b.maxY - b.minY, 1) : 200;
+  }
+
+  /** Passthrough solo en la maqueta sobre la mesa real (sesión AR); el resto, fondo oscuro. */
+  private applyBackground(): void {
+    const { scene, renderer } = this.host;
+    const see = this.mode === 'ar' && this.currentView === 'table';
+    scene.background = see ? null : this.saved.background;
+    renderer.setClearAlpha(see ? 0 : this.saved.clearAlpha);
+    this.backdrop.visible = this.mode === 'ar' && !see;
   }
 
   /** Centro de la maqueta: centro de la escena apoyado en su punto más bajo. */
@@ -576,7 +705,9 @@ export class XrSession {
     this.avatars.dispose();
     this.world.remove(model);
     this.saved.parent?.add(model);
-    scene.remove(this.world, this.reticle, this.menu.mesh, this.info.mesh);
+    scene.remove(this.world, this.reticle, this.menu.mesh, this.info.mesh, this.backdrop);
+    this.backdrop.geometry.dispose();
+    this.backdrop.material.dispose();
     scene.background = this.saved.background;
     renderer.setClearAlpha(this.saved.clearAlpha);
     this.host.setLabelSize(0);

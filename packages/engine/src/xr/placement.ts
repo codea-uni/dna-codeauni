@@ -79,3 +79,29 @@ export function placeAt(model: Vec3, at: Vec3, yaw: number, scale: number): XrPl
 export function headingOf(forward: Vec3): number {
   return Math.atan2(-forward.x, -forward.z);
 }
+
+/**
+ * Arrastre con un control: el modelo sigue la traslación del control y su giro horizontal (sin
+ * inclinarse), como si se tomara con la mano. `from` es el control al empezar y `p0` la ubicación
+ * de ese momento; `yaw` = rumbo del control (headingOf).
+ */
+export function dragPlacement(
+  p0: XrPlacement,
+  from: { pos: Vec3; yaw: number },
+  to: { pos: Vec3; yaw: number },
+): XrPlacement {
+  const d = to.yaw - from.yaw;
+  const c = Math.cos(d);
+  const s = Math.sin(d);
+  const dx = p0.offset.x - from.pos.x;
+  const dz = p0.offset.z - from.pos.z;
+  return {
+    ...p0,
+    yaw: p0.yaw + d,
+    offset: {
+      x: to.pos.x + dx * c + dz * s,
+      y: p0.offset.y + to.pos.y - from.pos.y,
+      z: to.pos.z - dx * s + dz * c,
+    },
+  };
+}

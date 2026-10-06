@@ -683,13 +683,18 @@ export class Engine {
     this.xr?.setView(view);
   }
 
+  /** Apoya la maqueta en una mesa del cuarto detectada por el visor. */
+  placeXrOnTable(): void {
+    this.xr?.placeOnTable();
+  }
+
   /** Acerca (> 1) o aleja (< 1) la maqueta. */
   zoomXr(factor: number): void {
     this.xr?.zoom(factor);
   }
 
   /** Pose de este visor en coordenadas de proyecto (para la sala multiusuario), o null. */
-  getXrPose(): { head: XrTransform; hands: XrTransform[] } | null {
+  getXrPose(): { head: XrTransform; hands: XrTransform[]; scale: number } | null {
     const pose = this.xr?.pose();
     if (!pose) return null;
     const o = this.origin;
@@ -697,7 +702,7 @@ export class Engine {
       p: { x: t.p.x + o.x, y: t.p.y + o.y, z: t.p.z + o.z },
       q: t.q,
     });
-    return { head: abs(pose.head), hands: pose.hands.map(abs) };
+    return { head: abs(pose.head), hands: pose.hands.map(abs), scale: pose.scale };
   }
 
   /** Otras personas de la sala, en coordenadas de proyecto. */

@@ -25,7 +25,12 @@ export interface XrAvatar {
   color: number;
   head: XrTransform;
   hands: readonly XrTransform[];
+  /** Escala con la que esa persona ve el modelo (1 = dentro de la voladura; 1/1000 = maqueta). */
+  scale: number;
 }
+
+/** Tamaño mínimo de un avatar para quien mira [fracción del tamaño humano]: se ve aunque sea chico. */
+const MIN_SIZE = 0.1;
 
 const PALETTE = [0xf97316, 0x22c55e, 0x3b82f6, 0xe11d48, 0xa855f7, 0xeab308, 0x14b8a6, 0xf472b6];
 
@@ -37,8 +42,9 @@ interface Entry {
 }
 
 /**
- * Avatares simples (cabeza con visor, controles y nombre) dentro del grupo del modelo. Se dibujan
- * en tamaño humano para quien mira (escala 1/s), también sobre la maqueta.
+ * Avatares simples (cabeza con visor, controles y nombre) dentro del grupo del modelo, al tamaño de
+ * quien los envía: quien mira la maqueta es un gigante asomado sobre el tajo para quien está dentro
+ * de la voladura, y quien está dentro es una figura chica sobre la maqueta (D-19).
  */
 export class Avatars {
   readonly root = new Group();
@@ -50,8 +56,9 @@ export class Avatars {
 
   set(list: readonly XrAvatar[], viewerScale: number): void {
     const seen = new Set<string>();
-    const k = 1 / viewerScale;
     for (const a of list) {
+      // Metros del modelo por metro humano: 1/escala de quien envía, con un mínimo visible.
+      const k = Math.max(1 / a.scale, MIN_SIZE / viewerScale);
       seen.add(a.id);
       const e = this.entries.get(a.id) ?? this.create(a);
       if (e.name !== a.name) {
