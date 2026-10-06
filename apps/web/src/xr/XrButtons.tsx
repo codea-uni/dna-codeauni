@@ -1,11 +1,10 @@
 import { Engine, type XrMode } from '@cronos/engine';
-import type { RoomRole } from '@cronos/api';
-import { Presentation, RectangleGoggles, Table2, Users } from 'lucide-react';
+import { RectangleGoggles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { IconButton } from '../components/IconButton';
 import { useT } from '../i18n';
-import { useProjectSession } from '../server/projectSession';
 import { serverMode } from '../server/api';
+import { useProjectSession } from '../server/projectSession';
 import { getEngine } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { joinRoom } from './room';
@@ -14,40 +13,42 @@ import { joinRoom } from './room';
 const framebufferScale = () => (navigator.userAgent.includes('Quest 2') ? 0.8 : 1);
 
 /**
- * Botones «Entrar en VR» y «Maqueta en AR» de la pestaña Vista: solo aparecen si el navegador
- * (p. ej. el del Meta Quest) puede abrir la sesión. Se entra directo: los mapas y la pila que
- * terminan de calcularse después se ven aparecer dentro del visor.
+ * Un solo botón «Entrar en VR» en la pestaña Vista; los escenarios (maqueta sobre la mesa, dentro
+ * de la voladura, maqueta aislada) se eligen dentro del visor. La sesión es AR si el visor la
+ * admite (passthrough para ver la mesa real); si no, VR. Con un proyecto del servidor abierto se
+ * entra a su sala: quien esté en el mismo proyecto se ve como avatar.
  */
 export function XrButtons() {
   const t = useT();
-  const [supported, setSupported] = useState<Record<XrMode, boolean>>({ vr: false, ar: false });
-  const [active, setActive] = useState<XrMode | null>(null);
+  const [mode, setMode] = useState<XrMode | null>(null);
+  const [active, setActive] = useState(false);
   const project = useProjectSession((s) => s.current);
 
   useEffect(() => {
     let alive = true;
-    void Promise.all([Engine.isXrSupported('vr'), Engine.isXrSupported('ar')]).then(([vr, ar]) => {
-      if (alive) setSupported({ vr, ar });
+    void Promise.all([Engine.isXrSupported('ar'), Engine.isXrSupported('vr')]).then(([ar, vr]) => {
+      if (alive) setMode(ar ? 'ar' : vr ? 'vr' : null);
     });
-    const off = getEngine()?.on('xrSession', setActive);
+    const off = getEngine()?.on('xrSession', (m) => {
+      setActive(m !== null);
+    });
     return () => {
       alive = false;
       off?.();
     };
   }, []);
 
-  if (!supported.vr && !supported.ar) return null;
+  if (!mode) return null;
 
-  /** Con `role`, además entra a la sala de la versión abierta (multiusuario remoto). */
-  const enter = (mode: XrMode, role?: RoomRole) => {
+  const enter = () => {
     const engine = getEngine();
     if (!engine) return;
     // Sin await antes de enterXr: el navegador exige el gesto del usuario para abrir la sesión.
     engine
       .enterXr(mode, { framebufferScale: framebufferScale() })
       .then(() => {
-        if (!role || !project) return;
-        const leave = joinRoom(engine, project.projectId, project.base.number, role);
+        if (!serverMode || !project) return;
+        const leave = joinRoom(engine, project.projectId);
         const off = engine.on('xrSession', (m) => {
           if (m) return;
           leave();
@@ -59,7 +60,6 @@ export function XrButtons() {
         useUiStore.getState().notify(t('xr.error', { message }), 'error');
       });
   };
-  const room = serverMode && project !== null && supported.vr;
 
   return (
     <div
@@ -68,52 +68,14 @@ export function XrButtons() {
       role="group"
       aria-label={t('xr.group')}
     >
-      {supported.vr && (
-        <IconButton
-          showLabel
-          icon={RectangleGoggles}
-          label={t('xr.enterVr')}
-          hint={t('xr.hint')}
-          active={active === 'vr'}
-          onClick={() => {
-            enter('vr');
-          }}
-        />
-      )}
-      {room && (
-        <IconButton
-          showLabel
-          icon={Presentation}
-          label={t('xr.present')}
-          hint={t('xr.presentHint')}
-          onClick={() => {
-            enter('vr', 'presenter');
-          }}
-        />
-      )}
-      {room && (
-        <IconButton
-          showLabel
-          icon={Users}
-          label={t('xr.join')}
-          hint={t('xr.joinHint')}
-          onClick={() => {
-            enter('vr', 'viewer');
-          }}
-        />
-      )}
-      {supported.ar && (
-        <IconButton
-          showLabel
-          icon={Table2}
-          label={t('xr.enterAr')}
-          hint={t('xr.hintAr')}
-          active={active === 'ar'}
-          onClick={() => {
-            enter('ar');
-          }}
-        />
-      )}
+      <IconButton
+        showLabel
+        icon={RectangleGoggles}
+        label={t('xr.enterVr')}
+        hint={t('xr.hint')}
+        active={active}
+        onClick={enter}
+      />
     </div>
   );
 }

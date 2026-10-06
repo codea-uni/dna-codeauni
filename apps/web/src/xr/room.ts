@@ -22,14 +22,19 @@ const RETRY_MS = 2000;
 
 const store = () => useAnalysisStore.getState();
 
-function roomUrl(projectId: string, version: number, role: RoomRole): string {
+function roomUrl(projectId: string): string {
   const url = new URL(
-    `${API_BASE || '/api'}/rooms/${encodeURIComponent(projectId)}/${version}/ws`,
+    `${API_BASE || '/api'}/rooms/${encodeURIComponent(projectId)}/ws`,
     location.href,
   );
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  url.searchParams.set('role', role);
   return url.href;
+}
+
+/** Pedir o soltar el rol de presentador en la sala abierta (botón del menú del visor). */
+let presentInActiveRoom: ((on: boolean) => void) | null = null;
+export function setPresenting(on: boolean): void {
+  presentInActiveRoom?.(on);
 }
 
 /** La secuencia propia sigue la del presentador (se corrige solo si se aleja más de SYNC_DRIFT). */
@@ -58,20 +63,19 @@ export function followSequence(engine: Engine, seq: RoomState['sequence']): void
 }
 
 /**
- * Entra a la sala de la versión abierta mientras dura la sesión XR (D-19): manda la propia pose a
- * ROOM_POSE_HZ, dibuja a los demás como avatares y, según el rol, comparte o sigue el estado del
- * presentador (secuencia, capas y taladro). Devuelve la función para salir.
+ * Entra a la sala del proyecto abierto mientras dura la sesión XR (D-19): manda la propia pose a
+ * ROOM_POSE_HZ y dibuja a los demás como avatares (a su escala: gigantes sobre la maqueta o
+ * chicos dentro de ella). Quien presenta comparte la secuencia, las capas y el taladro; los demás
+ * lo siguen. Devuelve la función para salir.
  */
-export function joinRoom(
-  engine: Engine,
-  projectId: string,
-  version: number,
-  role: RoomRole,
-): () => void {
+export function joinRoom(engine: Engine, projectId: string): () => void {
   let ws: WebSocket | null = null;
   let closed = false;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let presenterId: string | null = null;
+  let you: string | null = null;
+  const role = (): RoomRole =>
+    presenterId !== null && presenterId === you ? 'presenter' : 'viewer';
   let hole: HoleId | null = null;
   let lastSent = '';
   let lastLayers = '';
@@ -83,7 +87,7 @@ export function joinRoom(
   };
   const publishStatus = () => {
     useXrRoom.setState({
-      role,
+      role: role(),
       presenter: presenterId ? (peers.get(presenterId)?.name ?? null) : null,
       peers: peers.size,
     });
@@ -98,11 +102,12 @@ export function joinRoom(
           color: p.color,
           head: { p: vec(p.pose.head.p), q: p.pose.head.q },
           hands: p.pose.hands.map((h) => ({ p: vec(h.p), q: h.q })),
+          scale: p.pose.scale,
         });
     engine.setXrAvatars(list);
   };
   const applyState = (state: RoomState) => {
-    if (role !== 'viewer') return;
+    if (role() !== 'viewer') return;
     // Capas y taladro solo cuando el presentador los cambia: entre medio, cada uno mira lo suyo.
     const layers = JSON.stringify(state.layers);
     if (layers !== lastLayers) {
@@ -117,7 +122,7 @@ export function joinRoom(
   };
 
   const connect = () => {
-    const socket = new WebSocket(roomUrl(projectId, version, role));
+    const socket = new WebSocket(roomUrl(projectId));
     ws = socket;
     socket.onmessage = (e: MessageEvent<string>) => {
       let raw: unknown;
@@ -133,6 +138,7 @@ export function joinRoom(
         case 'welcome':
           peers.clear();
           for (const p of m.peers) peers.set(p.id, p);
+          you = m.you;
           presenterId = m.presenter;
           if (m.state) applyState(m.state);
           break;
@@ -145,6 +151,8 @@ export function joinRoom(
           break;
         case 'presenter':
           presenterId = m.id;
+          lastSent = '';
+          shareState(true);
           break;
         case 'pose': {
           const p = peers.get(m.id);
@@ -173,7 +181,7 @@ export function joinRoom(
     };
   };
   const shareState = (force: boolean) => {
-    if (role !== 'presenter') return;
+    if (role() !== 'presenter') return;
     const state = current();
     // El tiempo avanza solo: cambia la clave solo lo que el presentador decide.
     const key = JSON.stringify({ ...state, sequence: { ...state.sequence, t: null } });
@@ -190,6 +198,7 @@ export function joinRoom(
         pose: {
           head: { p: arr(pose.head.p), q: [...pose.head.q] },
           hands: pose.hands.map((h) => ({ p: arr(h.p), q: [...h.q] })),
+          scale: pose.scale,
         },
       });
   }, 1000 / ROOM_POSE_HZ);
@@ -206,10 +215,14 @@ export function joinRoom(
     }),
   ];
 
+  presentInActiveRoom = (on) => {
+    send({ type: on ? 'claim' : 'release' });
+  };
   connect();
   publishStatus();
   return () => {
     closed = true;
+    presentInActiveRoom = null;
     clearTimeout(retry);
     clearInterval(poseTimer);
     clearInterval(stateTimer);

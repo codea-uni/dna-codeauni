@@ -4,6 +4,7 @@ import { playDemoSequence } from '../demo/runtime';
 import { formatNumber, t, useLocale } from '../i18n';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { setPresenting } from './room';
 import { applyXrLayers, useXrRoom, xrLayers } from './xrState';
 
 /** Segundos reales que dura en el visor la secuencia con el vuelo del material. */
@@ -18,7 +19,7 @@ const store = () => useAnalysisStore.getState();
  * de los paneles: ningún cálculo nuevo. La sesión es de solo lectura (no hay comandos).
  */
 export function bindXr(engine: Engine): () => void {
-  let view: XrView = 'walk';
+  let view: XrView = 'table';
   let scale = 1;
   let selected: HoleId | null = null;
   let ended = false;
@@ -38,6 +39,19 @@ export function bindXr(engine: Engine): () => void {
           ? t('xr.room.following', { name: room.presenter })
           : t('xr.room.noPresenter'),
       });
+    // Escenarios: maqueta sobre la mesa real, dentro de la voladura o maqueta aislada.
+    rows.push(
+      { id: 'view:table', label: t('xr.menu.table'), active: view === 'table' },
+      { id: 'view:walk', label: t('xr.menu.walk'), active: view === 'walk' },
+      { id: 'view:model', label: t('xr.menu.model'), active: view === 'model' },
+    );
+    if (view === 'table') rows.push({ id: 'place', label: t('xr.menu.place') });
+    if (view !== 'walk')
+      rows.push(
+        { label: t('xr.menu.scale', { n: formatNumber(Math.round(1 / scale)) }) },
+        { id: 'zoomIn', label: t('xr.menu.zoomIn') },
+        { id: 'zoomOut', label: t('xr.menu.zoomOut') },
+      );
     rows.push(
       { id: 'energy', label: t('xr.menu.energy'), active: l.energy },
       { id: 'vibration', label: t('xr.menu.vibration'), active: l.vibration },
@@ -45,14 +59,13 @@ export function bindXr(engine: Engine): () => void {
       { id: 'pile', label: t('xr.menu.pile'), active: l.pile },
       { id: 'play', label: t(s.sequencePlaying ? 'xr.menu.pause' : 'xr.menu.play') },
       { id: 'reset', label: t('xr.menu.reset') },
-      { id: 'view', label: t(view === 'walk' ? 'xr.menu.toTable' : 'xr.menu.toWalk') },
     );
-    if (view === 'table')
-      rows.push(
-        { label: t('xr.menu.scale', { n: formatNumber(Math.round(1 / scale)) }) },
-        { id: 'zoomIn', label: t('xr.menu.zoomIn') },
-        { id: 'zoomOut', label: t('xr.menu.zoomOut') },
-      );
+    if (room.role)
+      rows.push({
+        id: 'present',
+        label: t(room.role === 'presenter' ? 'xr.menu.stopPresenting' : 'xr.menu.present'),
+        active: room.role === 'presenter',
+      });
     rows.push({ id: 'exit', label: t('xr.menu.exit') });
     return rows;
   };
@@ -144,8 +157,16 @@ export function bindXr(engine: Engine): () => void {
         engine.stopSequence();
         s.set({ sequencePlaying: false, sequenceTime: null });
         break;
-      case 'view':
-        engine.setXrView(view === 'walk' ? 'table' : 'walk');
+      case 'view:table':
+      case 'view:walk':
+      case 'view:model':
+        engine.setXrView(id.slice(5) as XrView);
+        break;
+      case 'place':
+        engine.placeXrOnTable();
+        break;
+      case 'present':
+        setPresenting(useXrRoom.getState().role !== 'presenter');
         break;
       case 'zoomIn':
         engine.zoomXr(ZOOM_STEP);
