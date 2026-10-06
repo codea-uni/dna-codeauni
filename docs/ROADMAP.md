@@ -10,7 +10,7 @@
 | Hito en curso | **▶ E2.1 Manual básico** (sección «Evaluación 2» más abajo)                      |
 | Después       | E2.2 registro de comentarios → E2.3 sesión con ingenieros → F3 (S0)              |
 | Fase 1        | Código completo; el cierre formal espera datos y aprobaciones (ver `REPORTS.md`) |
-| VR (D-19)     | V0–V3 adelantados en código; falta la prueba en los visores reales               |
+| VR (D-19)     | V0–V4 adelantados en código; falta la prueba en los visores reales               |
 
 ## Todas las fases
 
@@ -19,7 +19,7 @@
 | **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
 | Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                            | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
 | **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · A5 · A6 · A7 (pila, adelantado D-17)                                                          | Caso de referencia de cada modelo reproducido          | ✅ código                |
-| **VR** Realidad virtual       | Presentar a clientes en un visor (D-19)          | V0 sesión y vuelo · V1 taladros, mapas, secuencia y pila · V2 maqueta y AR · V3 multiusuario (adelantado)                    | Recorrido en Quest 3 y Quest 2 a 72 fps                | ✅ código · 🟡 visor     |
+| **VR** Realidad virtual       | Presentar a clientes en un visor (D-19)          | V0 sesión y vuelo · V1 taladros, mapas, secuencia y pila · V2 maqueta y AR · V3 multiusuario · V4 escenarios (adelantado)    | Recorrido en Quest 3 y Quest 2 a 72 fps                | ✅ código · 🟡 visor     |
 | Evaluación 2                  | Ingenieros externos                              | **▶ E2.1** manual · E2.2 comentarios · E2.3 sesión                                                                           | Hallazgos críticos resueltos                           | ⏳ en curso              |
 | **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                 | Ronda completa dentro de sección; casos de referencia  | —                        |
 | **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                               | Un diseño calibrado con datos reales                   | —                        |
@@ -165,7 +165,7 @@ Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso). Módulo en `c
 - **3D:** conmutadores para ocultar las caras libres y los planos del banco. Con la pila calculada, la topografía se recorta en los perímetros volados y su talud, así se ve la pila también delante de la cara.
 - **Caso de dos escalones** (`docs/MUCKPILE-REPORT.md` §9): in situ 75 647 m³ (+4897 m³ de cuña); throw de 183,8 a 72,8 m.
 
-## Realidad virtual (V0–V3, adelantado, D-19)
+## Realidad virtual (V0–V4, adelantado, D-19)
 
 Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso): presentar las voladuras a clientes con un visor Meta Quest (3/3S y 2). **WebXR en la misma web**, sin app nativa (D-19). Solo lectura; los cálculos no cambian.
 
@@ -193,6 +193,14 @@ Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso): presentar las
 - Sala por versión de proyecto: `GET /api/rooms/:projectId/:version/ws?role=presenter|viewer` (WebSocket, sesión y acceso), contrato zod en `packages/api/src/rooms.ts`, relé en memoria en `apps/server/src/routes/rooms.ts`.
 - Poses en coordenadas de proyecto a 15 Hz; avatares con nombre (`xr/Avatars.ts`). El presentador comparte secuencia, capas y taladro; el espectador corrige su secuencia si se aleja más de 0,1 s.
 - Web: «Presentar en VR» y «Unirse a la presentación» (modo servidor, proyecto abierto). nginx pasa `Upgrade` en `/api/rooms/`.
+
+### V4: una entrada y tres escenarios (pedido del usuario) ✅
+
+- Un solo botón «Entrar en VR» (reemplaza «Maqueta en AR», «Presentar en VR» y «Unirse a la presentación»). La sesión es AR si el visor la admite; dentro, el menú elige el escenario:
+  - **Maqueta sobre la mesa:** passthrough; se apoya sola en la mesa que detecta el visor (superficie etiquetada como mesa o escritorio por la configuración del espacio del Quest, si no la superficie a 0,4–1,3 m más cercana) y ocupa hasta el 85 % de su lado menor. Sin mesa queda en el aire. Se toma con el agarre de cualquier mano y se mueve y gira; «Acomodar en la mesa» la vuelve a apoyar.
+  - **Dentro de la voladura:** escala real con fondo opaco.
+  - **Maqueta aislada:** la maqueta frente al usuario con fondo oscuro.
+- Sala por proyecto (`/api/rooms/:projectId/ws`): todos se ven al entrar; «Presentar a los demás» toma el rol de presentador. Los avatares tienen el tamaño de la escala de quien los envía: desde dentro de la voladura, quien mira la maqueta se ve como un gigante asomado; desde la maqueta, quien está dentro se ve chico sobre ella (con un tamaño mínimo visible).
 
 **Pendiente:** recorrido en un Quest 3 y un Quest 2 reales (fps con OVR Metrics, 31 700 bloques de la pila en el Quest 2, alineación del menú en la mano) y una prueba de dos visores en producción.
 
