@@ -5,6 +5,11 @@ export interface FrameStats {
   cpuMs: number;
 }
 
+/** Lo que el loop usa del renderer en XR (`WebGLRenderer.setAnimationLoop`). */
+export interface XrAnimationHost {
+  setAnimationLoop(callback: ((time: number) => void) | null): void;
+}
+
 /** Hueco entre frames a partir del cual se considera que la vista estaba en reposo. */
 const IDLE_GAP_MS = 250;
 const WINDOW_MS = 500;
@@ -21,6 +26,8 @@ export class RenderLoop {
   private cpuTotal = 0;
   private windowStart = 0;
   private lastFrame = -Infinity;
+  /** Sesión XR activa: el navegador marca el ritmo (72–90 Hz) y se dibuja en cada cuadro. */
+  private xr: XrAnimationHost | null = null;
 
   constructor(
     private readonly renderFrame: () => void,
@@ -29,11 +36,26 @@ export class RenderLoop {
 
   /** Marca el frame como sucio; se renderiza en el próximo rAF. */
   invalidate(): void {
-    if (this.frameHandle !== null || this.disposed) return;
+    if (this.frameHandle !== null || this.disposed || this.xr) return;
     this.frameHandle = requestAnimationFrame(this.tick);
   }
 
+  /**
+   * Con una sesión XR, `requestAnimationFrame` de la ventana no corre: el loop pasa a
+   * `renderer.setAnimationLoop` (dibujo continuo); con `null` vuelve al render a demanda.
+   */
+  setXr(host: XrAnimationHost | null): void {
+    if (this.frameHandle !== null) cancelAnimationFrame(this.frameHandle);
+    this.frameHandle = null;
+    this.xr?.setAnimationLoop(null);
+    this.xr = host;
+    if (host) host.setAnimationLoop(this.tick);
+    else this.invalidate();
+  }
+
   dispose(): void {
+    this.xr?.setAnimationLoop(null);
+    this.xr = null;
     this.disposed = true;
     if (this.frameHandle !== null) cancelAnimationFrame(this.frameHandle);
     this.frameHandle = null;

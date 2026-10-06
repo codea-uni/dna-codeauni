@@ -85,6 +85,9 @@ import { TieTool } from './tools/TieTool';
 import { PanTool } from './tools/PanTool';
 import { SelectTool } from './tools/SelectTool';
 import type { Tool, ToolContext, ToolName, ToolPointer } from './tools/types';
+import { XrSession, type XrMode, type XrStartOptions, type XrView } from './xr/XrSession';
+import type { XrRow } from './xr/XrPanel';
+import type { XrAvatar, XrTransform } from './xr/Avatars';
 import { defaultEngineText, type EngineText } from './text';
 
 export interface EngineOptions {
@@ -109,6 +112,14 @@ export interface EngineEvents extends Record<string, unknown> {
   viewMode: ViewMode;
   /** Se trazó una sección para el perfil de la pila (A7). */
   section: { a: Vec2; b: Vec2 };
+  /** Empezó (modo) o terminó (null) una sesión XR (D-19). */
+  xrSession: XrMode | null;
+  /** Taladro apuntado con el gatillo en XR (null = ninguno). */
+  xrSelectHole: HoleId | null;
+  /** Botón del menú XR pulsado (ids que define la web en `setXrMenu`). */
+  xrAction: string;
+  /** Escala real o maqueta, y metros del usuario por metro del modelo. */
+  xrView: { view: XrView; scale: number };
 }
 
 export type ViewMode = 'plan' | '3d';
@@ -291,6 +302,7 @@ export class Engine {
   } | null = null;
   private readonly overlay = new OverlayLayer();
   private readonly picker: HolePicker;
+  private xr: XrSession | null = null;
 
   private readonly document: DocumentStore;
   private readonly selection: SelectionStore;
@@ -403,6 +415,7 @@ export class Engine {
     this.loop = new RenderLoop(
       () => {
         this.flushPointer();
+        this.xr?.update();
         this.advanceSequence();
         this.renderer.render(this.scene, this.viewMode === '3d' ? this.camera3d : this.camera);
       },
@@ -619,9 +632,177 @@ export class Engine {
     this.applyView();
   }
 
+  // ---------------------------------------------------------------- XR (D-19)
+
+  /** ¿El navegador puede abrir una sesión inmersiva (`vr`) o de realidad aumentada (`ar`)? */
+  static isXrSupported(mode: XrMode): Promise<boolean> {
+    return XrSession.supported(mode);
+  }
+
+  get xrMode(): XrMode | null {
+    return this.xr?.mode ?? null;
+  }
+
+  /**
+   * Entra en realidad virtual o aumentada (solo lectura). Hay que llamarlo desde el gesto del
+   * usuario (clic): el navegador lo exige para abrir la sesión.
+   */
+  async enterXr(mode: XrMode, options?: XrStartOptions): Promise<void> {
+    if (this.xr) return;
+    this.tool.cancel?.(this.toolContext);
+    this.setViewMode('3d');
+    const xr = new XrSession(this.xrHost(), mode);
+    this.xr = xr;
+    try {
+      await xr.start(options);
+    } catch (e) {
+      this.xr = null;
+      throw e;
+    }
+    this.camera3d.near = 0.05;
+    this.camera3d.far = 20_000;
+    this.loop.setXr(this.renderer);
+    this.events.emit('xrSession', mode);
+  }
+
+  exitXr(): void {
+    this.xr?.end();
+  }
+
+  /** Botones del menú de la muñeca (textos ya traducidos). */
+  setXrMenu(rows: readonly XrRow[]): void {
+    this.xr?.setMenu(rows);
+  }
+
+  /** Ficha del taladro apuntado; vacía la oculta. */
+  setXrInfo(rows: readonly XrRow[]): void {
+    this.xr?.setInfo(rows);
+  }
+
+  setXrView(view: XrView): void {
+    this.xr?.setView(view);
+  }
+
+  /** Acerca (> 1) o aleja (< 1) la maqueta. */
+  zoomXr(factor: number): void {
+    this.xr?.zoom(factor);
+  }
+
+  /** Pose de este visor en coordenadas de proyecto (para la sala multiusuario), o null. */
+  getXrPose(): { head: XrTransform; hands: XrTransform[] } | null {
+    const pose = this.xr?.pose();
+    if (!pose) return null;
+    const o = this.origin;
+    const abs = (t: XrTransform): XrTransform => ({
+      p: { x: t.p.x + o.x, y: t.p.y + o.y, z: t.p.z + o.z },
+      q: t.q,
+    });
+    return { head: abs(pose.head), hands: pose.hands.map(abs) };
+  }
+
+  /** Otras personas de la sala, en coordenadas de proyecto. */
+  setXrAvatars(list: readonly XrAvatar[]): void {
+    const o = this.origin;
+    const rel = (t: XrTransform): XrTransform => ({
+      p: { x: t.p.x - o.x, y: t.p.y - o.y, z: t.p.z - o.z },
+      q: t.q,
+    });
+    this.xr?.setAvatars(list.map((a) => ({ ...a, head: rel(a.head), hands: a.hands.map(rel) })));
+  }
+
+  /** Marca un taladro como si se hubiera apuntado (el que eligió el presentador). */
+  setXrHole(id: HoleId | null): void {
+    if (!this.xr) return;
+    const hole = id ? this.document.findHole(id)?.hole : undefined;
+    const o = this.origin;
+    this.xr.showHole(
+      hole ? { x: hole.collar.x - o.x, y: hole.collar.y - o.y, z: hole.collar.z - o.z } : null,
+    );
+    this.events.emit('xrSelectHole', hole ? hole.id : null);
+  }
+
+  private xrHost(): ConstructorParameters<typeof XrSession>[0] {
+    const o = this.origin;
+    const project = this.document.project;
+    const height = (x: number, y: number): number | null => {
+      const g = this.ground();
+      if (!g) return this.topZ();
+      const z = g(x + o.x, y + o.y);
+      return z === null ? null : z - o.z;
+    };
+    // Extensión de la maqueta: la voladura (y la pila) más el levantamiento del banco, una vez.
+    let b = this.withMuckpileBounds(this.scene3d.bounds);
+    const tinId = project.blasts[0]?.bench.topographyId;
+    const tin = tinId ? this.topographyTins.get(tinId) : undefined;
+    if (tin && b) {
+      const v = tin.vertices;
+      b = { ...b };
+      for (let i = 0; i + 2 < v.length; i += 3) {
+        const x = (v[i] ?? 0) - o.x;
+        const y = (v[i + 1] ?? 0) - o.y;
+        const z = (v[i + 2] ?? 0) - o.z;
+        if (x < b.minX) b.minX = x;
+        if (x > b.maxX) b.maxX = x;
+        if (y < b.minY) b.minY = y;
+        if (y > b.maxY) b.maxY = y;
+        if (z < b.minZ) b.minZ = z;
+      }
+    }
+    const bounds = b;
+    return {
+      renderer: this.renderer,
+      scene: this.scene,
+      model: this.scene3d.root,
+      height,
+      focus: () => {
+        let sx = 0;
+        let sy = 0;
+        let n = 0;
+        for (const blast of project.blasts)
+          for (const h of blast.holes) {
+            sx += h.collar.x - o.x;
+            sy += h.collar.y - o.y;
+            n++;
+          }
+        const x = n > 0 ? sx / n : bounds ? (bounds.minX + bounds.maxX) / 2 : 0;
+        const y = n > 0 ? sy / n : bounds ? (bounds.minY + bounds.maxY) / 2 : 0;
+        return { x, y, z: height(x, y) ?? this.topZ() };
+      },
+      bounds: () => bounds,
+      pickHole: (x, y, tolerance) => {
+        const hit = this.picker.current.nearest(x + o.x, y + o.y, tolerance);
+        const hole = hit ? this.document.findHole(hit.id)?.hole : undefined;
+        if (!hit || !hole) return null;
+        return {
+          id: hit.id,
+          collar: { x: hole.collar.x - o.x, y: hole.collar.y - o.y, z: hole.collar.z - o.z },
+        };
+      },
+      setLabelSize: (m) => {
+        this.labels3d.setWorldSize(m);
+        this.siteLabels3d.setWorldSize(m);
+      },
+      onSelectHole: (id) => {
+        this.events.emit('xrSelectHole', id);
+      },
+      onAction: (id) => {
+        this.events.emit('xrAction', id);
+      },
+      onView: (view, scale) => {
+        this.events.emit('xrView', { view, scale });
+      },
+      onEnd: () => {
+        this.xr = null;
+        this.loop.setXr(null);
+        this.applyCamera3d();
+        this.events.emit('xrSession', null);
+      },
+    };
+  }
+
   /** Planta (edición) o 3D (visualización del banco, taladros y decks). */
   setViewMode(mode: ViewMode): void {
-    if (mode === this.viewMode) return;
+    if (mode === this.viewMode || this.xr) return;
     this.tool.cancel?.(this.toolContext);
     this.viewMode = mode;
     const is3d = mode === '3d';
@@ -1012,6 +1193,7 @@ export class Engine {
   }
 
   dispose(): void {
+    this.xr?.end();
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.resizeObserver.disconnect();
     this.input.dispose();

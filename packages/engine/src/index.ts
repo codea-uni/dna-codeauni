@@ -30,3 +30,6 @@ export {
 export { DEFAULT_DECORATIONS, type DecorationSettings } from './overlay/MapDecorations';
 export { formatDistance } from './cameras/mapScale';
 export { ENGINE_TEXT, type EngineText, type EngineTextKey } from './text';
+export type { XrMode, XrView, XrStartOptions } from './xr/XrSession';
+export type { XrRow } from './xr/XrPanel';
+export type { XrAvatar, XrTransform } from './xr/Avatars';

@@ -86,23 +86,32 @@ export class LabelsLayer {
         uViewport: { value: new Vector2(1, 1) },
         uPixelRatio: { value: 1 },
         uOffsetPx: { value: new Vector2(8, 8) },
+        uWorldPx: { value: 0 },
         uColor: { value: COLORS.label },
       },
       vertexShader: /* glsl */ `
         uniform vec2 uViewport;
         uniform float uPixelRatio;
         uniform vec2 uOffsetPx;
+        uniform float uWorldPx;
         attribute vec3 aAnchor;
         attribute float aGlyph;
         attribute float aChar;
         varying vec2 vUv;
         void main() {
           if (aGlyph < 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
-          vec4 c = projectionMatrix * modelViewMatrix * vec4(aAnchor, 1.0);
+          vec4 mv = modelViewMatrix * vec4(aAnchor, 1.0);
           vec2 quadPx = vec2(${CHAR_QUAD_W_PX.toFixed(3)}, ${CHAR_H_PX.toFixed(1)});
-          vec2 px = (uOffsetPx + vec2((aChar + 0.5) * ${advancePx.toFixed(3)}, 0.0) + position.xy * quadPx) * uPixelRatio;
-          c.xy += px * 2.0 / uViewport * c.w;
-          gl_Position = c;
+          vec2 css = uOffsetPx + vec2((aChar + 0.5) * ${advancePx.toFixed(3)}, 0.0) + position.xy * quadPx;
+          if (uWorldPx > 0.0) {
+            // XR: desplazamiento en metros del espacio de vista (cartel de frente, bien en estéreo).
+            mv.xy += css * uWorldPx;
+            gl_Position = projectionMatrix * mv;
+          } else {
+            vec4 c = projectionMatrix * mv;
+            c.xy += css * uPixelRatio * 2.0 / uViewport * c.w;
+            gl_Position = c;
+          }
           float col = mod(aGlyph, ${ATLAS_COLS.toFixed(1)});
           float row = floor(aGlyph / ${ATLAS_COLS.toFixed(1)});
           vec2 uv = position.xy + 0.5;
@@ -126,6 +135,15 @@ export class LabelsLayer {
     this.mesh = new Mesh(this.createGeometry(this.capacity), material);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = 3;
+  }
+
+  /**
+   * Tamaño fijo en metros para XR (D-19): alto del carácter [m] en el espacio de vista. Con 0 vuelve
+   * al tamaño en píxeles de pantalla, que no sirve en estéreo.
+   */
+  setWorldSize(charHeightM: number): void {
+    const u = this.mesh.material.uniforms.uWorldPx;
+    if (u) u.value = charHeightM / CHAR_H_PX;
   }
 
   setViewport(widthPx: number, heightPx: number, pixelRatio: number, symbolRadiusPx: number): void {

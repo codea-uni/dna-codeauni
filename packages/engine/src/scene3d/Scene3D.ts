@@ -125,6 +125,8 @@ export class Scene3D {
     sun.position.set(0.6, -0.7, 0.55);
     const fill = new DirectionalLight(0xffffff, 0.45);
     fill.position.set(-0.5, 0.7, 0.4);
+    // Los blancos de las luces van dentro de la raíz: si se mueve (ubicación XR, D-19) la luz la sigue.
+    this.root.add(sun.target, fill.target);
     this.root.add(ambient, sun, fill, this.dynamic, this.surfaces, this.faces, this.benchPlanes);
     this.root.visible = false;
   }
