@@ -254,3 +254,9 @@ Supuestos: S-30…S-32 (parámetros de interfaz) · No verificado: visores reale
 - **Emulador, dos visores contra el servidor real:** un solo botón «Entrar en VR» en ambos; se entra a la maqueta sobre la mesa con passthrough. Luis pide presentar («Presentando · 1 conectados») y Rosa lo sigue. Luis toma la maqueta con el agarre izquierdo y la corre 30 cm. Rosa pasa a «Dentro de la voladura» (fondo opaco) y, mirando hacia Luis, lo ve como un gigante asomado sobre el tajo (escala 1000); Luis ve a Rosa chica sobre la maqueta (tamaño mínimo). «Maqueta aislada» deja el fondo opaco.
 - **Errores encontrados y corregidos:** el cuadro XR de three es null en los primeros cuadros (rompía la búsqueda de mesa); en una sesión AR three limpia la pantalla en transparente aunque haya color de fondo (dentro de la voladura se veía la habitación), resuelto con una esfera de fondo.
 - **No verificado:** la detección de mesas (el emulador no tiene planos sin su módulo de entorno sintético) y todo lo que depende del Quest real.
+
+### V5: presencia desde la web y menú compacto (2026-10-06)
+
+- **Prueba unitaria:** celda bajo el rayo en filas de varios botones (`XrPanel.test.ts`).
+- **Emulador contra el servidor real (Luis en el visor, Rosa en la web, vista 3D):** el menú tiene 6 filas y está cerrado al entrar y al mirar a la derecha; se abre al mirar la mano izquierda. Rosa ve a Luis como gigante mientras él mira la maqueta (escala 1000, 628 m sobre el tajo) y como figura dentro del tajo cuando pasa a «Adentro» (tamaño mínimo por la distancia de la cámara). Luis ve la cámara de Rosa sobre su maqueta.
+- **No verificado:** la ergonomía del menú en la mano con un Quest real.
