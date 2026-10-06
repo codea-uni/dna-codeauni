@@ -28,6 +28,7 @@ Aplicación web de diseño y simulación de voladuras mineras (antes «BlastLab�
   - `packages/engine`: Three.js/WebGL. Cámara ortográfica para planta, perspectiva para 3D, InstancedMesh y loop rAF propio.
   - `packages/workers`: Web Workers + Comlink.
   - `apps/web`: React + Vite, Zustand para el estado de UI y ECharts para gráficos (uPlot si el rendimiento lo exige).
+  - **Realidad virtual (D-19):** WebXR de Three.js en la misma web (`engine/src/xr`), sin app nativa.
 - **Persistencia:** IndexedDB/OPFS y JSON exportable. Por ahora no hay backend.
 - **Prohibido por ahora:** Rust/WASM propio (se evaluará solo con un kernel medido como lento), Unity WebGL y Canvas2D para la vista principal. Excepción acotada (D-17): Rapier (`@dimforge/rapier3d-compat`, WASM de terceros) solo en el worker de la animación física de la pila, cargado al pedirlo.
 

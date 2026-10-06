@@ -227,3 +227,23 @@ que siguen sin caso propio (se muestran como estimaciones).
 
 Indicadores: I3 todos los modelos con caso disponible dentro de tolerancia · I4 245 + 6 pruebas en verde, esquema v10
 con migraciones probadas · I5 supuestos S-01…S-09 documentados, 0 preguntas abiertas.
+
+## Realidad virtual (V0–V3, D-19), 2026-10-05
+
+```
+Hito: V0–V3 · Reglas: ninguna fórmula ni constante minera nueva (los cálculos no cambian) · CR: —
+Supuestos: S-30…S-32 (parámetros de interfaz) · No verificado: visores reales
+```
+
+- **Pruebas unitarias** (Vitest): ubicación Z→Y y su inversa, maqueta 1:1000, giro alrededor de la cabeza (`placement.test.ts`); dirección del vuelo según la cabeza, velocidad y giro por saltos (`locomotion.test.ts`); rayo contra terreno plano, inclinado y sin cruce (`rayGround.test.ts`); fila del panel bajo el rayo (`XrPanel.test.ts`); loop continuo en XR y vuelta al render a demanda (`RenderLoop.test.ts`); sala WebSocket (sin sesión 401, proyecto ajeno 404, versión 0 400, reenvío de poses, estado solo del presentador, estado para quien entra tarde; `rooms.test.ts`); el espectador sigue la secuencia (arranque, desvío de 0,05 s sin corrección y de 0,15 s con corrección, pausa y reinicio; `room.test.ts`).
+- **Emulador** (IWER, el motor del Immersive Web Emulator de Meta, simulando un Quest 3 en Chromium sin interfaz) con «Demo · Mina sobre levantamiento DXF» (TIN de 89 873 triángulos, 141 taladros):
+  - Entrar en VR: terreno, taladros, menú y rayo; teletransporte al taladro 10 (pies sobre el terreno); giro de 30°; vuelo hacia adelante.
+  - Apuntar el taladro 41: ficha «Carga 482,2 kg · Retardo 220 ms · Longitud 18,0 m · Diámetro 229 mm» y haz vertical.
+  - Energía y vibración drapeadas en el terreno; secuencia con los 31 700 bloques de la pila en vuelo.
+  - Maqueta a 1:1000 (y 1:667 con «más grande»); taladro 71 elegido sobre la maqueta.
+  - AR: fondo transparente (`alpha-blend`) en modo maqueta; sin hit-test en el emulador, queda frente al usuario.
+  - Salir: la escena vuelve a su lugar, las etiquetas a píxeles y la cámara 3D a su órbita.
+  - Dos visores (Luis presenta, Rosa se une) contra el servidor real: avatares en ambos lados, el espectador ve «Sigues a Luis Diseñador», recibe la energía, el taladro 61 y la secuencia.
+- **Errores encontrados y corregidos al probar:** el panel no se redibujaba al cambiar de cantidad de filas (la textura de GPU tiene tamaño fijo); la ficha se veía espejada al girar la mano (ahora los paneles miran a la cabeza); el espectador no calculaba la pila si la capa ya estaba prendida (cortaba la secuencia en el último disparo); un rechazo de `hit-test` quedaba sin manejar.
+- **Rendimiento de escritorio** (5000 taladros, Chromium con SwiftShader): igual que `main`, con 0,4–0,7 ms de CPU por cuadro en planta y 3D; los fps absolutos los limita el render por software y deben medirse con GPU. `Scene3D.perf` sigue en verde. En XR el emulador da 7–10 cuadros por segundo con SwiftShader; la medición que vale es en el visor.
+- **Pendiente:** Quest 3 y Quest 2 reales (72 fps con OVR Metrics, bloques de la pila en el Quest 2, ergonomía del menú) y dos visores en producción (nginx con `Upgrade`).

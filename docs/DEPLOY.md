@@ -3,7 +3,7 @@
 Producción: <https://dna.codeadevelopment.com> (VPS con Traefik, red Docker `proxy`).
 
 - `Dockerfile`: compila con Node 24 + pnpm (`pnpm build`, incluye typecheck) y sirve `apps/web/dist` con nginx (etapa `web`).
-- `deploy/nginx.conf`: fallback SPA a `index.html`, caché larga para `/assets/` y `no-cache` para el index.
+- `deploy/nginx.conf`: fallback SPA a `index.html`, caché larga para `/assets/` y `no-cache` para el index. Las salas de VR (`/api/rooms/`, D-19) son WebSocket: nginx pasa `Upgrade` y `Connection` con un `proxy_read_timeout` de 1 h; Traefik ya admite WebSocket. WebXR exige HTTPS, que producción ya tiene.
 - `docker-compose.yml`: labels de Traefik con TLS de Let's Encrypt. El dominio se cambia con la variable `DOMAIN`.
 
 ## Servidor (D-14): login, empresas, minas e historial

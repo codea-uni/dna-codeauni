@@ -55,7 +55,7 @@ packages/core/src/      dominio y cálculos; sin DOM (Node, workers y hilo princ
   analysis/             orquestación de los análisis de una voladura
   io/                   JSON (+ migraciones, zod), CSV, DXF
   examples/             proyectos de ejemplo (menú Ejemplos)
-packages/engine/src/    Three.js: Engine.ts, loop, cameras, input, layers, picking, tools, scene3d
+packages/engine/src/    Three.js: Engine.ts, loop, cameras, input, layers, picking, tools, scene3d, xr (VR, D-19)
 packages/workers/src/   compute.worker.ts, computeApi.ts, client.ts, report/ (PDF)
 apps/web/src/           React: viewport, panels, dialogs, charts, stores, analysis (runner)
 packages/api/src/       contratos HTTP (zod) y cliente fetch tipado
@@ -101,6 +101,14 @@ La fuente de verdad es `packages/core/src/model/types.ts` (esquema en `model/sch
   - El pool de varios workers se agrega solo si una medición lo pide.
   - Excepción (D-17): la animación física de la pila corre en su propio worker (`physics.worker.ts`, Rapier), creado solo al pedirla, para no bloquear el de cómputo. Simula todo y devuelve cuadros que el engine reproduce con el reloj de la secuencia.
 - **Persistencia:** JSON descargable y autoguardado en IndexedDB (`apps/web/src/persistence/`, D-03). Con servidor (D-14), el autoguardado es el borrador y «Guardar versión» publica una versión inmutable del proyecto en su mina.
+
+## Realidad virtual (D-19)
+
+- **WebXR en la misma web:** `Engine.enterXr('vr' | 'ar')` (desde el clic del usuario) fuerza la vista 3D y crea una `XrSession` (`engine/src/xr/`). La sesión es de solo lectura: no emite comandos.
+- **Ubicación, no transformación:** `scene3d.root` se cuelga de un grupo cuya matriz es `placement.ts` (Z arriba → Y arriba, escala y giro, coordenadas relativas al origen). Volar, girar, teletransportarse, pasar a maqueta o colocarla en AR cambia solo esa matriz; al salir la raíz vuelve a la escena.
+- **Loop:** con la sesión, `RenderLoop.setXr` pasa a `renderer.setAnimationLoop` (el navegador marca 72–90 Hz); al salir vuelve el render a demanda. La secuencia usa el reloj de pared y no cambia.
+- **El engine dibuja y la web decide:** el engine emite `xrSelectHole`, `xrAction`, `xrView` y `xrSession`; `apps/web/src/xr/bindXr.ts` arma los textos con `t()` y usa las acciones y resultados de siempre (`setXrMenu`, `setXrInfo`). Las etiquetas pasan a metros del espacio de vista (`LabelsLayer.setWorldSize`).
+- **Multiusuario remoto:** `apps/web/src/xr/room.ts` abre `GET /api/rooms/:projectId/:version/ws` (WebSocket con la cookie de sesión). El servidor (`routes/rooms.ts`) es un relé en memoria: valida cada mensaje con zod (`packages/api/src/rooms.ts`), reenvía poses y guarda el último estado del presentador. Ningún cálculo pasa por el servidor.
 
 ## Servidor, empresas e historial (D-14)
 
