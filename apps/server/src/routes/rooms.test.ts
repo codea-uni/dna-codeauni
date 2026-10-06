@@ -37,6 +37,7 @@ const pose = {
     q: [0, 0, 0, 1] as [number, number, number, number],
   },
   hands: [],
+  scale: 0.001,
 };
 const state = {
   sequence: { playing: true, t: 0.5, speed: 0.2 },
@@ -44,7 +45,7 @@ const state = {
   hole: null,
 };
 
-describe.runIf(await databaseAvailable())('sala de presentación VR (D-19)', () => {
+describe.runIf(await databaseAvailable())('sala de VR por proyecto (D-19)', () => {
   let t: TestDb;
   let s: TestApp;
   let admin: string;
@@ -92,7 +93,7 @@ describe.runIf(await databaseAvailable())('sala de presentación VR (D-19)', () 
     const project = projectSummarySchema.parse(
       (await call(designer, 'POST', `/mines/${mine.id}/projects`, { file })).json(),
     );
-    url = `/api/rooms/${project.id}/1/ws`;
+    url = `/api/rooms/${project.id}/ws`;
   });
   /** Entra a la sala escuchando desde antes del `open` (el saludo llega enseguida). */
   const join = async (path: string, cookie: string) => {
@@ -114,24 +115,28 @@ describe.runIf(await databaseAvailable())('sala de presentación VR (D-19)', () 
     await t.drop();
   });
 
-  it('sin sesión no entra; con un proyecto ajeno o una versión inválida tampoco', async () => {
+  it('sin sesión no entra; con un proyecto ajeno tampoco', async () => {
     await expect(s.app.injectWS(url, { headers: TEST_ORIGIN })).rejects.toThrow(/401/);
     await expect(
-      s.app.injectWS('/api/rooms/no-existe/1/ws', { headers: { ...TEST_ORIGIN, cookie: admin } }),
+      s.app.injectWS('/api/rooms/no-existe/ws', { headers: { ...TEST_ORIGIN, cookie: admin } }),
     ).rejects.toThrow(/404/);
-    await expect(
-      s.app.injectWS(url.replace('/1/', '/0/'), { headers: { ...TEST_ORIGIN, cookie: admin } }),
-    ).rejects.toThrow(/400/);
   });
 
-  it('reenvía poses a los demás y solo acepta el estado del presentador', async () => {
-    const { ws: presenter, box: p } = await join(`${url}?role=presenter`, designer);
+  it('todos entran como espectadores; quien pide presentar manda el estado', async () => {
+    const { ws: presenter, box: p } = await join(url, designer);
     const welcomeP = await p.next('welcome');
-    expect(welcomeP).toMatchObject({ presenter: (welcomeP as { you: string }).you, peers: [] });
+    expect(welcomeP).toMatchObject({ presenter: null, peers: [] });
+    const me = (welcomeP as { you: string }).you;
 
     const { ws: viewer, box: v } = await join(url, admin);
     expect(await v.next('welcome')).toMatchObject({ peers: [{ name: 'Luis' }], state: null });
     expect(await p.next('join')).toMatchObject({ peer: { name: 'Ana' } });
+
+    presenter.send(JSON.stringify({ type: 'claim' }));
+    expect(await v.next('presenter')).toMatchObject({ id: me });
+    expect(await p.next('presenter')).toMatchObject({ id: me });
+    // Soltar el rol ajeno no hace nada.
+    viewer.send(JSON.stringify({ type: 'release' }));
 
     viewer.send(JSON.stringify({ type: 'pose', pose }));
     expect(await p.next('pose')).toMatchObject({ pose });
@@ -149,8 +154,9 @@ describe.runIf(await databaseAvailable())('sala de presentación VR (D-19)', () 
     viewer.send('{no es json');
     viewer.send(JSON.stringify({ type: 'pose', pose: { head: { p: [1, 2], q: [0, 0, 0, 1] } } }));
 
-    presenter.terminate();
+    presenter.send(JSON.stringify({ type: 'release' }));
     expect(await v.next('presenter')).toMatchObject({ id: null });
+    presenter.terminate();
     late.terminate();
     viewer.terminate();
   });

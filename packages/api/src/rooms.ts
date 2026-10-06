@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 /**
- * Sala de presentación en realidad virtual (D-19): una por versión de proyecto, con un presentador
- * y espectadores remotos. Cada visor calcula todo con `@cronos/core` a partir de la misma versión
- * inmutable; por la sala solo viajan poses y el estado del presentador (mensajes chicos, JSON).
+ * Sala de realidad virtual (D-19): una por proyecto; todos entran como espectadores y cualquiera
+ * puede pedir presentar («claim»). Cada visor calcula todo con `@cronos/core` a partir del
+ * proyecto abierto; por la sala solo viajan poses y el estado del presentador (mensajes chicos).
  *
- *   GET /api/rooms/:projectId/:version/ws?role=presenter|viewer  (WebSocket, sesión y acceso)
+ *   GET /api/rooms/:projectId/ws  (WebSocket, sesión y acceso al proyecto)
  */
 
 /** Tamaño máximo de un mensaje del cliente [bytes]: lo demás se descarta. */
@@ -24,6 +24,8 @@ export type RoomTransform = z.infer<typeof roomTransformSchema>;
 export const roomPoseSchema = z.object({
   head: roomTransformSchema,
   hands: z.array(roomTransformSchema).max(2),
+  /** Escala con que esa persona ve el modelo (1 = dentro de la voladura; < 1 = maqueta). */
+  scale: z.number().positive(),
 });
 export type RoomPose = z.infer<typeof roomPoseSchema>;
 
@@ -52,6 +54,10 @@ export type RoomPeer = z.infer<typeof roomPeerSchema>;
 export const roomClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('pose'), pose: roomPoseSchema }),
   z.object({ type: z.literal('state'), state: roomStateSchema }),
+  /** Pasar a ser el presentador (le quita el rol a quien lo tenía). */
+  z.object({ type: z.literal('claim') }),
+  /** Dejar de presentar. */
+  z.object({ type: z.literal('release') }),
 ]);
 export type RoomClientMessage = z.infer<typeof roomClientMessageSchema>;
 

@@ -10,7 +10,6 @@ import type { WebSocket } from '@fastify/websocket';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Auth } from '../auth/auth';
 import type { Db } from '../db/db';
-import { sendError } from '../http/errors';
 import { requireUser, type SessionUser } from '../http/session';
 import { visibleProject } from './projects';
 
@@ -31,14 +30,12 @@ interface Room {
   nextColor: number;
 }
 
-type Req = FastifyRequest<{
-  Params: { projectId?: string; version?: string };
-  Querystring: { role?: string };
-}>;
+type Req = FastifyRequest<{ Params: { projectId?: string } }>;
 
 /**
- * Salas de presentación en VR (D-19): relé WebSocket sin cálculo. Exige sesión y acceso al
- * proyecto (los visores son de la empresa). Solo el presentador cambia el estado compartido.
+ * Salas de VR (D-19): una por proyecto, relé WebSocket sin cálculo. Exige sesión y acceso al
+ * proyecto (los visores son de la empresa). Todos entran como espectadores; quien pide presentar
+ * pasa a ser el presentador y solo él cambia el estado compartido.
  */
 export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
   // ponytail: salas en memoria de un solo proceso; con varias instancias, Redis pub/sub.
@@ -53,15 +50,12 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
   };
 
   app.get(
-    '/rooms/:projectId/:version/ws',
+    '/rooms/:projectId/ws',
     {
       websocket: true,
       preValidation: async (req: Req, reply) => {
         const user = await requireUser(deps.auth, deps.db, req, reply);
         if (!user) return reply;
-        const version = Number(req.params.version);
-        if (!Number.isInteger(version) || version < 1)
-          return sendError(reply, 400, 'invalid_version', 'Version must be a positive integer');
         if (!(await visibleProject(deps.db, req.params.projectId ?? '', user.id, reply)))
           return reply;
         users.set(req, user);
@@ -73,7 +67,7 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
         socket.close(1008);
         return;
       }
-      const key = `${req.params.projectId ?? ''}/${req.params.version ?? ''}`;
+      const key = req.params.projectId ?? '';
       let room = rooms.get(key);
       if (!room) {
         room = { peers: new Map(), presenter: null, state: null, nextColor: 0 };
@@ -83,10 +77,6 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
       const peer: Peer = { id: uuidv7(), name: user.name, color: r.nextColor++, socket };
       const others = [...r.peers.values()].map(({ id, name, color }) => ({ id, name, color }));
       r.peers.set(peer.id, peer);
-      if (req.query.role === 'presenter') {
-        r.presenter = peer.id;
-        broadcast(r, { type: 'presenter', id: peer.id }, peer.id);
-      }
       send(peer, {
         type: 'welcome',
         you: peer.id,
@@ -112,7 +102,14 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
         if (!parsed.success) return;
         const m = parsed.data;
         if (m.type === 'pose') broadcast(r, { type: 'pose', id: peer.id, pose: m.pose }, peer.id);
-        else if (r.presenter === peer.id) {
+        else if (m.type === 'claim') {
+          r.presenter = peer.id;
+          broadcast(r, { type: 'presenter', id: peer.id });
+        } else if (m.type === 'release') {
+          if (r.presenter !== peer.id) return;
+          r.presenter = null;
+          broadcast(r, { type: 'presenter', id: null });
+        } else if (r.presenter === peer.id) {
           r.state = m.state;
           broadcast(r, { type: 'state', state: m.state }, peer.id);
         }
