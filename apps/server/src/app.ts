@@ -1,4 +1,5 @@
 import type { ApiErrorBody } from '@cronos/api';
+import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Auth } from './auth/auth';
 import type { Db } from './db/db';
@@ -9,6 +10,7 @@ import { healthRoutes } from './routes/health';
 import { organizationRoutes } from './routes/organizations';
 import { platformRoutes } from './routes/platform';
 import { projectRoutes } from './routes/projects';
+import { roomRoutes } from './routes/rooms';
 import { topographyRoutes } from './routes/topography';
 import { versionRoutes } from './routes/versions';
 
@@ -46,6 +48,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     return reply.code(404).send(body);
   });
 
+  // Salas de presentación en VR (D-19): mensajes chicos; el límite corta abusos.
+  void app.register(websocket, { options: { maxPayload: 64 * 1024 } });
   void app.register(
     (api, _opts, done) => {
       healthRoutes(api, deps);
@@ -56,6 +60,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       versionRoutes(api, deps);
       topographyRoutes(api, deps);
       aiRoutes(api, deps);
+      roomRoutes(api, deps);
       done();
     },
     { prefix: '/api' },
