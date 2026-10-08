@@ -1,5 +1,6 @@
 import type { Engine, XrLine } from '@cronos/engine';
 import { sendToAssistant, useAiStore } from '../ai/agent';
+import { toBase64, toWav } from '../ai/audio';
 import { ERROR_KEYS, speak, speechLang, TOOL_LABELS } from '../ai/labels';
 import { t, useLocale } from '../i18n';
 import { serverMode } from '../server/api';
@@ -11,41 +12,12 @@ import { serverMode } from '../server/api';
  * control derecho o con el botón del menú.
  */
 
-/** Frecuencia del audio que se envía [Hz]: alcanza para voz y pesa poco. */
-const RATE = 16_000;
 /** La grabación se corta sola a los 15 s. */
 const MAX_MS = 15_000;
 /** Menos de esto es un toque sin querer: no se envía. */
 const MIN_MS = 400;
 /** Caracteres por línea en el panel de voz. */
 const WRAP = 38;
-
-/** WAV PCM de 16 bits mono con las muestras en [−1, 1]. */
-export function encodeWav(samples: Float32Array, rate: number): Uint8Array {
-  const out = new Uint8Array(44 + samples.length * 2);
-  const v = new DataView(out.buffer);
-  const ascii = (at: number, s: string) => {
-    for (let i = 0; i < s.length; i++) v.setUint8(at + i, s.charCodeAt(i));
-  };
-  ascii(0, 'RIFF');
-  v.setUint32(4, 36 + samples.length * 2, true);
-  ascii(8, 'WAVE');
-  ascii(12, 'fmt ');
-  v.setUint32(16, 16, true); // tamaño del bloque fmt
-  v.setUint16(20, 1, true); // PCM
-  v.setUint16(22, 1, true); // mono
-  v.setUint32(24, rate, true);
-  v.setUint32(28, rate * 2, true); // bytes por segundo
-  v.setUint16(32, 2, true); // bytes por muestra
-  v.setUint16(34, 16, true);
-  ascii(36, 'data');
-  v.setUint32(40, samples.length * 2, true);
-  samples.forEach((x, i) => {
-    const c = Math.max(-1, Math.min(1, x));
-    v.setInt16(44 + i * 2, c < 0 ? c * 0x8000 : c * 0x7fff, true);
-  });
-  return out;
-}
 
 /** Corta un texto en líneas de hasta `width` caracteres por palabras. */
 export function wrapText(text: string, width: number): string[] {
@@ -59,30 +31,6 @@ export function wrapText(text: string, width: number): string[] {
   }
   if (line) lines.push(line);
   return lines;
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let s = '';
-  for (let i = 0; i < bytes.length; i += 0x8000)
-    s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-}
-
-/** Lo grabado (webm/opus del navegador) a WAV mono de 16 kHz: Gemini no lista webm entre sus formatos. */
-async function toWav(blob: Blob): Promise<Uint8Array> {
-  const ctx = new AudioContext();
-  try {
-    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-    const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * RATE), RATE);
-    const src = offline.createBufferSource();
-    src.buffer = decoded;
-    src.connect(offline.destination);
-    src.start();
-    const mono = await offline.startRendering();
-    return encodeWav(mono.getChannelData(0), RATE);
-  } finally {
-    void ctx.close();
-  }
 }
 
 type Phase =

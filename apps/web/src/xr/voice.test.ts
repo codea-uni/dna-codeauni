@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { encodeWav, wrapText } from './voice';
+import { encodeWav } from '../ai/audio';
+import { wrapText } from './voice';
 
 describe('audio de voz para el asistente', () => {
   it('WAV PCM 16 bits mono: cabecera RIFF de 44 bytes y muestras en little-endian', () => {

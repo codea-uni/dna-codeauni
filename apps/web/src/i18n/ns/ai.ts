@@ -22,7 +22,8 @@ export const es = {
   'ai.assistant': 'Asistente',
   'ai.needsServer':
     'El asistente usa el servidor (pnpm dev:online o producción), donde está la clave de Gemini. En modo local no está disponible.',
-  'ai.noVoice': 'Este navegador no reconoce voz: usa Chrome o Edge, o escribe el pedido.',
+  'ai.noVoice':
+    'Este navegador no deja usar el micrófono: abre la web con https o escribe el pedido.',
   'ai.error.ai_not_configured':
     'Falta la clave de Gemini en el servidor: agrega GEMINI_API_KEY al .env y reinicia.',
   'ai.error.ai_upstream': 'Gemini respondió con un error: {text}',
@@ -77,7 +78,8 @@ export const en = {
   'ai.assistant': 'Assistant',
   'ai.needsServer':
     'The assistant uses the server (pnpm dev:online or production), where the Gemini key lives. It is not available in local mode.',
-  'ai.noVoice': 'This browser has no speech recognition: use Chrome or Edge, or type the request.',
+  'ai.noVoice':
+    'This browser does not allow the microphone: open the site over https or type the request.',
   'ai.error.ai_not_configured':
     'The server has no Gemini key: add GEMINI_API_KEY to the .env and restart.',
   'ai.error.ai_upstream': 'Gemini returned an error: {text}',

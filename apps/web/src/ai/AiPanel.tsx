@@ -2,6 +2,7 @@ import { Bot, Mic, MicOff, RotateCcw, Send, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useT, type MessageKey } from '../i18n';
 import { serverMode } from '../server/api';
+import { canRecord, startRecording, type Recording } from './audio';
 import { ERROR_KEYS, speak, speechLang, TOOL_LABELS } from './labels';
 import {
   cancelAssistant,
@@ -30,6 +31,22 @@ const Recognition: RecognitionCtor | undefined = (() => {
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition;
 })();
+
+/**
+ * El navegador del Meta Quest expone `webkitSpeechRecognition` pero no lo deja usar: ahí (y donde
+ * no exista) se graba el audio y lo escucha Gemini, como en el visor.
+ */
+const IS_HEADSET = /OculusBrowser|Quest|Pico/i.test(navigator.userAgent);
+/** Errores del reconocimiento que significan «este navegador no lo permite»: se pasa a grabar. */
+const RECOGNITION_UNAVAILABLE = new Set([
+  'network',
+  'service-not-allowed',
+  'language-not-supported',
+]);
+/** La grabación se corta sola a los 30 s. */
+const MAX_RECORD_MS = 30_000;
+/** Menos de esto es un toque sin querer: no se envía. */
+const MIN_RECORD_MS = 400;
 
 const EXAMPLES = [
   'ai.example.1',
@@ -80,6 +97,10 @@ export default function AiPanel() {
   const [listening, setListening] = useState(false);
   const [readAloud, setReadAloud] = useState(true);
   const recognition = useRef<Recognition | null>(null);
+  const recording = useRef<Recording | null>(null);
+  const stopRecording = useRef<(() => Promise<void>) | null>(null);
+  /** Falso si el navegador no tiene o no deja usar el reconocimiento: se graba. */
+  const useRecognition = useRef(!!Recognition && !IS_HEADSET);
   const log = useRef<HTMLDivElement>(null);
   const lang = speechLang(locale);
 
@@ -90,6 +111,7 @@ export default function AiPanel() {
   useEffect(
     () => () => {
       recognition.current?.stop();
+      recording.current?.cancel();
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     },
     [],
@@ -102,21 +124,78 @@ export default function AiPanel() {
     if (byVoice && readAloud) speak(answer, lang);
   };
 
-  const toggleVoice = () => {
-    if (listening) {
-      recognition.current?.stop();
-      return;
-    }
-    if (!Recognition) {
+  const voiceError = (e: unknown) => {
+    const name = e instanceof DOMException ? e.name : '';
+    const known =
+      name === 'NotAllowedError' || name === 'SecurityError'
+        ? VOICE_ERRORS['not-allowed']
+        : name === 'NotFoundError'
+          ? VOICE_ERRORS['audio-capture']
+          : undefined;
+    push({
+      kind: 'error',
+      code: 'voice',
+      text: known ? t(known) : e instanceof Error ? e.message : String(e),
+    });
+  };
+
+  /** Graba con el micrófono y envía el audio a Gemini (sin reconocimiento del navegador). */
+  const record = async () => {
+    if (!canRecord) {
       push({ kind: 'error', code: 'voice', text: t('ai.noVoice') });
       return;
     }
+    setListening(true);
+    let rec: Recording;
+    try {
+      rec = await startRecording();
+    } catch (e) {
+      setListening(false);
+      voiceError(e);
+      return;
+    }
+    recording.current = rec;
+    const timer = setTimeout(() => {
+      void finish();
+    }, MAX_RECORD_MS);
+    const finish = async () => {
+      clearTimeout(timer);
+      if (recording.current !== rec) return;
+      recording.current = null;
+      setListening(false);
+      const short = rec.elapsed() < MIN_RECORD_MS;
+      let data: string | null;
+      try {
+        data = await rec.stop();
+      } catch (e) {
+        voiceError(e);
+        return;
+      }
+      if (!data || short) return;
+      const answer = await sendToAssistant(text, { mimeType: 'audio/wav', data });
+      setText('');
+      if (readAloud) speak(answer, lang);
+    };
+    stopRecording.current = finish;
+  };
+
+  const toggleVoice = () => {
+    if (listening) {
+      if (recording.current) void stopRecording.current?.();
+      else recognition.current?.stop();
+      return;
+    }
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (!Recognition || !useRecognition.current) {
+      void record();
+      return;
+    }
     const rec = new Recognition();
     rec.lang = lang;
     rec.interimResults = true;
     rec.continuous = false;
     let finalText = '';
+    let fallback = false;
     rec.onresult = (e) => {
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -129,17 +208,30 @@ export default function AiPanel() {
     };
     rec.onerror = (e) => {
       if (e.error === 'no-speech' || e.error === 'aborted') return;
+      if (RECOGNITION_UNAVAILABLE.has(e.error) && canRecord) {
+        // El navegador tiene la API pero no la deja usar: desde ahora se graba y escucha Gemini.
+        useRecognition.current = false;
+        fallback = true;
+        return;
+      }
       const known = VOICE_ERRORS[e.error];
       push({ kind: 'error', code: 'voice', text: known ? t(known) : e.error });
     };
     rec.onend = () => {
       setListening(false);
       recognition.current = null;
-      if (finalText.trim()) void send(finalText, true);
+      if (fallback) void record();
+      else if (finalText.trim()) void send(finalText, true);
     };
     recognition.current = rec;
     setListening(true);
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      useRecognition.current = false;
+      recognition.current = null;
+      void record();
+    }
   };
 
   return (
