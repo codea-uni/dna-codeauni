@@ -72,19 +72,33 @@ describe('proyectos de ejemplo', () => {
     expect(firstRowY).toBeGreaterThan(lastRowY);
   });
 
-  it('cerca de infraestructura: electrónicos sin coincidencias, un taladro por retardo', async () => {
+  it('solo el primero (producción, 2D) va sin topografía; los demás están sobre el terreno', async () => {
+    expect(EXAMPLES[0]?.id).toBe('production');
+    for (const ex of EXAMPLES) {
+      const p = (await ex.build()).project;
+      const blast = p.blasts[0];
+      if (ex.id === 'production') {
+        expect(p.topography).toHaveLength(0);
+        continue;
+      }
+      expect(p.topography.length, ex.id).toBe(1);
+      expect(blast?.bench.topographyId, ex.id).toBe(p.topography[0]?.id);
+    }
+  });
+
+  it('cantera en ladera: electrónicos sin coincidencias, un taladro por retardo', async () => {
     const p = await build('electronic');
     const { blast, a } = analyze(p);
     expect(a.timing.notInitiated).toBe(0);
     expect(a.timing.coincidentGroups).toHaveLength(0);
     expect(a.timing.maxHolesPerWindow).toBe(1);
-    expect(blast.holes.every((h) => h.decks.some((d) => d.kind === 'air'))).toBe(true);
+    expect(blast.holes.every((h) => h.decks.every((d) => d.kind !== 'air'))).toBe(true);
     const vib = computeVibration(p, blast, { ...DEFAULT_VIBRATION_OPTIONS, skipGrid: true });
     // Carga por retardo = la de un solo taladro
     expect(vib.mic).toBeCloseTo(Math.max(...a.charge.perHole), 6);
   });
 
-  it('inclinados: 15° hacia la cara libre (Norte) y se dibujan en 3D', async () => {
+  it('talud final: inclinados 15° hacia la cara libre (Norte) y se dibujan en 3D', async () => {
     const { blast } = analyze(await build('inclined'));
     for (const h of blast.holes) {
       expect((h.inclination * 180) / Math.PI).toBeCloseTo(15, 6);
