@@ -325,7 +325,7 @@ Secciones Sur–Norte (throw a lo largo de la sección, desde el último punto i
 
 - **Interfaz:**
   1. `pnpm dev` (o `pnpm dev:online` → mina Cuajone).
-  2. Abrir «Banco sobre topografía (completo)», ir a la pestaña **Pila** y pulsar «Calcular desplazamiento».
+  2. Abrir el ejemplo «Banco con ortofoto» (antes «Banco sobre topografía (completo)»), ir a la pestaña **Pila** y pulsar «Calcular desplazamiento».
   3. En la planta se ven la lengua del Este y las flechas; en 3D (tecla 3), los vóxeles.
   4. «Trazar sección» en u ≈ 184 y en u ≈ 124 para comparar los perfiles.
   5. En **Vista**, «Desplazamiento (flechas)» muestra el alcance de A5 (taladro 1: 147 m).

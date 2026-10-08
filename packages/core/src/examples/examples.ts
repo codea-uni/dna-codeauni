@@ -7,8 +7,11 @@ import { fitPatternToPolygon, generatePatternHoles } from '../patterns/pattern';
 import { electronicTimes, rowTieUp, withDownholeDetonator } from '../timing/tieUp';
 import { degToRad } from '../units/units';
 import {
+  buildFinalWallExample,
   buildMineExample,
+  buildMuckpileTopoExample,
   buildPitExample,
+  buildQuarryExample,
   buildSectorExample,
   type ExampleBuild,
 } from './topographyExamples';
@@ -441,9 +444,10 @@ export const EXAMPLE_SPECS = {
     ],
     rock: ROCK,
   } satisfies ExampleSpec,
+  /** Cantera en ladera con electrónicos junto a la planta (sobre terreno: `buildQuarryExample`). */
   electronic: {
-    projectName: 'Demo · Cerca de infraestructura',
-    blastName: 'Banco 3450 · Borde planta',
+    projectName: 'Demo · Cantera en ladera',
+    blastName: 'Banco 3462 · Frente de cantera',
     origin: ORIGIN,
     floorElevation: 3450,
     benchHeight: 12,
@@ -455,7 +459,6 @@ export const EXAMPLE_SPECS = {
     frontOffset: 2,
     charge: () => ({
       column: 'Emulsión bombeable',
-      airDeck: 1.5,
       stemming: 3.5,
       primer: 'Booster 450',
       detonator: 'Electrónico',
@@ -464,14 +467,15 @@ export const EXAMPLE_SPECS = {
     groups: () => ({ name: 'Producción controlada', kind: 'production' }),
     monitoring: [
       // Límite propio del punto (valor de demostración, no es norma).
-      { name: 'Planta', dx: 40, dy: -180, structure: 'planta', ppvLimitMmS: 25 },
-      { name: 'Taller', dx: -150, dy: 60, structure: 'planta' },
+      { name: 'Planta de chancado', dx: 40, dy: 170, structure: 'planta', ppvLimitMmS: 25 },
+      { name: 'Taller', dx: -80, dy: 120, structure: 'planta' },
     ],
     rock: { ...ROCK, name: 'Andesita' },
   } satisfies ExampleSpec,
+  /** Último banco junto a la pared final, inclinados (sobre terreno: `buildFinalWallExample`). */
   inclined: {
-    projectName: 'Demo · Taladros inclinados',
-    blastName: 'Banco 3405 · Talud final',
+    projectName: 'Demo · Talud final',
+    blastName: 'Banco 3420 · Pared final',
     origin: ORIGIN,
     floorElevation: 3405,
     benchHeight: 15,
@@ -487,19 +491,23 @@ export const EXAMPLE_SPECS = {
       inclinationDeg: 15,
     },
     frontOffset: 2.5,
-    charge: () => ({
-      bottom: { explosive: 'ANFO pesado', length: 2.5 },
-      column: 'ANFO',
-      stemming: 4,
-      primer: 'Booster 450',
-      detonator: 'Nonel fondo 500',
-    }),
-    groups: (row) =>
-      row === 0
-        ? { name: 'Primera fila', kind: 'production' }
+    // Las dos filas junto a la pared final son buffer: sin carga de fondo y más taco.
+    charge: (row, rows) =>
+      row >= rows - 2
+        ? { column: 'ANFO', stemming: 5, primer: 'Booster 450', detonator: 'Nonel fondo 500' }
+        : {
+            bottom: { explosive: 'ANFO pesado', length: 2.5 },
+            column: 'ANFO',
+            stemming: 4,
+            primer: 'Booster 450',
+            detonator: 'Nonel fondo 500',
+          },
+    groups: (row, rows) =>
+      row >= rows - 2
+        ? { name: 'Buffer (pared final)', kind: 'buffer' }
         : { name: 'Producción', kind: 'production' },
     timing: { mode: 'v', interHole: 'Nonel superficie 25', interRow: 'Nonel superficie 65' },
-    monitoring: [{ name: 'Mirador', dx: 45, dy: 300 }],
+    monitoring: [{ name: 'Mirador (borde del tajo)', dx: 45, dy: -60 }],
     rock: ROCK,
   } satisfies ExampleSpec,
   /**
@@ -547,54 +555,52 @@ export const EXAMPLE_SPECS = {
 const plain = (spec: ExampleSpec) => () =>
   Promise.resolve({ project: buildExample(spec), assets: [] });
 
+/**
+ * Ejemplos del menú: el primero es el banco plano de referencia (2D, completo); los demás están
+ * sobre topografía, en escenarios distintos.
+ */
 export const EXAMPLES: ExampleInfo[] = [
   {
     id: 'production',
-    name: 'Producción estándar',
-    description:
-      '≈250 taladros Ø 229 mm · producción y buffer · salida en V · 2 escenarios para comparar (en fila y en escalón)',
+    name: 'Producción estándar (2D)',
+    description: 'Banco plano completo · producción y buffer · salida en V · 2 escenarios',
     build: plain(EXAMPLE_SPECS.production),
-  },
-  {
-    id: 'electronic',
-    name: 'Cerca de infraestructura',
-    description:
-      'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m con límite propio',
-    build: plain(EXAMPLE_SPECS.electronic),
-  },
-  {
-    id: 'inclined',
-    name: 'Taladros inclinados',
-    description: 'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
-    build: plain(EXAMPLE_SPECS.inclined),
-  },
-  {
-    id: 'muckpile',
-    name: 'Pila de material',
-    description:
-      'Banco de 10 m · malla 4 × 5 m · 3 filas × 8 taladros · 25 ms entre taladros y 67 ms entre filas · para ver el desplazamiento y la pila (A7)',
-    build: plain(EXAMPLE_SPECS.muckpile),
-  },
-  {
-    id: 'topoPit',
-    name: 'Tajo con topografía',
-    description:
-      'Tajo de 8 bancos con curvas de nivel, cresta y pie · voladura en el banco 3385 apoyada en el terreno, cara libre desde la cresta · próximo perímetro en el fondo con su propio piso',
-    build: () => Promise.resolve(buildPitExample()),
-  },
-  {
-    id: 'topoSector',
-    name: 'Banco sobre topografía (completo)',
-    description:
-      'Talud de tres bancos con terreno natural y ortofoto · producción y buffer sobre el terreno, salida en V y escenario en escalón · puntos de control · próximo perímetro en el banco 3370',
-    build: () => Promise.resolve(buildSectorExample()),
   },
   {
     id: 'topoMine',
     name: 'Mina sobre levantamiento DXF',
-    description:
-      'Tajo real de un levantamiento DXF (TIN) · voladura en el banco 3465 de la pared Norte: cara libre en la cresta hacia el tajo, piso en el banco 3450, bocas sobre el terreno · salida en V',
+    description: 'Tajo real (TIN de un DXF) · pared Norte, banco 3465',
     build: buildMineExample,
+  },
+  {
+    id: 'topoSector',
+    name: 'Banco con ortofoto',
+    description: 'Talud de tres bancos con vuelo de dron · producción y buffer',
+    build: () => Promise.resolve(buildSectorExample()),
+  },
+  {
+    id: 'topoPit',
+    name: 'Tajo con topografía',
+    description: 'Tajo de 8 bancos · voladura en el banco 3385',
+    build: () => Promise.resolve(buildPitExample()),
+  },
+  {
+    id: 'electronic',
+    name: 'Cantera en ladera',
+    description: 'Electrónicos taladro a taladro · planta a 170 m',
+    build: () => Promise.resolve(buildQuarryExample()),
+  },
+  {
+    id: 'inclined',
+    name: 'Talud final',
+    description: 'Inclinados 15° · buffer junto a la pared final',
+    build: () => Promise.resolve(buildFinalWallExample()),
+  },
+  {
+    id: 'muckpile',
+    name: 'Pila sobre el banco inferior',
+    description: 'Banco de 10 m · el material cae al banco de abajo',
+    build: () => Promise.resolve(buildMuckpileTopoExample()),
   },
 ];
 

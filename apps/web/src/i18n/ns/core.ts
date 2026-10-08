@@ -135,27 +135,21 @@ export const es = {
   'project.invalid': 'Proyecto inválido en "{path}": {message}',
 
   // Proyectos de ejemplo (packages/core/src/examples/examples.ts)
-  'example.production.name': 'Producción estándar',
+  'example.production.name': 'Producción estándar (2D)',
   'example.production.description':
-    '≈250 taladros Ø 229 mm · producción y buffer · salida en V · 2 escenarios para comparar (en fila y en escalón)',
-  'example.electronic.name': 'Cerca de infraestructura',
-  'example.electronic.description':
-    'Electrónicos taladro a taladro (sin coincidencias) · cámara de aire · planta a 180 m con límite propio',
-  'example.inclined.name': 'Taladros inclinados',
-  'example.inclined.description':
-    'Inclinados 15° hacia la cara libre · ideal para la vista 3D (tecla 3)',
-  'example.muckpile.name': 'Pila de material',
-  'example.muckpile.description':
-    'Banco de 10 m · malla 4 × 5 m · 3 filas × 8 taladros · 25 ms entre taladros y 67 ms entre filas · para ver el desplazamiento y la pila (A7)',
-  'example.topoPit.name': 'Tajo con topografía',
-  'example.topoPit.description':
-    'Tajo de 8 bancos con curvas de nivel, cresta y pie · voladura en el banco 3385 apoyada en el terreno, cara libre desde la cresta · próximo perímetro en el fondo con su propio piso',
-  'example.topoSector.name': 'Banco sobre topografía (completo)',
-  'example.topoSector.description':
-    'Talud de tres bancos con terreno natural y ortofoto · producción y buffer sobre el terreno, salida en V y escenario en escalón · puntos de control · próximo perímetro en el banco 3370',
+    'Banco plano completo · producción y buffer · salida en V · 2 escenarios',
   'example.topoMine.name': 'Mina sobre levantamiento DXF',
-  'example.topoMine.description':
-    'Tajo real de un levantamiento DXF (TIN) · voladura en el banco 3465 de la pared Norte: cara libre en la cresta hacia el tajo, piso en el banco 3450, bocas sobre el terreno · salida en V',
+  'example.topoMine.description': 'Tajo real (TIN de un DXF) · pared Norte, banco 3465',
+  'example.topoSector.name': 'Banco con ortofoto',
+  'example.topoSector.description': 'Talud de tres bancos con vuelo de dron · producción y buffer',
+  'example.topoPit.name': 'Tajo con topografía',
+  'example.topoPit.description': 'Tajo de 8 bancos · voladura en el banco 3385',
+  'example.electronic.name': 'Cantera en ladera',
+  'example.electronic.description': 'Electrónicos taladro a taladro · planta a 170 m',
+  'example.inclined.name': 'Talud final',
+  'example.inclined.description': 'Inclinados 15° · buffer junto a la pared final',
+  'example.muckpile.name': 'Pila sobre el banco inferior',
+  'example.muckpile.description': 'Banco de 10 m · el material cae al banco de abajo',
 
   // Engine (packages/engine/src/text.ts)
   'engine.undo.addHole': 'Agregar taladro',
@@ -303,26 +297,21 @@ export const en = {
     'The file uses schema v{version}, newer than the supported one (v{supported}).',
   'project.invalid': 'Invalid project at "{path}": {message}',
 
-  'example.production.name': 'Standard production',
+  'example.production.name': 'Standard production (2D)',
   'example.production.description':
-    '≈250 holes Ø 229 mm · production and buffer · V firing · 2 scenarios to compare (row by row and echelon)',
-  'example.electronic.name': 'Near infrastructure',
-  'example.electronic.description':
-    'Hole-by-hole electronics (no overlaps) · air deck · plant at 180 m with its own limit',
-  'example.inclined.name': 'Angled holes',
-  'example.inclined.description': 'Angled 15° toward the free face · ideal for the 3D view (key 3)',
-  'example.muckpile.name': 'Muckpile',
-  'example.muckpile.description':
-    '10 m bench · 4 × 5 m pattern · 3 rows × 8 holes · 25 ms between holes and 67 ms between rows · to see blast movement and the muckpile (A7)',
-  'example.topoPit.name': 'Pit with topography',
-  'example.topoPit.description':
-    '8-bench pit with contours, crest and toe · blast on bench 3385 set on the ground, free face from the crest · next boundary on the pit floor with its own floor',
-  'example.topoSector.name': 'Bench on topography (complete)',
-  'example.topoSector.description':
-    'Three-bench slope with natural ground and orthophoto · production and buffer on the ground, V firing and echelon scenario · monitoring points · next boundary on bench 3370',
+    'Complete flat bench · production and buffer · V firing · 2 scenarios',
   'example.topoMine.name': 'Mine on a DXF survey',
-  'example.topoMine.description':
-    'Real pit from a DXF survey (TIN) · blast on the 3465 bench of the North wall: free face on the crest toward the pit, floor on the 3450 bench, collars on the ground · V firing',
+  'example.topoMine.description': 'Real pit (TIN from a DXF) · North wall, bench 3465',
+  'example.topoSector.name': 'Bench with orthophoto',
+  'example.topoSector.description': 'Three-bench slope from a drone survey · production and buffer',
+  'example.topoPit.name': 'Pit with topography',
+  'example.topoPit.description': '8-bench pit · blast on bench 3385',
+  'example.electronic.name': 'Hillside quarry',
+  'example.electronic.description': 'Hole-by-hole electronics · plant 170 m away',
+  'example.inclined.name': 'Final wall',
+  'example.inclined.description': 'Angled 15° · buffer next to the final wall',
+  'example.muckpile.name': 'Muckpile onto the lower bench',
+  'example.muckpile.description': '10 m bench · the material falls to the bench below',
 
   'engine.undo.addHole': 'Add hole',
   'engine.undo.addNamed': 'Add {name}',

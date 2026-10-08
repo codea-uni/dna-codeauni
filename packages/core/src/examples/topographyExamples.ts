@@ -12,7 +12,7 @@ import { encodePngRgb } from '../topography/png';
 import { SurfaceIndex } from '../topography/surfaceIndex';
 import { buildSurvey, type SurveyParts } from '../topography/survey';
 import { buildTin } from '../topography/tin';
-import { buildCharge, buildExample, type ExampleSpec } from './examples';
+import { buildCharge, buildExample, EXAMPLE_SPECS, type ExampleSpec } from './examples';
 
 /**
  * Proyectos de ejemplo sobre topografía (D-16). Terrenos sintéticos y deterministas (geometría de
@@ -563,5 +563,188 @@ export async function buildMineExample(): Promise<ExampleBuild> {
       files: ['new topo.dxf'],
     },
     3450,
+  );
+}
+
+// ------------------------------------------------------------------ Bancos sobre un terreno simple
+
+/**
+ * Cara de un banco en coordenadas locales (u Este, v Norte desde el origen de la receta). Las
+ * caras bajan hacia el Norte: cresta en `v = crest` a la cota `top` y pie más al Norte a `bottom`.
+ */
+interface BenchFace {
+  crest: number;
+  top: number;
+  bottom: number;
+  angleDeg: number;
+  /** Ondulación de la cresta en planta [m] (0 = recta, como la cara libre de la voladura). */
+  wiggle?: number;
+}
+
+interface BenchTerrain {
+  /** Dominio del levantamiento [m locales]. */
+  u: [number, number];
+  v: [number, number];
+  faces: BenchFace[];
+  /** Pendiente del terreno natural al Sur de la primera cresta (ladera; 0,2 = 20 %). */
+  hillSlope: number;
+  /** Separación de los puntos sueltos [m]. */
+  step: number;
+}
+
+const faceCrest = (f: BenchFace, k: number, u: number) =>
+  f.crest + (f.wiggle ?? 0) * Math.sin(u / 23 + k * 1.7);
+const faceToe = (f: BenchFace, k: number, u: number) =>
+  faceCrest(f, k, u) + (f.top - f.bottom) / Math.tan(degToRad(f.angleDeg));
+
+/**
+ * Cota de un terreno de bancos: ladera natural al Sur, caras planas y bancos con 0,2–0,9 m de
+ * material suelto que baja a la cota exacta en crestas y pies (como el sector con ortofoto).
+ */
+function benchElevation(t: BenchTerrain, u: number, v: number): number {
+  const edges = t.faces.flatMap((f, k) => [faceCrest(f, k, u), faceToe(f, k, u)]);
+  const near = Math.min(...edges.map((e) => Math.abs(v - e)));
+  const fade = Math.min(1, near / 3);
+  for (let k = 0; k < t.faces.length; k++) {
+    const f = t.faces[k];
+    if (!f) continue;
+    const c = faceCrest(f, k, u);
+    const toe = faceToe(f, k, u);
+    if (v < c) {
+      if (k === 0) return f.top + t.hillSlope * (c - v) + (0.45 + roughness(u, v)) * fade;
+      return f.top + (0.45 + roughness(u, v) * 0.6) * fade;
+    }
+    if (v <= toe) return f.top - (f.top - f.bottom) * ((v - c) / (toe - c));
+  }
+  const last = t.faces.at(-1);
+  return (last?.bottom ?? 0) + (0.45 + roughness(u, v) * 0.6) * fade;
+}
+
+/** TIN y líneas de cresta y pie de un terreno de bancos alrededor de `origin`. */
+function benchSurvey(origin: Vec2, t: BenchTerrain): SurveyParts & { tin: TinData } {
+  const points: number[] = [];
+  for (let u = t.u[0]; u <= t.u[1]; u += t.step)
+    for (let v = t.v[0]; v <= t.v[1]; v += t.step) {
+      const near = t.faces.some(
+        (f, k) => Math.abs(v - faceCrest(f, k, u)) < 0.6 || Math.abs(v - faceToe(f, k, u)) < 0.6,
+      );
+      if (!near) points.push(origin.x + u, origin.y + v, benchElevation(t, u, v));
+    }
+  const lines: TopoLine[] = [];
+  t.faces.forEach((f, k) => {
+    for (const [role, vOf, z] of [
+      ['crest', faceCrest, f.top],
+      ['toe', faceToe, f.bottom],
+    ] as const) {
+      const coords: number[] = [];
+      for (let u = t.u[0]; u <= t.u[1]; u += 2)
+        coords.push(origin.x + u, origin.y + vOf(f, k, u), z);
+      lines.push({ coords, role, closed: false });
+    }
+  });
+  return { tin: tinFrom(points, lines), lines: packLines(lines) };
+}
+
+/** Receta plana apoyada en su terreno de bancos (la cara libre de la receta es la cresta). */
+function onBenches(
+  spec: ExampleSpec,
+  terrain: BenchTerrain,
+  survey: { name: string; surveyDate: string },
+): ExampleBuild {
+  return onTopography(
+    buildExample(spec),
+    spec,
+    benchSurvey(spec.origin, terrain),
+    { ...survey, format: 'dxf' },
+    spec.floorElevation,
+  );
+}
+
+/**
+ * Cantera en ladera: banco de 12 m cortado en un cerro que sube al Sur (20 %), con la pared de
+ * arriba a 7 m de la voladura y el piso de la cantera al Norte, donde están la planta y el taller.
+ */
+export function buildQuarryExample(): ExampleBuild {
+  const spec = EXAMPLE_SPECS.electronic;
+  const top = spec.floorElevation + spec.benchHeight;
+  return onBenches(
+    spec,
+    {
+      u: [-100, 180],
+      v: [-70, 200],
+      step: 3,
+      hillSlope: 0.2,
+      faces: [
+        { crest: -12, top: top + 15, bottom: top, angleDeg: 72, wiggle: 2 },
+        { crest: 45, top, bottom: spec.floorElevation, angleDeg: spec.faceAngleDeg },
+      ],
+    },
+    { name: 'Cantera en ladera · levantamiento', surveyDate: '2026-09-25' },
+  );
+}
+
+/**
+ * Talud final: la voladura ocupa el último banco junto a la pared final (resguardo de 5 m al pie)
+ * con taladros inclinados 15° hacia la cresta; dos bancos más abajo hacia el tajo.
+ */
+export function buildFinalWallExample(): ExampleBuild {
+  const spec = EXAMPLE_SPECS.inclined;
+  const top = spec.floorElevation + spec.benchHeight;
+  const a = spec.faceAngleDeg;
+  return onBenches(
+    spec,
+    {
+      u: [-60, 150],
+      v: [-90, 140],
+      step: 2.5,
+      hillSlope: 0.03,
+      faces: [
+        { crest: -12, top: top + 15, bottom: top, angleDeg: a, wiggle: 3 },
+        { crest: 40, top, bottom: spec.floorElevation, angleDeg: a },
+        {
+          crest: 85,
+          top: spec.floorElevation,
+          bottom: spec.floorElevation - 15,
+          angleDeg: a,
+          wiggle: 3,
+        },
+      ],
+    },
+    { name: 'Pared final · levantamiento', surveyDate: '2026-09-28' },
+  );
+}
+
+/**
+ * Pila de material: el banco de 10 m de la receta de A7 (3 filas × 8) sobre el terreno, con la
+ * cara libre en la cresta; el material cae al banco de abajo, que tiene 55 m de ancho.
+ */
+export function buildMuckpileTopoExample(): ExampleBuild {
+  const base = EXAMPLE_SPECS.muckpile;
+  const spec: ExampleSpec = {
+    ...base,
+    projectName: 'Demo · Pila sobre el banco inferior',
+    monitoring: [{ name: 'Oficina de mina', dx: 20, dy: -60 }],
+  };
+  const top = spec.floorElevation + spec.benchHeight;
+  return onBenches(
+    spec,
+    {
+      u: [-50, 90],
+      v: [-70, 110],
+      step: 2,
+      hillSlope: 0.05,
+      faces: [
+        { crest: -8, top: top + 10, bottom: top, angleDeg: 75, wiggle: 1.5 },
+        { crest: 14, top, bottom: spec.floorElevation, angleDeg: spec.faceAngleDeg },
+        {
+          crest: 70,
+          top: spec.floorElevation,
+          bottom: spec.floorElevation - 10,
+          angleDeg: 75,
+          wiggle: 2,
+        },
+      ],
+    },
+    { name: 'Banco 3500 · levantamiento', surveyDate: '2026-09-30' },
   );
 }
