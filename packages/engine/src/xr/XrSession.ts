@@ -150,7 +150,7 @@ export class XrSession {
   /** Aparición del menú, 0 (cerrado) a 1 (abierto). */
   private menuAppear = 0;
   private readonly info = new XrPanel(0.34);
-  private readonly voice = new XrPanel(0.36);
+  private readonly voice = new XrPanel(0.45);
   private talking = false;
   private readonly hands: Hand[] = [];
   private readonly beam: Mesh<CylinderGeometry, MeshBasicMaterial>;

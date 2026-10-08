@@ -23,7 +23,7 @@ export interface XrRow {
   label: string;
   /** Botón encendido (escenario elegido, pestaña abierta…). */
   active?: boolean;
-  /** Glifo grande sobre la etiqueta (▶, ⟲, 🎤…); la fila es más alta. */
+  /** Glifo grande sobre la etiqueta (▶, ⟲, ●…; sin emoji: no todos los navegadores traen su fuente); la fila es más alta. */
   icon?: string;
   /** Pestaña: texto sin caja, subrayado si `active`. */
   tab?: boolean;

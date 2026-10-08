@@ -19,6 +19,24 @@ beforeEach(() => {
 });
 
 describe('bucle del asistente', () => {
+  it('un mensaje de voz lleva el audio y no lo vuelve a mandar en el turno siguiente', async () => {
+    const reply = (text: string) => ({
+      content: { role: 'model' as const, parts: [{ text }] },
+      finishReason: 'STOP',
+    });
+    generate
+      .mockResolvedValueOnce(reply('«Sube el taco a 3 m». Listo.'))
+      .mockResolvedValueOnce(reply('Hecho.'));
+    const audio = { mimeType: 'audio/wav', data: 'UklGRg==' };
+    await sendToAssistant('(VR) Taladro apuntado: 12', audio);
+    const first = generate.mock.calls[0]?.[0].contents[0];
+    expect(first?.parts).toContainEqual({ inlineData: audio });
+    expect(first?.parts[0]?.text).toContain('Taladro apuntado: 12');
+    await sendToAssistant('y el taladro 13');
+    const again = generate.mock.calls[1]?.[0].contents[0];
+    expect(again?.parts.some((p) => 'inlineData' in p)).toBe(false);
+  });
+
   it('ejecuta la herramienta pedida, devuelve su resultado con el mismo id y termina en texto', async () => {
     const call = {
       functionCall: { id: 'c1', name: 'generate_pattern', args: { kind: 'square', burden: 5 } },

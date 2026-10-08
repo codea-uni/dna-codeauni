@@ -7,6 +7,7 @@ import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { holeCardRows } from './holeCard';
 import { setPresenting } from './room';
+import { bindXrVoice } from './voice';
 import { applyXrLayers, useXrRoom, xrLayers } from './xrState';
 
 /** Segundos reales que dura en el visor la secuencia con el vuelo del material. */
@@ -27,7 +28,8 @@ const store = () => useAnalysisStore.getState();
 /**
  * Menú y ficha del taladro dentro del visor (D-19). El engine dibuja los paneles y avisa qué botón
  * o taladro se apuntó; aquí se arman los textos (`t()`) y se usan las mismas acciones y resultados
- * de los paneles: ningún cálculo nuevo. La sesión es de solo lectura (no hay comandos).
+ * de los paneles: ningún cálculo nuevo. No hay comandos directos: el diseño se edita solo por voz,
+ * con el asistente (`voice.ts`).
  */
 export function bindXr(engine: Engine): () => void {
   let view: XrView = 'table';
@@ -74,9 +76,9 @@ export function bindXr(engine: Engine): () => void {
     if (tab === 'view') {
       // Escenarios: maqueta sobre la mesa real, dentro de la voladura o maqueta aislada.
       lines.push([
-        { id: 'view:table', icon: '🪑', label: t('xr.menu.table'), active: view === 'table' },
-        { id: 'view:walk', icon: '⛰️', label: t('xr.menu.walk'), active: view === 'walk' },
-        { id: 'view:model', icon: '🧊', label: t('xr.menu.model'), active: view === 'model' },
+        { id: 'view:table', icon: '▦', label: t('xr.menu.table'), active: view === 'table' },
+        { id: 'view:walk', icon: '▲', label: t('xr.menu.walk'), active: view === 'walk' },
+        { id: 'view:model', icon: '◆', label: t('xr.menu.model'), active: view === 'model' },
       ]);
       if (view !== 'walk') {
         const n = 1 / scale;
@@ -122,6 +124,15 @@ export function bindXr(engine: Engine): () => void {
       }
     }
     lines.push([
+      ...(voice.available
+        ? [
+            {
+              id: 'voice',
+              label: t(voice.listening ? 'xr.voice.send' : 'xr.menu.talk'),
+              active: voice.listening,
+            },
+          ]
+        : []),
       ...(room.role
         ? [
             {
@@ -140,6 +151,20 @@ export function bindXr(engine: Engine): () => void {
     const hole = selected ? session.document.findHole(selected)?.hole : undefined;
     return hole ? holeCardRows(hole, session.document.project, store().analysis) : [];
   };
+
+  /** Contexto del visor para el asistente (en inglés, como las respuestas de las herramientas). */
+  const voiceContext = (): string => {
+    const hole = selected ? session.document.findHole(selected)?.hole : undefined;
+    const scene = {
+      table: 'tabletop model',
+      walk: 'inside the blast at full scale',
+      model: 'isolated model',
+    }[view];
+    return `(VR headset, ${scene}) ${hole ? `Pointed hole: "${hole.label}".` : 'No hole pointed.'}`;
+  };
+  const voice = bindXrVoice(engine, voiceContext, () => {
+    refresh();
+  });
 
   /** Redibuja los paneles solo si cambió su texto (el store cambia en cada cuadro de la secuencia). */
   const refresh = () => {
@@ -223,6 +248,9 @@ export function bindXr(engine: Engine): () => void {
       case 'present':
         setPresenting(useXrRoom.getState().role !== 'presenter');
         break;
+      case 'voice':
+        voice.toggle();
+        break;
       case 'exit':
         engine.exitXr();
         break;
@@ -256,6 +284,7 @@ export function bindXr(engine: Engine): () => void {
     useXrRoom.subscribe(refresh),
   ];
   return () => {
+    voice.dispose();
     playback?.abort();
     for (const off of offs) off();
   };

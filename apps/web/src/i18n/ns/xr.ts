@@ -5,7 +5,7 @@
 export const es = {
   'xr.enterVr': 'Entrar en VR',
   'xr.hint':
-    'Entra con un visor (Meta Quest): maqueta sobre tu mesa, dentro de la voladura o maqueta aislada. Solo lectura.',
+    'Entra con un visor (Meta Quest): maqueta sobre tu mesa, dentro de la voladura o maqueta aislada. Con el servidor se edita por voz manteniendo A.',
   'xr.error': 'No se pudo abrir el visor: {message}',
   'xr.group': 'Realidad virtual',
   'xr.room.presenting': 'Presentando · {n} conectados',
@@ -30,6 +30,13 @@ export const es = {
   'xr.tab.layers': 'Capas',
   'xr.tab.sequence': 'Secuencia',
   'xr.menu.exit': 'Salir',
+  'xr.menu.talk': '● Hablar',
+  'xr.voice.send': '■ Enviar',
+  'xr.voice.listening': 'Escuchando… (habla y suelta A)',
+  'xr.voice.release': 'Volumen del micrófono',
+  'xr.voice.thinking': 'Pensando…',
+  'xr.voice.starting': 'Activando el micrófono…',
+  'xr.voice.error': 'No se pudo usar la voz: {message}',
 
   'xr.info.title': 'Taladro {label}',
   'xr.info.charge': 'Carga: {kg} kg',
@@ -45,7 +52,7 @@ export const es = {
 export const en = {
   'xr.enterVr': 'Enter VR',
   'xr.hint':
-    'Enter with a headset (Meta Quest): tabletop model on your table, inside the blast or isolated model. Read-only.',
+    'Enter with a headset (Meta Quest): tabletop model on your table, inside the blast or isolated model. With the server, edit by voice holding A.',
   'xr.error': 'Could not open the headset: {message}',
   'xr.group': 'Virtual reality',
   'xr.room.presenting': 'Presenting · {n} connected',
@@ -70,6 +77,13 @@ export const en = {
   'xr.tab.layers': 'Layers',
   'xr.tab.sequence': 'Sequence',
   'xr.menu.exit': 'Exit',
+  'xr.menu.talk': '● Talk',
+  'xr.voice.send': '■ Send',
+  'xr.voice.listening': 'Listening… (speak and release A)',
+  'xr.voice.release': 'Microphone level',
+  'xr.voice.thinking': 'Thinking…',
+  'xr.voice.starting': 'Turning on the microphone…',
+  'xr.voice.error': 'Voice unavailable: {message}',
 
   'xr.info.title': 'Hole {label}',
   'xr.info.charge': 'Charge: {kg} kg',
