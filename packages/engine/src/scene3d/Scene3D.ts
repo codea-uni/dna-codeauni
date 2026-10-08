@@ -14,6 +14,7 @@ import {
   LineBasicMaterial,
   LineSegments,
   Mesh,
+  MeshBasicMaterial,
   MeshLambertMaterial,
   Shape,
   ShapeGeometry,
@@ -74,7 +75,7 @@ export interface Scene3DOptions {
 export const DEFAULT_3D_OPTIONS: Scene3DOptions = {
   radiusScale: 2,
   minRadius: 0.15,
-  surfaceOpacity: 0.7,
+  surfaceOpacity: 0.85,
 };
 
 export interface Bounds3 {
@@ -513,6 +514,8 @@ export class Scene3D {
     this.surfaces.remove(mesh);
     mesh.geometry.dispose();
     mesh.material.dispose();
+    for (const child of mesh.children)
+      if (child instanceof Mesh) (child.material as MeshBasicMaterial).dispose();
     this.surfaceCache.delete(tin);
   }
 
@@ -583,6 +586,12 @@ export class Scene3D {
     );
     // Después de los taladros (opacos): así se ven a través del terreno.
     mesh.renderOrder = 1;
+    // Pasada solo de profundidad (misma geometría, también la recortada): de la topografía
+    // translúcida se ve solo la cara más cercana, sin que las laderas de atrás se transparenten.
+    const depth = new Mesh(g, new MeshBasicMaterial({ colorWrite: false, side: DoubleSide }));
+    depth.renderOrder = 1;
+    depth.raycast = () => undefined;
+    mesh.add(depth);
     return mesh;
   }
 

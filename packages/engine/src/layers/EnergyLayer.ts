@@ -76,9 +76,10 @@ export class EnergyLayer {
       new BufferGeometry(),
       new MeshBasicMaterial({
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.9,
         side: DoubleSide,
-        depthWrite: false,
+        // Escribe profundidad: el mapa del fondo no se ve a través del de adelante ni del relieve.
+        depthWrite: true,
         polygonOffset: true,
         polygonOffsetFactor: -4,
         polygonOffsetUnits: -4,
@@ -92,7 +93,8 @@ export class EnergyLayer {
 
   setOpacity(opacity: number): void {
     this.plane.material.opacity = opacity;
-    this.drape.material.opacity = opacity;
+    // Sobre el relieve, casi sólido: los colores no se mezclan con el terreno ni con lo de atrás.
+    this.drape.material.opacity = Math.min(1, opacity + 0.3);
   }
 
   /**

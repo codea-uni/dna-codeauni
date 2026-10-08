@@ -181,7 +181,7 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   topoContourInterval: 0,
   topoShadeOpacity: 0.85,
   topoImageOpacity: 1,
-  topoOpacity3d: 0.7,
+  topoOpacity3d: 0.85,
   set: (patch) => {
     set(patch);
   },
