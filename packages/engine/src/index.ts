@@ -31,5 +31,5 @@ export { DEFAULT_DECORATIONS, type DecorationSettings } from './overlay/MapDecor
 export { formatDistance } from './cameras/mapScale';
 export { ENGINE_TEXT, type EngineText, type EngineTextKey } from './text';
 export type { XrMode, XrView, XrStartOptions } from './xr/XrSession';
-export type { XrLine, XrRow } from './xr/XrPanel';
+export type { XrBarSegment, XrLine, XrRow } from './xr/XrPanel';
 export type { XrAvatar, XrTransform } from './xr/Avatars';

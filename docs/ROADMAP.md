@@ -10,20 +10,20 @@
 | Hito en curso | **▶ E2.1 Manual básico** (sección «Evaluación 2» más abajo)                      |
 | Después       | E2.2 registro de comentarios → E2.3 sesión con ingenieros → F3 (S0)              |
 | Fase 1        | Código completo; el cierre formal espera datos y aprobaciones (ver `REPORTS.md`) |
-| VR (D-19)     | V0–V5 adelantados en código; falta la prueba en los visores reales               |
+| VR (D-19)     | V0–V6 adelantados en código; falta la prueba en los visores reales               |
 
 ## Todas las fases
 
-| Fase                          | Para qué (guía `01 §3`)                          | Hitos                                                                                                                                     | Salida                                                 | Estado                   |
-| ----------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
-| **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre              | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
-| Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                                         | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
-| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · A5 · A6 · A7 (pila, adelantado D-17)                                                                       | Caso de referencia de cada modelo reproducido          | ✅ código                |
-| **VR** Realidad virtual       | Presentar a clientes en un visor (D-19)          | V0 sesión y vuelo · V1 taladros, mapas, secuencia y pila · V2 maqueta y AR · V3 multiusuario · V4 escenarios · V5 web y menú (adelantado) | Recorrido en Quest 3 y Quest 2 a 72 fps                | ✅ código · 🟡 visor     |
-| Evaluación 2                  | Ingenieros externos                              | **▶ E2.1** manual · E2.2 comentarios · E2.3 sesión                                                                                        | Hallazgos críticos resueltos                           | ⏳ en curso              |
-| **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                              | Ronda completa dentro de sección; casos de referencia  | —                        |
-| **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                                            | Un diseño calibrado con datos reales                   | —                        |
-| **F5** Distribución y backend | Dejarlo listo para terceros                      | D0 backend · D1 usuarios y roles · D2 comentarios y auditoría · D3 manual y paquete · D4 cierre                                           | Lista de lanzamiento aprobada                          | —                        |
+| Fase                          | Para qué (guía `01 §3`)                          | Hitos                                                                                                                                                      | Salida                                                 | Estado                   |
+| ----------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------ |
+| **F1** Diseño y simulación    | Diseñar, cargar, amarrar y reportar una voladura | G0 base · G1 modelo · G2 importación · G3 malla · G4 carga · G5 tiempos · G6 MIC y PPV · G7 reporte · G8 idiomas · G9 cierre                               | CR-01…CR-06 reproducidos; un ingeniero hace CR-04 solo | ✅ código · 🟡 cierre    |
+| Evaluación 1                  | El ingeniero usa el producto                     | —                                                                                                                                                          | Hallazgos críticos resueltos                           | ⏳ espera datos de CR-04 |
+| **F2** Análisis avanzado      | Predecir resultados                              | A0 · A1 · A1b · A2 · A3 · A4 · A5 · A6 · A7 (pila, adelantado D-17)                                                                                        | Caso de referencia de cada modelo reproducido          | ✅ código                |
+| **VR** Realidad virtual       | Presentar a clientes en un visor (D-19)          | V0 sesión y vuelo · V1 taladros, mapas, secuencia y pila · V2 maqueta y AR · V3 multiusuario · V4 escenarios · V5 web y menú · V6 interactivo (adelantado) | Recorrido en Quest 3 y Quest 2 a 72 fps                | ✅ código · 🟡 visor     |
+| Evaluación 2                  | Ingenieros externos                              | **▶ E2.1** manual · E2.2 comentarios · E2.3 sesión                                                                                                         | Hallazgos críticos resueltos                           | ⏳ en curso              |
+| **F3** Subterráneo            | Frentes y anillos                                | S0 fuentes · S1 modelo · S2 diseño de frentes · S3 carga y resultados · S4 anillos · S5 análisis · S6 cierre                                               | Ronda completa dentro de sección; casos de referencia  | —                        |
+| **F4** Datos de campo         | Calibrar con mediciones                          | C0 formatos · C1 perforado real · C2 sismógrafos · C3 nube y dron · C4 calibración · C5 cierre                                                             | Un diseño calibrado con datos reales                   | —                        |
+| **F5** Distribución y backend | Dejarlo listo para terceros                      | D0 backend · D1 usuarios y roles · D2 comentarios y auditoría · D3 manual y paquete · D4 cierre                                                            | Lista de lanzamiento aprobada                          | —                        |
 
 Fuera de alcance en todas las fases (guía `01 §3`): ejecución en campo con tabletas, integración con perforadoras o camiones fábrica, gemelo digital 4D y aprendizaje automático.
 
@@ -165,9 +165,9 @@ Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso). Módulo en `c
 - **3D:** conmutadores para ocultar las caras libres y los planos del banco. Con la pila calculada, la topografía se recorta en los perímetros volados y su talud, así se ve la pila también delante de la cara.
 - **Caso de dos escalones** (`docs/MUCKPILE-REPORT.md` §9): in situ 75 647 m³ (+4897 m³ de cuña); throw de 183,8 a 72,8 m.
 
-## Realidad virtual (V0–V5, adelantado, D-19)
+## Realidad virtual (V0–V6, adelantado, D-19)
 
-Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso): presentar las voladuras a clientes con un visor Meta Quest (3/3S y 2). **WebXR en la misma web**, sin app nativa (D-19). Solo lectura; los cálculos no cambian.
+Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso): presentar las voladuras a clientes con un visor Meta Quest (3/3S y 2). **WebXR en la misma web**, sin app nativa (D-19). Los cálculos no cambian; desde V6 el diseño se edita en el visor solo por voz, con el asistente (D-18).
 
 ### V0: sesión XR y vuelo a escala real ✅
 
@@ -207,7 +207,41 @@ Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso): presentar las
 - **La web también está en la sala:** con un proyecto del servidor abierto, el navegador entra a la sala aunque no haya visor (`bindRoom`). En la vista 3D manda la posición de su cámara y ve a quienes están en VR: dentro de la voladura como figuras con un tamaño mínimo según la distancia de la cámara, y a quien mira la maqueta como un gigante sobre el tajo. Quien está en VR ve la cámara de la web como un avatar. En planta no se manda pose y, tras 2 s sin poses, el avatar se oculta. Desde la web solo se ve: no se sigue al presentador.
 - **Menú compacto y dinámico:** botones agrupados por fila (escenario; −, escala, +, acomodar; energía y vibración; etiquetas y material; reproducir y reiniciar; presentar y salir): de 16 filas a 6. Aparece al mirar la mano izquierda (como un reloj) y se va al dejar de mirarla, salvo mientras el rayo lo apunta.
 
-**Pendiente:** recorrido en un Quest 3 y un Quest 2 reales (fps con OVR Metrics, 31 700 bloques de la pila en el Quest 2, alineación del menú en la mano) y una prueba de dos visores en producción.
+### V6: VR interactivo (pedido del usuario) ✅
+
+- **Menú por pestañas** (Vista · Capas · Secuencia) con un pie fijo (Hablar, Presentar, Salir):
+  - tarjetas de escenario con ícono;
+  - **slider de escala** de la maqueta (1:100–1:20 000, logarítmico) que se arrastra con el gatillo, en lugar de «− / +»;
+  - interruptores para energía, vibración, etiquetas y material;
+  - ▶/⏸ y ⟲ grandes, y una **línea de tiempo** que recorre la secuencia (`seekSequence`, como en el panel Vista).
+- El menú aparece con una animación corta y el control vibra al pasar de un botón a otro (si el visor lo admite).
+- Íconos con símbolos Unicode simples, no emoji (no todos los navegadores traen su fuente).
+- **Ficha del taladro con la columna de carga:**
+  - barra apilada de boca a fondo con los colores del editor de columna;
+  - una leyenda por tramo («ANFO · 9,0 m · 296,5 kg», «Gravilla ⅜″ · 4,5 m»);
+  - iniciadores, carga y retardo, longitud y diámetro, y factor de carga.
+  - Sale de `holeCharge` y del análisis (`xr/holeCard.ts`): ningún cálculo nuevo.
+- **Edición por voz en el visor:**
+  - se mantiene A en el control derecho (o el botón «Hablar» del menú), en cualquier escenario;
+  - el navegador del Quest no tiene reconocimiento de voz, así que se graba el audio (WAV mono de 16 kHz) y Gemini lo escucha con el **mismo asistente** de la web: mismas herramientas y comandos, y cada cambio se deshace;
+  - el contexto lleva el escenario y el taladro apuntado («cambia el diámetro del taladro apuntado a 250 mm»);
+  - un panel frente a la cabeza muestra «Activando el micrófono → Escuchando (vúmetro) → Pensando → respuesta», con lo que entendió y las acciones hechas;
+  - el audio no se reenvía en los turnos siguientes;
+  - solo con servidor; cada visor edita su borrador.
+- **Avatares de minero** low-poly:
+  - casco del color de la persona con linterna, visor, chaleco naranja con franjas reflectivas;
+  - brazos del hombro a cada control y guantes;
+  - el cuerpo sigue el rumbo de la cabeza;
+  - también en la vista 3D de la web.
+
+**Pendiente:** recorrido en un Quest 3 y un Quest 2 reales:
+
+- fps con OVR Metrics y 31 700 bloques de la pila en el Quest 2;
+- alineación del menú en la mano;
+- permiso del micrófono dentro de la sesión inmersiva y `speechSynthesis` en el Quest;
+- háptica.
+
+Falta también una prueba de dos visores en producción.
 
 ## Evaluación 2 (después de A6)
 

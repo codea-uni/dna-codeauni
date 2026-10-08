@@ -2,6 +2,7 @@ import { Bot, Mic, MicOff, RotateCcw, Send, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useT, type MessageKey } from '../i18n';
 import { serverMode } from '../server/api';
+import { ERROR_KEYS, speak, speechLang, TOOL_LABELS } from './labels';
 import {
   cancelAssistant,
   resetAssistant,
@@ -30,21 +31,6 @@ const Recognition: RecognitionCtor | undefined = (() => {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition;
 })();
 
-/** Idioma de voz: el del navegador si coincide con el de la interfaz (es-PE, es-CL…). */
-function speechLang(locale: string): string {
-  const nav = navigator.language;
-  if (nav.toLowerCase().startsWith(locale)) return nav;
-  return locale === 'en' ? 'en-US' : 'es-ES';
-}
-
-function speak(text: string, lang: string): void {
-  if (!('speechSynthesis' in window) || !text) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang;
-  window.speechSynthesis.speak(u);
-}
-
 const EXAMPLES = [
   'ai.example.1',
   'ai.example.2',
@@ -53,38 +39,11 @@ const EXAMPLES = [
   'ai.example.5',
 ] as const satisfies readonly MessageKey[];
 
-const TOOL_LABELS: Record<string, MessageKey> = {
-  generate_pattern: 'ai.tool.generate_pattern',
-  edit_holes: 'ai.tool.edit_holes',
-  move_holes: 'ai.tool.move_holes',
-  add_holes: 'ai.tool.add_holes',
-  delete_holes: 'ai.tool.delete_holes',
-  set_charge: 'ai.tool.set_charge',
-  clear_charge: 'ai.tool.clear_charge',
-  set_tie_up: 'ai.tool.set_tie_up',
-  set_electronic_timing: 'ai.tool.set_electronic_timing',
-  set_hole_delays: 'ai.tool.set_hole_delays',
-  clear_tie_up: 'ai.tool.clear_tie_up',
-  create_perimeter: 'ai.tool.create_perimeter',
-  set_free_face: 'ai.tool.set_free_face',
-  undo: 'ai.tool.undo',
-};
-
 const VOICE_ERRORS: Record<string, MessageKey> = {
   'not-allowed': 'ai.voice.not-allowed',
   'service-not-allowed': 'ai.voice.not-allowed',
   'audio-capture': 'ai.voice.audio-capture',
   network: 'ai.voice.network',
-};
-
-const ERROR_KEYS: Record<string, MessageKey> = {
-  ai_not_configured: 'ai.error.ai_not_configured',
-  ai_upstream: 'ai.error.ai_upstream',
-  unauthorized: 'ai.error.unauthorized',
-  ai_empty: 'ai.error.ai_empty',
-  ai_steps: 'ai.error.ai_steps',
-  ai_cancelled: 'ai.error.ai_cancelled',
-  voice: 'ai.error.voice',
 };
 
 function Entry({ entry }: { entry: ChatEntry }) {

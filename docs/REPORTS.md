@@ -260,3 +260,27 @@ Supuestos: S-30…S-32 (parámetros de interfaz) · No verificado: visores reale
 - **Prueba unitaria:** celda bajo el rayo en filas de varios botones (`XrPanel.test.ts`).
 - **Emulador contra el servidor real (Luis en el visor, Rosa en la web, vista 3D):** el menú tiene 6 filas y está cerrado al entrar y al mirar a la derecha; se abre al mirar la mano izquierda. Rosa ve a Luis como gigante mientras él mira la maqueta (escala 1000, 628 m sobre el tajo) y como figura dentro del tajo cuando pasa a «Adentro» (tamaño mínimo por la distancia de la cámara). Luis ve la cámara de Rosa sobre su maqueta.
 - **No verificado:** la ergonomía del menú en la mano con un Quest real.
+
+### V6: VR interactivo (2026-10-08)
+
+- **Pruebas unitarias:**
+  - fila bajo el rayo con filas de distinto alto, y valor de un slider dentro de su celda (`XrPanel.test.ts`);
+  - ficha del taladro con taco 4 m + ANFO 12,5 m en 16,5 m: la barra va de boca a fondo y suma 1, y el explosivo muestra 314,2 kg (25,133 kg/m de `charge.test.ts`) (`holeCard.test.ts`);
+  - WAV PCM de 16 bits y corte de líneas (`voice.test.ts`);
+  - el audio viaja como `inlineData` y no se reenvía en el turno siguiente (`agent.test.ts`).
+- **Emulador** (IWER, Quest 3, Chromium sin interfaz con micrófono falso) contra el servidor real con «Demo · Mina sobre levantamiento DXF»:
+  - Pestañas Vista, Capas y Secuencia.
+  - El slider de escala arrastrado lleva la maqueta de 1:1000 a 1:8073 de forma continua y suelta sin clic.
+  - El interruptor de energía la prende.
+  - La línea de tiempo recorre la secuencia hasta t = 4570 ms.
+  - Ficha del taladro 1: barra con taco, ANFO y ANFO pesado; «ANFO · 9,0 m · 296,5 kg», «ANFO pesado 30/70 · 3,0 m · 135,9 kg», iniciador, carga 432,9 kg, retardo 119 ms y factor de carga 0,649 kg/m³.
+  - Dos mineros frente al usuario dentro de la voladura.
+  - **Voz** (orden grabada «Change the diameter of the pointed hole to 250 millimeters» con el taladro 4 apuntado), en la maqueta y dentro de la voladura:
+    - panel «Activando el micrófono → Escuchando» con el vúmetro;
+    - después «Pensando» y la respuesta «Understood: change the diameter of hole 4 to 250 mm…» con «✓ Taladros editados»;
+    - el diámetro pasa de 229 a 250 mm, la ficha se actualiza (carga 492,4 kg) y deshacer queda en «IA: editar 1 taladros».
+- **Errores encontrados y corregidos:**
+  - los emoji no tienen fuente en Chromium sin interfaz: se cambiaron por símbolos Unicode;
+  - el vúmetro daba cero porque el `AudioContext` creado fuera de un clic queda suspendido;
+  - el micrófono tarda unos 2 s en abrirse la primera vez: se agregó el estado «Activando el micrófono».
+- **No verificado:** todo lo que depende del Quest real (permiso del micrófono en la sesión inmersiva, `speechSynthesis`, háptica, fps con mineros en el Quest 2).

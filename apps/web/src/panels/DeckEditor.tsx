@@ -24,7 +24,7 @@ type T = ReturnType<typeof useT>;
 
 const KINDS: Deck['kind'][] = ['explosive', 'stemming', 'air', 'water', 'plug'];
 
-const KIND_COLOR: Record<Deck['kind'], string> = {
+export const KIND_COLOR: Record<Deck['kind'], string> = {
   explosive: '#ff7b39',
   stemming: '#b8a07a',
   air: '#9fd3ff',
@@ -32,7 +32,7 @@ const KIND_COLOR: Record<Deck['kind'], string> = {
   plug: '#8b949e',
 };
 
-function deckName(deck: Deck, lib: ProductLibrary, t: T): string {
+export function deckName(deck: Deck, lib: ProductLibrary, t: T): string {
   if (deck.kind === 'explosive')
     return (
       lib.explosives.find((e) => e.id === deck.explosiveId)?.name ?? t('deck.unknownExplosive')

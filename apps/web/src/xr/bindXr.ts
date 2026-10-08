@@ -1,35 +1,60 @@
-import { diameterToDisplay, lengthToDisplay, type HoleId } from '@cronos/core';
-import type { Engine, XrLine, XrRow, XrView } from '@cronos/engine';
+import type { HoleId } from '@cronos/core';
+import type { Engine, XrLine, XrView } from '@cronos/engine';
+import { muckpileEnd, sequenceTimes } from '../analysis/visualize';
 import { playDemoSequence } from '../demo/runtime';
 import { formatNumber, t, useLocale } from '../i18n';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { holeCardRows } from './holeCard';
 import { setPresenting } from './room';
+import { bindXrVoice } from './voice';
 import { applyXrLayers, useXrRoom, xrLayers } from './xrState';
 
 /** Segundos reales que dura en el visor la secuencia con el vuelo del material. */
 const XR_SEQUENCE_SECONDS = 12;
-const ZOOM_STEP = 1.5;
+/** Rango del slider de escala de la maqueta (1:N, logarítmico). */
+const SCALE_MIN = 100;
+const SCALE_MAX = 20_000;
+
+type Tab = 'view' | 'layers' | 'sequence';
+
+/** Posición 0–1 del slider para la escala 1:N, y su inversa. */
+export const scaleToSlider = (n: number): number =>
+  Math.min(1, Math.max(0, Math.log(n / SCALE_MIN) / Math.log(SCALE_MAX / SCALE_MIN)));
+export const sliderToScale = (v: number): number => SCALE_MIN * (SCALE_MAX / SCALE_MIN) ** v;
 
 const store = () => useAnalysisStore.getState();
 
 /**
  * Menú y ficha del taladro dentro del visor (D-19). El engine dibuja los paneles y avisa qué botón
  * o taladro se apuntó; aquí se arman los textos (`t()`) y se usan las mismas acciones y resultados
- * de los paneles: ningún cálculo nuevo. La sesión es de solo lectura (no hay comandos).
+ * de los paneles: ningún cálculo nuevo. No hay comandos directos: el diseño se edita solo por voz,
+ * con el asistente (`voice.ts`).
  */
 export function bindXr(engine: Engine): () => void {
   let view: XrView = 'table';
   let scale = 1;
+  let tab: Tab = 'view';
   let selected: HoleId | null = null;
   let ended = false;
   let playback: AbortController | null = null;
   let lastMenu = '';
   let lastInfo = '';
 
+  /** Intervalo de la secuencia en el visor [s], como `playDemoSequence`. */
+  const sequenceSpan = (): { from: number; end: number } | null => {
+    const { analysis, muckpile } = store();
+    if (!analysis) return null;
+    const pile = xrLayers().pile && muckpile;
+    return {
+      from: analysis.timing.firstTime - 0.05,
+      end: pile ? muckpileEnd(muckpile, null) : analysis.timing.lastTime + 0.3,
+    };
+  };
+
   /**
-   * Menú compacto: botones agrupados por fila (escenario, maqueta, capas, secuencia, sala). Aparece
-   * al mirar la mano izquierda.
+   * Menú por pestañas (vista, capas, secuencia) con un pie fijo (sala y salir). Aparece al mirar la
+   * mano izquierda; la escala y la línea de tiempo se arrastran con el gatillo.
    */
   const menuRows = (): XrLine[] => {
     const s = store();
@@ -40,83 +65,106 @@ export function bindXr(engine: Engine): () => void {
       lines.push({ label: t('xr.room.presenting', { n: room.peers }) });
     else if (room.role === 'viewer' && room.presenter)
       lines.push({ label: t('xr.room.following', { name: room.presenter }) });
-    // Escenarios: maqueta sobre la mesa real, dentro de la voladura o maqueta aislada.
-    lines.push([
-      { id: 'view:table', label: t('xr.menu.table'), active: view === 'table' },
-      { id: 'view:walk', label: t('xr.menu.walk'), active: view === 'walk' },
-      { id: 'view:model', label: t('xr.menu.model'), active: view === 'model' },
-    ]);
-    if (view !== 'walk')
-      lines.push([
-        { id: 'zoomOut', label: t('xr.menu.zoomOut') },
-        { label: t('xr.menu.scale', { n: formatNumber(Math.round(1 / scale)) }) },
-        { id: 'zoomIn', label: t('xr.menu.zoomIn') },
-        ...(view === 'table' ? [{ id: 'place', label: t('xr.menu.place') }] : []),
-      ]);
     lines.push(
-      [
-        { id: 'energy', label: t('xr.menu.energy'), active: l.energy },
-        { id: 'vibration', label: t('xr.menu.vibration'), active: l.vibration },
-      ],
-      [
-        { id: 'labels', label: t('xr.menu.labels'), active: l.labels },
-        { id: 'pile', label: t('xr.menu.pile'), active: l.pile },
-      ],
-      [
+      (['view', 'layers', 'sequence'] as const).map((k) => ({
+        id: `tab:${k}`,
+        label: t(`xr.tab.${k}`),
+        tab: true,
+        active: tab === k,
+      })),
+    );
+    if (tab === 'view') {
+      // Escenarios: maqueta sobre la mesa real, dentro de la voladura o maqueta aislada.
+      lines.push([
+        { id: 'view:table', icon: '▦', label: t('xr.menu.table'), active: view === 'table' },
+        { id: 'view:walk', icon: '▲', label: t('xr.menu.walk'), active: view === 'walk' },
+        { id: 'view:model', icon: '◆', label: t('xr.menu.model'), active: view === 'model' },
+      ]);
+      if (view !== 'walk') {
+        const n = 1 / scale;
+        lines.push({
+          id: 'scale',
+          label: t('xr.menu.scale', { n: formatNumber(Math.round(n)) }),
+          slider: scaleToSlider(n),
+        });
+        if (view === 'table') lines.push({ id: 'place', label: t('xr.menu.place') });
+      }
+    } else if (tab === 'layers') {
+      lines.push(
+        [
+          { id: 'energy', label: t('xr.menu.energy'), toggle: l.energy },
+          { id: 'vibration', label: t('xr.menu.vibration'), toggle: l.vibration },
+        ],
+        [
+          { id: 'labels', label: t('xr.menu.labels'), toggle: l.labels },
+          { id: 'pile', label: t('xr.menu.pile'), toggle: l.pile },
+        ],
+      );
+    } else {
+      lines.push([
         {
           id: 'play',
+          icon: s.sequencePlaying ? '⏸' : '▶',
           label: t(s.sequencePlaying ? 'xr.menu.pause' : 'xr.menu.play'),
           active: s.sequencePlaying,
         },
-        { id: 'reset', label: t('xr.menu.reset') },
-      ],
-      [
-        ...(room.role
-          ? [
-              {
-                id: 'present',
-                label: t(room.role === 'presenter' ? 'xr.menu.stopPresenting' : 'xr.menu.present'),
-                active: room.role === 'presenter',
-              },
-            ]
-          : []),
-        { id: 'exit', label: t('xr.menu.exit') },
-      ],
-    );
+        { id: 'reset', icon: '⟲', label: t('xr.menu.reset') },
+      ]);
+      const span = sequenceSpan();
+      if (span && s.analysis) {
+        const time = s.sequenceTime ?? span.from;
+        // Redondeado a 10 ms: el menú se redibuja solo cuando cambia lo que se ve.
+        const ms = Math.round((time - s.analysis.timing.firstTime) * 100) * 10;
+        lines.push({
+          id: 'time',
+          label: t('xr.menu.time', { ms: formatNumber(Math.max(0, ms)) }),
+          slider:
+            Math.round(((time - span.from) / Math.max(1e-6, span.end - span.from)) * 100) / 100,
+        });
+      }
+    }
+    lines.push([
+      ...(voice.available
+        ? [
+            {
+              id: 'voice',
+              label: t(voice.listening ? 'xr.voice.send' : 'xr.menu.talk'),
+              active: voice.listening,
+            },
+          ]
+        : []),
+      ...(room.role
+        ? [
+            {
+              id: 'present',
+              label: t(room.role === 'presenter' ? 'xr.menu.stopPresenting' : 'xr.menu.present'),
+              active: room.role === 'presenter',
+            },
+          ]
+        : []),
+      { id: 'exit', label: t('xr.menu.exit') },
+    ]);
     return lines;
   };
 
-  const infoRows = (): XrRow[] => {
+  const infoRows = (): XrLine[] => {
     const hole = selected ? session.document.findHole(selected)?.hole : undefined;
-    if (!hole) return [];
-    const units = session.document.project.displayUnits;
-    const rows: XrRow[] = [{ label: t('xr.info.title', { label: hole.label }) }];
-    const a = store().analysis;
-    const i = a ? a.charge.holeIds.indexOf(hole.id) : -1;
-    const kg = a?.charge.perHole[i];
-    const fire = a?.timing.fireTime[i];
-    if (kg !== undefined) rows.push({ label: t('xr.info.charge', { kg: formatNumber(kg, 1) }) });
-    // Tiempo relativo al primer taladro, como las etiquetas de tiempo (H-502).
-    if (a && fire !== undefined && Number.isFinite(fire))
-      rows.push({
-        label: t('xr.info.delay', { ms: formatNumber((fire - a.timing.firstTime) * 1000) }),
-      });
-    rows.push(
-      {
-        label: t('xr.info.length', {
-          value: formatNumber(lengthToDisplay(hole.length, units.length), 1),
-          unit: units.length,
-        }),
-      },
-      {
-        label: t('xr.info.diameter', {
-          value: formatNumber(diameterToDisplay(hole.diameter, units.diameter)),
-          unit: units.diameter,
-        }),
-      },
-    );
-    return rows;
+    return hole ? holeCardRows(hole, session.document.project, store().analysis) : [];
   };
+
+  /** Contexto del visor para el asistente (en inglés, como las respuestas de las herramientas). */
+  const voiceContext = (): string => {
+    const hole = selected ? session.document.findHole(selected)?.hole : undefined;
+    const scene = {
+      table: 'tabletop model',
+      walk: 'inside the blast at full scale',
+      model: 'isolated model',
+    }[view];
+    return `(VR headset, ${scene}) ${hole ? `Pointed hole: "${hole.label}".` : 'No hole pointed.'}`;
+  };
+  const voice = bindXrVoice(engine, voiceContext, () => {
+    refresh();
+  });
 
   /** Redibuja los paneles solo si cambió su texto (el store cambia en cada cuadro de la secuencia). */
   const refresh = () => {
@@ -153,9 +201,25 @@ export function bindXr(engine: Engine): () => void {
     }
   };
 
-  const act = (id: string) => {
+  const act = ({ id, value }: { id: string; value?: number }) => {
     const s = store();
     switch (id) {
+      case 'tab:view':
+      case 'tab:layers':
+      case 'tab:sequence':
+        tab = id.slice(4) as Tab;
+        break;
+      case 'scale':
+        if (value !== undefined) engine.zoomXr(1 / sliderToScale(value) / scale);
+        break;
+      case 'time': {
+        const span = sequenceSpan();
+        if (value === undefined || !span || !s.analysis) break;
+        ended = false;
+        engine.seekSequence(sequenceTimes(s.analysis), span.from + value * (span.end - span.from));
+        s.set({ sequencePlaying: false });
+        break;
+      }
       case 'energy':
       case 'vibration':
       case 'labels':
@@ -184,11 +248,8 @@ export function bindXr(engine: Engine): () => void {
       case 'present':
         setPresenting(useXrRoom.getState().role !== 'presenter');
         break;
-      case 'zoomIn':
-        engine.zoomXr(ZOOM_STEP);
-        break;
-      case 'zoomOut':
-        engine.zoomXr(1 / ZOOM_STEP);
+      case 'voice':
+        voice.toggle();
         break;
       case 'exit':
         engine.exitXr();
@@ -223,6 +284,7 @@ export function bindXr(engine: Engine): () => void {
     useXrRoom.subscribe(refresh),
   ];
   return () => {
+    voice.dispose();
     playback?.abort();
     for (const off of offs) off();
   };

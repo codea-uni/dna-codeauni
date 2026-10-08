@@ -86,7 +86,7 @@ import { PanTool } from './tools/PanTool';
 import { SelectTool } from './tools/SelectTool';
 import type { Tool, ToolContext, ToolName, ToolPointer } from './tools/types';
 import { XrSession, type XrMode, type XrStartOptions, type XrView } from './xr/XrSession';
-import type { XrLine, XrRow } from './xr/XrPanel';
+import type { XrLine } from './xr/XrPanel';
 import { Avatars, type XrAvatar, type XrTransform } from './xr/Avatars';
 import { defaultEngineText, type EngineText } from './text';
 
@@ -116,8 +116,10 @@ export interface EngineEvents extends Record<string, unknown> {
   xrSession: XrMode | null;
   /** Taladro apuntado con el gatillo en XR (null = ninguno). */
   xrSelectHole: HoleId | null;
-  /** Botón del menú XR pulsado (ids que define la web en `setXrMenu`). */
-  xrAction: string;
+  /** Botón del menú XR pulsado (ids que define la web en `setXrMenu`); `value` en un slider. */
+  xrAction: { id: string; value?: number };
+  /** Botón A del control derecho apretado o soltado (hablar al asistente). */
+  xrTalk: boolean;
   /** Escala real o maqueta, y metros del usuario por metro del modelo. */
   xrView: { view: XrView; scale: number };
 }
@@ -652,7 +654,7 @@ export class Engine {
   }
 
   /**
-   * Entra en realidad virtual o aumentada (solo lectura). Hay que llamarlo desde el gesto del
+   * Entra en realidad virtual o aumentada. Hay que llamarlo desde el gesto del
    * usuario (clic): el navegador lo exige para abrir la sesión.
    */
   async enterXr(mode: XrMode, options?: XrStartOptions): Promise<void> {
@@ -685,8 +687,13 @@ export class Engine {
   }
 
   /** Ficha del taladro apuntado; vacía la oculta. */
-  setXrInfo(rows: readonly XrRow[]): void {
+  setXrInfo(rows: readonly XrLine[]): void {
     this.xr?.setInfo(rows);
+  }
+
+  /** Panel del asistente de voz frente a la cabeza; vacío lo oculta. */
+  setXrVoice(rows: readonly XrLine[]): void {
+    this.xr?.setVoice(rows);
   }
 
   setXrView(view: XrView): void {
@@ -830,8 +837,11 @@ export class Engine {
       onSelectHole: (id) => {
         this.events.emit('xrSelectHole', id);
       },
-      onAction: (id) => {
-        this.events.emit('xrAction', id);
+      onAction: (id, value) => {
+        this.events.emit('xrAction', value === undefined ? { id } : { id, value });
+      },
+      onTalk: (down) => {
+        this.events.emit('xrTalk', down);
       },
       onView: (view, scale) => {
         this.events.emit('xrView', { view, scale });

@@ -109,20 +109,37 @@ function textOf(content: AiContent): string {
     .trim();
 }
 
+/** Mensaje de voz grabado (el visor no tiene reconocimiento de voz: Gemini escucha el audio). */
+export interface VoiceAudio {
+  mimeType: string;
+  /** Audio en base64. */
+  data: string;
+}
+
+/** Va con el audio: el modelo cita lo que entendió, para que la persona lo vea en el visor. */
+const AUDIO_NOTE =
+  'Voice message attached. Start your answer by quoting, in one short line, what you understood; then act on it.';
+
 /**
- * Envía un mensaje del usuario y ejecuta el bucle de herramientas. Devuelve el texto final del
- * asistente ('' si se canceló o falló; el error queda en la conversación).
+ * Envía un mensaje del usuario (texto, o audio con un texto de contexto) y ejecuta el bucle de
+ * herramientas. Devuelve el texto final del asistente ('' si se canceló o falló; el error queda en
+ * la conversación).
  */
-export async function sendToAssistant(text: string): Promise<string> {
+export async function sendToAssistant(text: string, audio?: VoiceAudio): Promise<string> {
   const store = useAiStore.getState();
-  if (store.busy || !text.trim()) return '';
-  store.push({ kind: 'user', text: text.trim() });
+  if (store.busy || (!text.trim() && !audio)) return '';
+  store.push({ kind: 'user', text: audio ? `🎤 ${text.trim()}`.trim() : text.trim() });
   useAiStore.setState({ busy: true });
   controller = new AbortController();
   const signal = controller.signal;
   history = trimmed(history);
   const mark = history.length;
-  history.push({ role: 'user', parts: [{ text: text.trim() }] });
+  history.push({
+    role: 'user',
+    parts: audio
+      ? [{ text: `${text.trim()}\n${AUDIO_NOTE}`.trim() }, { inlineData: audio }]
+      : [{ text: text.trim() }],
+  });
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       signal.throwIfAborted();
@@ -184,6 +201,12 @@ export async function sendToAssistant(text: string): Promise<string> {
     history = history.slice(0, mark);
     return '';
   } finally {
+    // El audio no vuelve a viajar en los turnos siguientes (pesa y el límite es de 4 MB): queda la
+    // cita de lo que el modelo entendió en su respuesta.
+    if (audio) {
+      const turn = history[mark];
+      if (turn) history[mark] = { ...turn, parts: turn.parts.filter((p) => !('inlineData' in p)) };
+    }
     controller = null;
     useAiStore.setState({ busy: false });
   }

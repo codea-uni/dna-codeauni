@@ -36,7 +36,7 @@ import {
 } from './placement';
 import { MIN_CLEARANCE, flySpeed, flyVelocity, snapTurn } from './locomotion';
 import { rayGround } from './rayGround';
-import { XrPanel, type XrLine, type XrRow } from './XrPanel';
+import { XrPanel, type XrLine } from './XrPanel';
 import { Avatars, type XrAvatar, type XrTransform } from './Avatars';
 import { pickTable, type XrSurface } from './planes';
 
@@ -72,7 +72,10 @@ export interface XrHost {
   /** Alto de los caracteres de las etiquetas [m del usuario]; 0 = modo pantalla. */
   setLabelSize: (meters: number) => void;
   onSelectHole: (id: HoleId | null) => void;
-  onAction: (id: string) => void;
+  /** Botón del menú pulsado; `value` (0–1) si es un slider que se arrastra. */
+  onAction: (id: string, value?: number) => void;
+  /** Botón A del control derecho apretado (true) o soltado (false): hablar al asistente. */
+  onTalk: (down: boolean) => void;
   onView: (view: XrView, scale: number) => void;
   onEnd: () => void;
 }
@@ -105,6 +108,13 @@ const PANEL_GAP = 0.06;
 /** Ángulo entre la mirada y la mano izquierda para abrir y cerrar el menú [rad] (con histéresis). */
 const MENU_OPEN = (35 * Math.PI) / 180;
 const MENU_CLOSE = (55 * Math.PI) / 180;
+/** Duración de la aparición del menú [s]. */
+const MENU_ANIM = 0.15;
+/** Botón A/X del gamepad (`xr-standard`). */
+const BUTTON_A = 4;
+/** Panel de voz frente a la cabeza: distancia y cuánto baja de la mirada [m]. */
+const VOICE_AHEAD = 0.7;
+const VOICE_DROP = 0.2;
 /** Cuánto se espera a que el visor detecte una mesa antes de dejar la maqueta en el aire [ms]. */
 const AUTO_PLACE_MS = 4000;
 /** La maqueta ocupa a lo sumo esta fracción del lado menor de la mesa. */
@@ -113,9 +123,9 @@ const TABLE_FILL = 0.85;
 const v3 = (v: Vector3): Vec3 => ({ x: v.x, y: v.y, z: v.z });
 
 /**
- * Sesión WebXR de solo lectura (D-19): vuelo con los sticks, giro por saltos, teletransporte con el
- * agarre, selección de taladros con el gatillo, menú en la muñeca izquierda y ficha del taladro en
- * la mano derecha. El modelo no se copia ni se transforma: se cuelga de un grupo cuya matriz es la
+ * Sesión WebXR (D-19): vuelo con los sticks, giro por saltos, teletransporte con el agarre,
+ * selección de taladros con el gatillo, menú en la muñeca izquierda, ficha del taladro en la mano
+ * derecha y panel de voz frente a la cabeza (las ediciones las hace el asistente en la web). El modelo no se copia ni se transforma: se cuelga de un grupo cuya matriz es la
  * ubicación (`placement.ts`).
  */
 export class XrSession {
@@ -137,7 +147,11 @@ export class XrSession {
   private readonly menu = new XrPanel(0.3);
   /** El menú se abre al mirar la mano izquierda y se cierra al dejar de mirarla. */
   private menuOpen = false;
-  private readonly info = new XrPanel(0.28);
+  /** Aparición del menú, 0 (cerrado) a 1 (abierto). */
+  private menuAppear = 0;
+  private readonly info = new XrPanel(0.34);
+  private readonly voice = new XrPanel(0.45);
+  private talking = false;
   private readonly hands: Hand[] = [];
   private readonly beam: Mesh<CylinderGeometry, MeshBasicMaterial>;
   private beamAt: Vec3 | null = null;
@@ -157,6 +171,8 @@ export class XrSession {
   private snapArmed = true;
   private last = 0;
   private menuHover: string | null = null;
+  /** Último valor enviado del slider que se arrastra. */
+  private dragValue: number | null = null;
   private groundHit: Vec3 | null = null;
   private groundDist = Infinity;
   private reticleDist = Infinity;
@@ -245,7 +261,14 @@ export class XrSession {
     this.session = session;
     session.addEventListener('end', this.onSessionEnd);
 
-    scene.add(this.world, this.reticle, this.menu.mesh, this.info.mesh, this.backdrop);
+    scene.add(
+      this.world,
+      this.reticle,
+      this.menu.mesh,
+      this.info.mesh,
+      this.voice.mesh,
+      this.backdrop,
+    );
     this.world.add(model);
     for (let i = 0; i < 2; i++) this.addHand(i);
     this.last = performance.now();
@@ -261,8 +284,13 @@ export class XrSession {
     this.menu.setRows(rows);
   }
 
-  setInfo(rows: readonly XrRow[]): void {
+  setInfo(rows: readonly XrLine[]): void {
     this.info.setRows(rows);
+  }
+
+  /** Estado del asistente de voz (escuchando, pensando, respuesta); vacío lo oculta. */
+  setVoice(rows: readonly XrLine[]): void {
+    this.voice.setRows(rows);
   }
 
   /**
@@ -375,12 +403,24 @@ export class XrSession {
     this.backdrop.position.copy(head);
     this.avatars.faceViewer(head);
     this.updateMenuOpen(left, head, forward);
-    this.placePanel(this.menu, left, head, this.menuOpen);
+    const target = this.menuOpen ? 1 : 0;
+    const step = dt / MENU_ANIM;
+    this.menuAppear += Math.max(-step, Math.min(step, target - this.menuAppear));
+    this.menu.setAppear(this.menuAppear);
+    this.placePanel(this.menu, left, head, this.menuAppear > 0);
     this.placePanel(this.info, right, head, true);
+    this.placeVoice(head, forward);
     this.menu.mesh.updateMatrixWorld();
     this.updateRay(right);
     if (left) left.line.visible = false;
     this.updateReticle();
+    // Los controles sin botón A (manos) no lo traen: el índice puede faltar.
+    const a: GamepadButton | undefined = rp?.buttons[BUTTON_A];
+    const talk = a?.pressed ?? false;
+    if (talk !== this.talking) {
+      this.talking = talk;
+      this.host.onTalk(talk);
+    }
   }
 
   // ---------------------------------------------------------------- privados
@@ -420,7 +460,17 @@ export class XrSession {
       hand.source = null;
     });
     ray.addEventListener('select', () => {
-      if (hand === this.hand('right')) this.onSelect();
+      // Al soltar un slider no hay clic (select llega antes que selectend).
+      if (hand === this.hand('right') && !this.menu.isDragging) this.onSelect();
+    });
+    // Gatillo apretado sobre un slider: se arrastra hasta soltarlo.
+    ray.addEventListener('selectstart', () => {
+      if (hand !== this.hand('right') || !this.menuHover || !this.menu.beginDrag()) return;
+      this.pulse(hand);
+      this.dragMenu(hand);
+    });
+    ray.addEventListener('selectend', () => {
+      this.menu.endDrag();
     });
     // Agarre: a escala real, teletransporte (mano derecha); con una maqueta, tomarla y moverla.
     ray.addEventListener('squeezestart', () => {
@@ -448,8 +498,43 @@ export class XrSession {
     }
     mesh.visible = panel.hasRows;
     hand.grip.getWorldPosition(mesh.position);
-    mesh.position.y += PANEL_GAP + mesh.scale.y / 2;
+    mesh.position.y += PANEL_GAP + panel.height / 2;
     mesh.lookAt(head);
+  }
+
+  /** Panel de voz: frente a la cabeza en horizontal, un poco por debajo de la mirada. */
+  private placeVoice(head: Vector3, forward: Vector3): void {
+    const mesh = this.voice.mesh;
+    mesh.visible = this.voice.hasRows;
+    if (!mesh.visible) return;
+    const flat = new Vector3(forward.x, 0, forward.z);
+    if (flat.lengthSq() < 1e-6) flat.set(0, 0, -1);
+    flat.normalize().multiplyScalar(VOICE_AHEAD);
+    mesh.position.copy(head).add(flat);
+    mesh.position.y -= VOICE_DROP;
+    mesh.lookAt(head);
+  }
+
+  /** Pulso corto en el control (al pasar a otro botón y al hacer clic), si el visor lo admite. */
+  private pulse(hand: Hand): void {
+    const gp = hand.source?.gamepad as
+      | { hapticActuators?: readonly { pulse?: (value: number, ms: number) => unknown }[] }
+      | undefined;
+    void gp?.hapticActuators?.[0]?.pulse?.(0.3, 15);
+  }
+
+  /** Mueve el slider tomado al punto del menú que apunta el rayo y avisa el valor. */
+  private dragMenu(hand: Hand): void {
+    const o = new Vector3().setFromMatrixPosition(hand.ray.matrixWorld);
+    const d = new Vector3(0, 0, -1).transformDirection(hand.ray.matrixWorld);
+    this.raycaster.set(o, d);
+    const uv = this.raycaster.intersectObject(this.menu.mesh)[0]?.uv;
+    if (!uv || !this.menuHover) return;
+    const before = this.dragValue;
+    const value = this.menu.dragTo(uv.x);
+    if (value === null || (before !== null && Math.abs(value - before) < 0.005)) return;
+    this.dragValue = value;
+    this.host.onAction(this.menuHover, value);
   }
 
   /**
@@ -464,7 +549,8 @@ export class XrSession {
     const toHand = new Vector3().setFromMatrixPosition(left.grip.matrixWorld).sub(head).normalize();
     const angle = toHand.angleTo(forward);
     if (angle < MENU_OPEN) this.menuOpen = true;
-    else if (angle > MENU_CLOSE && this.menuHover === null) this.menuOpen = false;
+    else if (angle > MENU_CLOSE && this.menuHover === null && !this.menu.isDragging)
+      this.menuOpen = false;
   }
 
   private requestHitTest(source: XRInputSource): void {
@@ -481,6 +567,8 @@ export class XrSession {
 
   private onSelect(): void {
     if (this.menuHover) {
+      const right = this.hand('right');
+      if (right) this.pulse(right);
       this.host.onAction(this.menuHover);
       return;
     }
@@ -536,7 +624,11 @@ export class XrSession {
     const menuHit = this.menu.mesh.visible
       ? this.raycaster.intersectObject(this.menu.mesh)[0]
       : undefined;
+    const prev = this.menuHover;
     this.menuHover = this.menu.hover(menuHit?.uv?.x ?? 0, menuHit?.uv?.y ?? -1);
+    if (this.menuHover !== null && this.menuHover !== prev) this.pulse(hand);
+    if (this.menu.isDragging) this.dragMenu(hand);
+    else this.dragValue = null;
     let length = menuHit?.distance ?? RAY_LENGTH;
     if (!menuHit) {
       const s = this.placement.scale;
@@ -723,10 +815,18 @@ export class XrSession {
     this.hands.length = 0;
     this.menu.dispose();
     this.info.dispose();
+    this.voice.dispose();
     this.avatars.dispose();
     this.world.remove(model);
     this.saved.parent?.add(model);
-    scene.remove(this.world, this.reticle, this.menu.mesh, this.info.mesh, this.backdrop);
+    scene.remove(
+      this.world,
+      this.reticle,
+      this.menu.mesh,
+      this.info.mesh,
+      this.voice.mesh,
+      this.backdrop,
+    );
     this.backdrop.geometry.dispose();
     this.backdrop.material.dispose();
     scene.background = this.saved.background;
