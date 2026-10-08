@@ -35,6 +35,10 @@ export function bindXr(engine: Engine): () => void {
   let view: XrView = 'table';
   let scale = 1;
   let tab: Tab = 'view';
+  /** La secuencia espera al análisis o a la pila antes de arrancar. */
+  let preparing = false;
+  /** Etiquetas y pila de la web al entrar: el visor empieza sin ellas y se devuelven al salir. */
+  let webLayers: { labels: boolean; muckpile: boolean; muckpileBlocks: boolean } | null = null;
   let selected: HoleId | null = null;
   let ended = false;
   let playback: AbortController | null = null;
@@ -90,24 +94,37 @@ export function bindXr(engine: Engine): () => void {
         if (view === 'table') lines.push({ id: 'place', label: t('xr.menu.place') });
       }
     } else if (tab === 'layers') {
+      // Mientras se calcula una capa prendida, su nombre lo dice (si no, parece que no anda).
+      const label = (key: 'energy' | 'vibration' | 'pile', busy: boolean) =>
+        busy ? t('xr.menu.computing', { name: t(`xr.menu.${key}`) }) : t(`xr.menu.${key}`);
       lines.push(
         [
-          { id: 'energy', label: t('xr.menu.energy'), toggle: l.energy },
-          { id: 'vibration', label: t('xr.menu.vibration'), toggle: l.vibration },
+          { id: 'energy', label: label('energy', l.energy && s.energyComputing), toggle: l.energy },
+          {
+            id: 'vibration',
+            label: label('vibration', l.vibration && s.vibComputing),
+            toggle: l.vibration,
+          },
         ],
         [
           { id: 'labels', label: t('xr.menu.labels'), toggle: l.labels },
-          { id: 'pile', label: t('xr.menu.pile'), toggle: l.pile },
+          {
+            id: 'pile',
+            label: label('pile', l.pile && (s.muckpileComputing || !s.muckpile)),
+            toggle: l.pile,
+          },
         ],
       );
     } else {
       lines.push([
-        {
-          id: 'play',
-          icon: s.sequencePlaying ? '⏸' : '▶',
-          label: t(s.sequencePlaying ? 'xr.menu.pause' : 'xr.menu.play'),
-          active: s.sequencePlaying,
-        },
+        preparing && !s.sequencePlaying
+          ? { id: 'play', icon: '…', label: t('xr.menu.preparing'), active: true }
+          : {
+              id: 'play',
+              icon: s.sequencePlaying ? '⏸' : '▶',
+              label: t(s.sequencePlaying ? 'xr.menu.pause' : 'xr.menu.play'),
+              active: s.sequencePlaying,
+            },
         { id: 'reset', icon: '⟲', label: t('xr.menu.reset') },
       ]);
       const span = sequenceSpan();
@@ -195,9 +212,16 @@ export function bindXr(engine: Engine): () => void {
       ended = false;
       playback?.abort();
       playback = new AbortController();
-      playDemoSequence(playback.signal, XR_SEQUENCE_SECONDS, xrLayers().pile).catch(() => {
-        // cancelada o sin análisis: el menú vuelve a «Reproducir»
-      });
+      preparing = true;
+      refresh();
+      playDemoSequence(playback.signal, XR_SEQUENCE_SECONDS, xrLayers().pile)
+        .catch(() => {
+          // cancelada o sin análisis: el menú vuelve a «Reproducir»
+        })
+        .finally(() => {
+          preparing = false;
+          refresh();
+        });
     }
   };
 
@@ -263,8 +287,20 @@ export function bindXr(engine: Engine): () => void {
       lastMenu = '';
       lastInfo = '';
       selected = null;
-      if (mode) refresh();
-      else playback?.abort();
+      const s = store();
+      if (mode) {
+        // El visor empieza sin etiquetas ni pila (se prenden desde Capas).
+        const { labels, muckpile, muckpileBlocks } = s.layers;
+        webLayers = { labels, muckpile, muckpileBlocks };
+        applyXrLayers({ ...xrLayers(), labels: false, pile: false });
+        refresh();
+      } else {
+        playback?.abort();
+        if (webLayers)
+          for (const [k, v] of Object.entries(webLayers))
+            s.setLayer(k as keyof typeof webLayers, v);
+        webLayers = null;
+      }
     }),
     engine.on('xrView', (v) => {
       view = v.view;

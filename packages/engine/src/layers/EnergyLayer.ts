@@ -130,6 +130,7 @@ export class EnergyLayer {
     this.plane.visible = !draped;
     if (draped) this.buildDrape(data, origin, ground, tex);
 
+    const flatZ = data.elevation ?? null;
     const { segments, levels } = data.contours;
     const n = levels.length;
     const pos = new Float32Array(n * 6);
@@ -147,10 +148,10 @@ export class EnergyLayer {
       pos[k * 6 + 3] = x2 - origin.x;
       pos[k * 6 + 4] = y2 - origin.y;
       if (draped) {
-        // Curvas sobre el relieve; fuera del levantamiento no hay dónde apoyarlas: el tramo se
-        // anula (largo cero) como el relleno, que tampoco se dibuja ahí.
-        const z1 = ground(x1, y1);
-        const z2 = ground(x2, y2);
+        // Curvas sobre el relieve; fuera del levantamiento siguen planas a la cota del mapa, como el
+        // relleno (sin cota, el tramo se anula).
+        const z1 = ground(x1, y1) ?? flatZ;
+        const z2 = ground(x2, y2) ?? flatZ;
         if (z1 === null || z2 === null) {
           pos.fill(0, k * 6, k * 6 + 6);
         } else {
@@ -171,7 +172,9 @@ export class EnergyLayer {
 
   /**
    * Malla del mapa sobre el terreno: retícula de hasta `DRAPE_RES` vértices por lado con la cota
-   * del levantamiento y coordenadas de textura desde X e Y. Donde no hay terreno no se dibuja.
+   * del levantamiento y coordenadas de textura desde X e Y. Fuera del levantamiento (que puede ser
+   * mucho más chico que el mapa) sigue plana a la cota del mapa, `elevation`, para que el mapa se
+   * vea completo; sin esa cota, ahí no se dibuja.
    */
   private buildDrape(data: EnergyData, origin: Vec3, ground: Ground, tex: DataTexture): void {
     const w = data.nx * data.cellSize;
@@ -188,7 +191,7 @@ export class EnergyLayer {
         const v = j / (rows - 1);
         const x = data.originX + u * w;
         const y = data.originY + v * h;
-        const z = ground(x, y);
+        const z = ground(x, y) ?? data.elevation ?? null;
         pos[k * 3] = x - origin.x;
         pos[k * 3 + 1] = y - origin.y;
         pos[k * 3 + 2] = z === null ? 0 : z - origin.z + DRAPE_LIFT;
