@@ -234,11 +234,17 @@ Pedido del usuario fuera del orden de hitos (E2.1 sigue en curso): presentar las
   - el cuerpo sigue el rumbo de la cabeza;
   - también en la vista 3D de la web.
 
+- **Después de probarlo (pedido del usuario):**
+  - **Leyenda de los mapas** a la derecha de la vista, con energía o vibración prendidas: escala de colores, ley del sitio o parámetros de Holmberg–Persson, MIC, máximo, áreas sobre las curvas y los puntos de control contra su límite. Queda anclada y solo se reacomoda si la cabeza gira mucho.
+  - **Mapas sobre la malla del levantamiento:** las rocas ya no atraviesan el mapa; fuera del levantamiento sigue plano a la cota del banco.
+  - **El asistente responde con voz** (Gemini TTS por `POST /api/ai/speech`; si falla, la voz del navegador). Saluda al entrar, habla en tono de presentación, propone un siguiente paso a partir del análisis de la app y pregunta si lo aplica.
+  - Etiquetas y material empiezan apagados en el visor; las capas y la reproducción avisan mientras calculan.
+
 **Pendiente:** recorrido en un Quest 3 y un Quest 2 reales:
 
 - fps con OVR Metrics y 31 700 bloques de la pila en el Quest 2;
 - alineación del menú en la mano;
-- permiso del micrófono dentro de la sesión inmersiva y `speechSynthesis` en el Quest;
+- permiso del micrófono dentro de la sesión inmersiva y que el audio de la voz arranque sin otro gesto en el Quest;
 - háptica.
 
 Falta también una prueba de dos visores en producción.
