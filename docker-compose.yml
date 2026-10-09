@@ -37,6 +37,7 @@ services:
       CRONOS_DEMO_DATA: ${CRONOS_DEMO_DATA:-true}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      GEMINI_TTS_MODEL: ${GEMINI_TTS_MODEL:-gemini-3.8-flash-lite-tts}
     depends_on:
       postgres:
         condition: service_healthy

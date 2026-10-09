@@ -102,4 +102,41 @@ describe.runIf(await databaseAvailable())('asistente de IA (/api/ai/generate)', 
     expect(res.statusCode).toBe(502);
     expect(res.json()).toEqual({ code: 'ai_upstream', message: 'API key not valid' });
   });
+
+  it('voz: pide audio a Gemini TTS con la clave y devuelve el audio tal cual', async () => {
+    const calls: { url: string; body: unknown }[] = [];
+    const fake: typeof fetch = (url, init) => {
+      calls.push({
+        url: typeof url === 'string' ? url : url instanceof URL ? url.href : url.url,
+        body: JSON.parse(init?.body as string) as unknown,
+      });
+      return Promise.resolve(
+        Response.json({
+          candidates: [
+            { content: { parts: [{ inlineData: { mimeType: 'audio/wav', data: 'UklGRg==' } }] } },
+          ],
+        }),
+      );
+    };
+    const s = createTestApp(t, {
+      ai: { apiKey: 'clave', model: 'gemini-x', ttsModel: 'gemini-tts-x' },
+      fetch: fake,
+    });
+    const cookie = await signedIn(s, { email: 'voz@mina.pe' });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/speech',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: { text: 'Listo, subí el taco a 3 m.' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ mimeType: 'audio/wav', data: 'UklGRg==' });
+    expect(calls[0]?.url).toBe(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-tts-x:generateContent',
+    );
+    expect(calls[0]?.body).toMatchObject({
+      contents: [{ parts: [{ text: 'Listo, subí el taco a 3 m.' }] }],
+      generationConfig: { responseModalities: ['AUDIO'] },
+    });
+  });
 });

@@ -1,9 +1,9 @@
 import type { Engine, XrLine } from '@cronos/engine';
 import { sendToAssistant, useAiStore } from '../ai/agent';
-import { toBase64, toWav } from '../ai/audio';
+import { encodeWav, toBase64, toWav } from '../ai/audio';
 import { ERROR_KEYS, speak, speechLang, TOOL_LABELS } from '../ai/labels';
 import { t, useLocale } from '../i18n';
-import { serverMode } from '../server/api';
+import { api, serverMode } from '../server/api';
 
 /**
  * Edición por voz dentro del visor (D-18, D-19). El navegador del Quest no tiene reconocimiento de
@@ -16,6 +16,8 @@ import { serverMode } from '../server/api';
 const MAX_MS = 15_000;
 /** Menos de esto es un toque sin querer: no se envía. */
 const MIN_MS = 400;
+/** El saludo llega unos segundos después de entrar (cuando ya se ve la escena). */
+const GREET_MS = 2500;
 /** Caracteres por línea en el panel de voz. */
 const WRAP = 38;
 
@@ -33,12 +35,34 @@ export function wrapText(text: string, width: number): string[] {
   return lines;
 }
 
+/**
+ * Audio de Gemini TTS listo para `decodeAudioData`: WAV tal cual, o PCM de 16 bits crudo
+ * (`audio/L16;rate=24000`, little-endian) envuelto en WAV.
+ */
+export function playableAudio(mimeType: string, bytes: Uint8Array): Uint8Array {
+  if (!/l16|pcm/i.test(mimeType)) return bytes;
+  const rate = Number(/rate=(\d+)/i.exec(mimeType)?.[1] ?? 24_000);
+  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const samples = new Float32Array(Math.floor(bytes.byteLength / 2));
+  for (let i = 0; i < samples.length; i++) samples[i] = v.getInt16(i * 2, true) / 0x8000;
+  return encodeWav(samples, rate);
+}
+
+function fromBase64(data: string): Uint8Array {
+  return Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+}
+
 type Phase =
   | { kind: 'idle' }
   | { kind: 'starting' }
   | { kind: 'listening'; since: number }
   | { kind: 'thinking' }
-  | { kind: 'answer'; lines: string[]; tools: { name: string; ok: boolean }[] };
+  | { kind: 'answer'; lines: string[]; tools: ToolChip[]; speaking: boolean };
+
+interface ToolChip {
+  name: string;
+  ok: boolean;
+}
 
 export interface XrVoice {
   /** ¿Se puede hablar? (hace falta el servidor: el asistente pasa por él). */
@@ -58,7 +82,10 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
   let stream: MediaStream | null = null;
   let recorder: MediaRecorder | null = null;
   let analyser: AnalyserNode | null = null;
-  let meterCtx: AudioContext | null = null;
+  /** Contexto de audio de la sesión (vúmetro y voz del asistente). */
+  let audioCtx: AudioContext | null = null;
+  /** Respuesta que se está leyendo en voz alta (se corta al volver a hablar). */
+  let playing: AudioBufferSourceNode | null = null;
   let timers: ReturnType<typeof setTimeout>[] = [];
   let meter: ReturnType<typeof setInterval> | null = null;
   /** Se pidió hablar y no se soltó (A puede soltarse mientras se pide el micrófono). */
@@ -94,6 +121,7 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
         return [{ icon: '…', label: t('xr.voice.thinking') }];
       case 'answer': {
         const lines: XrLine[] = phase.lines.map((label) => ({ label }));
+        if (phase.speaking) lines.unshift({ icon: '♪', label: t('xr.voice.speaking') });
         for (let i = 0; i < phase.tools.length; i += 2)
           lines.push(
             phase.tools.slice(i, i + 2).map((tool) => ({
@@ -101,6 +129,7 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
               active: tool.ok,
             })),
           );
+        lines.push({ label: t('xr.voice.reply') });
         return lines;
       }
     }
@@ -123,7 +152,7 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
     clearTimers();
     // El micrófono tarda en abrirse la primera vez: que se vea que el pedido llegó.
     if (!stream) show({ kind: 'starting' });
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    hush();
     try {
       stream ??= await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
@@ -135,13 +164,11 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
       show({ kind: 'idle' });
       return;
     }
-    meterCtx ??= new AudioContext();
-    // Creado fuera de un clic queda suspendido y el analizador da ceros.
-    void meterCtx.resume();
+    const ctx = ensureAudio();
     analyser ??= (() => {
-      const a = meterCtx.createAnalyser();
+      const a = ctx.createAnalyser();
       a.fftSize = 512;
-      meterCtx.createMediaStreamSource(stream).connect(a);
+      ctx.createMediaStreamSource(stream).connect(a);
       return a;
     })();
     const chunks: Blob[] = [];
@@ -188,17 +215,75 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
     const text = err
       ? t(ERROR_KEYS[err.code] ?? 'ai.error.ai_failed', { text: err.text })
       : answer || t('ai.error.ai_empty');
-    show({ kind: 'answer', lines: wrapText(text, WRAP), tools });
-    if (answer) speak(answer, speechLang(useLocale.getState().locale));
-    // Se va solo: más tiempo cuanto más largo es el texto.
+    void reply(text, answer ? answer : null, tools);
+  };
+
+  /** Muestra la respuesta, la lee en voz alta y la quita unos segundos después de terminar. */
+  const reply = async (text: string, spoken: string | null, tools: ToolChip[]) => {
+    const lines = wrapText(text, WRAP);
+    show({ kind: 'answer', lines, tools, speaking: spoken !== null });
+    if (spoken !== null) {
+      await say(spoken);
+      if (phase.kind !== 'answer' || phase.lines !== lines) return; // ya se habló de nuevo
+      show({ kind: 'answer', lines, tools, speaking: false });
+    }
     timers.push(
       setTimeout(
         () => {
           show({ kind: 'idle' });
         },
-        Math.max(8000, text.length * 70),
+        Math.max(6000, spoken === null ? text.length * 70 : 0),
       ),
     );
+  };
+
+  /** Contexto de audio de la sesión; creado fuera de un clic queda suspendido: se reanuda. */
+  const ensureAudio = (): AudioContext => {
+    audioCtx ??= new AudioContext();
+    void audioCtx.resume();
+    return audioCtx;
+  };
+
+  /** Corta la voz del asistente (al volver a hablar o al salir). */
+  const hush = () => {
+    playing?.stop();
+    playing = null;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  };
+
+  /**
+   * Lee un texto con la voz de Gemini (el navegador del Quest no garantiza `speechSynthesis`); si
+   * falla, con la voz del navegador. Termina cuando acaba de hablar.
+   */
+  const say = async (text: string): Promise<void> => {
+    hush();
+    try {
+      const res = await api.aiSpeech({ text: text.slice(0, 2000) });
+      const ctx = ensureAudio();
+      const bytes = playableAudio(res.mimeType, fromBase64(res.data));
+      const buffer = await ctx.decodeAudioData(bytes.slice().buffer);
+      if (!engine.xrMode) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      playing = src;
+      await new Promise<void>((resolve) => {
+        src.onended = () => {
+          resolve();
+        };
+        src.start();
+      });
+      if (playing === src) playing = null;
+    } catch {
+      speak(text, speechLang(useLocale.getState().locale));
+    }
+  };
+
+  /** Saludo al entrar: invita a hablar y a pedir recomendaciones (una vez por sesión). */
+  const greet = () => {
+    if (!serverMode || !engine.xrMode || phase.kind !== 'idle') return;
+    const text = t('xr.voice.greeting');
+    void reply(text, text, []);
   };
 
   const showError = (message: string) => {
@@ -206,6 +291,7 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
       kind: 'answer',
       lines: wrapText(t('xr.voice.error', { message }), WRAP),
       tools: [],
+      speaking: false,
     });
     timers.push(
       setTimeout(() => {
@@ -216,6 +302,7 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
 
   const close = () => {
     stop();
+    hush();
     clearTimers();
     phase = { kind: 'idle' };
     stream?.getTracks().forEach((track) => {
@@ -223,8 +310,8 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
     });
     stream = null;
     analyser = null;
-    void meterCtx?.close();
-    meterCtx = null;
+    void audioCtx?.close();
+    audioCtx = null;
   };
 
   const offs = [
@@ -234,7 +321,13 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
       else stop();
     }),
     engine.on('xrSession', (mode) => {
-      if (!mode) close();
+      if (!mode) {
+        close();
+        return;
+      }
+      // Recién se entró con un clic: el audio todavía puede arrancar sin otro gesto.
+      if (serverMode) ensureAudio();
+      timers.push(setTimeout(greet, GREET_MS));
     }),
   ];
 

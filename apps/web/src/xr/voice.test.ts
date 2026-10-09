@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { encodeWav } from '../ai/audio';
-import { wrapText } from './voice';
+import { playableAudio, wrapText } from './voice';
 
 describe('audio de voz para el asistente', () => {
   it('WAV PCM 16 bits mono: cabecera RIFF de 44 bytes y muestras en little-endian', () => {
@@ -29,5 +29,15 @@ describe('audio de voz para el asistente', () => {
       'taladro 12.',
     ]);
     expect(wrapText('  ', 10)).toEqual([]);
+  });
+
+  it('el PCM crudo de Gemini TTS (16 bits, 24 kHz) se envuelve en WAV; el WAV pasa tal cual', () => {
+    const pcm = new Uint8Array([0x00, 0x00, 0xff, 0x7f]); // 0 y +32767 little-endian
+    const wav = playableAudio('audio/L16;codec=pcm;rate=24000', pcm);
+    const v = new DataView(wav.buffer);
+    expect(String.fromCharCode(...wav.subarray(0, 4))).toBe('RIFF');
+    expect(v.getUint32(24, true)).toBe(24_000);
+    expect([v.getInt16(44, true), v.getInt16(46, true)]).toEqual([0, 32766]);
+    expect(playableAudio('audio/wav', pcm)).toBe(pcm);
   });
 });

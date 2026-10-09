@@ -115,12 +115,39 @@ const BUTTON_A = 4;
 /** Panel de voz frente a la cabeza: distancia y cuánto baja de la mirada [m]. */
 const VOICE_AHEAD = 0.7;
 const VOICE_DROP = 0.2;
+/** Leyenda de los mapas: a la derecha de la vista [rad], a esta distancia [m] y bajo la mirada. */
+const LEGEND_SIDE = (40 * Math.PI) / 180;
+const LEGEND_AHEAD = 0.8;
+const LEGEND_DROP = 0.1;
+/** Si la cabeza gira más que esto respecto de la leyenda, la leyenda se reacomoda [rad]. */
+const LEGEND_FOLLOW = (75 * Math.PI) / 180;
 /** Cuánto se espera a que el visor detecte una mesa antes de dejar la maqueta en el aire [ms]. */
 const AUTO_PLACE_MS = 4000;
 /** La maqueta ocupa a lo sumo esta fracción del lado menor de la mesa. */
 const TABLE_FILL = 0.85;
 
 const v3 = (v: Vector3): Vec3 => ({ x: v.x, y: v.y, z: v.z });
+
+/**
+ * Rumbo al que queda anclado un panel: el de la mirada al aparecer, y se reacomoda solo si la
+ * cabeza se aleja más de `LEGEND_FOLLOW` (si siguiera cada giro, se escaparía al mirarlo).
+ */
+function anchorYaw(anchor: number | null, forward: Vector3): number {
+  const yaw = Math.atan2(-forward.x, -forward.z);
+  return anchor === null || Math.abs(angleDiff(yaw, anchor)) > LEGEND_FOLLOW ? yaw : anchor;
+}
+
+/** Ubica un panel a `ahead` m de la cabeza en el rumbo `yaw`, `drop` m más abajo, mirándola. */
+function placeAround(mesh: Object3D, head: Vector3, yaw: number, ahead: number, drop: number) {
+  mesh.position.set(head.x - Math.sin(yaw) * ahead, head.y - drop, head.z - Math.cos(yaw) * ahead);
+  mesh.lookAt(head);
+}
+
+/** Diferencia de ángulos en (−π, π]. */
+export const angleDiff = (a: number, b: number): number => {
+  const d = (a - b) % (2 * Math.PI);
+  return d > Math.PI ? d - 2 * Math.PI : d <= -Math.PI ? d + 2 * Math.PI : d;
+};
 
 /**
  * Sesión WebXR (D-19): vuelo con los sticks, giro por saltos, teletransporte con el agarre,
@@ -151,6 +178,10 @@ export class XrSession {
   private menuAppear = 0;
   private readonly info = new XrPanel(0.34);
   private readonly voice = new XrPanel(0.45);
+  private readonly legend = new XrPanel(0.42);
+  /** Rumbos de la cabeza a los que están anclados la leyenda y la voz (null = sin anclar). */
+  private legendYaw: number | null = null;
+  private voiceYaw: number | null = null;
   private talking = false;
   private readonly hands: Hand[] = [];
   private readonly beam: Mesh<CylinderGeometry, MeshBasicMaterial>;
@@ -267,6 +298,7 @@ export class XrSession {
       this.menu.mesh,
       this.info.mesh,
       this.voice.mesh,
+      this.legend.mesh,
       this.backdrop,
     );
     this.world.add(model);
@@ -291,6 +323,11 @@ export class XrSession {
   /** Estado del asistente de voz (escuchando, pensando, respuesta); vacío lo oculta. */
   setVoice(rows: readonly XrLine[]): void {
     this.voice.setRows(rows);
+  }
+
+  /** Escala de colores y datos de los mapas prendidos (energía, vibración); vacía la oculta. */
+  setLegend(rows: readonly XrLine[]): void {
+    this.legend.setRows(rows);
   }
 
   /**
@@ -410,6 +447,7 @@ export class XrSession {
     this.placePanel(this.menu, left, head, this.menuAppear > 0);
     this.placePanel(this.info, right, head, true);
     this.placeVoice(head, forward);
+    this.placeLegend(head, forward);
     this.menu.mesh.updateMatrixWorld();
     this.updateRay(right);
     if (left) left.line.visible = false;
@@ -502,17 +540,31 @@ export class XrSession {
     mesh.lookAt(head);
   }
 
-  /** Panel de voz: frente a la cabeza en horizontal, un poco por debajo de la mirada. */
+  /** Panel de voz: frente a la cabeza, un poco por debajo de la mirada (anclado como la leyenda). */
   private placeVoice(head: Vector3, forward: Vector3): void {
     const mesh = this.voice.mesh;
     mesh.visible = this.voice.hasRows;
-    if (!mesh.visible) return;
-    const flat = new Vector3(forward.x, 0, forward.z);
-    if (flat.lengthSq() < 1e-6) flat.set(0, 0, -1);
-    flat.normalize().multiplyScalar(VOICE_AHEAD);
-    mesh.position.copy(head).add(flat);
-    mesh.position.y -= VOICE_DROP;
-    mesh.lookAt(head);
+    if (!mesh.visible) {
+      this.voiceYaw = null;
+      return;
+    }
+    this.voiceYaw = anchorYaw(this.voiceYaw, forward);
+    placeAround(mesh, head, this.voiceYaw, VOICE_AHEAD, VOICE_DROP);
+  }
+
+  /**
+   * Leyenda a la derecha de la vista. No sigue cada giro de la cabeza (si no, se escaparía al
+   * mirarla): queda anclada a un rumbo y se reacomoda solo cuando la cabeza se aleja mucho.
+   */
+  private placeLegend(head: Vector3, forward: Vector3): void {
+    const mesh = this.legend.mesh;
+    mesh.visible = this.legend.hasRows;
+    if (!mesh.visible) {
+      this.legendYaw = null;
+      return;
+    }
+    this.legendYaw = anchorYaw(this.legendYaw, forward);
+    placeAround(mesh, head, this.legendYaw - LEGEND_SIDE, LEGEND_AHEAD, LEGEND_DROP);
   }
 
   /** Pulso corto en el control (al pasar a otro botón y al hacer clic), si el visor lo admite. */
@@ -816,6 +868,7 @@ export class XrSession {
     this.menu.dispose();
     this.info.dispose();
     this.voice.dispose();
+    this.legend.dispose();
     this.avatars.dispose();
     this.world.remove(model);
     this.saved.parent?.add(model);
@@ -825,6 +878,7 @@ export class XrSession {
       this.menu.mesh,
       this.info.mesh,
       this.voice.mesh,
+      this.legend.mesh,
       this.backdrop,
     );
     this.backdrop.geometry.dispose();

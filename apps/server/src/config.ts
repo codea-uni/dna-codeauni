@@ -19,6 +19,8 @@ const envSchema = z.object({
   // Asistente de IA (Gemini): sin clave, la pestaña IA avisa que no está configurado.
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().min(1).default('gemini-flash-latest'),
+  /** Modelo de voz para leer las respuestas en el visor (`/api/ai/speech`). */
+  GEMINI_TTS_MODEL: z.string().min(1).default('gemini-3.8-flash-lite-tts'),
 });
 
 export interface ServerConfig {
@@ -37,6 +39,8 @@ export interface ServerConfig {
 export interface AiConfig {
   apiKey: string;
   model: string;
+  /** Modelo de texto a voz (por defecto el de `GEMINI_TTS_MODEL`). */
+  ttsModel?: string;
 }
 
 /** Nombres anteriores de las variables del superadministrador (siguen valiendo). */
@@ -73,6 +77,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
             name: e.CRONOS_SUPERADMIN_NAME,
           }
         : null,
-    ai: e.GEMINI_API_KEY ? { apiKey: e.GEMINI_API_KEY, model: e.GEMINI_MODEL } : null,
+    ai: e.GEMINI_API_KEY
+      ? { apiKey: e.GEMINI_API_KEY, model: e.GEMINI_MODEL, ttsModel: e.GEMINI_TTS_MODEL }
+      : null,
   };
 }

@@ -24,3 +24,17 @@ export const aiGenerateResponseSchema = z.object({
   finishReason: z.string().nullable(),
 });
 export type AiGenerateResponse = z.infer<typeof aiGenerateResponseSchema>;
+
+/** `POST /api/ai/speech`: la respuesta del asistente leída en voz alta (el visor no tiene voz). */
+export const aiSpeechRequestSchema = z.object({
+  text: z.string().min(1).max(2000),
+});
+export type AiSpeechRequest = z.infer<typeof aiSpeechRequestSchema>;
+
+export const aiSpeechResponseSchema = z.object({
+  /** Tipo del audio (`audio/wav` o PCM crudo `audio/L16;rate=24000`). */
+  mimeType: z.string(),
+  /** Audio en base64. */
+  data: z.string(),
+});
+export type AiSpeechResponse = z.infer<typeof aiSpeechResponseSchema>;

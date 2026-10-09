@@ -26,7 +26,11 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...BASE, GEMINI_API_KEY: 'k' }).ai).toEqual({
       apiKey: 'k',
       model: 'gemini-flash-latest',
+      ttsModel: 'gemini-3.8-flash-lite-tts',
     });
+    expect(
+      loadConfig({ ...BASE, GEMINI_API_KEY: 'k', GEMINI_TTS_MODEL: 'tts-x' }).ai?.ttsModel,
+    ).toBe('tts-x');
     expect(loadConfig({ ...BASE, GEMINI_API_KEY: 'k', GEMINI_MODEL: 'gemini-x' }).ai?.model).toBe(
       'gemini-x',
     );

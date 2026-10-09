@@ -48,3 +48,12 @@ describe('valor de un slider bajo el rayo', () => {
     expect(sliderAt(0.51, 2, 1)).toBe(0);
   });
 });
+
+describe('anclaje de la leyenda', () => {
+  it('diferencia de rumbos en (−π, π]', async () => {
+    const { angleDiff } = await import('./XrSession');
+    expect(angleDiff(0.1, -0.1)).toBeCloseTo(0.2);
+    expect(angleDiff(3, -3)).toBeCloseTo(6 - 2 * Math.PI);
+    expect(angleDiff(-3, 3)).toBeCloseTo(2 * Math.PI - 6);
+  });
+});

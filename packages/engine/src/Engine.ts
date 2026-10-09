@@ -691,6 +691,11 @@ export class Engine {
     this.xr?.setInfo(rows);
   }
 
+  /** Leyenda y datos de los mapas a la derecha de la vista; vacía la oculta. */
+  setXrLegend(rows: readonly XrLine[]): void {
+    this.xr?.setLegend(rows);
+  }
+
   /** Panel del asistente de voz frente a la cabeza; vacío lo oculta. */
   setXrVoice(rows: readonly XrLine[]): void {
     this.xr?.setVoice(rows);
@@ -943,7 +948,8 @@ export class Engine {
     this.energy.setOpacity(opacity);
     this.energy.set(data, this.origin);
     this.energy3d.setOpacity(Math.min(1, opacity + 0.15));
-    if (this.viewMode === '3d') this.energy3d.set(data, this.origin, true, this.ground());
+    if (this.viewMode === '3d')
+      this.energy3d.set(data, this.origin, true, this.ground(), this.groundTin());
     this.loop.invalidate();
   }
 
@@ -1390,6 +1396,12 @@ export class Engine {
     return id && this.topographyTins.has(id) ? (this.topographyGrounds.get(id) ?? null) : null;
   }
 
+  /** Levantamiento del banco activo (malla para apoyar los mapas sin que el relieve los corte). */
+  private groundTin(): TinData | null {
+    const id = this.document.project.blasts[0]?.bench.topographyId;
+    return id ? (this.topographyTins.get(id) ?? null) : null;
+  }
+
   /** Amarres, isócronas, mapas, sitio y etiquetas en 3D (baratos: se rehacen enteros). */
   private rebuild3dOverlays(): void {
     const project = this.document.project;
@@ -1397,7 +1409,8 @@ export class Engine {
     const ground = this.ground();
     this.initiation3d.rebuild(project.blasts, project.library, this.origin, true);
     this.isochrones3d.set(this.isochroneData, this.origin, top + 0.25, ground);
-    this.energy3d.set(this.energyData, this.origin, true, ground);
+    const tin = this.groundTin();
+    this.energy3d.set(this.energyData, this.origin, true, ground, tin);
     // La vibración se evalúa en los receptores sobre el terreno (o a la cota del banco sin él).
     this.vibration3d.set(
       this.vibrationData
@@ -1406,6 +1419,7 @@ export class Engine {
       this.origin,
       true,
       ground,
+      tin,
     );
     this.site3d.setElevation(top + 0.3);
     this.site3d.setZone(this.flyrockZone, this.origin, 0.6, ground);

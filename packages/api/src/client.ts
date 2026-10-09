@@ -53,7 +53,14 @@ import {
   type Timeline,
   type TimelineQuery,
 } from './projects';
-import { aiGenerateResponseSchema, type AiGenerateRequest, type AiGenerateResponse } from './ai';
+import {
+  aiGenerateResponseSchema,
+  aiSpeechResponseSchema,
+  type AiGenerateRequest,
+  type AiGenerateResponse,
+  type AiSpeechRequest,
+  type AiSpeechResponse,
+} from './ai';
 import {
   assetInfoSchema,
   missingAssetsResultSchema,
@@ -132,6 +139,15 @@ export class ApiClient {
   }
 
   /** Un turno del asistente de IA (Gemini detrás del servidor). */
+  /** Texto del asistente a voz (Gemini TTS detrás del servidor). */
+  aiSpeech(body: AiSpeechRequest, signal?: AbortSignal): Promise<AiSpeechResponse> {
+    return this.request('/ai/speech', aiSpeechResponseSchema, {
+      method: 'POST',
+      body,
+      ...(signal ? { signal } : {}),
+    });
+  }
+
   aiGenerate(body: AiGenerateRequest, signal?: AbortSignal): Promise<AiGenerateResponse> {
     return this.request('/ai/generate', aiGenerateResponseSchema, {
       method: 'POST',

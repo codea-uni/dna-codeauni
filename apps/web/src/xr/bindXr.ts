@@ -6,12 +6,28 @@ import { formatNumber, t, useLocale } from '../i18n';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { holeCardRows } from './holeCard';
+import { energyLegend, vibrationLegend } from './mapLegend';
 import { setPresenting } from './room';
 import { bindXrVoice } from './voice';
 import { applyXrLayers, useXrRoom, xrLayers } from './xrState';
 
 /** Segundos reales que dura en el visor la secuencia con el vuelo del material. */
 const XR_SEQUENCE_SECONDS = 12;
+/**
+ * Tono en el visor: una conversación hablada con quien presenta o con su cliente. Las
+ * recomendaciones salen de la revisión y los resultados de la app (`get_analysis`), nunca de
+ * reglas inventadas (CLAUDE.md, reglas de dominio).
+ */
+const VR_STYLE =
+  'This is a spoken conversation inside a VR presentation of this blast, often in front of a client. ' +
+  'Be warm and natural and keep every reply under 45 words (it is read aloud), no lists. ' +
+  'After answering, when it fits, offer one ' +
+  'concrete next step drawn from the app results (get_analysis: design checks, fragmentation, ' +
+  'vibration at control points, timing) and ask if they want it, e.g. "¿Quieres que ajuste el taco ' +
+  'de la primera fila?". If they ask for recommendations, check get_analysis first and give ' +
+  'the most important finding and up to two options in one sentence each. ' +
+  'Never invent mining rules or values.';
+
 /** Rango del slider de escala de la maqueta (1:N, logarítmico). */
 const SCALE_MIN = 100;
 const SCALE_MAX = 20_000;
@@ -44,6 +60,7 @@ export function bindXr(engine: Engine): () => void {
   let playback: AbortController | null = null;
   let lastMenu = '';
   let lastInfo = '';
+  let lastLegend = '';
 
   /** Intervalo de la secuencia en el visor [s], como `playDemoSequence`. */
   const sequenceSpan = (): { from: number; end: number } | null => {
@@ -177,11 +194,23 @@ export function bindXr(engine: Engine): () => void {
       walk: 'inside the blast at full scale',
       model: 'isolated model',
     }[view];
-    return `(VR headset, ${scene}) ${hole ? `Pointed hole: "${hole.label}".` : 'No hole pointed.'}`;
+    return `(VR headset, ${scene}) ${hole ? `Pointed hole: "${hole.label}".` : 'No hole pointed.'}
+${VR_STYLE}`;
   };
   const voice = bindXrVoice(engine, voiceContext, () => {
     refresh();
   });
+
+  /** Escala de colores y datos de los mapas prendidos y ya calculados (a la derecha de la vista). */
+  const legendRows = (): XrLine[] => {
+    const s = store();
+    const l = xrLayers();
+    const parts = [
+      l.energy && s.energy ? energyLegend(s.energy, session.document.project) : [],
+      l.vibration && s.vibration ? vibrationLegend(s.vibration) : [],
+    ].filter((p) => p.length > 0);
+    return parts.flatMap((p, i) => (i > 0 ? [{ label: '' }, ...p] : p));
+  };
 
   /** Redibuja los paneles solo si cambió su texto (el store cambia en cada cuadro de la secuencia). */
   const refresh = () => {
@@ -197,6 +226,12 @@ export function bindXr(engine: Engine): () => void {
     if (infoKey !== lastInfo) {
       lastInfo = infoKey;
       engine.setXrInfo(info);
+    }
+    const legend = legendRows();
+    const legendKey = JSON.stringify(legend);
+    if (legendKey !== lastLegend) {
+      lastLegend = legendKey;
+      engine.setXrLegend(legend);
     }
   };
 
@@ -286,6 +321,7 @@ export function bindXr(engine: Engine): () => void {
     engine.on('xrSession', (mode) => {
       lastMenu = '';
       lastInfo = '';
+      lastLegend = '';
       selected = null;
       const s = store();
       if (mode) {
