@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { encodeWav } from '../ai/audio';
-import { playableAudio, wrapText } from './voice';
+import { clampLines, playableAudio, wrapText } from './voice';
 
 describe('audio de voz para el asistente', () => {
   it('WAV PCM 16 bits mono: cabecera RIFF de 44 bytes y muestras en little-endian', () => {
@@ -39,5 +39,12 @@ describe('audio de voz para el asistente', () => {
     expect(v.getUint32(24, true)).toBe(24_000);
     expect([v.getInt16(44, true), v.getInt16(46, true)]).toEqual([0, 32766]);
     expect(playableAudio('audio/wav', pcm)).toBe(pcm);
+  });
+});
+
+describe('texto de la respuesta en el panel de voz', () => {
+  it('recorta al alto del panel y marca el corte con «…»', () => {
+    expect(clampLines(['a', 'b'], 3)).toEqual(['a', 'b']);
+    expect(clampLines(['a', 'b', 'c', 'd'], 3)).toEqual(['a', 'b', 'c…']);
   });
 });

@@ -19,7 +19,11 @@ const MIN_MS = 400;
 /** El saludo llega unos segundos después de entrar (cuando ya se ve la escena). */
 const GREET_MS = 2500;
 /** Caracteres por línea en el panel de voz. */
-const WRAP = 38;
+const WRAP = 40;
+/** Líneas de texto que entran en el panel; el resto se corta con «…». */
+const MAX_LINES = 9;
+/** Colores del punto de estado del panel. */
+const DOT = { mic: '#ef4444', busy: '#f59e0b', speaking: '#60a5fa', done: '#22c55e' };
 
 /** Corta un texto en líneas de hasta `width` caracteres por palabras. */
 export function wrapText(text: string, width: number): string[] {
@@ -57,11 +61,19 @@ type Phase =
   | { kind: 'starting' }
   | { kind: 'listening'; since: number }
   | { kind: 'thinking' }
-  | { kind: 'answer'; lines: string[]; tools: ToolChip[]; speaking: boolean };
+  | { kind: 'answer'; lines: string[]; tools: ToolChip[]; speaking: boolean; error?: boolean };
 
 interface ToolChip {
   name: string;
   ok: boolean;
+}
+
+/** Recorta las líneas al alto del panel, con «…» al final si sobran. */
+export function clampLines(lines: readonly string[], max: number): string[] {
+  if (lines.length <= max) return [...lines];
+  const kept = lines.slice(0, max);
+  kept[max - 1] = `${kept[max - 1] ?? ''}…`;
+  return kept;
 }
 
 export interface XrVoice {
@@ -70,6 +82,8 @@ export interface XrVoice {
   readonly listening: boolean;
   /** Empieza a grabar o, si ya graba, envía. */
   toggle: () => void;
+  /** Botones del panel de voz (`voice:text`, `voice:close`); false si el id no es suyo. */
+  action: (id: string) => boolean;
   dispose: () => void;
 }
 
@@ -90,6 +104,8 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
   let meter: ReturnType<typeof setInterval> | null = null;
   /** Se pidió hablar y no se soltó (A puede soltarse mientras se pide el micrófono). */
   let wanted = false;
+  /** Texto de la respuesta a la vista; oculto, el asistente solo habla (se elige en el panel). */
+  let showText = false;
 
   const clearTimers = () => {
     timers.forEach(clearTimeout);
@@ -106,22 +122,35 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
     return Math.min(1, Math.sqrt(sum / buf.length) * 4);
   };
 
+  const heading = (dot: string, label: string): XrLine => ({
+    label,
+    heading: true,
+    swatch: dot,
+  });
+
   const rows = (): XrLine[] => {
     switch (phase.kind) {
       case 'idle':
         return [];
       case 'starting':
-        return [{ icon: '●', label: t('xr.voice.starting') }];
+        return [heading(DOT.busy, t('xr.voice.starting'))];
       case 'listening':
         return [
-          { icon: '●', label: t('xr.voice.listening') },
+          heading(DOT.mic, t('xr.voice.listening')),
           { label: t('xr.voice.release'), slider: Math.round(level() * 20) / 20 },
         ];
       case 'thinking':
-        return [{ icon: '…', label: t('xr.voice.thinking') }];
+        return [heading(DOT.busy, t('xr.voice.thinking'))];
       case 'answer': {
-        const lines: XrLine[] = phase.lines.map((label) => ({ label }));
-        if (phase.speaking) lines.unshift({ icon: '♪', label: t('xr.voice.speaking') });
+        const open = showText || phase.error === true;
+        const lines: XrLine[] = [
+          heading(
+            phase.error ? DOT.mic : phase.speaking ? DOT.speaking : DOT.done,
+            t(phase.speaking ? 'xr.voice.speaking' : 'xr.voice.title'),
+          ),
+        ];
+        if (open)
+          for (const label of clampLines(phase.lines, MAX_LINES)) lines.push({ label, body: true });
         for (let i = 0; i < phase.tools.length; i += 2)
           lines.push(
             phase.tools.slice(i, i + 2).map((tool) => ({
@@ -129,7 +158,17 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
               active: tool.ok,
             })),
           );
-        lines.push({ label: t('xr.voice.reply') });
+        lines.push([
+          ...(phase.error
+            ? []
+            : [
+                {
+                  id: 'voice:text',
+                  label: t(showText ? 'xr.voice.hideText' : 'xr.voice.showText'),
+                },
+              ]),
+          { id: 'voice:close', label: t('xr.voice.close') },
+        ]);
         return lines;
       }
     }
@@ -218,23 +257,31 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
     void reply(text, answer ? answer : null, tools);
   };
 
-  /** Muestra la respuesta, la lee en voz alta y la quita unos segundos después de terminar. */
-  const reply = async (text: string, spoken: string | null, tools: ToolChip[]) => {
-    const lines = wrapText(text, WRAP);
-    show({ kind: 'answer', lines, tools, speaking: spoken !== null });
-    if (spoken !== null) {
-      await say(spoken);
-      if (phase.kind !== 'answer' || phase.lines !== lines) return; // ya se habló de nuevo
-      show({ kind: 'answer', lines, tools, speaking: false });
-    }
+  /** Cierra la respuesta cuando se deja de leer: más tiempo con el texto a la vista. */
+  const closeLater = (text: string) => {
+    clearTimers();
     timers.push(
       setTimeout(
         () => {
           show({ kind: 'idle' });
         },
-        Math.max(6000, spoken === null ? text.length * 70 : 0),
+        showText ? Math.max(10_000, text.length * 80) : 6000,
       ),
     );
+  };
+
+  /** Muestra la respuesta, la lee en voz alta y la quita unos segundos después de terminar. */
+  const reply = async (text: string, spoken: string | null, tools: ToolChip[]) => {
+    const lines = wrapText(text, WRAP);
+    // Sin voz (falló el pedido), el texto se muestra igual: es la única respuesta.
+    const error = spoken === null;
+    show({ kind: 'answer', lines, tools, speaking: !error, error });
+    if (!error) {
+      await say(spoken);
+      if (phase.kind !== 'answer' || phase.lines !== lines) return; // ya se habló de nuevo
+      show({ kind: 'answer', lines, tools, speaking: false });
+    }
+    closeLater(text);
   };
 
   /** Contexto de audio de la sesión; creado fuera de un clic queda suspendido: se reanuda. */
@@ -292,6 +339,7 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
       lines: wrapText(t('xr.voice.error', { message }), WRAP),
       tools: [],
       speaking: false,
+      error: true,
     });
     timers.push(
       setTimeout(() => {
@@ -339,6 +387,23 @@ export function bindXrVoice(engine: Engine, context: () => string, onChange: () 
     toggle: () => {
       if (phase.kind === 'listening' || phase.kind === 'starting') stop();
       else void start();
+    },
+    action: (id) => {
+      if (id === 'voice:text') {
+        showText = !showText;
+        if (phase.kind === 'answer') {
+          show(phase);
+          if (!phase.speaking) closeLater(phase.lines.join(' '));
+        }
+        return true;
+      }
+      if (id === 'voice:close') {
+        hush();
+        clearTimers();
+        show({ kind: 'idle' });
+        return true;
+      }
+      return false;
     },
     dispose: () => {
       close();

@@ -112,9 +112,13 @@ const MENU_CLOSE = (55 * Math.PI) / 180;
 const MENU_ANIM = 0.15;
 /** Botón A/X del gamepad (`xr-standard`). */
 const BUTTON_A = 4;
-/** Panel de voz frente a la cabeza: distancia y cuánto baja de la mirada [m]. */
-const VOICE_AHEAD = 0.7;
-const VOICE_DROP = 0.2;
+/**
+ * Panel de voz: abajo a la izquierda de la vista [rad], a esta distancia y bajo la mirada [m], para
+ * no tapar la escena (se puede mover con el agarre).
+ */
+const VOICE_SIDE = (28 * Math.PI) / 180;
+const VOICE_AHEAD = 0.8;
+const VOICE_DROP = 0.3;
 /** Leyenda de los mapas: a la derecha de la vista [rad], a esta distancia [m] y bajo la mirada. */
 const LEGEND_SIDE = (40 * Math.PI) / 180;
 const LEGEND_AHEAD = 0.8;
@@ -177,8 +181,18 @@ export class XrSession {
   /** Aparición del menú, 0 (cerrado) a 1 (abierto). */
   private menuAppear = 0;
   private readonly info = new XrPanel(0.34);
-  private readonly voice = new XrPanel(0.45);
-  private readonly legend = new XrPanel(0.42);
+  private readonly voice = new XrPanel(0.45, true);
+  private readonly legend = new XrPanel(0.42, true);
+  /** Ayuda corta bajo el control derecho («A: hablar», «agarre: mover»). */
+  private readonly hint = new XrPanel(0.2);
+  /** Paneles que se dejaron en un lugar con el agarre (espacio XR: se quedan en la habitación). */
+  private readonly pinned = new Map<XrPanel, Vector3>();
+  /** Panel tomado con el agarre: sigue el rayo a la distancia a la que se tomó. */
+  private moving: { panel: XrPanel; hand: Hand; dist: number } | null = null;
+  /** Panel flotante (voz, leyenda) bajo el rayo derecho, con su distancia. */
+  private rayPanel: { panel: XrPanel; dist: number } | null = null;
+  /** Botón bajo el rayo en un panel flotante. */
+  private panelHover: string | null = null;
   /** Rumbos de la cabeza a los que están anclados la leyenda y la voz (null = sin anclar). */
   private legendYaw: number | null = null;
   private voiceYaw: number | null = null;
@@ -299,6 +313,7 @@ export class XrSession {
       this.info.mesh,
       this.voice.mesh,
       this.legend.mesh,
+      this.hint.mesh,
       this.backdrop,
     );
     this.world.add(model);
@@ -328,6 +343,11 @@ export class XrSession {
   /** Escala de colores y datos de los mapas prendidos (energía, vibración); vacía la oculta. */
   setLegend(rows: readonly XrLine[]): void {
     this.legend.setRows(rows);
+  }
+
+  /** Ayuda bajo el control derecho (qué hace cada botón); vacía la oculta. */
+  setHint(rows: readonly XrLine[]): void {
+    this.hint.setRows(rows);
   }
 
   /**
@@ -446,9 +466,13 @@ export class XrSession {
     this.menu.setAppear(this.menuAppear);
     this.placePanel(this.menu, left, head, this.menuAppear > 0);
     this.placePanel(this.info, right, head, true);
+    this.placeHint(right, head);
+    this.moveHeld();
     this.placeVoice(head, forward);
     this.placeLegend(head, forward);
     this.menu.mesh.updateMatrixWorld();
+    this.voice.mesh.updateMatrixWorld();
+    this.legend.mesh.updateMatrixWorld();
     this.updateRay(right);
     if (left) left.line.visible = false;
     this.updateReticle();
@@ -510,14 +534,22 @@ export class XrSession {
     ray.addEventListener('selectend', () => {
       this.menu.endDrag();
     });
-    // Agarre: a escala real, teletransporte (mano derecha); con una maqueta, tomarla y moverla.
+    // Agarre: sobre un panel flotante, moverlo; a escala real, teletransporte (mano derecha); con
+    // una maqueta, tomarla y moverla.
     ray.addEventListener('squeezestart', () => {
-      if (this.currentView !== 'walk') {
+      if (hand === this.hand('right') && this.rayPanel) {
+        this.moving = { panel: this.rayPanel.panel, hand, dist: this.rayPanel.dist };
+        this.pulse(hand);
+      } else if (this.currentView !== 'walk') {
         this.grab = { hand, from: this.gripPose(hand), p0: this.placement };
         this.autoPlaceUntil = null;
       } else if (hand === this.hand('right')) this.teleporting = true;
     });
     ray.addEventListener('squeezeend', () => {
+      if (this.moving?.hand === hand) {
+        this.moving = null;
+        return;
+      }
       if (this.grab?.hand === hand) this.grab = null;
       if (hand === this.hand('right')) this.finishTeleport();
     });
@@ -540,7 +572,42 @@ export class XrSession {
     mesh.lookAt(head);
   }
 
-  /** Panel de voz: frente a la cabeza, un poco por debajo de la mirada (anclado como la leyenda). */
+  /** Ayuda bajo el control derecho, de frente a la cabeza. */
+  private placeHint(hand: Hand | undefined, head: Vector3): void {
+    const mesh = this.hint.mesh;
+    if (!hand?.source || !this.hint.hasRows) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.visible = true;
+    hand.grip.getWorldPosition(mesh.position);
+    mesh.position.y -= PANEL_GAP + this.hint.height / 2;
+    mesh.lookAt(head);
+  }
+
+  /** El panel tomado con el agarre sigue el rayo y queda fijo donde se suelta. */
+  private moveHeld(): void {
+    const m = this.moving;
+    if (!m) return;
+    if (!m.hand.source || !m.panel.hasRows) {
+      this.moving = null;
+      return;
+    }
+    const o = new Vector3().setFromMatrixPosition(m.hand.ray.matrixWorld);
+    const d = new Vector3(0, 0, -1).transformDirection(m.hand.ray.matrixWorld);
+    this.pinned.set(m.panel, o.addScaledVector(d, m.dist));
+  }
+
+  /** Un panel dejado en un lugar queda ahí, siempre de frente a la cabeza. */
+  private placePinned(panel: XrPanel, head: Vector3): boolean {
+    const at = this.pinned.get(panel);
+    if (!at) return false;
+    panel.mesh.position.copy(at);
+    panel.mesh.lookAt(head);
+    return true;
+  }
+
+  /** Panel de voz: abajo a la izquierda de la vista (anclado como la leyenda) o donde se dejó. */
   private placeVoice(head: Vector3, forward: Vector3): void {
     const mesh = this.voice.mesh;
     mesh.visible = this.voice.hasRows;
@@ -548,8 +615,9 @@ export class XrSession {
       this.voiceYaw = null;
       return;
     }
+    if (this.placePinned(this.voice, head)) return;
     this.voiceYaw = anchorYaw(this.voiceYaw, forward);
-    placeAround(mesh, head, this.voiceYaw, VOICE_AHEAD, VOICE_DROP);
+    placeAround(mesh, head, this.voiceYaw + VOICE_SIDE, VOICE_AHEAD, VOICE_DROP);
   }
 
   /**
@@ -563,6 +631,7 @@ export class XrSession {
       this.legendYaw = null;
       return;
     }
+    if (this.placePinned(this.legend, head)) return;
     this.legendYaw = anchorYaw(this.legendYaw, forward);
     placeAround(mesh, head, this.legendYaw - LEGEND_SIDE, LEGEND_AHEAD, LEGEND_DROP);
   }
@@ -624,6 +693,12 @@ export class XrSession {
       this.host.onAction(this.menuHover);
       return;
     }
+    if (this.panelHover) {
+      const right = this.hand('right');
+      if (right) this.pulse(right);
+      this.host.onAction(this.panelHover);
+      return;
+    }
     // En AR con la maqueta, el gatillo sobre una superficie real (más cerca que el modelo) la coloca.
     if (
       this.currentView === 'table' &&
@@ -667,22 +742,42 @@ export class XrSession {
     this.groundDist = Infinity;
     if (!hand?.source) {
       this.menuHover = this.menu.hover(0, -1);
+      this.panelHover = null;
+      this.rayPanel = null;
+      this.voice.hover(0, -1);
+      this.legend.hover(0, -1);
       return;
     }
     hand.line.visible = true;
     const o = new Vector3().setFromMatrixPosition(hand.ray.matrixWorld);
     const d = new Vector3(0, 0, -1).transformDirection(hand.ray.matrixWorld);
     this.raycaster.set(o, d);
-    const menuHit = this.menu.mesh.visible
-      ? this.raycaster.intersectObject(this.menu.mesh)[0]
-      : undefined;
+    // El panel más cercano bajo el rayo: menú, voz o leyenda (el que se mueve no capta el rayo).
+    const panels = [this.menu, this.voice, this.legend].filter(
+      (p) => p.mesh.visible && p !== this.moving?.panel,
+    );
+    const nearest = this.raycaster.intersectObjects(panels.map((p) => p.mesh))[0];
+    const hit = (p: XrPanel) => (nearest?.object === p.mesh ? nearest : undefined);
+    const menuHit = hit(this.menu);
     const prev = this.menuHover;
+    const prevPanel = this.panelHover;
     this.menuHover = this.menu.hover(menuHit?.uv?.x ?? 0, menuHit?.uv?.y ?? -1);
+    this.panelHover = null;
+    this.rayPanel = null;
+    for (const p of [this.voice, this.legend]) {
+      const h = hit(p);
+      const id = p.hover(h?.uv?.x ?? 0, h?.uv?.y ?? -1);
+      if (h) {
+        this.rayPanel = { panel: p, dist: h.distance };
+        this.panelHover = id;
+      }
+    }
     if (this.menuHover !== null && this.menuHover !== prev) this.pulse(hand);
+    if (this.panelHover !== null && this.panelHover !== prevPanel) this.pulse(hand);
     if (this.menu.isDragging) this.dragMenu(hand);
     else this.dragValue = null;
-    let length = menuHit?.distance ?? RAY_LENGTH;
-    if (!menuHit) {
+    let length = nearest?.distance ?? RAY_LENGTH;
+    if (!nearest) {
       const s = this.placement.scale;
       const om = toModel(this.placement, v3(o));
       const dm = dirToModel(this.placement, v3(d));
@@ -869,6 +964,9 @@ export class XrSession {
     this.info.dispose();
     this.voice.dispose();
     this.legend.dispose();
+    this.hint.dispose();
+    this.pinned.clear();
+    this.moving = null;
     this.avatars.dispose();
     this.world.remove(model);
     this.saved.parent?.add(model);
@@ -879,6 +977,7 @@ export class XrSession {
       this.info.mesh,
       this.voice.mesh,
       this.legend.mesh,
+      this.hint.mesh,
       this.backdrop,
     );
     this.backdrop.geometry.dispose();

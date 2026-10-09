@@ -35,6 +35,14 @@ export interface XrRow {
   swatch?: string;
   /** Barra apilada a todo el ancho de la celda (la etiqueta no se dibuja). */
   bar?: readonly XrBarSegment[];
+  /** Ancho relativo de la celda en su línea (1 por defecto). */
+  weight?: number;
+  /** Párrafo: letra más chica, a la izquierda y en filas bajas (respuestas del asistente). */
+  body?: boolean;
+  /** Encabezado: en negrita, con `swatch` como punto de estado redondo. */
+  heading?: boolean;
+  /** Tecla o botón del control dibujado como tecla antes del texto de un párrafo («A»). */
+  key?: string;
 }
 
 /** Línea del panel: una celda a todo el ancho o varias lado a lado (botones agrupados). */
@@ -44,6 +52,8 @@ const CANVAS_W = 640;
 const GAP = 6;
 /** Margen horizontal de la pista de un slider dentro de su celda [px]. */
 const TRACK_PAD = 28;
+/** Franja superior con la manija de los paneles que se pueden mover [px]. */
+const HANDLE = 26;
 
 const PANEL = 'rgba(15, 23, 42, 0.92)';
 const CELL = '#1e293b';
@@ -59,17 +69,23 @@ const cellsOf = (line: XrLine): readonly XrRow[] => ('label' in line ? [line] : 
 /** Alto de una fila [px del canvas] según lo que lleva. */
 export function rowHeight(cells: readonly XrRow[]): number {
   if (cells.some((c) => c.icon !== undefined)) return 100;
+  if (cells.some((c) => c.heading)) return 64;
+  if (cells.every((c) => c.body)) return 38;
   if (cells.some((c) => c.slider !== undefined)) return 84;
   if (cells.some((c) => c.tab)) return 58;
   if (cells.some((c) => c.bar !== undefined)) return 48;
   return 60;
 }
 
-/** Fila bajo la coordenada `v` de la textura (0 abajo, 1 arriba) con filas de alto `heights`, o −1. */
-export function rowAt(v: number, heights: readonly number[]): number {
-  const total = heights.reduce((a, b) => a + b, 0);
-  if (v < 0 || v > 1 || total <= 0) return -1;
-  const y = (1 - v) * total;
+/**
+ * Fila bajo la coordenada `v` de la textura (0 abajo, 1 arriba) con filas de alto `heights` y una
+ * franja de `top` px arriba (la manija), o −1.
+ */
+export function rowAt(v: number, heights: readonly number[], top = 0): number {
+  const rows = heights.reduce((a, b) => a + b, 0);
+  if (v < 0 || v > 1 || rows <= 0) return -1;
+  const y = (1 - v) * (rows + top) - top;
+  if (y < 0) return -1;
   let acc = 0;
   for (let r = 0; r < heights.length; r++) {
     acc += heights[r] ?? 0;
@@ -78,19 +94,41 @@ export function rowAt(v: number, heights: readonly number[]): number {
   return heights.length - 1;
 }
 
+/** Anchos relativos de las celdas de una línea: `n` celdas iguales o los pesos dados. */
+type Widths = number | readonly number[];
+
+/** Inicio y ancho de cada celda [px del canvas], separación incluida (`draw` descuenta GAP). */
+function spans(widths: Widths): { x: number; w: number }[] {
+  const weights = typeof widths === 'number' ? Array<number>(widths).fill(1) : widths;
+  const total = weights.reduce((a, b) => a + b, 0);
+  let x = 0;
+  return weights.map((k) => {
+    const w = ((CANVAS_W - GAP) * k) / total;
+    const span = { x, w };
+    x += w;
+    return span;
+  });
+}
+
 /** Celda bajo la coordenada `u` (0 izquierda, 1 derecha) en una fila de `cells` celdas. */
-export function cellAt(u: number, cells: number): number {
-  if (u < 0 || u > 1 || cells <= 0) return -1;
-  return Math.min(cells - 1, Math.floor(u * cells));
+export function cellAt(u: number, cells: Widths): number {
+  const list = spans(cells);
+  if (u < 0 || u > 1 || list.length === 0) return -1;
+  const x = u * CANVAS_W;
+  const i = list.findIndex((s) => x < s.x + s.w);
+  return i < 0 ? list.length - 1 : i;
 }
 
 /** Valor 0–1 de un slider en la celda `c` de `cells` bajo `u`, descontando el margen de la pista. */
-export function sliderAt(u: number, cells: number, c: number): number {
-  // Misma geometría que `draw`: celdas de (ancho − GAP)/n y pista con TRACK_PAD a cada lado.
-  const w = (CANVAS_W - GAP) / cells;
-  const x = u * CANVAS_W - c * w;
-  return Math.min(1, Math.max(0, (x - TRACK_PAD) / (w + GAP - 2 * TRACK_PAD)));
+export function sliderAt(u: number, cells: Widths, c: number): number {
+  // Misma geometría que `draw`: celdas de (ancho − GAP)·peso y pista con TRACK_PAD a cada lado.
+  const span = spans(cells)[c];
+  if (!span) return 0;
+  const x = u * CANVAS_W - span.x;
+  return Math.min(1, Math.max(0, (x - TRACK_PAD) / (span.w + GAP - 2 * TRACK_PAD)));
 }
+
+const weightsOf = (cells: readonly XrRow[]): number[] => cells.map((c) => c.weight ?? 1);
 
 /**
  * Panel de texto dentro de la escena XR (los paneles HTML no se ven en el visor): un plano con una
@@ -109,8 +147,14 @@ export class XrPanel {
   private heightM = 0;
   private appear = 1;
 
-  /** `width` = ancho del panel [m]; el alto sale de las filas. */
-  constructor(private readonly width: number) {
+  /**
+   * `width` = ancho del panel [m]; el alto sale de las filas. `movable` dibuja arriba una manija
+   * (el panel se toma con el agarre y se deja donde se quiera).
+   */
+  constructor(
+    private readonly width: number,
+    private readonly movable = false,
+  ) {
     this.canvas.width = CANVAS_W;
     this.texture = new CanvasTexture(this.canvas);
     this.texture.colorSpace = SRGBColorSpace;
@@ -159,9 +203,9 @@ export class XrPanel {
   /** Resalta el botón bajo (u, v) (fuera del panel con v < 0); devuelve su id. */
   hover(u: number, v: number): string | null {
     if (this.dragging) return this.cell(this.dragging)?.id ?? null;
-    const r = v < 0 ? -1 : rowAt(v, this.heights);
+    const r = v < 0 ? -1 : rowAt(v, this.heights, this.top);
     const line = this.lines[r] ?? [];
-    const c = cellAt(u, line.length);
+    const c = cellAt(u, weightsOf(line));
     const id = line[c]?.id;
     const key = id === undefined ? '' : `${r}:${c}`;
     if (key !== this.hovered) {
@@ -184,7 +228,7 @@ export class XrPanel {
     const cell = this.cell(this.dragging);
     const line = this.lines[r ?? -1];
     if (!cell || !line || c === undefined) return null;
-    const value = sliderAt(u, line.length, c);
+    const value = sliderAt(u, weightsOf(line), c);
     if (cell.slider !== value) {
       this.lines = this.lines.map((l, i) =>
         i === r ? l.map((x, j) => (j === c ? { ...x, slider: value } : x)) : l,
@@ -208,6 +252,11 @@ export class XrPanel {
     this.mesh.material.dispose();
   }
 
+  /** Alto de la franja de la manija [px]. */
+  private get top(): number {
+    return this.movable ? HANDLE : 0;
+  }
+
   private cell(key: string): XrRow | undefined {
     if (!key) return undefined;
     const [r, c] = key.split(':').map(Number);
@@ -216,7 +265,7 @@ export class XrPanel {
 
   private draw(): void {
     if (this.lines.length === 0) return;
-    const h = this.heights.reduce((a, b) => a + b, 0) + GAP;
+    const h = this.heights.reduce((a, b) => a + b, 0) + GAP + this.top;
     if (this.canvas.height !== h) {
       this.canvas.height = h;
       // La textura de GPU tiene tamaño fijo: con otro alto hay que crearla de nuevo.
@@ -229,13 +278,24 @@ export class XrPanel {
     ctx.beginPath();
     ctx.roundRect(0, 0, CANVAS_W, h, 22);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    if (this.movable) {
+      // Manija: se toma con el agarre apuntando al panel.
+      ctx.fillStyle = MUTED;
+      ctx.beginPath();
+      ctx.roundRect(CANVAS_W / 2 - 40, 10, 80, 7, 3.5);
+      ctx.fill();
+    }
     ctx.textBaseline = 'middle';
-    let y = GAP / 2;
+    let y = GAP / 2 + this.top;
     this.lines.forEach((cells, r) => {
       const rh = this.heights[r] ?? 0;
-      const w = (CANVAS_W - GAP) / cells.length;
+      const list = spans(weightsOf(cells));
       cells.forEach((cell, c) => {
-        const box = { x: GAP + c * w, y: y + GAP / 2, w: w - GAP, h: rh - GAP };
+        const span = list[c] ?? { x: 0, w: 0 };
+        const box = { x: GAP + span.x, y: y + GAP / 2, w: span.w - GAP, h: rh - GAP };
         this.drawCell(ctx, cell, box, this.hovered === `${r}:${c}`, cells.length === 1, r === 0);
       });
       y += rh;
@@ -365,6 +425,44 @@ export class XrPanel {
       ctx.font = font(22);
       ctx.fillStyle = button ? TEXT : MUTED;
       ctx.fillText(cell.label, cx, b.y + b.h * 0.78, b.w - 12);
+      return;
+    }
+
+    if (cell.body) {
+      let tx = b.x + 18;
+      if (cell.key !== undefined) {
+        ctx.font = font(22, true);
+        const kh = Math.min(32, b.h - 4);
+        const kw = Math.max(kh, ctx.measureText(cell.key).width + 20);
+        ctx.fillStyle = ACCENT;
+        ctx.beginPath();
+        ctx.roundRect(tx, cy - kh / 2, kw, kh, kh / 2);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.textAlign = 'center';
+        ctx.fillText(cell.key, tx + kw / 2, cy + 1);
+        tx += kw + 12;
+      }
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = font(24);
+      ctx.textAlign = 'left';
+      ctx.fillText(cell.label, tx, cy, b.w - (tx - b.x) - 12);
+      return;
+    }
+
+    if (cell.heading) {
+      let tx = b.x + 18;
+      if (cell.swatch !== undefined) {
+        ctx.fillStyle = cell.swatch;
+        ctx.beginPath();
+        ctx.arc(b.x + 28, cy, 10, 0, Math.PI * 2);
+        ctx.fill();
+        tx = b.x + 50;
+      }
+      ctx.fillStyle = TEXT;
+      ctx.font = font(27, true);
+      ctx.textAlign = 'left';
+      ctx.fillText(cell.label, tx, cy, b.w - (tx - b.x) - 12);
       return;
     }
 

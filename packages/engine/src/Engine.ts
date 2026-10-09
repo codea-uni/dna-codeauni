@@ -701,6 +701,11 @@ export class Engine {
     this.xr?.setVoice(rows);
   }
 
+  /** Ayuda bajo el control derecho del visor (qué hace cada botón). */
+  setXrHint(rows: readonly XrLine[]): void {
+    this.xr?.setHint(rows);
+  }
+
   setXrView(view: XrView): void {
     this.xr?.setView(view);
   }

@@ -11,6 +11,11 @@ import { requireUser } from '../http/session';
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_TTS_MODEL = 'gemini-3.8-flash-lite-tts';
+/**
+ * Razonamiento corto: las órdenes de diseño son directas y las herramientas hacen los cálculos;
+ * responde ~2 s antes que con el nivel por defecto.
+ */
+const THINKING = 'low';
 /** Voz de Gemini TTS (cálida y clara en español). */
 const VOICE = 'Kore';
 
@@ -29,19 +34,30 @@ export function aiRoutes(app: FastifyInstance, deps: AppDeps): void {
     if (!parsed.success) return sendError(reply, 400, 'bad_request', parsed.error.message);
     const { systemInstruction, contents, tools } = parsed.data;
     const doFetch = deps.fetch ?? fetch;
-    let res: Response;
-    try {
-      res = await doFetch(`${GEMINI_URL}/${encodeURIComponent(deps.ai.model)}:generateContent`, {
+    const ai = deps.ai;
+    const call = (thinking: boolean) =>
+      doFetch(`${GEMINI_URL}/${encodeURIComponent(ai.model)}:generateContent`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': deps.ai.apiKey },
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': ai.apiKey },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemInstruction }] },
           contents,
           tools,
           toolConfig: { functionCallingConfig: { mode: 'AUTO' } },
+          ...(thinking
+            ? { generationConfig: { thinkingConfig: { thinkingLevel: THINKING } } }
+            : {}),
         }),
         signal: AbortSignal.timeout(90_000),
       });
+    let res: Response;
+    try {
+      res = await call(true);
+      // Un modelo sin `thinkingLevel` (GEMINI_MODEL distinto) responde 400: se repite sin él.
+      if (res.status === 400) {
+        const text = await res.clone().text();
+        if (/thinking/i.test(text)) res = await call(false);
+      }
     } catch (err) {
       return sendError(reply, 502, 'ai_upstream', err instanceof Error ? err.message : String(err));
     }

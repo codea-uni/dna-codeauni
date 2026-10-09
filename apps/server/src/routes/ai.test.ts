@@ -103,6 +103,38 @@ describe.runIf(await databaseAvailable())('asistente de IA (/api/ai/generate)', 
     expect(res.json()).toEqual({ code: 'ai_upstream', message: 'API key not valid' });
   });
 
+  it('pide razonamiento corto y, si el modelo no lo admite, repite sin él', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const fake: typeof fetch = (_url, init) => {
+      const body = JSON.parse(init?.body as string) as Record<string, unknown>;
+      bodies.push(body);
+      return Promise.resolve(
+        'generationConfig' in body
+          ? Response.json(
+              { error: { message: 'Thinking level is not supported' } },
+              { status: 400 },
+            )
+          : Response.json({
+              candidates: [{ content: { role: 'model', parts: [{ text: 'Listo.' }] } }],
+            }),
+      );
+    };
+    const s = createTestApp(t, { ai: { apiKey: 'clave', model: 'gemini-x' }, fetch: fake });
+    const cookie = await signedIn(s, { email: 'sin-thinking@mina.pe' });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/generate',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: turn,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toMatchObject({
+      generationConfig: { thinkingConfig: { thinkingLevel: 'low' } },
+    });
+    expect(bodies[1]).not.toHaveProperty('generationConfig');
+  });
+
   it('voz: pide audio a Gemini TTS con la clave y devuelve el audio tal cual', async () => {
     const calls: { url: string; body: unknown }[] = [];
     const fake: typeof fetch = (url, init) => {

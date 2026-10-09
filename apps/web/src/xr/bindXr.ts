@@ -20,7 +20,8 @@ const XR_SEQUENCE_SECONDS = 12;
  */
 const VR_STYLE =
   'This is a spoken conversation inside a VR presentation of this blast, often in front of a client. ' +
-  'Be warm and natural and keep every reply under 45 words (it is read aloud), no lists. ' +
+  'Be warm and natural and keep every reply under 35 words (it is read aloud), no lists. ' +
+  'Answer straight away: never restate or quote what the user said. ' +
   'After answering, when it fits, offer one ' +
   'concrete next step drawn from the app results (get_analysis: design checks, fragmentation, ' +
   'vibration at control points, timing) and ask if they want it, e.g. "¿Quieres que ajuste el taco ' +
@@ -58,9 +59,12 @@ export function bindXr(engine: Engine): () => void {
   let selected: HoleId | null = null;
   let ended = false;
   let playback: AbortController | null = null;
+  /** Leyenda reducida a su encabezado (botón del panel). */
+  let legendCollapsed = false;
   let lastMenu = '';
   let lastInfo = '';
   let lastLegend = '';
+  let lastHint = '';
 
   /** Intervalo de la secuencia en el visor [s], como `playDemoSequence`. */
   const sequenceSpan = (): { from: number; end: number } | null => {
@@ -209,8 +213,28 @@ ${VR_STYLE}`;
       l.energy && s.energy ? energyLegend(s.energy, session.document.project) : [],
       l.vibration && s.vibration ? vibrationLegend(s.vibration) : [],
     ].filter((p) => p.length > 0);
-    return parts.flatMap((p, i) => (i > 0 ? [{ label: '' }, ...p] : p));
+    if (parts.length === 0) return [];
+    const header: XrLine = [
+      { label: t('xr.legend.title'), heading: true, weight: 2 },
+      { id: 'legend:toggle', label: t(legendCollapsed ? 'xr.legend.show' : 'xr.legend.hide') },
+    ];
+    if (legendCollapsed) return [header];
+    return [header, ...parts.flatMap((p, i) => (i > 0 ? [{ label: '' }, ...p] : p))];
   };
+
+  /** Ayuda bajo el control derecho: qué hace A (según el estado de la voz) y el agarre. */
+  const hintRows = (): XrLine[] => [
+    ...(voice.available
+      ? [
+          {
+            label: t(voice.listening ? 'xr.hint.send' : 'xr.hint.talk'),
+            body: true,
+            key: 'A',
+          },
+        ]
+      : []),
+    { label: t('xr.hint.move'), body: true, key: t('xr.hint.grip') },
+  ];
 
   /** Redibuja los paneles solo si cambió su texto (el store cambia en cada cuadro de la secuencia). */
   const refresh = () => {
@@ -232,6 +256,12 @@ ${VR_STYLE}`;
     if (legendKey !== lastLegend) {
       lastLegend = legendKey;
       engine.setXrLegend(legend);
+    }
+    const hint = hintRows();
+    const hintKey = JSON.stringify(hint);
+    if (hintKey !== lastHint) {
+      lastHint = hintKey;
+      engine.setXrHint(hint);
     }
   };
 
@@ -261,6 +291,7 @@ ${VR_STYLE}`;
   };
 
   const act = ({ id, value }: { id: string; value?: number }) => {
+    if (voice.action(id)) return;
     const s = store();
     switch (id) {
       case 'tab:view':
@@ -310,6 +341,9 @@ ${VR_STYLE}`;
       case 'voice':
         voice.toggle();
         break;
+      case 'legend:toggle':
+        legendCollapsed = !legendCollapsed;
+        break;
       case 'exit':
         engine.exitXr();
         break;
@@ -322,6 +356,7 @@ ${VR_STYLE}`;
       lastMenu = '';
       lastInfo = '';
       lastLegend = '';
+      lastHint = '';
       selected = null;
       const s = store();
       if (mode) {

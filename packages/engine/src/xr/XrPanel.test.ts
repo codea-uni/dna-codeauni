@@ -30,6 +30,20 @@ describe('fila de un panel XR bajo el rayo', () => {
     expect(cellAt(-0.1, 2)).toBe(-1);
   });
 
+  it('con la manija arriba: la franja no es una fila', () => {
+    // 20 px de manija + 2 filas de 40: la manija ocupa el 20 % de arriba.
+    expect(rowAt(0.9, [40, 40], 20)).toBe(-1);
+    expect(rowAt(0.7, [40, 40], 20)).toBe(0);
+    expect(rowAt(0.3, [40, 40], 20)).toBe(1);
+  });
+
+  it('celdas con anchos distintos (pesos)', () => {
+    // 3 : 1 → la primera ocupa los tres cuartos de la izquierda.
+    expect(cellAt(0.6, [3, 1])).toBe(0);
+    expect(cellAt(0.8, [3, 1])).toBe(1);
+    expect(cellAt(0.5, [1, 1])).toBe(cellAt(0.5, 2));
+  });
+
   it('las filas con íconos o sliders son más altas', () => {
     expect(rowHeight([{ label: 'a', icon: '▶' }])).toBeGreaterThan(rowHeight([{ label: 'a' }]));
     expect(rowHeight([{ label: 'a', slider: 0.5 }])).toBeGreaterThan(rowHeight([{ label: 'a' }]));
@@ -46,6 +60,10 @@ describe('valor de un slider bajo el rayo', () => {
   it('en la segunda de dos celdas', () => {
     expect(sliderAt(0.75, 2, 1)).toBeCloseTo(0.5, 1);
     expect(sliderAt(0.51, 2, 1)).toBe(0);
+  });
+
+  it('con pesos iguales da lo mismo que con celdas iguales', () => {
+    expect(sliderAt(0.8, [1, 1], 1)).toBeCloseTo(sliderAt(0.8, 2, 1), 9);
   });
 });
 
