@@ -1,6 +1,10 @@
-import { aiGenerateResponseSchema } from '@cronos/api';
+import { aiGenerateResponseSchema, aiLiveTokenResponseSchema } from '@cronos/api';
+import { mkdtemp, readdir, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp, signedIn, TEST_ORIGIN } from '../test/testApp';
+import { HourlyLimiter } from './ai';
 import { createTestDb, databaseAvailable, type TestDb } from '../test/testDb';
 
 const turn = {
@@ -170,5 +174,112 @@ describe.runIf(await databaseAvailable())('asistente de IA (/api/ai/generate)', 
       contents: [{ parts: [{ text: 'Listo, subí el taco a 3 m.' }] }],
       generationConfig: { responseModalities: ['AUDIO'] },
     });
+  });
+
+  it('voz en vivo: pide un token de un uso con modelo, voz, instrucciones y herramientas fijados', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const fake: typeof fetch = (url, init) => {
+      calls.push({
+        url: typeof url === 'string' ? url : url instanceof URL ? url.href : url.url,
+        init: init ?? {},
+      });
+      return Promise.resolve(Response.json({ name: 'auth_tokens/abc' }));
+    };
+    const s = createTestApp(t, {
+      ai: { apiKey: 'clave', model: 'gemini-x', liveModel: 'live-x', liveVoice: 'Voz' },
+      fetch: fake,
+    });
+    const cookie = await signedIn(s, { email: 'vivo@mina.pe' });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/live-token',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: { systemInstruction: turn.systemInstruction, tools: turn.tools },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(aiLiveTokenResponseSchema.parse(res.json())).toEqual({
+      token: 'auth_tokens/abc',
+      model: 'live-x',
+    });
+    expect(calls[0]?.url).toBe('https://generativelanguage.googleapis.com/v1alpha/auth_tokens');
+    expect(new Headers(calls[0]?.init.headers).get('x-goog-api-key')).toBe('clave');
+    const sent = JSON.parse(calls[0]?.init.body as string) as Record<string, unknown>;
+    expect(sent).toMatchObject({
+      uses: 1,
+      bidiGenerateContentSetup: {
+        model: 'models/live-x',
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Voz' } } },
+        },
+        systemInstruction: { parts: [{ text: turn.systemInstruction }] },
+        tools: turn.tools,
+        realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
+      },
+    });
+  });
+
+  it('registro: guarda cada evento en el JSONL del día con quién lo dijo', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ailog-'));
+    const s = createTestApp(t, { ai: { apiKey: 'clave', model: 'gemini-x', logDir: dir } });
+    const cookie = await signedIn(s, { email: 'registro@mina.pe' });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/log',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: {
+        conversation: 'c1',
+        surface: 'xr',
+        projectName: 'Tajo',
+        events: [
+          { at: '2026-10-09T20:00:00Z', kind: 'user', text: 'elimina el B8' },
+          { at: '2026-10-09T20:00:01Z', kind: 'tool', name: 'delete_holes', ok: true },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(204);
+    const files = await readdir(dir);
+    expect(files).toHaveLength(1);
+    const lines = (await readFile(join(dir, files[0] ?? ''), 'utf8')).trim().split('\n');
+    expect(lines.map((l) => JSON.parse(l) as Record<string, unknown>)).toMatchObject([
+      { user: 'registro@mina.pe', conversation: 'c1', surface: 'xr', kind: 'user' },
+      { kind: 'tool', name: 'delete_holes', ok: true },
+    ]);
+  });
+
+  it('registro: sin carpeta configurada no guarda nada', async () => {
+    const s = createTestApp(t, { ai: { apiKey: 'clave', model: 'gemini-x' } });
+    const cookie = await signedIn(s, { email: 'sinlog@mina.pe' });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/log',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: { conversation: 'c', surface: 'web', events: [{ at: 'x', kind: 'user' }] },
+    });
+    expect(res.statusCode).toBe(204);
+  });
+
+  it('voz en vivo: sin sesión 401', async () => {
+    const s = createTestApp(t, { ai: { apiKey: 'clave', model: 'gemini-x' } });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/live-token',
+      headers: TEST_ORIGIN,
+      payload: { systemInstruction: 'x', tools: [] },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+});
+
+describe('HourlyLimiter', () => {
+  it('admite el tope por hora y vuelve a admitir cuando sale de la ventana', () => {
+    let now = 0;
+    const limiter = new HourlyLimiter(2, () => now);
+    expect(limiter.take('u')).toBe(true);
+    expect(limiter.take('u')).toBe(true);
+    expect(limiter.take('u')).toBe(false);
+    expect(limiter.take('otro')).toBe(true);
+    now = 3_600_001;
+    expect(limiter.take('u')).toBe(true);
   });
 });

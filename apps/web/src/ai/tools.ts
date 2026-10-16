@@ -16,6 +16,8 @@ import {
   sToMs,
   unitToAzimuth,
   withDownholeDetonator,
+  computeTiming,
+  rowTieUp,
   type Blast,
   type BlastBoundary,
   type Deck,
@@ -24,13 +26,33 @@ import {
   type HoleEdit,
   type HoleId,
   type HoleTemplate,
+  type NodeRef,
+  type DetonatorId,
+  type SurfaceConnectorId,
   type Op,
   type Pattern,
   type ProductLibrary,
   type StemmingMaterialId,
 } from '@cronos/core';
 import { z } from 'zod';
+import { showHoleDetail } from './holeDetail';
+import { perimeterArg, targetSchema } from './targetSchema';
+import {
+  resolveHole,
+  resolveHoleLabels,
+  resolveHoleArguments,
+  holeLabelRange,
+} from './holeResolution';
 import * as actions from '../actions';
+import { BLAST_TOOLS, BLAST_READ_ONLY } from './blastTools';
+import { siteConditions } from './site';
+import { WATER_NEEDS } from './skill/rules';
+import { KNOWLEDGE_READ_ONLY, KNOWLEDGE_TOOLS } from './knowledgeTools';
+import { SCENE_READ_ONLY, SCENE_TOOLS } from './sceneTools';
+import { WORKSPACE_READ_ONLY, WORKSPACE_TOOLS } from './workspaceTools';
+import { recordStep } from './steps';
+import { logTool } from './transcript';
+import { cardFromTool, closeCard, pushCard, type AgentCard } from './cards';
 import { analysisReady } from '../demo/runtime';
 import { getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
@@ -49,23 +71,19 @@ const { document, selection } = session;
 /** Error que se devuelve al modelo como `{ error }` para que corrija o pregunte. */
 export class ToolError extends Error {}
 
-const r = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
+export const r = (v: number, d = 2) => Math.round(v * 10 ** d) / 10 ** d;
 
-function blastOrFail(): Blast {
+export function blastOrFail(): Blast {
   const blast = document.project.blasts[0];
   if (!blast) throw new ToolError('The project has no blast.');
   return blast;
 }
 
-function readOnlyGuard(): void {
+export function readOnlyGuard(): void {
   if (document.readOnly) throw new ToolError('The project is read-only for this user.');
 }
 
 // ------------------------------------------------------------------ Perímetros
-
-const perimeterArg = z
-  .string()
-  .describe('Perimeter name (e.g. "Perímetro 1"). Omit to use the active/only perimeter.');
 
 /**
  * Perímetro a editar: el nombrado, si no el activo, si no el único. Varios sin activo, o ninguno,
@@ -74,8 +92,7 @@ const perimeterArg = z
 export function resolvePerimeter(blast: Blast, name?: string): BlastBoundary {
   const list = blast.boundaries;
   if (name !== undefined) {
-    const key = name.trim().toLowerCase();
-    const found = list.find((b) => b.id === name || b.name.trim().toLowerCase() === key);
+    const found = findByName(list, name);
     if (!found)
       throw new ToolError(
         `No perimeter named "${name}". Existing: ${list.map((b) => b.name).join(', ') || 'none'}.`,
@@ -96,9 +113,9 @@ export function resolvePerimeter(blast: Blast, name?: string): BlastBoundary {
 }
 
 const CARDINALS = { N: 0, E: 90, S: 180, W: 270 } as const;
-type Cardinal = keyof typeof CARDINALS;
+export type Cardinal = keyof typeof CARDINALS;
 
-function edgeInfo(b: BlastBoundary) {
+export function edgeInfo(b: BlastBoundary) {
   return b.polygon.map((a, i) => {
     const c = b.polygon[(i + 1) % b.polygon.length] ?? a;
     const n = outwardNormal(b.polygon, i);
@@ -112,7 +129,7 @@ function edgeInfo(b: BlastBoundary) {
 }
 
 /** Aristas cuya normal exterior está a menos de 45° del punto cardinal pedido. */
-function edgesFacing(b: BlastBoundary, sides: readonly Cardinal[]): number[] {
+export function edgesFacing(b: BlastBoundary, sides: readonly Cardinal[]): number[] {
   return edgeInfo(b)
     .filter((e) =>
       sides.some((s) => {
@@ -130,34 +147,86 @@ function polygonArea(b: BlastBoundary): number {
 
 // ------------------------------------------------------------------ Taladros objetivo
 
-const targetSchema = z
-  .object({
-    all: z.boolean().optional().describe('All holes of the blast (or of `perimeter`).'),
-    labels: z.array(z.string()).optional().describe('Hole labels, e.g. ["12", "13"].'),
-    rows: z
-      .array(z.number().int().min(1))
-      .optional()
-      .describe('Row numbers; row 1 is the row next to the free face.'),
-    selection: z.boolean().optional().describe('The holes the user selected on the map.'),
-    perimeter: perimeterArg.optional(),
-  })
-  .describe('Which holes. Criteria combine as an intersection.');
+export { perimeterArg, targetSchema };
 type Target = z.infer<typeof targetSchema>;
+
+/**
+ * Nombre comparable: sin mayúsculas, tildes ni signos («Perímetro 2 · desmonte» = «perimetro 2
+ * desmonte»). «Polígono» y «perímetro» son lo mismo (el ingeniero dice «polígono 1»).
+ */
+export function normName(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\bpoligonos?\b/g, 'perimetro')
+    .replace(/\bperimetros\b/g, 'perimetro')
+    .trim();
+}
+
+/**
+ * Elemento por id o nombre dicho por voz: exacto, normalizado, o el único que contiene (o está
+ * contenido en) lo pedido — «desmonte» encuentra «Perímetro 2 · desmonte».
+ */
+export function findByName<T extends { id: string; name: string }>(
+  list: readonly T[],
+  name: string,
+): T | undefined {
+  const exact = list.find(
+    (x) => x.id === name || x.name.trim().toLowerCase() === name.trim().toLowerCase(),
+  );
+  if (exact) return exact;
+  const key = normName(name);
+  const norm = list.find((x) => normName(x.name) === key);
+  if (norm || !key) return norm;
+  const partial = list.filter((x) => {
+    const n = normName(x.name);
+    return n.includes(key) || key.includes(n);
+  });
+  return partial.length === 1 ? partial[0] : undefined;
+}
+
+/**
+ * Etiquetas pedidas → etiquetas existentes: rangos («153-166», «153–166», «153 a 166») y prefijos
+ * dictados («B8», «taladro 8» → «8»).
+ */
+export function expandLabels(
+  blast: Blast,
+  labels: readonly string[],
+): { found: Set<string>; missing: string[] } {
+  return resolveHoleLabels(blast.holes, labels);
+}
 
 /** Taladros que cumplen todos los criterios; sin criterio es un error (no se asume «todos»). */
 export function resolveTarget(blast: Blast, target: Target): Hole[] {
-  const { all, labels, rows, selection: sel, perimeter } = target;
-  if (!all && !labels?.length && !rows?.length && !sel && perimeter === undefined)
-    throw new ToolError('Say which holes: all, labels, rows, selection or perimeter.');
+  const { all, labels, rows, selection: sel, perimeter, group } = target;
+  if (
+    !all &&
+    !labels?.length &&
+    !rows?.length &&
+    !sel &&
+    perimeter === undefined &&
+    !group &&
+    !target.explosive &&
+    !target.uncharged &&
+    !target.no_detonator &&
+    !target.not_firing
+  )
+    throw new ToolError(
+      'Say which holes: all, labels, rows, selection, group, perimeter, explosive, uncharged, no_detonator or not_firing.',
+    );
   let holes = blast.holes;
   if (perimeter !== undefined) {
     const b = resolvePerimeter(blast, perimeter);
     holes = holes.filter((h) => holeBoundary(blast, h)?.id === b.id);
   }
   if (labels?.length) {
-    const wanted = new Set(labels.map((l) => l.trim()));
-    const missing = [...wanted].filter((l) => !blast.holes.some((h) => h.label === l));
-    if (missing.length) throw new ToolError(`Unknown hole labels: ${missing.join(', ')}.`);
+    const { found: wanted, missing } = expandLabels(blast, labels);
+    if (missing.length)
+      throw new ToolError(
+        `Etiquetas desconocidas: ${missing.join(', ')}. ${holeLabelRange(blast.holes)}`,
+      );
     holes = holes.filter((h) => wanted.has(h.label));
   }
   if (rows?.length) {
@@ -165,6 +234,45 @@ export function resolveTarget(blast: Blast, target: Target): Hole[] {
     holes = holes.filter((h) => h.row !== undefined && wanted.has(h.row));
   }
   if (sel) holes = holes.filter((h) => selection.ids.has(h.id));
+  if (group) {
+    const key = normName(group);
+    const kind = /precorte|presplit/.test(key)
+      ? 'presplit'
+      : /buffer|amortigu|recorte/.test(key)
+        ? 'buffer'
+        : key.includes('produc')
+          ? 'production'
+          : null;
+    const groups = blast.groups.filter((g) => (kind ? g.kind === kind : normName(g.name) === key));
+    if (!groups.length && kind !== 'production')
+      throw new ToolError(
+        `No hole group "${group}". Groups: ${blast.groups.map((g) => g.name).join(', ') || 'none'}.`,
+      );
+    const ids = new Set(groups.map((g) => g.id));
+    // Producción: también los taladros sin grupo (la malla generada no siempre lo asigna).
+    holes = holes.filter((h) => (h.groupId ? ids.has(h.groupId) : kind === 'production'));
+  }
+  const explosives = (h: Hole) =>
+    h.decks.flatMap((d) => (d.kind === 'explosive' ? [d.explosiveId as string] : []));
+  if (target.explosive) {
+    const lib = document.project.library.explosives;
+    const q = normName(target.explosive);
+    const exact = lib.filter((e) => normName(e.name) === q);
+    const products = exact.length ? exact : lib.filter((e) => normName(e.name).includes(q));
+    if (!products.length)
+      throw new ToolError(
+        `No explosive "${target.explosive}". Library: ${lib.map((e) => e.name).join(', ')}.`,
+      );
+    const ids = new Set<string>(products.map((e) => e.id));
+    holes = holes.filter((h) => explosives(h).some((id) => ids.has(id)));
+  }
+  if (target.uncharged) holes = holes.filter((h) => explosives(h).length === 0);
+  if (target.no_detonator)
+    holes = holes.filter((h) => explosives(h).length > 0 && h.initiators.length === 0);
+  if (target.not_firing) {
+    const dead = new Set(notFiring(blast).map((h) => h.id));
+    holes = holes.filter((h) => dead.has(h.id));
+  }
   if (holes.length === 0) throw new ToolError('No hole matches those criteria.');
   return holes;
 }
@@ -266,7 +374,7 @@ function holeRow(h: Hole, lib: ProductLibrary, extra: { kg?: number; fireMs?: nu
 }
 
 /** Análisis vigente (el del documento actual), si el worker ya lo terminó. */
-function currentAnalysis() {
+export function currentAnalysis() {
   const s = useAnalysisStore.getState();
   return s.analysis && s.version === document.version && !s.computing ? s.analysis : null;
 }
@@ -297,7 +405,13 @@ export function designSummary() {
   if (!blast) return { blast: null };
   const activeId = useUiStore.getState().activeBoundaryId;
   return {
+    project: document.project.name,
     blast: blast.name,
+    topographies: document.project.topography.map((s) => ({
+      name: s.name,
+      date: s.surveyDate,
+      in_use: blast.bench.topographyId === s.id,
+    })),
     perimeters: blast.boundaries.map((b) => ({
       name: b.name,
       active: b.id === activeId,
@@ -318,6 +432,14 @@ export function designSummary() {
     initiation_system: blast.initiation.system,
     selected_holes: selection.ids.size,
     read_only: document.readOnly,
+    // Lo único que se puede usar (el agente inventaba «150 ms» o «Primer de Pentolita»).
+    available: {
+      surface_connectors_ms: document.project.library.surfaceConnectors.map((c) =>
+        r(sToMs(c.delay), 1),
+      ),
+      primers: document.project.library.primers.map((p) => p.name),
+      downhole_detonators: document.project.library.detonators.map((d) => d.name),
+    },
   };
 }
 
@@ -616,7 +738,12 @@ function selectHoles(args: z.infer<typeof targetOnly>) {
 
 const chargeSchema = z.object({
   target: targetSchema,
-  column_explosive: z.string().describe('Column explosive name from the library.'),
+  column_explosive: z
+    .string()
+    .optional()
+    .describe(
+      "Column explosive name from the library. Omit to keep each hole's current explosive (and its bottom charge), e.g. when the user only asks for more stemming.",
+    ),
   stemming: z.number().min(0).describe('Stemming length at the collar [m].'),
   bottom_explosive: z.string().optional().describe('Optional bottom (toe) charge explosive.'),
   bottom_length: z.number().min(0).optional().describe('Bottom charge length [m].'),
@@ -676,12 +803,28 @@ function setCharge(args: z.infer<typeof chargeSchema>) {
   const blast = blastOrFail();
   const lib = document.project.library;
   const holes = resolveTarget(blast, args.target);
-  const column = findProduct(lib.explosives, args.column_explosive, 'explosive');
+  const column = args.column_explosive
+    ? findProduct(lib.explosives, args.column_explosive, 'explosive')
+    : undefined;
   const bottom = args.bottom_explosive
     ? findProduct(lib.explosives, args.bottom_explosive, 'explosive')
     : undefined;
   if (bottom && !args.bottom_length)
     throw new ToolError('Give bottom_length for the bottom charge.');
+  // Sin explosivo nombrado se conserva el de cada taladro (columna y fondo).
+  const current = (h: Hole) => {
+    const ex = h.decks.filter(
+      (d): d is Extract<Deck, { kind: 'explosive' }> => d.kind === 'explosive',
+    );
+    const col = ex[ex.length - 1];
+    const bot = ex.length > 1 ? ex[0] : undefined;
+    return {
+      col: col?.explosiveId,
+      bot: bot ? { id: bot.explosiveId, length: bot.length } : undefined,
+    };
+  };
+  if (!column && holes.some((h) => !current(h).col))
+    throw new ToolError('Some of these holes have no explosive yet: say column_explosive.');
   const material = args.stemming_material
     ? findProduct(lib.stemmingMaterials, args.stemming_material, 'stemming material')
     : lib.stemmingMaterials[0];
@@ -690,12 +833,16 @@ function setCharge(args: z.infer<typeof chargeSchema>) {
   const det = args.detonator ? findProduct(lib.detonators, args.detonator, 'detonator') : undefined;
   const short: string[] = [];
   const next = holes.map((h): Hole => {
+    const now = current(h);
+    const keepBottom = !column && !bottom ? now.bot : undefined;
     const decks = chargeDecks(h.length, {
-      columnId: column.id,
+      columnId: column?.id ?? (now.col as ExplosiveId),
       stemming: args.stemming,
       ...(bottom && args.bottom_length
         ? { bottom: { id: bottom.id, length: args.bottom_length } }
-        : {}),
+        : keepBottom
+          ? { bottom: keepBottom }
+          : {}),
       ...(args.air_deck !== undefined ? { air: args.air_deck } : {}),
       stemmingMaterialId: material.id,
     });
@@ -720,15 +867,32 @@ function setCharge(args: z.infer<typeof chargeSchema>) {
     [{ type: 'holes/replace', blastId: blast.id, holes: next }],
     `IA: cargar ${holes.length} taladros`,
   );
+  // El agua del sitio: un explosivo que no la resiste se avisa (antes pasaba ANFO a taladros con agua).
+  const water = siteConditions().water;
+  const used = new Set<string>(
+    next.flatMap((h) =>
+      h.decks.flatMap((d) => (d.kind === 'explosive' ? [d.explosiveId as string] : [])),
+    ),
+  );
+  const unfit = water
+    ? lib.explosives.filter(
+        (e) => used.has(e.id) && !WATER_NEEDS[water].accepts.includes(e.waterResistance),
+      )
+    : [];
   return {
     charged_holes: holes.length,
-    column: column.name,
+    column: column?.name ?? 'kept (each hole its own)',
     bottom: bottom ? `${bottom.name} ${args.bottom_length ?? 0} m` : null,
     stemming_m: args.stemming,
     primer: primer?.name ?? null,
     detonator: det?.name ?? 'kept',
     without_explosive: short.length ? short : undefined,
     holes_without_detonator: next.filter((h) => h.initiators.length === 0).length,
+    ...(unfit.length
+      ? {
+          water_warning: `${unfit.map((e) => e.name).join(', ')}: water resistance not enough for ${water} holes (dissolves, orange fumes / NOx). Tell the user and offer a water-resistant product.`,
+        }
+      : {}),
   };
 }
 
@@ -773,17 +937,76 @@ function tieUpTarget(
   const holes = blast.holes.filter((h) => h.patternId === pattern.id && h.row !== undefined);
   if (holes.length === 0) throw new ToolError('The pattern has no holes.');
   if (args.start_label) {
-    const h = holes.find((x) => x.label === args.start_label);
-    if (!h) throw new ToolError(`Hole ${args.start_label} is not in pattern ${pattern.name}.`);
+    const h = resolveHole(blast.holes, args.start_label).hole;
+    if (!holes.includes(h))
+      throw new ToolError(`Hole ${args.start_label} is not in pattern ${pattern.name}.`);
     return { pattern, startRow: h.row ?? 0, startCol: h.col ?? 0, holes };
   }
+  // El inicio (centro o extremo) se toma de la primera fila; si esa fila es corta (perímetro
+  // irregular: a veces un solo taladro en una esquina, y la V arrancaba ahí), de toda la malla, con
+  // el taladro más cercano a la cara libre de esa columna.
   const front = Math.min(...holes.map((h) => h.row ?? 0));
-  const cols = holes.filter((h) => h.row === front).map((h) => h.col ?? 0);
+  const perRow = new Map<number, number>();
+  for (const h of holes) perRow.set(h.row ?? 0, (perRow.get(h.row ?? 0) ?? 0) + 1);
+  const frontHoles = holes.filter((h) => h.row === front);
+  const useFront = frontHoles.length * 2 >= Math.max(...perRow.values());
+  const cols = (useFront ? frontHoles : holes).map((h) => h.col ?? 0);
   const min = Math.min(...cols);
   const max = Math.max(...cols);
   const where = args.start ?? fallback;
-  const startCol = where === 'left' ? min : where === 'right' ? max : Math.round((min + max) / 2);
-  return { pattern, startRow: front, startCol, holes };
+  const want = where === 'left' ? min : where === 'right' ? max : Math.round((min + max) / 2);
+  const startCol = cols.reduce((a, b) => (Math.abs(b - want) < Math.abs(a - want) ? b : a));
+  const startRow = useFront
+    ? front
+    : Math.min(...holes.filter((h) => (h.col ?? 0) === startCol).map((h) => h.row ?? 0));
+  return { pattern, startRow, startCol, holes };
+}
+
+/**
+ * Taladros cargados que no salen: sin detonador, o con uno no electrónico al que la red de
+ * superficie no llega desde ningún punto de inicio (los electrónicos salen por su tiempo).
+ */
+export function notFiring(blast: Blast): Hole[] {
+  const lib = document.project.library.detonators;
+  const electronic = new Set<string>(lib.filter((d) => d.type === 'electronic').map((d) => d.id));
+  const key = (n: NodeRef) => (n.kind === 'hole' ? `h:${n.holeId}` : `n:${n.nodeId}`);
+  const next = new Map<string, string[]>();
+  for (const c of blast.initiation.connections) {
+    const a = key(c.from);
+    next.set(a, [...(next.get(a) ?? []), key(c.to)]);
+  }
+  const seen = new Set<string>();
+  const stack = blast.initiation.initiationPoints.map((p) => key(p.at));
+  while (stack.length) {
+    const k = stack.pop() as string;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    stack.push(...(next.get(k) ?? []));
+  }
+  return blast.holes.filter((h) => {
+    if (!h.decks.some((d) => d.kind === 'explosive')) return false;
+    if (h.initiators.length === 0) return true;
+    if (h.initiators.some((i) => electronic.has(i.detonatorId))) return false;
+    return !seen.has(`h:${h.id}`);
+  });
+}
+
+/**
+ * Taladros cargados que siguen sin detonador tras un amarre (precorte, buffer u otras mallas: el
+ * amarre solo programa su malla). Va en la respuesta para que el asistente no diga «todo listo».
+ */
+function stillUninitiated(): Record<string, unknown> {
+  const blast = document.project.blasts[0];
+  if (!blast) return {};
+  const left = notFiring(blast);
+  if (left.length === 0) return { all_charged_holes_fire: true };
+  return {
+    charged_holes_not_firing: {
+      holes: left.length,
+      labels: left.slice(0, 12).map((h) => h.label),
+      note: 'These charged holes will not fire (no detonator, or the tie-up does not reach them; e.g. presplit/buffer outside this pattern). Tell the user plainly; show them with spotlight holes {not_firing:true}; do not claim everything is tied up.',
+    },
+  };
 }
 
 const tieUpSchema = z.object({
@@ -800,8 +1023,183 @@ const tieUpSchema = z.object({
     .describe(
       'Nonel downhole detonator to set; default keeps nonel ones and replaces electronic/missing ones.',
     ),
+  confirmed: z
+    .boolean()
+    .optional()
+    .describe(
+      'Leave it out first: the tie-up is only PROPOSED (validated, simulated, shown on a card with Aplicar/Cambiar) and nothing changes. Set true only after the user said yes to that proposal.',
+    ),
   ...startSchema,
 });
+
+/** Amarre propuesto que espera el «sí» (o el botón Aplicar de su tarjeta). */
+let pendingTieUp: z.infer<typeof tieUpSchema> | null = null;
+export const TIE_UP_CARD = 'tieup-proposal';
+
+/** Aplica el amarre propuesto (botón «Aplicar» de la tarjeta). */
+export async function applyPendingTieUp(delays?: { inter_hole: string; inter_row: string }) {
+  if (!pendingTieUp) return { ok: false as const, error: 'No pending tie-up.' };
+  return runTool('set_tie_up', { ...pendingTieUp, ...delays, confirmed: true });
+}
+
+/** Tiempos de un amarre sin aplicarlo: la malla con esa red, simulada aparte. */
+function simulateTieUp(
+  blast: Blast,
+  patternId: Blast['patterns'][number]['id'],
+  startRow: number,
+  startCol: number,
+  mode: 'v' | 'line' | 'echelon',
+  ihId: SurfaceConnectorId,
+  irId: SurfaceConnectorId,
+  det: { id: DetonatorId; nominalDelay: number } | undefined,
+  needs: ReadonlySet<string>,
+) {
+  const lib = document.project.library;
+  const gen = rowTieUp(blast, {
+    patternId,
+    startRow,
+    startCol,
+    ...(mode === 'echelon' ? { mode: 'echelon' as const } : {}),
+    interHoleConnectorId: ihId,
+    interRowConnectorId: irId,
+  });
+  const inPattern = new Set<string>(
+    blast.holes.filter((h) => h.patternId === patternId).map((h) => h.id),
+  );
+  const touches = (ref: NodeRef) => ref.kind === 'hole' && inPattern.has(ref.holeId);
+  const plan = blast.initiation;
+  const preview: Blast = {
+    ...blast,
+    holes: blast.holes.map((h) =>
+      det && needs.has(h.id)
+        ? { ...h, initiators: withDownholeDetonator(h, det.id, det.nominalDelay) }
+        : h,
+    ),
+    initiation: {
+      ...plan,
+      connections: [
+        ...plan.connections.filter((c) => !touches(c.from) && !touches(c.to)),
+        ...gen.connections,
+      ],
+      initiationPoints: [
+        ...plan.initiationPoints.filter((p) => !touches(p.at)),
+        ...gen.initiationPoints,
+      ],
+    },
+  };
+  const tm = computeTiming(preview, lib);
+  const idx = new Map(tm.holeIds.map((id, i) => [id, i]));
+  const charged = preview.holes.filter(
+    (h) => inPattern.has(h.id) && h.decks.some((d) => d.kind === 'explosive'),
+  );
+  const notFiringHoles = charged.filter((h) => !Number.isFinite(tm.fireTime[idx.get(h.id) ?? -1] ?? NaN));
+  const coincidentHoles = tm.coincidentGroups.reduce((a, g) => a + g.length, 0);
+  return {
+    connections: gen.connections.length,
+    firing_span_ms: Number.isFinite(tm.lastTime - tm.firstTime) ? r(sToMs(tm.lastTime - tm.firstTime), 0) : null,
+    coincident_holes: coincidentHoles,
+    max_holes_per_8ms: tm.maxHolesPerWindow,
+    charged_holes_not_firing: notFiringHoles.length,
+  };
+}
+
+/**
+ * Propuesta de amarre: todo validado contra la librería y simulado, en una tarjeta con «Aplicar» y
+ * «Cambiar» (web y visor). No cambia nada: se aplica con el «sí» (confirmed) o con el botón.
+ */
+function proposeTieUp(
+  args: z.infer<typeof tieUpSchema>,
+  blast: Blast,
+  pattern: Pattern,
+  startRow: number,
+  startCol: number,
+  holes: readonly Hole[],
+  ih: ProductLibrary['surfaceConnectors'][number],
+  ir: ProductLibrary['surfaceConnectors'][number],
+  det: ProductLibrary['detonators'][number] | undefined,
+  needs: readonly Hole[],
+) {
+  const lib = document.project.library;
+  const needIds = new Set<string>(needs.map((h) => h.id));
+  const sim = (a: typeof ih, b: typeof ir) =>
+    simulateTieUp(blast, pattern.id, startRow, startCol, args.mode, a.id, b.id, det, needIds);
+  const mine = sim(ih, ir);
+  // Otra combinación de la librería con menos taladros coincidentes (entre filas > entre taladros).
+  let better: { inter_hole_ms: number; inter_row_ms: number; coincident_holes: number; max_holes_per_8ms: number } | null = null;
+  if (mine.coincident_holes > 0)
+    for (const a of lib.surfaceConnectors)
+      for (const b of lib.surfaceConnectors) {
+        if (b.delay <= a.delay) continue;
+        const x = sim(a, b);
+        const best = better ?? mine;
+        if (
+          x.charged_holes_not_firing <= mine.charged_holes_not_firing &&
+          (x.coincident_holes < best.coincident_holes ||
+            (x.coincident_holes === best.coincident_holes && x.max_holes_per_8ms < best.max_holes_per_8ms))
+        )
+          better = {
+            inter_hole_ms: r(sToMs(a.delay), 0),
+            inter_row_ms: r(sToMs(b.delay), 0),
+            coincident_holes: x.coincident_holes,
+            max_holes_per_8ms: x.max_holes_per_8ms,
+          };
+      }
+  const start = holes.find((h) => h.row === startRow && h.col === startCol);
+  const modeName = { v: 'En V', line: 'Fila por fila', echelon: 'Echelon' }[args.mode];
+  const ihMs = r(sToMs(ih.delay), 0);
+  const irMs = r(sToMs(ir.delay), 0);
+  pendingTieUp = { ...args, inter_hole: ih.name, inter_row: ir.name };
+  const notes: AgentCard['notes'] = [];
+  if (mine.charged_holes_not_firing > 0)
+    notes.push({ text: `${mine.charged_holes_not_firing} taladros cargados no saldrían`, tone: 'bad' });
+  if (mine.coincident_holes > 0)
+    notes.push({
+      text: `${mine.coincident_holes} taladros salen a menos de 8 ms de otro (máx. ${mine.max_holes_per_8ms} juntos)`,
+      tone: 'warn',
+    });
+  if (better)
+    notes.push({
+      text: `Mejor: ${better.inter_hole_ms} ms entre taladros y ${better.inter_row_ms} ms entre filas (${better.coincident_holes} coincidentes)`,
+      tone: 'accent',
+    });
+  if (notes.length === 0) notes.push({ text: 'Sin taladros coincidentes y todos salen', tone: 'ok' });
+  const card: AgentCard = {
+    id: TIE_UP_CARD,
+    title: 'Amarre propuesto',
+    sub: `${pattern.name} · ${modeName}`,
+    metrics: [
+      { label: 'Entre taladros', value: `${ihMs} ms`, tone: 'accent' },
+      { label: 'Entre filas', value: `${irMs} ms`, tone: 'accent' },
+      { label: 'Inicio', value: start?.label ?? '—' },
+      { label: 'Duración', value: mine.firing_span_ms === null ? '—' : `${mine.firing_span_ms} ms` },
+      { label: 'Detonador fondo', value: needs.length ? (det?.name ?? '—') : 'se mantiene' },
+    ],
+    bars: [],
+    notes,
+    choices: [
+      { id: 'apply', label: 'Aplicar' },
+      ...(better ? [{ id: 'better', label: `Usar ${better.inter_hole_ms}/${better.inter_row_ms} ms` }] : []),
+      { id: 'change', label: 'Cambiar' },
+    ],
+    t0: performance.now(),
+  };
+  pushCard(card);
+  return {
+    applied: false,
+    proposal: {
+      pattern: pattern.name,
+      mode: args.mode,
+      inter_hole: ih.name,
+      inter_row: ir.name,
+      start_hole: start?.label ?? null,
+      holes: holes.length,
+      downhole_detonator: needs.length ? `${needs.length} holes get ${det?.name ?? ''}` : 'kept',
+      ...mine,
+    },
+    ...(better ? { better_option: better } : {}),
+    next: 'NOTHING was applied yet. Say the proposal in ONE short sentence (mode, delays, start hole, and the warning or better option if any) and ask "¿Lo aplico?". Then STOP and wait for the answer. On yes call set_tie_up again with the same arguments and confirmed true (or the user taps Aplicar on the card). If they choose the better option, use those delays with confirmed true.',
+  };
+}
 
 function setTieUp(args: z.infer<typeof tieUpSchema>) {
   readOnlyGuard();
@@ -826,6 +1224,9 @@ function setTieUp(args: z.infer<typeof tieUpSchema>) {
       h.initiators.some((i) => typeOf(i.detonatorId) === 'electronic'),
   );
   if (needs.length && !det) throw new ToolError('The library has no nonel detonator.');
+  if (!args.confirmed) return proposeTieUp(args, blast, pattern, startRow, startCol, holes, ih, ir, det, needs);
+  pendingTieUp = null;
+  closeCard(TIE_UP_CARD);
   const extra: Op[] =
     needs.length && det
       ? commands.setDownholeDetonator(document, idsOf(needs), det.id, det.nominalDelay)
@@ -850,6 +1251,7 @@ function setTieUp(args: z.infer<typeof tieUpSchema>) {
     inter_hole: ih.name,
     inter_row: ir.name,
     start_hole: start?.label ?? null,
+    ...stillUninitiated(),
     downhole_detonator_set_on: needs.length ? `${needs.length} holes (${det?.name ?? ''})` : 'none',
   };
 }
@@ -888,6 +1290,7 @@ function setElectronic(args: z.infer<typeof electronicSchema>) {
     programmed_holes: n,
     detonator: det.name,
     start_hole: start?.label ?? null,
+    ...stillUninitiated(),
   };
 }
 
@@ -904,10 +1307,8 @@ function setHoleDelays(args: z.infer<typeof delaysSchema>) {
   const blast = blastOrFail();
   const lib = document.project.library;
   const det = args.detonator ? findProduct(lib.detonators, args.detonator, 'detonator') : undefined;
-  const byLabel = new Map(blast.holes.map((h) => [h.label, h]));
   const next = args.delays.map(({ label, delay_ms }) => {
-    const h = byLabel.get(label);
-    if (!h) throw new ToolError(`Unknown hole label ${label}.`);
+    const h = resolveHole(blast.holes, label).hole;
     const detId = det?.id ?? h.initiators[0]?.detonatorId;
     if (!detId) throw new ToolError(`Hole ${label} has no detonator: pass detonator.`);
     return { ...h, initiators: withDownholeDetonator(h, detId, msToS(delay_ms)) };
@@ -947,6 +1348,12 @@ const perimeterSchema = z.object({
     .optional()
     .describe('Mark as free face the edges facing these directions.'),
   free_face_edges: z.array(z.number().int().min(0)).optional(),
+  name: z
+    .string()
+    .min(1)
+    .max(80)
+    .optional()
+    .describe('Name the user gives, e.g. "Próxima voladura banco 3370".'),
 });
 
 function createPerimeter(args: z.infer<typeof perimeterSchema>) {
@@ -971,6 +1378,16 @@ function createPerimeter(args: z.infer<typeof perimeterSchema>) {
   }
   if (!polygon) throw new ToolError('Give vertices or rectangle.');
   const boundary = commands.makeBoundary(blast, polygon);
+  // El ingeniero los llama «polígonos»: los que crea el asistente se nombran así.
+  if (args.name?.trim()) boundary.name = args.name.trim();
+  else {
+    const used = new Set(blast.boundaries.map((b) => normName(b.name)));
+    for (let n = blast.boundaries.length + 1; ; n++)
+      if (!used.has(normName(`Polígono ${String(n)}`))) {
+        boundary.name = `Polígono ${String(n)}`;
+        break;
+      }
+  }
   const edges = [
     ...(args.free_face_edges ?? []),
     ...(args.free_face_sides ? edgesFacing(boundary, args.free_face_sides) : []),
@@ -1027,13 +1444,26 @@ function undoSteps(args: z.infer<typeof undoSchema>) {
 
 // ------------------------------------------------------------------ Registro
 
-interface ToolDef {
+export interface ToolDef {
   description: string;
   schema: z.ZodType;
   run: (args: never) => unknown;
 }
 
 const TOOLS: Record<string, ToolDef> = {
+  hole_detail: {
+    description:
+      'Muestra la ficha persistente de un taladro en web y VR: taco, explosivo y kg, iniciadores y retardos, disparo y geometría. Para «muéstrame el taladro N / el detalle del taladro N». Devuelve los mismos datos en texto para voz.',
+    schema: z.object({
+      hole: z.string().describe('Etiqueta del taladro; si no existe, número de posición 1–N.'),
+    }),
+    run: (args: { hole: string }) =>
+      showHoleDetail(resolveHole(blastOrFail().holes, args.hole).hole, 'explicit', true),
+  },
+  ...BLAST_TOOLS,
+  ...KNOWLEDGE_TOOLS,
+  ...SCENE_TOOLS,
+  ...WORKSPACE_TOOLS,
   get_design: {
     description:
       'Full design state: bench, perimeters (vertices, edges, free faces), patterns, hole counts, tie-up and the product library. Call it before acting when unsure.',
@@ -1131,10 +1561,15 @@ const TOOLS: Record<string, ToolDef> = {
 
 /** Herramientas que no modifican el documento (no cuentan como cambio en la interfaz). */
 export const READ_ONLY_TOOLS = new Set([
+  'hole_detail',
   'get_design',
   'list_holes',
   'get_analysis',
   'select_holes',
+  ...BLAST_READ_ONLY,
+  ...KNOWLEDGE_READ_ONLY,
+  ...SCENE_READ_ONLY,
+  ...WORKSPACE_READ_ONLY,
 ]);
 
 // ------------------------------------------------------------------ Gemini
@@ -1171,6 +1606,55 @@ export const AI_FUNCTION_DECLARATIONS = Object.entries(TOOLS).map(([name, def]) 
   return { name, description: def.description, ...(hasParams ? { parameters: params } : {}) };
 });
 
+/**
+ * Orden de ejecución dentro de un mismo turno: el modelo a veces pide en paralelo la carga antes
+ * que la malla («No hole matches»). Se ejecutan en el orden del flujo de diseño (perímetro → malla
+ * → precorte/buffer → carga → amarre → predicción → mostrar); el resto conserva su orden.
+ */
+const PHASE: Record<string, number> = {
+  open_project: -2,
+  use_topography: -1,
+  use_perimeter: 2,
+  presets: 0,
+  scenarios: 0,
+  delete_perimeter: 1,
+  create_perimeter: 2,
+  edit_perimeter: 3,
+  set_free_face: 3,
+  set_site_conditions: 4,
+  add_protected_point: 4,
+  split_zone: 5,
+  generate_pattern: 6,
+  design_presplit: 7,
+  design_buffer: 8,
+  add_holes: 9,
+  edit_holes: 9,
+  move_holes: 9,
+  delete_holes: 9,
+  set_charge: 10,
+  set_tie_up: 11,
+  set_electronic_timing: 11,
+  set_hole_delays: 12,
+  get_analysis: 13,
+  predict_results: 13,
+  track_blocks: 14,
+  show_results: 15,
+  set_layers: 15,
+  set_camera: 16,
+  spotlight: 17,
+  vr_view: 16,
+  hole_detail: 16,
+  // Publicar va al final: si no, se guardaba y después se cambiaba el amarre del mismo turno.
+  save_version: 30,
+};
+
+export function orderToolCalls<T extends { name: string }>(calls: readonly T[]): T[] {
+  return calls
+    .map((c, i) => ({ c, i, p: PHASE[c.name] ?? 8.5 }))
+    .sort((a, b) => a.p - b.p || a.i - b.i)
+    .map((x) => x.c);
+}
+
 /** Ejecuta una herramienta pedida por el modelo; los errores vuelven como `{ error }`. */
 export async function runTool(
   name: string,
@@ -1181,9 +1665,40 @@ export async function runTool(
   const parsed = def.schema.safeParse(args ?? {});
   if (!parsed.success)
     return { ok: false, error: `Invalid arguments: ${z.prettifyError(parsed.error)}` };
+  // Lo que cambie el asistente se pinta en vivo en el mapa, el 3D y el visor.
+  const engine = getEngine();
+  engine?.beginBuild();
+  let out: { ok: true; result: unknown } | { ok: false; error: string };
   try {
-    return { ok: true, result: await def.run(parsed.data as never) };
+    const resolved = resolveHoleArguments(
+      document.project.blasts[0]?.holes ?? [],
+      parsed.data as Record<string, unknown>,
+    );
+    const result: unknown = await def.run(resolved.args as never);
+    out = {
+      ok: true,
+      result:
+        Object.keys(resolved.metadata).length &&
+        result &&
+        typeof result === 'object' &&
+        !Array.isArray(result)
+          ? { ...result, ...resolved.metadata }
+          : result,
+    };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    out = { ok: false, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    engine?.endBuild();
   }
+  logTool(name, args, out);
+  // Lo aplicado se puede guardar como preset (malla, carga, amarre, condiciones).
+  const proposal =
+    out.ok && (out.result as { applied?: unknown } | null)?.applied === false;
+  if (out.ok && !proposal) recordStep(name, parsed.data);
+  // Lo que el agente consulta o aplica aparece como tarjeta de reporte (web y visor).
+  if (out.ok) {
+    const card = cardFromTool(name, args, out.result);
+    if (card) pushCard(card);
+  }
+  return out;
 }

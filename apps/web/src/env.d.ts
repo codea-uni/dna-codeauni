@@ -6,3 +6,9 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Textos que se importan tal cual (instrucciones del asistente en Markdown). */
+declare module '*.md?raw' {
+  const text: string;
+  export default text;
+}

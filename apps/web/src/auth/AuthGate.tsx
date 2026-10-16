@@ -84,8 +84,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="auth-page">
       <section className="auth-hero">
+        <img className="auth-logo" src="/brand/codeauni-blanco.png" alt="CODEa UNI" />
         <span className="wordmark" translate="no">
-          Cronos
+          Cronos <span className="wordmark-sub">· agente de voladura</span>
         </span>
         <BlastSequence />
         <p className="claim">{t('auth.claim')}</p>

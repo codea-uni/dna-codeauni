@@ -5,8 +5,12 @@ import { t, useLocale } from '../i18n';
 import { session, setEngine } from '../session';
 import { applyTopographyToEngine } from '../topography/session';
 import { useUiStore } from '../stores/uiStore';
+import { AgentCards } from '../ai/AgentCards';
+import { BuildChip, bindBuild } from './BuildChip';
 import { Legend3D } from './Legend3D';
 import { bindXr } from '../xr/bindXr';
+import { XrFab } from '../xr/XrButtons';
+import { LiveFeedView } from '../xr/LiveFeedView';
 import { bindRoom } from '../xr/room';
 
 /**
@@ -40,6 +44,7 @@ export function Viewport() {
     const unbindVisualization = bindVisualization(engine);
     const unbindXr = bindXr(engine);
     const unbindRoom = bindRoom(engine);
+    const unbindBuild = bindBuild(engine);
 
     const unsubscribeUi = useUiStore.subscribe((state, prev) => {
       if (state.tool !== prev.tool) engine.setTool(state.tool);
@@ -79,6 +84,7 @@ export function Viewport() {
       unbindVisualization();
       unbindXr();
       unbindRoom();
+      unbindBuild();
       for (const off of offs) off();
       setEngine(null);
       engine.dispose();
@@ -89,6 +95,10 @@ export function Viewport() {
     <>
       <canvas ref={canvasRef} className="viewport" />
       <Legend3D />
+      <BuildChip />
+      <AgentCards />
+      <LiveFeedView />
+      <XrFab />
     </>
   );
 }

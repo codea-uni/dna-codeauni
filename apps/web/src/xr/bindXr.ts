@@ -6,28 +6,24 @@ import { formatNumber, t, useLocale } from '../i18n';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { holeCardRows } from './holeCard';
+import { HoleProximity } from './holeProximity';
+import { HOLE_DETAIL_CARD, showHoleDetail } from '../ai/holeDetail';
 import { energyLegend, vibrationLegend } from './mapLegend';
 import { setPresenting } from './room';
-import { bindXrVoice } from './voice';
+import { bindXrLiveVoice } from './liveVoice';
+import { cardXrLines, chooseCardOption, closeCard, useCardStore } from '../ai/cards';
 import { applyXrLayers, useXrRoom, xrLayers } from './xrState';
 
 /** Segundos reales que dura en el visor la secuencia con el vuelo del material. */
 const XR_SEQUENCE_SECONDS = 12;
+/** El HUD de la secuencia queda este tiempo al terminar [ms]. */
+const HUD_HOLD_MS = 3000;
 /**
  * Tono en el visor: una conversación hablada con quien presenta o con su cliente. Las
  * recomendaciones salen de la revisión y los resultados de la app (`get_analysis`), nunca de
  * reglas inventadas (CLAUDE.md, reglas de dominio).
  */
-const VR_STYLE =
-  'This is a spoken conversation inside a VR presentation of this blast, often in front of a client. ' +
-  'Be warm and natural and keep every reply under 35 words (it is read aloud), no lists. ' +
-  'Answer straight away: never restate or quote what the user said. ' +
-  'After answering, when it fits, offer one ' +
-  'concrete next step drawn from the app results (get_analysis: design checks, fragmentation, ' +
-  'vibration at control points, timing) and ask if they want it, e.g. "¿Quieres que ajuste el taco ' +
-  'de la primera fila?". If they ask for recommendations, check get_analysis first and give ' +
-  'the most important finding and up to two options in one sentence each. ' +
-  'Never invent mining rules or values.';
+const VR_STYLE = `VR mode: the user is inside a VR headset (Meta Quest) with controllers or hands, no keyboard, often presenting to a client. You are their Jarvis-like copilot: you drive the view and can take them anywhere. Keep replies under 35 words and answer straight away: never restate or quote what the user said. Show while you talk: para mostrar el detalle de un taladro usa hole_detail; para llevar al usuario junto a él usa vr_view go_to target hole (también abre su ficha); to show the firing, vibration, energy, displacement or muckpile call show_results (the firing plays with the muckpile flight; at full scale it moves them to an isometric view 60 m from the blast edge: do not move them farther or call go_to after it). To take them somewhere use vr_view go_to: "llévame al terreno / a la voladura" = target blast; "llévame a la comunidad" = target point with its name (stands at the community looking at the blast); "¿dónde está la comunidad? / muéstrame la comunidad / vista con la comunidad" = vr_view focus_point (blast and community together from above; do not add higher after it); "llévame al taladro 12" = target hole; "ponme detrás de la voladura" = behind; "vista desde la cara libre" = free_face; "en la cresta" = crest; "centra la voladura" (at full scale) = blast; "ponme dentro de la malla" = center; "por encima de la voladura / encima del plano / desde arriba / vista de pájaro" = above (floating over the pattern; distance_m = height); "vista general" = overview (far, with the community); "más arriba / más alto" = vr_view higher, "más abajo / bájame" = lower, "déjame a N m del terreno / ponme a N m de altura" = vr_view height with distance_m N, "vista en planta / vista de planta / desde arriba" = vr_view go_to above (set_camera does not work in VR), "acércame / aléjame" = zoom_in / zoom_out (10 m steps at full scale; "aléjame 50 metros" = distance_m 50). "Quiero ver el amarre / solo los taladros / solo la vibración" = spotlight with that layer; "muéstrame el precorte / el buffer / los taladros con ANFO / los que no tienen detonador / los taladros 10 a 20" = spotlight holes {group | explosive | no_detonator | labels} (only those holes stay, with their numbers). The spotlight stays until the user is done: then ask "¿Hacemos algo más en esta vista o volvemos a la vista general?" and call spotlight restore for the general view; if they are far, also go_to above first so it fits in view. Use vr_view state when you need to know where they are or what they are looking at. Other views: table = model on their real table, model = isolated model, place = put it on the table, zoom_in / zoom_out = small steps. After a design change, play the sequence if they want to see it. After answering, when it fits, offer one concrete next step drawn from the results (predict_results), e.g. "¿Quieres que suba el retardo de fondo para evitar los tiros cortados?". Never invent mining rules or values.`;
 
 /** Rango del slider de escala de la maqueta (1:N, logarítmico). */
 const SCALE_MIN = 100;
@@ -65,6 +61,9 @@ export function bindXr(engine: Engine): () => void {
   let lastInfo = '';
   let lastLegend = '';
   let lastHint = '';
+  let lastHud = '';
+  /** El HUD queda unos segundos al terminar la secuencia [ms de performance.now]. */
+  let hudUntil = 0;
 
   /** Intervalo de la secuencia en el visor [s], como `playDemoSequence`. */
   const sequenceSpan = (): { from: number; end: number } | null => {
@@ -198,12 +197,19 @@ export function bindXr(engine: Engine): () => void {
       walk: 'inside the blast at full scale',
       model: 'isolated model',
     }[view];
-    return `(VR headset, ${scene}) ${hole ? `Pointed hole: "${hole.label}".` : 'No hole pointed.'}
-${VR_STYLE}`;
+    return `VR headset, ${scene}; ${hole ? `pointed hole "${hole.label}"` : 'no hole pointed'}`;
   };
-  const voice = bindXrVoice(engine, voiceContext, () => {
-    refresh();
-  });
+  const voice = bindXrLiveVoice(
+    engine,
+    VR_STYLE,
+    voiceContext,
+    () => {
+      refresh();
+    },
+    () => {
+      refresh();
+    },
+  );
 
   /** Escala de colores y datos de los mapas prendidos y ya calculados (a la derecha de la vista). */
   const legendRows = (): XrLine[] => {
@@ -222,19 +228,74 @@ ${VR_STYLE}`;
     return [header, ...parts.flatMap((p, i) => (i > 0 ? [{ label: '' }, ...p] : p))];
   };
 
-  /** Ayuda bajo el control derecho: qué hace A (según el estado de la voz) y el agarre. */
+  /** Ayuda bajo el control derecho: qué hace cada botón (según el escenario y la voz). */
   const hintRows = (): XrLine[] => [
-    ...(voice.available
-      ? [
-          {
-            label: t(voice.listening ? 'xr.hint.send' : 'xr.hint.talk'),
-            body: true,
-            key: 'A',
-          },
-        ]
+    ...(voice.available ? [{ label: t('xr.hint.live'), body: true, key: 'A' }] : []),
+    { label: t('xr.hint.pick'), body: true, key: t('xr.hint.trigger') },
+    ...(view === 'walk'
+      ? [{ label: t('xr.hint.walkStick'), body: true, key: t('xr.hint.stick') }]
       : []),
-    { label: t('xr.hint.move'), body: true, key: t('xr.hint.grip') },
+    {
+      label: t(view === 'walk' ? 'xr.hint.moveWalk' : 'xr.hint.move'),
+      body: true,
+      key: t('xr.hint.grip'),
+    },
+    { label: t('xr.hint.exit'), body: true, key: 'B/Y' },
+    { label: t('xr.hint.hands'), body: true },
   ];
+
+  /** Tiempos de disparo ordenados (para contar los taladros ya disparados sin recorrerlos todos). */
+  let firedCache: { analysis: unknown; times: number[] } | null = null;
+  const firedBy = (time: number): { n: number; total: number } => {
+    const a = store().analysis;
+    if (!a) return { n: 0, total: 0 };
+    if (firedCache?.analysis !== a)
+      firedCache = {
+        analysis: a,
+        times: Array.from(a.timing.fireTime)
+          .filter((x) => Number.isFinite(x))
+          .sort((x, y) => x - y),
+      };
+    const times = firedCache.times;
+    let lo = 0;
+    let hi = times.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((times[mid] ?? Infinity) <= time) lo = mid + 1;
+      else hi = mid;
+    }
+    return { n: lo, total: times.length };
+  };
+
+  /**
+   * Avance de la secuencia arriba de la vista mientras se reproduce (o en pausa), y unos segundos
+   * después de terminar: tiempo desde el primer disparo, taladros disparados y barra de avance.
+   */
+  const hudRows = (): XrLine[] => {
+    const s = store();
+    const span = sequenceSpan();
+    if (s.sequenceTime === null || !s.analysis || !span) return [];
+    const done = ended && !s.sequencePlaying;
+    if (done && performance.now() > hudUntil) return [];
+    const time = s.sequenceTime;
+    const ms = Math.round((time - s.analysis.timing.firstTime) * 100) * 10;
+    const { n, total } = firedBy(time);
+    return [
+      [
+        { label: t(done ? 'xr.hud.done' : 'xr.hud.title'), heading: true, weight: 2 },
+        { label: t('xr.hud.time', { ms: formatNumber(Math.max(0, ms)) }) },
+      ],
+      { label: t('xr.hud.holes', { n: formatNumber(n), total: formatNumber(total) }), body: true },
+      {
+        label: '',
+        slider:
+          Math.round(
+            Math.min(1, Math.max(0, (time - span.from) / Math.max(1e-6, span.end - span.from))) *
+              100,
+          ) / 100,
+      },
+    ];
+  };
 
   /** Redibuja los paneles solo si cambió su texto (el store cambia en cada cuadro de la secuencia). */
   const refresh = () => {
@@ -263,6 +324,12 @@ ${VR_STYLE}`;
       lastHint = hintKey;
       engine.setXrHint(hint);
     }
+    const hud = hudRows();
+    const hudKey = JSON.stringify(hud);
+    if (hudKey !== lastHud) {
+      lastHud = hudKey;
+      engine.setXrHud(hud);
+    }
   };
 
   const play = () => {
@@ -290,8 +357,73 @@ ${VR_STYLE}`;
     }
   };
 
+  const syncCards = () => {
+    engine.setXrCards(
+      useCardStore.getState().cards.map((c) => ({ id: c.id, rows: cardXrLines(c) })),
+    );
+  };
+  syncCards();
+
+  const proximity = new HoleProximity();
+  let automaticId: string | null = null;
+  let detailVersion = -1;
+  let detailAnalysis = store().analysis;
+  let detailLocale = useLocale.getState().locale;
+  // La cabeza ya viene en coordenadas del proyecto; no se modifica XrSession.
+  const proximityTimer = setInterval(() => {
+    const state = engine.xrMode ? engine.xrState() : null;
+    const card = useCardStore.getState().cards.find((c) => c.id === HOLE_DETAIL_CARD);
+    const explicit = card?.hole?.source === 'explicit' ? card.hole.id : null;
+    const holes = session.document.project.blasts[0]?.holes ?? [];
+    const nearby = proximity.update(
+      holes,
+      state?.view === 'walk' && Math.abs(state.scale - 1) < 0.01 ? state.head : null,
+      performance.now(),
+      explicit,
+    );
+    const locale = useLocale.getState().locale;
+    const changed =
+      detailVersion !== session.document.version ||
+      detailAnalysis !== store().analysis ||
+      detailLocale !== locale;
+    if (explicit) {
+      automaticId = null;
+      if (changed) {
+        detailVersion = session.document.version;
+        detailAnalysis = store().analysis;
+        detailLocale = locale;
+        const hole = holes.find((h) => h.id === explicit);
+        if (hole) showHoleDetail(hole);
+        else closeCard(HOLE_DETAIL_CARD);
+      }
+      return;
+    }
+    if (!nearby) {
+      automaticId = null;
+      if (card?.hole?.source === 'proximity') closeCard(HOLE_DETAIL_CARD);
+      return;
+    }
+    if (nearby.id !== automaticId || changed) {
+      automaticId = nearby.id;
+      detailVersion = session.document.version;
+      detailAnalysis = store().analysis;
+      detailLocale = locale;
+      showHoleDetail(nearby, 'proximity');
+    }
+  }, 250);
+
   const act = ({ id, value }: { id: string; value?: number }) => {
     if (voice.action(id)) return;
+    if (id.startsWith('card:choice:')) {
+      // card:choice:<idTarjeta>:<idOpción> (los ids no llevan «:»).
+      const [cardId = '', choiceId = ''] = id.slice('card:choice:'.length).split(':');
+      chooseCardOption(cardId, choiceId);
+      return;
+    }
+    if (id.startsWith('card:close:')) {
+      closeCard(id.slice('card:close:'.length));
+      return;
+    }
     const s = store();
     switch (id) {
       case 'tab:view':
@@ -357,13 +489,15 @@ ${VR_STYLE}`;
       lastInfo = '';
       lastLegend = '';
       lastHint = '';
+      lastHud = '';
       selected = null;
       const s = store();
       if (mode) {
-        // El visor empieza sin etiquetas ni pila (se prenden desde Capas).
+        // El visor empieza sin pila (se prende desde Capas).
         const { labels, muckpile, muckpileBlocks } = s.layers;
         webLayers = { labels, muckpile, muckpileBlocks };
-        applyXrLayers({ ...xrLayers(), labels: false, pile: false });
+        // Con la numeración a la vista: en el visor se habla de los taladros por su número.
+        applyXrLayers({ ...xrLayers(), labels: true, pile: false });
         refresh();
       } else {
         playback?.abort();
@@ -383,14 +517,33 @@ ${VR_STYLE}`;
       refresh();
     }),
     engine.on('xrAction', act),
+    // Tarjetas de reporte del asistente: las mismas de la web, dibujadas para el visor.
+    useCardStore.subscribe((s, prev) => {
+      if (s.cards !== prev.cards) {
+        const previous = prev.cards.find((c) => c.id === HOLE_DETAIL_CARD);
+        if (previous?.hole && !s.cards.some((c) => c.id === HOLE_DETAIL_CARD))
+          proximity.dismiss(previous.hole.id);
+        syncCards();
+      }
+    }),
     engine.on('sequenceEnded', () => {
       ended = true;
+      hudUntil = performance.now() + HUD_HOLD_MS;
+      setTimeout(refresh, HUD_HOLD_MS + 50);
+      refresh();
+    }),
+    // Una secuencia nueva (también la que lanza el asistente) vuelve a mostrar el HUD.
+    useAnalysisStore.subscribe((s, prev) => {
+      if (s.sequencePlaying && !prev.sequencePlaying) ended = false;
     }),
     useAnalysisStore.subscribe(refresh),
     useLocale.subscribe(refresh),
     useXrRoom.subscribe(refresh),
   ];
   return () => {
+    clearInterval(proximityTimer);
+    const card = useCardStore.getState().cards.find((c) => c.id === HOLE_DETAIL_CARD);
+    if (card?.hole?.source === 'proximity') closeCard(HOLE_DETAIL_CARD);
     voice.dispose();
     playback?.abort();
     for (const off of offs) off();

@@ -1,4 +1,5 @@
 import { useEffect, type CSSProperties } from 'react';
+import { startDesignWatch } from './ai/designWatch';
 import { tabAvailable, useWorkflow } from './hooks/useWorkflow';
 import {
   startAnalysisRunner,
@@ -65,6 +66,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
     const stopAnalysis = startAnalysisRunner();
     const stopAutosave = startAutosave();
     const stopTopography = startTopographySync();
+    const stopDesignWatch = startDesignWatch();
     if (restoreLocalDraft) void restoreLatestAutosave();
     const stops = [
       startEnergyRunner(),
@@ -77,6 +79,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
       stopAnalysis();
       stopAutosave();
       stopTopography();
+      stopDesignWatch();
       for (const stop of stops) stop();
     };
   }, [restoreLocalDraft]);

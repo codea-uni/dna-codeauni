@@ -22,7 +22,7 @@ const EMPTY = '#334155';
  */
 export function holeCardRows(
   hole: Hole,
-  project: Pick<Project, 'library' | 'displayUnits'>,
+  project: Pick<Project, 'library' | 'displayUnits'> & Partial<Pick<Project, 'blasts'>>,
   analysis: BlastAnalysis | null,
 ): XrLine[] {
   const { library: lib, displayUnits: units } = project;
@@ -56,23 +56,32 @@ export function holeCardRows(
       label:
         iv.deck.kind === 'explosive'
           ? t('xr.info.deckCharged', { name, length, kg: formatNumber(iv.mass, 1) })
-          : t('xr.info.deck', { name, length }),
+          : t('xr.info.deck', {
+              name: iv.deck.kind === 'stemming' ? `Taco · ${name}` : name,
+              length,
+            }),
     });
   }
   for (const ini of hole.initiators) {
     const det = index.detonators.get(ini.detonatorId)?.name ?? '—';
     const primer = ini.primerId ? index.primers.get(ini.primerId)?.name : undefined;
-    lines.push({
-      label: t('xr.info.initiator', {
-        name: primer ? `${det} + ${primer}` : det,
-        depth: len(ini.depth),
-      }),
-    });
+    lines.push(
+      {
+        label: t('xr.info.initiator', {
+          name: primer ? `${det} + ${primer}` : det,
+          depth: len(ini.depth),
+        }),
+      },
+      {
+        label: t('xr.info.detDelay', { ms: formatNumber(ini.delay * 1000) }),
+      },
+    );
   }
 
   const i = analysis ? analysis.charge.holeIds.indexOf(hole.id) : -1;
   const kg = analysis?.charge.perHole[i];
-  const fire = analysis?.timing.fireTime[i];
+  const timingIndex = analysis ? analysis.timing.holeIds.indexOf(hole.id) : -1;
+  const fire = analysis?.timing.fireTime[timingIndex];
   const lf = analysis?.charge.loadingFactorPerHole[i];
   const summary = [
     {
@@ -82,10 +91,20 @@ export function holeCardRows(
   // Tiempo relativo al primer taladro, como las etiquetas de tiempo (H-502).
   if (analysis && fire !== undefined && Number.isFinite(fire))
     summary.push({
-      label: t('xr.info.delay', {
-        ms: formatNumber((fire - analysis.timing.firstTime) * 1000),
-      }),
+      label: `Tiempo de disparo: ${formatNumber((fire - analysis.timing.firstTime) * 1000)} ms (desde el primero)`,
     });
+  else
+    summary.push({
+      label: analysis ? 'Disparo: sin tiempo de disparo' : 'Disparo: análisis pendiente',
+    });
+  const pattern = project.blasts?.flatMap((b) => b.patterns).find((p) => p.id === hole.patternId);
+  lines.push({
+    label: `Burden: ${pattern ? len(pattern.burden) : 'sin malla'} · Espaciamiento: ${pattern ? len(pattern.spacing) : 'sin malla'}`,
+  });
+  if (!hole.initiators.length) lines.push({ label: 'Iniciador/detonador: sin asignar' });
+  if (!hole.decks.some((d) => d.kind === 'stemming')) lines.push({ label: 'Taco: sin asignar' });
+  if (!hole.decks.some((d) => d.kind === 'explosive'))
+    lines.push({ label: 'Columna de explosivo: sin carga' });
   lines.push(summary, [
     { label: t('xr.info.length', { value: len(hole.length) }) },
     {

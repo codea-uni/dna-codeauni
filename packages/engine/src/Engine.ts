@@ -51,6 +51,7 @@ import { GridLayer } from './layers/GridLayer';
 import { turbo } from './layers/colormap';
 import { EnergyLayer, type EnergyData } from './layers/EnergyLayer';
 import { SiteLayer } from './layers/SiteLayer';
+import { SiteBeacons } from './layers/SiteBeacons';
 import { TopographyLayer, type TopographyViewData } from './layers/TopographyLayer';
 import { VersionDiffLayer } from './layers/VersionDiffLayer';
 import { HolesLayer } from './layers/HolesLayer';
@@ -85,10 +86,19 @@ import { TieTool } from './tools/TieTool';
 import { PanTool } from './tools/PanTool';
 import { SelectTool } from './tools/SelectTool';
 import type { Tool, ToolContext, ToolName, ToolPointer } from './tools/types';
-import { XrSession, type XrMode, type XrStartOptions, type XrView } from './xr/XrSession';
+import {
+  XrSession,
+  type XrGoToOptions,
+  type XrMode,
+  type XrStartOptions,
+  type XrView,
+} from './xr/XrSession';
+import { viewpoint, type XrViewpointKind } from './xr/viewpoints';
 import type { XrLine } from './xr/XrPanel';
 import { Avatars, type XrAvatar, type XrTransform } from './xr/Avatars';
 import { defaultEngineText, type EngineText } from './text';
+import { BuildReveal, drillOrder } from './build/BuildReveal';
+import { BuildFx, FX_CHARGE, FX_DRILL, FX_REMOVE, FX_TIMING } from './build/BuildFx';
 
 export interface EngineOptions {
   document: DocumentStore;
@@ -122,9 +132,14 @@ export interface EngineEvents extends Record<string, unknown> {
   xrTalk: boolean;
   /** Escala real o maqueta, y metros del usuario por metro del modelo. */
   xrView: { view: XrView; scale: number };
+  /** Empezó (true) o terminó (false) el pintado en vivo de cambios del asistente. */
+  building: boolean;
 }
 
 export type ViewMode = 'plan' | '3d';
+
+/** Elevación máxima del vuelo de cámara 3D (casi cenital, sin llegar al polo). */
+const MAX_PITCH_FLY = Math.PI / 2 - 0.02;
 
 export type EngineLayer =
   | 'labels'
@@ -194,6 +209,13 @@ const LABEL_MIN_SPACING_PX = 34;
  * sobre un canvas y le envía comandos; el engine se suscribe al DocumentStore y a la
  * selección y actualiza solo lo que cambió.
  */
+/** Alto del poste de los puntos a proteger en 3D [m]: se ven a kilómetros. */
+const SITE_POLE_M = 60;
+
+/** Planos de recorte en el visor [m del usuario]: cerca de los ojos y el terreno entero a lo lejos. */
+const XR_NEAR = 0.05;
+const XR_FAR = 50_000;
+
 export class Engine {
   private readonly events = new Emitter<EngineEvents>();
   private readonly renderer: WebGLRenderer;
@@ -269,6 +291,9 @@ export class Engine {
   private readonly site3d = new SiteLayer();
   private readonly labels3d = new LabelsLayer();
   private readonly siteLabels3d = new LabelsLayer();
+  /** Faros de los puntos protegidos en el visor (crecen con la distancia) y tamaño base del nombre. */
+  private readonly siteBeacons3d = new SiteBeacons();
+  private siteLabelSize = 0;
   private readonly siteLabels = new LabelsLayer();
   private flyrockZone: Vec2[] | null = null;
   private isochroneData: IsochroneData | null = null;
@@ -338,6 +363,35 @@ export class Engine {
   private height = 1;
   private pixelRatio = 1;
   private typicalSpacing = 5;
+  /**
+   * Pintado en vivo (cambios del asistente): qué se ve de cada taladro, efectos (anillos y cabezal)
+   * en planta y en 3D, y la cámara que sigue lo que se dibuja como el seguimiento de FleetView.
+   */
+  private readonly build = new BuildReveal();
+  /** Taladros a la vista en 3D (foco del asistente: «solo el precorte»); null = todos. */
+  private holeFocus: ReadonlySet<HoleId> | null = null;
+  private readonly buildFx = new BuildFx(false);
+  private readonly buildFx3d = new BuildFx(true);
+  /** > 0 mientras el asistente aplica cambios: esos cambios se pintan en vivo. */
+  private buildDepth = 0;
+  private buildWasActive = false;
+  private buildLast = 0;
+  /** Firma de la carga de cada taladro y del amarre de cada voladura (para saber qué cambió). */
+  private readonly chargeKeys = new Map<HoleId, string>();
+  private readonly tieKeys = new Map<BlastId, string>();
+  /** Retardos en taladro de cada taladro (para la onda de tiempos). */
+  private readonly initKeys = new Map<HoleId, string>();
+  /** Contorno de cada perímetro (render), para trazar los nuevos y borrar los quitados. */
+  private readonly boundaryPolys = new Map<BoundaryId, { x: number; y: number }[]>();
+  /** Al terminar el dibujo, la cámara se aleja un momento para mostrar el resultado [ms]. */
+  private settleUntil = 0;
+  private xrCards: readonly { id: string; rows: readonly XrLine[] }[] = [];
+  /** La cámara sigue lo que se dibuja (hasta que el usuario toca el mapa). */
+  private buildFollow = true;
+  private followHeld = false;
+  /** Encuadre del lote que se dibuja (coordenadas de render). */
+  private buildFrame: { minX: number; minY: number; maxX: number; maxY: number; z: number } | null =
+    null;
   /** Radio de captura del picking [px CSS]: símbolo + margen. */
   private pickTolerancePx = 8;
   private lastSelection: ReadonlySet<HoleId> = new Set();
@@ -384,11 +438,13 @@ export class Engine {
       this.site3d.root,
       this.labels3d.mesh,
       this.siteLabels3d.mesh,
+      this.siteBeacons3d.root,
       this.muckpileSurface3d.root,
       this.muckpileBefore3d.root,
       this.muckpileVectors3d.root,
       this.muckpileBlocksRoot,
       this.avatars3d.root,
+      this.buildFx3d.root,
     );
     this.muckpileBlocks.onMeshChange = (mesh, previous) => {
       if (previous) this.muckpileBlocksRoot.remove(previous);
@@ -418,15 +474,19 @@ export class Engine {
       this.siteLabels.mesh,
       this.versionDiff.lines,
       this.overlay.root,
+      this.buildFx.root,
     );
 
     this.loop = new RenderLoop(
       () => {
         this.flushPointer();
         this.xr?.update();
+        this.updateSiteBeacons();
         if (!this.xr && this.viewMode === '3d' && this.avatarList.length > 0)
           this.avatars3d.faceViewer(this.camera3d.position);
         this.advanceSequence();
+        this.advanceBuild();
+        this.advanceCameraFlight();
         this.renderer.render(this.scene, this.viewMode === '3d' ? this.camera3d : this.camera);
       },
       (stats) => {
@@ -441,17 +501,22 @@ export class Engine {
       element: canvas,
       getView: () => this.view,
       setView: (view) => {
+        this.cameraFlight = null;
         this.setView(view);
       },
       getTool: () => this.tool,
       toToolPointer: (e) => this.toToolPointer(e),
       is3D: () => this.viewMode === '3d',
       orbit3d: (dx, dy) => {
+        // Tocar la cámara cancela el vuelo del asistente.
+        this.cameraFlight = null;
         if (!this.orbit) return;
         this.orbit = orbitBy(this.orbit, dx, dy);
         this.applyCamera3d();
       },
       pan3d: (dx, dy) => {
+        // Tocar la cámara cancela el vuelo del asistente.
+        this.cameraFlight = null;
         if (!this.orbit) return;
         const mpp =
           (2 * this.orbit.distance * Math.tan((this.camera3d.fov * Math.PI) / 360)) / this.height;
@@ -459,6 +524,8 @@ export class Engine {
         this.applyCamera3d();
       },
       dolly3d: (factor) => {
+        // Tocar la cámara cancela el vuelo del asistente.
+        this.cameraFlight = null;
         if (!this.orbit) return;
         this.orbit = dollyOrbit(this.orbit, factor);
         this.applyCamera3d();
@@ -491,6 +558,17 @@ export class Engine {
         this.onSelectionChange(ids);
       }),
     );
+
+    // Tocar el mapa suelta el seguimiento de la cámara (como en FleetView).
+    const hold = () => {
+      if (this.build.active) this.followHeld = true;
+    };
+    canvas.addEventListener('pointerdown', hold);
+    canvas.addEventListener('wheel', hold, { passive: true });
+    this.unsubscribers.push(() => {
+      canvas.removeEventListener('pointerdown', hold);
+      canvas.removeEventListener('wheel', hold);
+    });
 
     this.resizeObserver = new ResizeObserver(() => {
       this.resize();
@@ -602,6 +680,120 @@ export class Engine {
     });
   }
 
+  private cameraFlight: {
+    orbit: OrbitState | null;
+    plan: PlanViewState | null;
+    last: number;
+  } | null = null;
+
+  /**
+   * Vuelo suave de la cámara del escritorio (lo usa el asistente: «muéstrame desde la cara libre»,
+   * «acércate al taladro 12»). `at` en coordenadas de proyecto; `size` es lo que debe caber [m];
+   * `yawDeg` es desde dónde se mira (azimut de la cámara respecto del punto, horario desde el
+   * Norte); `pitchDeg` la elevación (90 = cenital). Con `mode` cambia antes a planta o 3D.
+   */
+  flyCamera(spec: {
+    at: { x: number; y: number; z?: number };
+    size: number;
+    yawDeg?: number;
+    pitchDeg?: number;
+    mode?: ViewMode;
+  }): void {
+    if (this.xr) return;
+    if (spec.mode) this.setViewMode(spec.mode);
+    const x = spec.at.x - this.origin.x;
+    const y = spec.at.y - this.origin.y;
+    const z = (spec.at.z ?? this.origin.z + this.topZ()) - this.origin.z;
+    const size = Math.max(5, spec.size);
+    this.followHeld = true;
+    if (this.viewMode === '3d') {
+      if (!this.orbit) this.fit3d();
+      const o = this.orbit;
+      if (!o) return;
+      const fov = (this.camera3d.fov * Math.PI) / 180;
+      const pitch = Math.min(
+        MAX_PITCH_FLY,
+        Math.max(0.08, ((spec.pitchDeg ?? 35) * Math.PI) / 180),
+      );
+      // El camino corto en el giro.
+      let yaw = spec.yawDeg === undefined ? o.yaw : (spec.yawDeg * Math.PI) / 180;
+      while (yaw - o.yaw > Math.PI) yaw -= 2 * Math.PI;
+      while (yaw - o.yaw < -Math.PI) yaw += 2 * Math.PI;
+      this.cameraFlight = {
+        orbit: {
+          targetX: x,
+          targetY: y,
+          targetZ: z,
+          yaw,
+          pitch,
+          distance: Math.max(8, (size / 2 / Math.tan(fov / 2)) * 1.1),
+        },
+        plan: null,
+        last: performance.now(),
+      };
+    } else {
+      const inset = this.decorations.rulerInset;
+      const fit = fitBounds(
+        { minX: x - size / 2, minY: y - size / 2, maxX: x + size / 2, maxY: y + size / 2 },
+        this.width - inset.left,
+        this.height - inset.top,
+        0.05,
+      );
+      this.cameraFlight = {
+        orbit: null,
+        plan: {
+          ...fit,
+          centerX: fit.centerX - (inset.left / 2) * fit.metersPerPixel,
+          centerY: fit.centerY + (inset.top / 2) * fit.metersPerPixel,
+        },
+        last: performance.now(),
+      };
+    }
+    this.loop.invalidate();
+  }
+
+  /** Avance por cuadro del vuelo de cámara (suavizado exponencial, escala en logaritmo). */
+  private advanceCameraFlight(): void {
+    const f = this.cameraFlight;
+    if (!f) return;
+    const now = performance.now();
+    const dt = Math.min(0.1, Math.max(0, (now - f.last) / 1000));
+    f.last = now;
+    const k = 1 - Math.exp(-3.2 * dt);
+    let done = true;
+    if (f.orbit && this.orbit && this.viewMode === '3d') {
+      const o = this.orbit;
+      const g = f.orbit;
+      this.orbit = {
+        targetX: o.targetX + (g.targetX - o.targetX) * k,
+        targetY: o.targetY + (g.targetY - o.targetY) * k,
+        targetZ: o.targetZ + (g.targetZ - o.targetZ) * k,
+        yaw: o.yaw + (g.yaw - o.yaw) * k,
+        pitch: o.pitch + (g.pitch - o.pitch) * k,
+        distance: o.distance * Math.pow(g.distance / o.distance, k),
+      };
+      this.applyCamera3d();
+      done =
+        Math.hypot(g.targetX - o.targetX, g.targetY - o.targetY, g.targetZ - o.targetZ) <
+          g.distance * 0.002 &&
+        Math.abs(g.yaw - o.yaw) < 0.002 &&
+        Math.abs(Math.log(g.distance / o.distance)) < 0.002;
+    } else if (f.plan && this.viewMode === 'plan') {
+      const v = this.view;
+      const g = f.plan;
+      this.setView({
+        centerX: v.centerX + (g.centerX - v.centerX) * k,
+        centerY: v.centerY + (g.centerY - v.centerY) * k,
+        metersPerPixel: v.metersPerPixel * Math.pow(g.metersPerPixel / v.metersPerPixel, k),
+      });
+      done =
+        Math.hypot(g.centerX - v.centerX, g.centerY - v.centerY) < g.metersPerPixel * 0.5 &&
+        Math.abs(Math.log(g.metersPerPixel / v.metersPerPixel)) < 0.002;
+    }
+    if (done) this.cameraFlight = null;
+    else this.loop.invalidate();
+  }
+
   /** Encuadra una caja en coordenadas de proyecto (p. ej. la vista previa de una topografía). */
   fitBounds(b: { minX: number; minY: number; maxX: number; maxY: number }): void {
     if (this.viewMode === '3d') return;
@@ -669,16 +861,26 @@ export class Engine {
       this.xr = null;
       throw e;
     }
-    this.camera3d.near = 0.05;
-    this.camera3d.far = 20_000;
+    this.camera3d.near = XR_NEAR;
+    this.camera3d.far = XR_FAR;
     this.avatars3d.set([], 1);
     xr.setAvatars(this.avatarList);
+    xr.setCards(this.xrCards);
     this.loop.setXr(this.renderer);
     this.events.emit('xrSession', mode);
   }
 
   exitXr(): void {
     this.xr?.end();
+  }
+
+  /**
+   * Tarjetas de reporte del asistente en el visor (la primera es la más nueva). Se guardan para
+   * mostrarlas también si se entra al visor después.
+   */
+  setXrCards(cards: readonly { id: string; rows: readonly XrLine[] }[]): void {
+    this.xrCards = cards;
+    this.xr?.setCards(cards);
   }
 
   /** Botones del menú de la muñeca (textos ya traducidos). */
@@ -715,9 +917,178 @@ export class Engine {
     this.xr?.placeOnTable();
   }
 
+  /**
+   * Enfoca en el visor: un punto (coordenadas de proyecto) con el tamaño de lo que se quiere ver
+   * [m], o toda la voladura si no se da punto. Sobre la maqueta la trae al frente y la acerca; a
+   * escala real te pone frente a ella.
+   */
+  focusXr(at?: { x: number; y: number; z?: number }, size?: number): void {
+    if (!this.xr) return;
+    const o = this.origin;
+    if (at) {
+      const z = at.z ?? this.ground()?.(at.x, at.y) ?? this.topZ() + o.z;
+      this.xr.focus({ x: at.x - o.x, y: at.y - o.y, z: z - o.z }, size ?? 30);
+      return;
+    }
+    const b = this.scene3d.bounds;
+    if (!b) return;
+    this.xr.focus(
+      { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2, z: b.maxZ },
+      Math.max(b.maxX - b.minX, b.maxY - b.minY) * 1.1,
+    );
+  }
+
   /** Acerca (> 1) o aleja (< 1) la maqueta. */
   zoomXr(factor: number): void {
     this.xr?.zoom(factor);
+  }
+
+  /**
+   * Lleva a quien usa el visor a escala real, de pie sobre el terreno frente a `target`
+   * (coordenadas de proyecto; sin z, la cota del terreno): a `standDistance` [m], con rumbo
+   * `yawDeg` (azimut de la mirada; sin él, desde donde está), los ojos a `eyeHeight` [m] sobre el
+   * terreno y mirando `lookAt`. Vuela suave (o se funde si el salto es largo). Devuelve dónde quedó
+   * (proyecto) y hacia dónde mira, o null fuera del visor.
+   */
+  goToXr(
+    target: { x: number; y: number; z?: number },
+    opts: Omit<XrGoToOptions, 'lookAt'> & { lookAt?: { x: number; y: number; z?: number } } = {},
+  ): { eye: { x: number; y: number; z: number }; yawDeg: number } | null {
+    if (!this.xr) return null;
+    const o = this.origin;
+    const rel = (p: { x: number; y: number; z?: number }) => ({
+      x: p.x - o.x,
+      y: p.y - o.y,
+      z: (p.z ?? this.ground()?.(p.x, p.y) ?? this.topZ() + o.z) - o.z,
+    });
+    const { lookAt, ...rest } = opts;
+    const r = this.xr.goTo(rel(target), lookAt ? { ...rest, lookAt: rel(lookAt) } : rest);
+    return { eye: { x: r.eye.x + o.x, y: r.eye.y + o.y, z: r.eye.z + o.z }, yawDeg: r.yawDeg };
+  }
+
+  /**
+   * Punto de vista predefinido de la voladura en el visor (frente, cara libre, detrás, cresta,
+   * vista general; `xr/viewpoints.ts`). `distance` cambia la distancia de observación y
+   * `minDistance` la acota (alcance de proyecciones). null fuera del visor o si falta lo necesario
+   * (sin voladura, o sin cara libre).
+   */
+  goToXrViewpoint(
+    kind: XrViewpointKind,
+    opts: { distance?: number; minDistance?: number } = {},
+  ): {
+    eye: { x: number; y: number; z: number };
+    yawDeg: number;
+    target: { x: number; y: number };
+    distance: number;
+  } | null {
+    const state = this.xrState();
+    if (!state) return null;
+    const project = this.document.project;
+    const blast = project.blasts[0];
+    const spec = viewpoint(
+      kind,
+      {
+        boundaries: blast?.boundaries ?? [],
+        holes: blast?.holes.map((h) => h.collar) ?? [],
+        points: (project.monitoringPoints ?? []).map((p) => p.position),
+      },
+      { from: state.head, ...opts },
+    );
+    if (!spec) return null;
+    const r = this.goToXr(spec.target, {
+      standDistance: spec.standDistance,
+      eyeHeight: spec.eyeHeight,
+      ...(spec.yawDeg === undefined ? {} : { yawDeg: spec.yawDeg }),
+    });
+    return r && { ...r, target: spec.target, distance: spec.standDistance };
+  }
+
+  /**
+   * Estado del visor (coordenadas de proyecto): escenario, escala, cabeza, rumbo de la mirada
+   * (azimut [°]) y cota del terreno bajo la cabeza. null fuera del visor.
+   */
+  xrState(): {
+    view: XrView;
+    scale: number;
+    head: { x: number; y: number; z: number };
+    headingDeg: number;
+    groundZ: number | null;
+  } | null {
+    if (!this.xr) return null;
+    const o = this.origin;
+    const s = this.xr.state();
+    const head = { x: s.head.x + o.x, y: s.head.y + o.y, z: s.head.z + o.z };
+    const g = this.ground();
+    const groundZ = g ? g(head.x, head.y) : this.topZ() + o.z;
+    return { view: s.view, scale: s.scale, head, headingDeg: s.headingDeg, groundZ };
+  }
+
+  /** Avance de la secuencia en el visor (arriba de la vista); vacío lo oculta. */
+  setXrHud(rows: readonly XrLine[]): void {
+    this.xr?.setHud(rows);
+  }
+
+  /**
+   * Los cambios del documento entre `beginBuild` y `endBuild` se pintan en vivo: taladros que se
+   * perforan uno tras otro, carga que se llena desde el fondo, amarre en el orden de la señal y
+   * taladros borrados que se apagan. Se pueden anidar.
+   */
+  beginBuild(): void {
+    this.buildDepth++;
+  }
+
+  endBuild(): void {
+    this.buildDepth = Math.max(0, this.buildDepth - 1);
+  }
+
+  /**
+   * Deja a la vista en 3D (y en el visor) solo estos taladros con sus etiquetas; null = todos.
+   * Queda así hasta que se cambie: quien mira decide cuánto tiempo.
+   */
+  setHoleFocus(ids: ReadonlySet<HoleId> | null): void {
+    this.holeFocus = ids && ids.size > 0 ? ids : null;
+    this.rebuild3dOverlays();
+    if (this.build.active) this.applyBuild(performance.now());
+    else this.applyHoleFocus();
+    this.loop.invalidate();
+  }
+
+  get holeFocusSize(): number | null {
+    return this.holeFocus?.size ?? null;
+  }
+
+  private hiddenByFocus(id: HoleId): { drill: number; fill: number } | null {
+    return this.holeFocus && !this.holeFocus.has(id) ? { drill: 0, fill: 0 } : null;
+  }
+
+  private applyHoleFocus(): void {
+    this.scene3d.applyReveal((id) => this.hiddenByFocus(id));
+  }
+
+  /** Que la cámara siga (o no) lo que se está dibujando. */
+  setBuildFollow(on: boolean): void {
+    this.buildFollow = on;
+  }
+
+  /** Termina al instante el pintado en curso (todo queda visible). */
+  finishBuild(): void {
+    if (!this.build.active) return;
+    const pending = [...this.build.ids()];
+    this.build.clear();
+    for (const id of pending) {
+      const h = this.document.findHole(id)?.hole;
+      this.holes.setReveal(id, 1, 1);
+      if (h)
+        this.refreshHoleLabel(
+          id,
+          h.label,
+          h.collar.x - this.origin.x,
+          h.collar.y - this.origin.y,
+          h.collar.z - this.origin.z,
+        );
+    }
+    this.applyBuild(performance.now());
+    this.loop.invalidate();
   }
 
   /**
@@ -842,6 +1213,7 @@ export class Engine {
       },
       setLabelSize: (m) => {
         this.labels3d.setWorldSize(m);
+        this.siteLabelSize = m;
         this.siteLabels3d.setWorldSize(m);
       },
       onSelectHole: (id) => {
@@ -1262,6 +1634,8 @@ export class Engine {
   dispose(): void {
     this.xr?.end();
     for (const unsubscribe of this.unsubscribers) unsubscribe();
+    this.buildFx.dispose();
+    this.buildFx3d.dispose();
     this.resizeObserver.disconnect();
     this.input.dispose();
     this.loop.dispose();
@@ -1282,6 +1656,7 @@ export class Engine {
     this.site3d.dispose();
     this.labels3d.dispose();
     this.siteLabels3d.dispose();
+    this.siteBeacons3d.dispose();
     this.vibration.dispose();
     this.site.dispose();
     this.versionDiff.dispose();
@@ -1321,6 +1696,7 @@ export class Engine {
       this.activeBoundaryId = null;
       this.orbit = null;
       this.stopSequence();
+      this.resetBuild();
       // Un resultado del proyecto anterior no debe extender el encuadre del modelo nuevo.
       this.setMuckpile(null);
       this.origin = { ...this.document.project.coordinateSystem.origin };
@@ -1329,6 +1705,20 @@ export class Engine {
       return;
     }
     const { added, removed, updated } = cs.holes;
+    const live = this.buildDepth > 0;
+    if (live) this.scheduleBuild(cs);
+    else {
+      for (const id of [...added, ...updated]) {
+        this.chargeKeys.set(id, this.chargeKeyOf(id));
+        this.initKeys.set(id, this.initKeyOf(id));
+      }
+      for (const id of cs.blasts) this.tieKeys.set(id, this.tieKeyOf(id));
+      if (cs.blasts.length > 0) this.diffBoundaries();
+    }
+    for (const id of removed) {
+      this.chargeKeys.delete(id);
+      this.initKeys.delete(id);
+    }
     if (added.length + removed.length + updated.length > 0) {
       for (const id of removed) {
         this.holes.remove(id);
@@ -1354,6 +1744,7 @@ export class Engine {
       this.rebuildInitiation();
     if (cs.project) this.rebuildSite();
     if (cs.patterns) this.updateTypicalSpacing();
+    if (this.build.active) this.applyBuild(performance.now());
     this.applyView();
   }
 
@@ -1383,6 +1774,8 @@ export class Engine {
     );
     this.scene3dDirty = false;
     this.rebuild3dOverlays();
+    if (this.build.active) this.applyBuild(performance.now());
+    else if (this.holeFocus) this.applyHoleFocus();
     this.loop.invalidate();
   }
 
@@ -1407,6 +1800,21 @@ export class Engine {
     return id ? (this.topographyTins.get(id) ?? null) : null;
   }
 
+  /**
+   * En el visor, los puntos protegidos llevan un faro que crece con la distancia y su nombre
+   * también: desde 1–2 km (vista de la comunidad junto a la voladura) se veían como un hilo.
+   */
+  private updateSiteBeacons(): void {
+    const xr = this.xr;
+    this.siteBeacons3d.setVisible(xr !== null && this.site3d.root.visible);
+    if (!xr) return;
+    const s = xr.state();
+    const d = this.siteBeacons3d.place(s.head);
+    // Solo a escala real (en la maqueta el nombre ya se ve a su tamaño).
+    if (d !== null && this.siteLabelSize > 0 && s.view === 'walk')
+      this.siteLabels3d.setWorldSize(Math.max(this.siteLabelSize, d * 0.02));
+  }
+
   /** Amarres, isócronas, mapas, sitio y etiquetas en 3D (baratos: se rehacen enteros). */
   private rebuild3dOverlays(): void {
     const project = this.document.project;
@@ -1429,21 +1837,25 @@ export class Engine {
     this.site3d.setElevation(top + 0.3);
     this.site3d.setZone(this.flyrockZone, this.origin, 0.6, ground);
     const points = this.document.project.monitoringPoints ?? [];
-    this.site3d.setMarkers(points, this.origin, 3);
+    this.site3d.setMarkers(points, this.origin, 6, ground, SITE_POLE_M);
+    this.siteBeacons3d.set(points, this.origin, ground, top + 0.3, SITE_POLE_M);
     this.siteLabels3d.clear();
     for (const p of points) {
+      // El nombre va en la punta del poste, sobre el terreno del punto.
+      const g = ground?.(p.position.x, p.position.y);
       this.siteLabels3d.upsert(
         p.id,
         p.position.x - this.origin.x,
         p.position.y - this.origin.y,
         p.name,
-        top + 0.3,
+        g === null || g === undefined ? top + 0.3 : g - this.origin.z + SITE_POLE_M,
       );
     }
     this.siteLabels3d.flush();
     this.labels3d.clear();
     for (const blast of project.blasts) {
       for (const h of blast.holes) {
+        if (this.holeFocus && !this.holeFocus.has(h.id)) continue;
         this.labels3d.upsert(
           h.id,
           h.collar.x - this.origin.x,
@@ -1514,8 +1926,10 @@ export class Engine {
     const p = orbitPosition(this.orbit);
     this.camera3d.position.set(p.x, p.y, p.z);
     this.camera3d.lookAt(this.orbit.targetX, this.orbit.targetY, this.orbit.targetZ);
-    this.camera3d.near = Math.max(0.1, this.orbit.distance / 2000);
-    this.camera3d.far = this.orbit.distance * 50;
+    // En el visor three toma near/far de esta cámara para la sesión XR (depthNear/depthFar): con
+    // los de la órbita, un vuelo del asistente cortaba el terreno lejano y lo cercano a la cabeza.
+    this.camera3d.near = this.xr ? XR_NEAR : Math.max(0.1, this.orbit.distance / 2000);
+    this.camera3d.far = this.xr ? XR_FAR : this.orbit.distance * 50;
     this.camera3d.updateProjectionMatrix();
     this.decorations.update3d(this.orbit.yaw);
     const buffer = this.renderer.getDrawingBufferSize(new Vector2());
@@ -1582,7 +1996,332 @@ export class Engine {
   }
 
   private labelFor(id: HoleId, fallback: string): string {
+    // Un taladro que espera su turno en el pintado en vivo todavía no tiene etiqueta.
+    if (this.build.active && this.build.hidden(id, performance.now())) return '';
     return this.labelOverride?.get(id) ?? fallback;
+  }
+
+  // ------------------------------------------------------------------ Pintado en vivo
+
+  private chargeKeyOf(id: HoleId): string {
+    const h = this.document.findHole(id)?.hole;
+    return h ? JSON.stringify(h.decks) : '';
+  }
+
+  private initKeyOf(id: HoleId): string {
+    const h = this.document.findHole(id)?.hole;
+    return h ? JSON.stringify(h.initiators) : '';
+  }
+
+  /** Perímetros agregados y quitados desde la última vez (y actualiza la referencia). */
+  private diffBoundaries(): {
+    added: { x: number; y: number }[][];
+    removed: { x: number; y: number }[][];
+  } {
+    const now = new Map<BoundaryId, { x: number; y: number }[]>();
+    for (const blast of this.document.project.blasts)
+      for (const b of blast.boundaries)
+        now.set(
+          b.id,
+          b.polygon.map((p) => ({ x: p.x - this.origin.x, y: p.y - this.origin.y })),
+        );
+    const added: { x: number; y: number }[][] = [];
+    const removed: { x: number; y: number }[][] = [];
+    for (const [id, poly] of now) if (!this.boundaryPolys.has(id)) added.push(poly);
+    for (const [id, poly] of this.boundaryPolys) if (!now.has(id)) removed.push(poly);
+    this.boundaryPolys.clear();
+    for (const [id, poly] of now) this.boundaryPolys.set(id, poly);
+    return { added, removed };
+  }
+
+  private tieKeyOf(id: BlastId): string {
+    const b = this.document.project.blasts.find((x) => x.id === id);
+    return b
+      ? b.initiation.connections.map((c) => c.id).join(',') +
+          '|' +
+          b.initiation.initiationPoints.map((p) => p.id).join(',')
+      : '';
+  }
+
+  /** Proyecto nuevo: se descarta lo que se estaba pintando. */
+  private resetBuild(): void {
+    this.build.clear();
+    this.buildFx.clear();
+    this.buildFx3d.clear();
+  }
+
+  /** Programa el pintado de un cambio hecho por el asistente. */
+  private scheduleBuild(cs: ChangeSet): void {
+    const now = performance.now();
+    const { added, removed, updated } = cs.holes;
+    // Taladros borrados: un anillo rojo donde estaban.
+    const z = this.topZ();
+    for (const id of removed) {
+      const at = this.holes.collarOf(id);
+      if (!at) continue;
+      this.buildFx.ring(at.x, at.y, 0, FX_REMOVE, now);
+      this.buildFx3d.ring(at.x, at.y, z, FX_REMOVE, now);
+    }
+    // Perímetros: los nuevos se trazan antes que sus taladros; los quitados se apagan.
+    const outlines = cs.blasts.length > 0 ? this.diffBoundaries() : { added: [], removed: [] };
+    for (const poly of outlines.removed) this.build.scheduleTrace(poly, 'remove', now);
+    for (const poly of outlines.added) this.build.scheduleTrace(poly, 'add', now);
+    const newHoles = added.flatMap((id) => {
+      const h = this.document.findHole(id)?.hole;
+      return h ? [h] : [];
+    });
+    const recharged = updated.flatMap((id) => {
+      const key = this.chargeKeyOf(id);
+      const changed = this.chargeKeys.get(id) !== key;
+      this.chargeKeys.set(id, key);
+      const h = this.document.findHole(id)?.hole;
+      return changed && h && h.decks.length > 0 ? [h] : [];
+    });
+    for (const h of newHoles) {
+      this.chargeKeys.set(h.id, JSON.stringify(h.decks));
+      this.initKeys.set(h.id, JSON.stringify(h.initiators));
+    }
+    // Tiempos programados (electrónicos o retardos en taladro): una onda en orden de disparo.
+    const retimed = updated.flatMap((id) => {
+      const key = this.initKeyOf(id);
+      const changed = this.initKeys.get(id) !== key;
+      this.initKeys.set(id, key);
+      const h = this.document.findHole(id)?.hole;
+      if (!changed || !h || h.initiators.length === 0) return [];
+      return [{ id, at: Math.min(...h.initiators.map((x) => x.delay)) }];
+    });
+    const drilled = drillOrder(newHoles);
+    this.build.schedule(
+      drilled.map((h) => ({ id: h.id, filled: h.decks.length > 0 })),
+      'drill',
+      now,
+    );
+    this.build.schedule(
+      drillOrder(recharged).map((h) => ({ id: h.id, filled: true })),
+      'charge',
+      now,
+    );
+    let ties = 0;
+    for (const id of cs.blasts) {
+      const key = this.tieKeyOf(id);
+      if (this.tieKeys.get(id) !== key) {
+        const b = this.document.project.blasts.find((x) => x.id === id);
+        ties += b?.initiation.connections.length ?? 0;
+      }
+      this.tieKeys.set(id, key);
+    }
+    this.build.scheduleTie(ties, now);
+    this.build.schedulePulse(retimed, now);
+    const framed = [
+      ...drilled,
+      ...recharged,
+      ...retimed.flatMap((r) => {
+        const h = this.document.findHole(r.id)?.hole;
+        return h ? [h] : [];
+      }),
+    ];
+    const points = [
+      ...framed.map((h) => ({ x: h.collar.x - this.origin.x, y: h.collar.y - this.origin.y })),
+      ...outlines.added.flat(),
+      ...outlines.removed.flat(),
+    ];
+    if (points.length > 0) {
+      const f = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, z: 0 };
+      for (const p of points) {
+        f.minX = Math.min(f.minX, p.x);
+        f.minY = Math.min(f.minY, p.y);
+        f.maxX = Math.max(f.maxX, p.x);
+        f.maxY = Math.max(f.maxY, p.y);
+      }
+      f.z =
+        framed.length > 0
+          ? framed.reduce((sum, h) => sum + h.collar.z - this.origin.z, 0) / framed.length
+          : this.topZ();
+      this.buildFrame = f;
+      this.followHeld = false;
+    }
+    this.buildFx.setSize(this.typicalSpacing);
+    this.buildFx3d.setSize(this.typicalSpacing);
+    if (this.build.active) this.settleUntil = 0;
+    if (!this.buildWasActive && this.build.active) {
+      this.buildLast = now;
+      this.buildWasActive = true;
+      this.events.emit('building', true);
+    }
+    this.loop.invalidate();
+  }
+
+  /** Avance por cuadro del pintado en vivo (lo llama el loop antes de dibujar). */
+  private advanceBuild(): void {
+    const fxBusy = this.buildFx.busy || this.buildFx3d.busy;
+    if (!this.build.active && !fxBusy && !this.buildWasActive) return;
+    const now = performance.now();
+    const dt = Math.min(0.1, Math.max(0, (now - this.buildLast) / 1000));
+    this.buildLast = now;
+    const { started, finished, pulsed } = this.build.advance(now);
+    for (const id of pulsed) {
+      const h = this.document.findHole(id)?.hole;
+      if (!h) continue;
+      const x = h.collar.x - this.origin.x;
+      const y = h.collar.y - this.origin.y;
+      this.buildFx.ring(x, y, 0, FX_TIMING, now, 0.7);
+      this.buildFx3d.ring(x, y, h.collar.z - this.origin.z, FX_TIMING, now, 0.7);
+    }
+    for (const id of started) {
+      const h = this.document.findHole(id)?.hole;
+      if (!h) continue;
+      const x = h.collar.x - this.origin.x;
+      const y = h.collar.y - this.origin.y;
+      const color = h.decks.length > 0 && !added(this.build, id) ? FX_CHARGE : FX_DRILL;
+      this.buildFx.ring(x, y, 0, color, now);
+      this.buildFx3d.ring(x, y, h.collar.z - this.origin.z, color, now);
+      this.refreshHoleLabel(id, h.label, x, y, h.collar.z - this.origin.z);
+    }
+    for (const id of finished) {
+      const h = this.document.findHole(id)?.hole;
+      this.holes.setReveal(id, 1, 1);
+      if (h)
+        this.refreshHoleLabel(
+          id,
+          h.label,
+          h.collar.x - this.origin.x,
+          h.collar.y - this.origin.y,
+          h.collar.z - this.origin.z,
+        );
+    }
+    // Termina el dibujo: un momento para alejar la cámara y mostrar el resultado completo.
+    if (!this.build.active && this.buildWasActive && this.settleUntil === 0)
+      this.settleUntil = now + 1700;
+    this.applyBuild(now);
+    this.followBuild(dt, now);
+    this.buildFx.update(now, dt);
+    this.buildFx3d.update(now, dt);
+    if (this.build.active || this.buildFx.busy || this.buildFx3d.busy || now < this.settleUntil)
+      this.loop.invalidate();
+    else if (this.buildWasActive) {
+      this.buildWasActive = false;
+      this.buildFrame = null;
+      this.settleUntil = 0;
+      this.xr?.track(null);
+      this.events.emit('building', false);
+      this.loop.invalidate();
+    }
+  }
+
+  private refreshHoleLabel(id: HoleId, label: string, x: number, y: number, z: number): void {
+    const text = this.labelFor(id, label);
+    this.labels.upsert(id, x, y, text);
+    this.labels.flush();
+    if (this.viewMode === '3d' || this.xr) {
+      this.labels3d.upsert(id, x, y, text, z + 1.2);
+      this.labels3d.flush();
+    }
+  }
+
+  /** Aplica a las capas lo que se ve en este instante. */
+  private applyBuild(now: number): void {
+    const build = this.build;
+    for (const id of build.ids()) {
+      const r = build.reveal(id, now);
+      this.holes.setReveal(id, r.started ? 1 + 0.7 * Math.max(1 - r.drill, r.flash) : 0, r.drill);
+    }
+    this.holes.flush();
+    if (this.viewMode === '3d' || this.xr)
+      this.scene3d.applyReveal((id) =>
+        build.has(id) ? build.reveal(id, now) : this.hiddenByFocus(id),
+      );
+    const traces = build.traces(now).map(({ trace, progress, alpha }) => ({
+      points: trace.points,
+      progress,
+      alpha,
+      kind: trace.kind,
+    }));
+    const tip = this.buildFx.setTraces(traces, 0);
+    this.buildFx3d.setTraces(traces, this.topZ());
+    const tie = build.tieProgress(now);
+    this.initiation.setReveal(tie);
+    this.initiation3d.setReveal(tie);
+    // Cabezal: sobre el taladro que se está dibujando.
+    const current = build.current(now);
+    const h = current ? this.document.findHole(current)?.hole : undefined;
+    if (h) {
+      const x = h.collar.x - this.origin.x;
+      const y = h.collar.y - this.origin.y;
+      this.buildFx.movePen({ x, y, z: 0 });
+      this.buildFx3d.movePen({ x, y, z: h.collar.z - this.origin.z });
+    } else if (tip) {
+      // Sin taladro en curso, el cabezal recorre el perímetro que se traza.
+      this.buildFx.movePen(tip);
+      this.buildFx3d.movePen({ x: tip.x, y: tip.y, z: this.topZ() });
+    } else if (!build.active) {
+      this.buildFx.movePen(null);
+      this.buildFx3d.movePen(null);
+    }
+  }
+
+  /**
+   * Cámara que sigue el dibujo, con suavizado exponencial (como el seguimiento de FleetView): va
+   * pegada al cabezal, gira despacio y baja el ángulo mientras se dibuja; al terminar se aleja un
+   * momento para mostrar el resultado completo. En el visor, la maqueta vuela para traer al frente
+   * lo que se dibuja (a escala real no se mueve: marea). Tocar el mapa la suelta.
+   */
+  private followBuild(dt: number, now: number): void {
+    const f = this.buildFrame;
+    if (!this.buildFollow || this.followHeld || !f) return;
+    const settling = !this.build.active;
+    if (settling && now >= this.settleUntil) return;
+    const pen = this.buildFx3d.penPosition;
+    const cx = (f.minX + f.maxX) / 2;
+    const cy = (f.minY + f.maxY) / 2;
+    const pad = this.typicalSpacing * 2;
+    const w = f.maxX - f.minX + pad * 2;
+    const hgt = f.maxY - f.minY + pad * 2;
+    // Mientras se dibuja, la mayor parte del peso va al cabezal; al terminar, al lote completo.
+    const weight = settling || !pen ? 0 : 0.6;
+    const tx = pen ? cx + (pen.x - cx) * weight : cx;
+    const ty = pen ? cy + (pen.y - cy) * weight : cy;
+    const tz = pen && !settling ? pen.z : f.z;
+    if (this.xr) {
+      this.xr.track({ x: tx, y: ty, z: tz }, Math.max(w, hgt) * (settling ? 1 : 0.7));
+      return;
+    }
+    const k = 1 - Math.exp(-(settling ? 2.4 : 3.2) * dt);
+    const kz = 1 - Math.exp(-(settling ? 2 : 1.4) * dt);
+    if (this.viewMode === '3d') {
+      const o = this.orbit;
+      if (!o) return;
+      const fov = (this.camera3d.fov * Math.PI) / 180;
+      const fit = Math.max(30, (Math.hypot(w, hgt) / 2 / Math.tan(fov / 2)) * 1.05);
+      const want = settling ? fit : Math.max(25, fit * 0.7);
+      const pitch = settling ? 0.75 : 0.5;
+      this.orbit = {
+        ...o,
+        targetX: o.targetX + (tx - o.targetX) * k,
+        targetY: o.targetY + (ty - o.targetY) * k,
+        targetZ: o.targetZ + (tz - o.targetZ) * k,
+        distance: o.distance * Math.pow(want / o.distance, kz),
+        pitch: o.pitch + (pitch - o.pitch) * kz,
+        // Giro de presentación: más rápido mientras se dibuja, frena al mostrar el resultado.
+        yaw: o.yaw + (settling ? 0.05 : 0.14) * dt,
+      };
+      this.applyCamera3d();
+      return;
+    }
+    const v = this.view;
+    const inset = this.decorations.rulerInset;
+    const fitView = fitBounds(
+      { minX: f.minX - pad, minY: f.minY - pad, maxX: f.maxX + pad, maxY: f.maxY + pad },
+      this.width - inset.left,
+      this.height - inset.top,
+      0.05,
+    );
+    // Dibujando, un poco más cerca que el lote completo; al terminar, el lote entero.
+    const mpp = settling ? fitView.metersPerPixel : fitView.metersPerPixel * 0.75;
+    this.setView({
+      centerX: v.centerX + (tx - v.centerX) * k,
+      centerY: v.centerY + (ty - v.centerY) * k,
+      metersPerPixel: v.metersPerPixel * Math.pow(mpp / v.metersPerPixel, kz),
+    });
   }
 
   private readonly firedColor = new Color(0xff5a1f);
@@ -1680,8 +2419,15 @@ export class Engine {
     this.labels.clear();
     this.hover = null;
     this.lastSelection = this.selection.ids;
+    this.chargeKeys.clear();
+    this.tieKeys.clear();
+    this.initKeys.clear();
+    this.diffBoundaries();
     for (const blast of this.document.project.blasts) {
+      this.tieKeys.set(blast.id, this.tieKeyOf(blast.id));
       for (const h of blast.holes) {
+        this.chargeKeys.set(h.id, JSON.stringify(h.decks));
+        this.initKeys.set(h.id, JSON.stringify(h.initiators));
         this.holes.upsert(h, this.origin, this.selection.has(h.id));
         this.labels.upsert(
           h.id,
@@ -2122,4 +2868,9 @@ function planArrows(v: VectorsData): IsochroneData | null {
     min: v.min,
     max: v.max,
   };
+}
+
+/** ¿El taladro está en el lote como perforación nueva (no como recarga)? */
+function added(build: BuildReveal, id: HoleId): boolean {
+  return build.kindOf(id) === 'drill';
 }

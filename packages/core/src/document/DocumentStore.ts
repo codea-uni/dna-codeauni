@@ -11,6 +11,12 @@ export interface HistoryEntry {
 
 export type DocumentListener = (changes: ChangeSet, store: DocumentStore) => void;
 
+/**
+ * Recibe las operaciones efectivamente aplicadas (las de un comando, o sus inversas al deshacer),
+ * en orden: aplicarlas sobre una copia igual del proyecto lleva al mismo estado (sala en vivo).
+ */
+export type AppliedListener = (ops: readonly Op[], label: string) => void;
+
 /** Recibe el nombre del cambio rechazado por estar el documento en solo lectura. */
 export type ReadOnlyListener = (label: string) => void;
 
@@ -38,6 +44,7 @@ export class DocumentStore implements DocumentReader {
   private readonly undoStack: HistoryEntry[] = [];
   private readonly redoStack: HistoryEntry[] = [];
   private readonly listeners = new Set<DocumentListener>();
+  private readonly appliedListeners = new Set<AppliedListener>();
   private readonly readOnlyListeners = new Set<ReadOnlyListener>();
   private _readOnly = false;
   private locator: Map<HoleId, { blast: number; index: number }> | null = null;
@@ -121,6 +128,7 @@ export class DocumentStore implements DocumentReader {
     this.undoStack.push({ label, ops: list, inverse });
     this.redoStack.length = 0;
     this.commit(changes);
+    this.emitApplied(list, label);
     return true;
   }
 
@@ -132,6 +140,7 @@ export class DocumentStore implements DocumentReader {
     this.applyAll(entry.inverse, changes);
     this.redoStack.push(entry);
     this.commit(changes);
+    this.emitApplied(entry.inverse, entry.label);
   }
 
   redo(): void {
@@ -142,6 +151,7 @@ export class DocumentStore implements DocumentReader {
     this.applyAll(entry.ops, changes);
     this.undoStack.push(entry);
     this.commit(changes);
+    this.emitApplied(entry.ops, entry.label);
   }
 
   /** Reemplaza el proyecto completo (nuevo/abrir) y limpia el historial. */
@@ -177,6 +187,14 @@ export class DocumentStore implements DocumentReader {
     };
   }
 
+  /** Operaciones aplicadas por cada comando, deshacer o rehacer (no por `load`). */
+  onApplied(listener: AppliedListener): () => void {
+    this.appliedListeners.add(listener);
+    return () => {
+      this.appliedListeners.delete(listener);
+    };
+  }
+
   subscribe(listener: DocumentListener): () => void {
     this.listeners.add(listener);
     return () => {
@@ -201,6 +219,10 @@ export class DocumentStore implements DocumentReader {
     }
     this._project = project;
     return inverse.reverse();
+  }
+
+  private emitApplied(ops: readonly Op[], label: string): void {
+    for (const listener of this.appliedListeners) listener(ops, label);
   }
 
   private commit(changes: ChangeSetBuilder): void {

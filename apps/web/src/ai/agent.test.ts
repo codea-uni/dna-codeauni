@@ -9,6 +9,7 @@ vi.mock('../server/api', () => ({ api: { aiGenerate: generate }, serverMode: tru
 vi.mock('./tools', () => ({
   AI_FUNCTION_DECLARATIONS: [{ name: 'generate_pattern', description: 'malla' }],
   READ_ONLY_TOOLS: new Set(['get_design']),
+  orderToolCalls: <T>(calls: T[]) => calls,
   designSummary: () => ({ holes: 0 }),
   runTool: vi.fn(() => Promise.resolve({ ok: true, result: { holes: 120, kind: 'square' } })),
 }));

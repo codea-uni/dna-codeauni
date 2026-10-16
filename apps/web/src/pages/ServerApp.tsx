@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AuthGate } from '../auth/AuthGate';
 import { useAuth, useWorkspace } from '../server/api';
+import { DeviceSyncBridge } from '../server/deviceSync';
 import { AdminPage } from './AdminPage';
 import { HomePage } from './HomePage';
+import { KnowledgePage } from './KnowledgePage';
 import { MineHistoryPage } from './MineHistoryPage';
 import { MinePage } from './MinePage';
 import { PlatformPage } from './PlatformPage';
@@ -18,12 +20,14 @@ export function ServerApp() {
     <BrowserRouter>
       <AuthGate>
         <WorkspaceLoader />
+        <DeviceSyncBridge />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/mines/:mineId" element={<MinePage />} />
           <Route path="/mines/:mineId/history" element={<MineHistoryPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/platform" element={<PlatformPage />} />
+          <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="/projects/:projectId" element={<ProjectEditor />} />
           <Route path="/projects/:projectId/versions/:number" element={<ProjectEditor />} />
           <Route path="*" element={<Navigate to="/" replace />} />

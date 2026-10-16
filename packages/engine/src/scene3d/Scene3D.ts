@@ -117,6 +117,25 @@ export class Scene3D {
   private instancePaint = new Uint8Array(0);
   private baseColors = new Float32Array(0);
   private colorSource: ((id: HoleId) => Color | null) | null = null;
+  /**
+   * Pintado en vivo: por instancia, sus extremos y radio (render), su tramo [desde, hasta] medido
+   * desde la boca, el largo del taladro y si es carga (sube desde el fondo) o perforación vacía.
+   */
+  private instFrom = new Float32Array(0);
+  private instTo = new Float32Array(0);
+  private instRadius = new Float32Array(0);
+  private instDepth = new Float32Array(0);
+  private instLength = new Float32Array(0);
+  private instCharge = new Uint8Array(0);
+  /** Instancias que quedaron recortadas en el último cuadro (para restaurarlas al terminar). */
+  private instClipped = new Uint8Array(0);
+  /** Perforación de los taladros cargados (solo visible durante el pintado en vivo). */
+  private shells: InstancedMesh | null = null;
+  private shellCapacity = 0;
+  private shellHole: HoleId[] = [];
+  private shellEnds = new Float32Array(0);
+  private shellRadius = new Float32Array(0);
+  private readonly shellMaterial = new MeshLambertMaterial({ color: MATERIAL_COLORS.empty });
 
   constructor() {
     // Sol rasante (≈ 30° de elevación, desde el Sudeste) y poca luz ambiente: el relieve del
@@ -167,11 +186,26 @@ export class Scene3D {
     const rel = (p: Vec3) => ({ x: p.x - origin.x, y: p.y - origin.y, z: p.z - origin.z });
 
     // ---------------------------------------------------------------- Taladros
-    const segs: { from: Vec3; to: Vec3; r: number; color: number; hole: HoleId; paint: boolean }[] =
-      [];
+    const segs: {
+      from: Vec3;
+      to: Vec3;
+      r: number;
+      color: number;
+      hole: HoleId;
+      paint: boolean;
+      depth: [number, number];
+      length: number;
+      charge: boolean;
+    }[] = [];
+    const shells: { from: Vec3; to: Vec3; r: number; hole: HoleId }[] = [];
     for (const blast of blasts) {
       for (const h of blast.holes) {
         const r = Math.max(options.minRadius, (h.diameter / 2) * options.radiusScale);
+        const collar = h.collar;
+        const along = (p: Vec3) => Math.hypot(p.x - collar.x, p.y - collar.y, p.z - collar.z);
+        // Perforación completa, delgada y dentro de la carga: se ve mientras la carga se llena.
+        if (h.decks.length > 0)
+          shells.push({ from: rel(collar), to: rel(holeToe(h)), r: r * 0.6, hole: h.id });
         for (const s of holeSegments3d(h)) {
           const color =
             s.kind === 'explosive'
@@ -186,6 +220,9 @@ export class Scene3D {
             hole: h.id,
             // Se colorea por tiempo/valor la columna explosiva (y el taladro vacío); taco y aire conservan su material.
             paint: s.kind === 'explosive' || s.kind === 'empty',
+            depth: [along(s.from), along(s.to)],
+            length: h.length,
+            charge: s.kind !== 'empty',
           });
         }
         const c = rel(h.collar);
@@ -224,6 +261,13 @@ export class Scene3D {
       }
     });
     this.instanceHole = segs.map((x) => x.hole);
+    this.instFrom = Float32Array.from(segs.flatMap((x) => [x.from.x, x.from.y, x.from.z]));
+    this.instTo = Float32Array.from(segs.flatMap((x) => [x.to.x, x.to.y, x.to.z]));
+    this.instRadius = Float32Array.from(segs, (x) => x.r);
+    this.instDepth = Float32Array.from(segs.flatMap((x) => x.depth));
+    this.instLength = Float32Array.from(segs, (x) => x.length);
+    this.instCharge = Uint8Array.from(segs, (x) => (x.charge ? 1 : 0));
+    this.instClipped = new Uint8Array(segs.length);
     this.instancePaint = Uint8Array.from(segs, (x) => (x.paint ? 1 : 0));
     this.baseColors = new Float32Array(segs.length * 3);
     if (colors) this.baseColors.set(colors.subarray(0, segs.length * 3));
@@ -231,6 +275,7 @@ export class Scene3D {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     this.dynamic.add(mesh);
+    this.buildShells(shells);
 
     // ---------------------------------------------------------------- Banco, caras y topografía
     const wanted = new Set<TinData>();
@@ -323,6 +368,105 @@ export class Scene3D {
     this.refreshColors();
   }
 
+  /**
+   * Pintado en vivo: recorta cada tramo a lo que ya se perforó (desde la boca) y a lo que ya se
+   * cargó (desde el fondo). `reveal` devuelve null para los taladros que se ven completos.
+   */
+  applyReveal(reveal: (id: HoleId) => { drill: number; fill: number } | null): void {
+    const mesh = this.cylinders;
+    if (!mesh) return;
+    const m = mesh.instanceMatrix.array as Float32Array;
+    const from = { x: 0, y: 0, z: 0 };
+    const to = { x: 0, y: 0, z: 0 };
+    let changed = false;
+    this.revealShells(reveal);
+    for (let i = 0; i < this.instanceHole.length; i++) {
+      const r = reveal(this.instanceHole[i] as HoleId);
+      if (!r && !this.instClipped[i]) continue;
+      const a = this.instDepth[i * 2] ?? 0;
+      const b = this.instDepth[i * 2 + 1] ?? 0;
+      const length = this.instLength[i] ?? 0;
+      let lo = a;
+      let hi = b;
+      if (r) {
+        hi = Math.min(b, r.drill * length);
+        if (this.instCharge[i]) lo = Math.max(a, length * (1 - r.fill));
+      }
+      const span = b - a;
+      const fx = this.instFrom[i * 3] ?? 0;
+      const fy = this.instFrom[i * 3 + 1] ?? 0;
+      const fz = this.instFrom[i * 3 + 2] ?? 0;
+      const dx = (this.instTo[i * 3] ?? 0) - fx;
+      const dy = (this.instTo[i * 3 + 1] ?? 0) - fy;
+      const dz = (this.instTo[i * 3 + 2] ?? 0) - fz;
+      if (hi - lo <= 1e-3 || span <= 1e-9) {
+        m.fill(0, i * 16, i * 16 + 16);
+      } else {
+        const u0 = (lo - a) / span;
+        const u1 = (hi - a) / span;
+        from.x = fx + dx * u0;
+        from.y = fy + dy * u0;
+        from.z = fz + dz * u0;
+        to.x = fx + dx * u1;
+        to.y = fy + dy * u1;
+        to.z = fz + dz * u1;
+        writeSegmentMatrix(m, i * 16, from, to, this.instRadius[i] ?? 0);
+      }
+      this.instClipped[i] = r ? 1 : 0;
+      changed = true;
+    }
+    if (changed) mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  private buildShells(shells: readonly { from: Vec3; to: Vec3; r: number; hole: HoleId }[]): void {
+    if (shells.length > this.shellCapacity || !this.shells) {
+      this.shells?.dispose();
+      this.shellCapacity = Math.max(256, Math.ceil(shells.length * 1.5));
+      this.shells = new InstancedMesh(
+        this.cylinderGeometry,
+        this.shellMaterial,
+        this.shellCapacity,
+      );
+      this.shells.instanceMatrix.setUsage(DynamicDrawUsage);
+      this.shells.frustumCulled = false;
+      this.shells.visible = false;
+    }
+    this.shells.count = shells.length;
+    this.shellHole = shells.map((x) => x.hole);
+    this.shellEnds = Float32Array.from(
+      shells.flatMap((x) => [x.from.x, x.from.y, x.from.z, x.to.x, x.to.y, x.to.z]),
+    );
+    this.shellRadius = Float32Array.from(shells, (x) => x.r);
+    this.dynamic.add(this.shells);
+  }
+
+  /** Perforación (de la boca hacia abajo) de los taladros cargados que se están dibujando. */
+  private revealShells(reveal: (id: HoleId) => { drill: number; fill: number } | null): void {
+    const mesh = this.shells;
+    if (!mesh) return;
+    const m = mesh.instanceMatrix.array as Float32Array;
+    let any = false;
+    for (let i = 0; i < this.shellHole.length; i++) {
+      const r = reveal(this.shellHole[i] as HoleId);
+      const e = this.shellEnds;
+      const o = i * 6;
+      if (!r || r.drill <= 1e-3) {
+        m.fill(0, i * 16, i * 16 + 16);
+        continue;
+      }
+      any = true;
+      const from = { x: e[o] ?? 0, y: e[o + 1] ?? 0, z: e[o + 2] ?? 0 };
+      const to = {
+        x: from.x + ((e[o + 3] ?? 0) - from.x) * r.drill,
+        y: from.y + ((e[o + 4] ?? 0) - from.y) * r.drill,
+        z: from.z + ((e[o + 5] ?? 0) - from.z) * r.drill,
+      };
+      writeSegmentMatrix(m, i * 16, from, to, this.shellRadius[i] ?? 0);
+    }
+    mesh.visible = any;
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+
   /** Color por taladro (tiempo, kg, secuencia…) para la columna explosiva; null = color del material. */
   setColorSource(source: ((id: HoleId) => Color | null) | null): void {
     this.colorSource = source;
@@ -353,6 +497,8 @@ export class Scene3D {
     this.clearDynamic();
     for (const tin of [...this.surfaceCache.keys()]) this.dropSurface(tin);
     this.cylinders?.dispose();
+    this.shells?.dispose();
+    this.shellMaterial.dispose();
     this.cylinderGeometry.dispose();
     this.cylinderMaterial.dispose();
   }
@@ -606,7 +752,7 @@ export class Scene3D {
       }
     for (const child of [...this.dynamic.children] as Object3D[]) {
       this.dynamic.remove(child);
-      if (child === this.cylinders) continue;
+      if (child === this.cylinders || child === this.shells) continue;
       if (child instanceof Mesh || child instanceof LineSegments) {
         (child.geometry as BufferGeometry).dispose();
         const mat = child.material as { dispose(): void } | { dispose(): void }[];

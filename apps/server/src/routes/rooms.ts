@@ -1,4 +1,5 @@
 import {
+  ROOM_DESIGN_MAX,
   ROOM_MESSAGE_MAX,
   roomClientMessageSchema,
   type RoomPeer,
@@ -8,6 +9,7 @@ import {
 import { uuidv7 } from '@cronos/core';
 import type { WebSocket } from '@fastify/websocket';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 import type { Auth } from '../auth/auth';
 import type { Db } from '../db/db';
 import { requireUser, type SessionUser } from '../http/session';
@@ -27,8 +29,16 @@ interface Room {
   presenter: string | null;
   /** Último estado del presentador: quien entra tarde se sincroniza con él. */
   state: RoomState | null;
+  /** Última foto del diseño en vivo: quien entra tarde parte del mismo proyecto. */
+  design: { seq: number; snapshot: string; from: string } | null;
   nextColor: number;
 }
+
+const meGotoSchema = z.object({
+  type: z.literal('goto'),
+  projectId: z.string().min(1).max(64),
+  from: z.string().max(40),
+});
 
 type Req = FastifyRequest<{ Params: { projectId?: string } }>;
 
@@ -70,7 +80,7 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
       const key = req.params.projectId ?? '';
       let room = rooms.get(key);
       if (!room) {
-        room = { peers: new Map(), presenter: null, state: null, nextColor: 0 };
+        room = { peers: new Map(), presenter: null, state: null, design: null, nextColor: 0 };
         rooms.set(key, room);
       }
       const r = room;
@@ -84,6 +94,7 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
         peers: others,
         state: r.state,
       });
+      if (r.design) send(peer, { type: 'design', ...r.design });
       broadcast(
         r,
         { type: 'join', peer: { id: peer.id, name: peer.name, color: peer.color } },
@@ -91,7 +102,7 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
       );
 
       socket.on('message', (data: Buffer, isBinary: boolean) => {
-        if (isBinary || data.length > ROOM_MESSAGE_MAX) return;
+        if (isBinary || data.length > ROOM_DESIGN_MAX) return;
         let raw: unknown;
         try {
           raw = JSON.parse(data.toString('utf8'));
@@ -101,7 +112,21 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
         const parsed = roomClientMessageSchema.safeParse(raw);
         if (!parsed.success) return;
         const m = parsed.data;
-        if (m.type === 'pose') broadcast(r, { type: 'pose', id: peer.id, pose: m.pose }, peer.id);
+        const big = m.type === 'design' || m.type === 'ops';
+        if (!big && data.length > ROOM_MESSAGE_MAX) return;
+        if (m.type === 'design') {
+          r.design = { seq: m.seq, snapshot: m.snapshot, from: peer.id };
+          broadcast(r, { type: 'design', ...r.design }, peer.id);
+        } else if (m.type === 'ops')
+          broadcast(
+            r,
+            { type: 'ops', from: peer.id, seq: m.seq, ops: m.ops, label: m.label },
+            peer.id,
+          );
+        else if (m.type === 'feed')
+          broadcast(r, { type: 'feed', from: peer.id, item: m.item }, peer.id);
+        else if (m.type === 'pose')
+          broadcast(r, { type: 'pose', id: peer.id, pose: m.pose }, peer.id);
         else if (m.type === 'claim') {
           r.presenter = peer.id;
           broadcast(r, { type: 'presenter', id: peer.id });
@@ -122,6 +147,68 @@ export function roomRoutes(app: FastifyInstance, deps: RoomRouteDeps): void {
           broadcast(r, { type: 'presenter', id: null });
         }
         if (r.peers.size === 0) rooms.delete(key);
+      });
+    },
+  );
+
+  // Canal por usuario (misma cuenta en la PC y el visor): al abrir un proyecto en un dispositivo,
+  // los demás lo siguen y quedan en la misma sala. Relé entre sus sockets; recuerda el último
+  // proyecto abierto para quien se conecta después (antes cada uno lo re-anunciaba al reconectar
+  // y un dispositivo rezagado arrastraba a los demás de vuelta a su proyecto).
+  const devices = new Map<string, Set<WebSocket>>();
+  const lastGoto = new Map<string, string>();
+  const meUsers = new WeakMap<FastifyRequest, SessionUser>();
+  const countDevices = (set: Set<WebSocket>) => {
+    for (const s of set)
+      if (s.readyState === s.OPEN) s.send(JSON.stringify({ type: 'devices', count: set.size - 1 }));
+  };
+  app.get(
+    '/me/ws',
+    {
+      websocket: true,
+      preValidation: async (req: FastifyRequest, reply) => {
+        const user = await requireUser(deps.auth, deps.db, req, reply);
+        if (!user) return reply;
+        meUsers.set(req, user);
+      },
+    },
+    (socket: WebSocket, req: FastifyRequest) => {
+      const user = meUsers.get(req);
+      if (!user) {
+        socket.close(1008);
+        return;
+      }
+      let set = devices.get(user.id);
+      if (!set) {
+        set = new Set();
+        devices.set(user.id, set);
+      }
+      const mine = set;
+      mine.add(socket);
+      countDevices(mine);
+      const last = lastGoto.get(user.id);
+      if (last) socket.send(last);
+      socket.on('message', (data: Buffer, isBinary: boolean) => {
+        if (isBinary || data.length > 512) return;
+        let raw: unknown;
+        try {
+          raw = JSON.parse(data.toString('utf8'));
+        } catch {
+          return;
+        }
+        const parsed = meGotoSchema.safeParse(raw);
+        if (!parsed.success) return;
+        const text = JSON.stringify(parsed.data);
+        lastGoto.set(user.id, text);
+        for (const s of mine) if (s !== socket && s.readyState === s.OPEN) s.send(text);
+      });
+      socket.on('close', () => {
+        mine.delete(socket);
+        if (mine.size === 0) {
+          devices.delete(user.id);
+          lastGoto.delete(user.id);
+        }
+        else countDevices(mine);
       });
     },
   );

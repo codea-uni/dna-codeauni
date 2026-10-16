@@ -1,0 +1,681 @@
+{
+  "schema": "cronos.reglas-agente/1",
+  "descripcion": "Valores guía para el agente de voz. No son norma: el ingeniero los confirma y los números que se informan salen de las herramientas de la app. 'estado' según docs/RULES.md (R0..R4; 'R1s' = R1 a partir de una fuente secundaria, pendiente de contrastar con el original). Las claves de 'fuente' se resuelven en docs/agent/CONOCIMIENTO-VOLADURA.md §13.",
+  "fecha": "2026-10-09",
+  "unidades": "SI salvo indicación (mm/s, ms, m, kg, °C, MPa)",
+
+  "entrevista_orden": [
+    "objetivo_destinos",
+    "roca",
+    "agua",
+    "reactivo_caliente",
+    "geometria",
+    "cara_libre_direccion",
+    "pared_final_precorte",
+    "receptores_ppv",
+    "proyeccion_exclusion",
+    "iniciacion",
+    "permanencia",
+    "p80_objetivo"
+  ],
+
+  "explosives_by_water": [
+    {
+      "id": "seco",
+      "productos": ["ANFO", "ANFO pesado 20-30 % emulsión", "mezclas <= 50 % emulsión"],
+      "evitar": [],
+      "max_emulsion_pct": null,
+      "min_emulsion_pct": 0,
+      "carga": "vaciable",
+      "fuente": "DN-TITAN 3000/5000; R1 F18 [P2-01 s19]",
+      "estado": "R1"
+    },
+    {
+      "id": "desaguado",
+      "productos": ["ANFO pesado <= 50 % emulsión, cargado de inmediato"],
+      "evitar": ["ANFO si hay recarga"],
+      "min_emulsion_pct": 0,
+      "max_emulsion_pct": 50,
+      "condicion": "medir la recarga antes de elegir; cargar primero los húmedos",
+      "carga": "vaciable o auger",
+      "fuente": "DN-TITAN; AEISG-NOx causa 5",
+      "estado": "R1"
+    },
+    {
+      "id": "humedo_estatica",
+      "productos": ["mezcla 60/40 o 70/30 (emulsión/ANFO) gasificada", "emulsión gasificada"],
+      "evitar": ["ANFO", "mezclas <= 50 % emulsión"],
+      "min_emulsion_pct": 60,
+      "carga": "bombeable desde el fondo",
+      "fuente": "R1 F18 [P2-01 s19; V1-02S p17-19]; DN-TITAN",
+      "estado": "R1"
+    },
+    {
+      "id": "inundado_dinamica",
+      "productos": [
+        "emulsión bombeable desde el fondo",
+        "encartuchado resistente al agua",
+        "manga (liner) + producto seco"
+      ],
+      "evitar": ["ANFO sin manga", "carga desde arriba en agua", "permanencia larga"],
+      "min_emulsion_pct": 70,
+      "condicion": "cargar y disparar sin espera; la manga puede romperse",
+      "fuente": "R1 F18 [P2-01 s19]; AEISG-NOx causas 2, 5 y 6; AEISG-RG §6",
+      "estado": "R1"
+    }
+  ],
+
+  "explosive_limits": {
+    "anfo_humedad_inservible_pct": { "valor": 10, "fuente": "R1 F18 [P2-01 s19]", "estado": "R1" },
+    "diametro_min_anfo_mm": {
+      "valor": 51,
+      "nota": "< 51 mm: emulsión o dinamita",
+      "fuente": "R1 F18 [V1-02S p13-14]",
+      "estado": "R1"
+    },
+    "diametro_critico_pulg": {
+      "HA-28": 2.0,
+      "HA-37": 2.5,
+      "HA-46": 3.0,
+      "HA-55": [3.5, 4.0],
+      "HA-64": 5.0,
+      "emulsion_gasificada": 3.5,
+      "AP-73": 4.0,
+      "fuente": "R1 F14 [V1-01E p32]; CK-09",
+      "estado": "R1"
+    },
+    "temp_min_emulsion_C": { "valor": 4.5, "fuente": "R1 F18 [P5 p31]", "estado": "R1" },
+    "temp_max_anfo_C": { "valor": 32.2, "fuente": "R1 F18 [P5 p31]", "estado": "R1" },
+    "permanencia_emulsion_gasificada_h": {
+      "con_agua": 72,
+      "seco": 96,
+      "fuente": "R1 F13 [P2-C34 s21]",
+      "estado": "R1"
+    },
+    "permanencia_corta_nox_dias": {
+      "valor": 3,
+      "nota": "guía del árbol de fallas, no límite del fabricante",
+      "fuente": "AEISG-NOx §6",
+      "estado": "R1"
+    }
+  },
+
+  "rock_classes": [
+    {
+      "id": "masiva",
+      "descripcion": "continua, pocas diaclasas, bloques mayores que la malla",
+      "rmd": 50,
+      "jps": 50,
+      "jpa": null,
+      "konya_ks": 0.95,
+      "hint_burden_D_multiplier": [25, 30],
+      "explosivo_preferente": "alta VOD y densidad (emulsión, ANFO pesado rico)",
+      "fuente": "Cunningham 1987/2005 vía S&O 2017 (RMD/JPS); R1 F03 (Ks); OSMRE-M3 (25·D); R1 F18/F24 (explosivo)",
+      "estado": "R0 (mapeo de clases) / R1s (valores)"
+    },
+    {
+      "id": "fracturada",
+      "descripcion": "diaclasada, bloques de 0,1 a 1 m",
+      "rmd": "JPS+JPA",
+      "jps": [20, 80],
+      "jpa": [20, 30, 40],
+      "konya_ks": 1.1,
+      "hint_burden_D_multiplier": [25, 35],
+      "explosivo_preferente": "ANFO pesado medio",
+      "fuente": "Cunningham 2005 vía S&O 2017; R1 F03",
+      "estado": "R0 (mapeo) / R1s (valores)"
+    },
+    {
+      "id": "muy_fracturada",
+      "descripcion": "muy fracturada, friable o en bloques < 0,1 m",
+      "rmd": 10,
+      "jps": 10,
+      "jpa": null,
+      "konya_ks": 1.3,
+      "hint_burden_D_multiplier": [30, 40],
+      "explosivo_preferente": "energía de gas (ANFO o ANFO pesado bajo); vigilar la fuga de gases y los NOx",
+      "fuente": "Cunningham 2005 vía S&O 2017; R1 F03; R1 F18 [V1-02S p7-9]",
+      "estado": "R0 (mapeo) / R1s (valores)"
+    }
+  ],
+
+  "rock_factor": {
+    "formula": "A = 0.06*(RMD + RDI + HF), con RMD = JPS + JPA si hay diaclasas verticales (Cunningham 2005). La forma que vale es la de FC-26",
+    "jps_2005": [
+      { "espaciado_m": "<0.1", "valor": 10 },
+      { "espaciado_m": "0.1-0.3", "valor": 20 },
+      { "espaciado_m": "0.3 - 95% de min(sobretamaño, malla)", "valor": 80 },
+      { "espaciado_m": "mayor", "valor": 50 }
+    ],
+    "jps_correccion_junta": { "cerrada": 1.0, "abierta": 1.5, "con_relleno": 2.0 },
+    "jpa": {
+      "buza_fuera_cara": 20,
+      "rumbo_perpendicular": 30,
+      "buza_hacia_cara": 40,
+      "horizontal_lilly": 10
+    },
+    "rdi": "0.025*rho_kg_m3 - 50",
+    "hf": "E/3 si E_GPa < 50; UCS_MPa/5 si E >= 50",
+    "rango_A": [3, 13],
+    "fuente": "Cunningham 1987/2005 vía Sanchidrián y Ouchterlony 2017; R1 F23/F24; FC-26",
+    "estado": "R1s (FC-26 en R2)"
+  },
+
+  "pattern": {
+    "burden_D_anfo": { "valor": 25, "fuente": "OSMRE-M3", "estado": "R1" },
+    "burden_D_denso": { "rango": [30, 35], "fuente": "OSMRE-M3", "estado": "R1" },
+    "burden_D_curso": { "rango": [21, 40], "fuente": "R1 F03 [P1-S5 p45]", "estado": "R1" },
+    "burden_tolerancia_teorico": {
+      "valor": 0.1,
+      "fuente": "R1 F03 [P1-S5 p57]; CK-05",
+      "estado": "R1"
+    },
+    "S_tresbolillo_sobre_B": { "valor": 1.15, "fuente": "FC-05", "estado": "R3" },
+    "S_sobre_B_max": { "valor": 2.0, "fuente": "R1 F04 [P1-S6 p18]", "estado": "R1" },
+    "rigidez_H_B": {
+      "aviso_menor_igual": 2,
+      "bueno": 3,
+      "excelente": 4,
+      "fuente": "FC-04; CK-01",
+      "estado": "R3"
+    },
+    "subdrill_sobre_B": {
+      "defecto": 0.3,
+      "rango": [0.2, 0.5],
+      "fuente": "DF-06; CK-03; R1 F05",
+      "estado": "R0/R1"
+    },
+    "taco_sobre_B": {
+      "defecto": 0.7,
+      "rango": [0.5, 1.3],
+      "fuente": "OSMRE-M3; DF-09; CK-02",
+      "estado": "R1"
+    },
+    "taco_D": { "rango": [15, 25], "fuente": "R1 F06 [P4-C4 p5]", "estado": "R1" },
+    "taco_intermedio_deck_D": { "seco": 6, "agua": 12, "fuente": "OSMRE-M3", "estado": "R1" },
+    "factor_carga_kg_m3_ref": {
+      "carbon": 0.2,
+      "esquisto": 0.3,
+      "arenisca": 0.5,
+      "basalto_fracturado": 0.4,
+      "granito_resistente": 0.8,
+      "fuente": "R1 F08 [P4-C4 p6]",
+      "estado": "R1"
+    }
+  },
+
+  "presplit": {
+    "spacing_D": {
+      "rango": [10, 12],
+      "max_favorable": 14,
+      "fuente": "FHWA 3.6; Konya Rock Products 2016",
+      "estado": "R1"
+    },
+    "spacing_formula": {
+      "texto": "E <= Dh*(Pb+RT)/RT; Pb = 110*f^n*rho*VOD^2; n 1.25 seco, 0.9 agua",
+      "fuente": "FC-31",
+      "estado": "R3"
+    },
+    "linear_charge_kg_m_por_pulg2": {
+      "valor": 0.0531,
+      "texto": "W[lb/ft] = D[in]^2/28",
+      "fuente": "Austin Powder Blaster's Guide",
+      "estado": "R1s"
+    },
+    "linear_charge_sueca": {
+      "texto": "q[kg/m ANFO eq] = 90*d[m]^2",
+      "fuente": "Holmberg-Persson vía 911M-CB",
+      "estado": "R1s"
+    },
+    "tabla_curso": [
+      { "D_mm": 76, "kg_m": 0.5, "S_m": 1.2 },
+      { "D_mm": 152, "kg_m": 1.9, "S_m": 2.4 },
+      { "D_mm": 311, "kg_m": 8.1, "S_m": 4.6 }
+    ],
+    "tabla_curso_fuente": "R1 F26 [P5 p9]",
+    "carga_por_area_kg_m2": {
+      "columna": 0.5,
+      "fondo_factor": [2, 3],
+      "fuente": "FHWA 3.6",
+      "estado": "R1"
+    },
+    "adelanto_ms_min": {
+      "valor": 100,
+      "alternativa": "voladura separada previa",
+      "fuente": "R1 F26 [P4-C6 p44; P4-C8 p12-13]",
+      "estado": "R1"
+    },
+    "simultaneo": {
+      "valor": true,
+      "nota": "simultáneo o en grupos",
+      "fuente": "R1 F26",
+      "estado": "R1"
+    }
+  },
+
+  "buffer": {
+    "B_S_sobre_produccion": { "rango": [0.5, 0.8], "fuente": "R1 F04 [P1-S5 p59]", "estado": "R1" },
+    "formula": {
+      "texto": "B_buf = [W*1000/(FC*K_BP*H*rho_r*SBR)]^0.5; S_buf = 1.15*B_buf",
+      "fuente": "FC-32",
+      "estado": "R3"
+    },
+    "standoff_precorte_sobre_B_prod": {
+      "rango": [0.4, 0.6],
+      "fuente": "presentación de voladura controlada (Doddaka, SlideShare)",
+      "estado": "R0"
+    },
+    "trim_spacing_D": { "rango": [15, 24], "fuente": "FHWA 3.6", "estado": "R1" }
+  },
+
+  "reactive_ground": {
+    "temp_estandar_max_C": {
+      "valor": 55,
+      "fuente": "AEISG-RG App. (AS 2187.2-2006)",
+      "estado": "R1"
+    },
+    "hot_ground_C": { "min": 55, "max_excl": 100, "fuente": "AEISG-RG §1.2", "estado": "R1" },
+    "high_temp_C": { "min": 100, "fuente": "AEISG-RG §1.2", "estado": "R1" },
+    "iniciadores_max_C": { "valor": 70, "fuente": "AEISG-RG §10", "estado": "R1" },
+    "ensayo_isotermico": {
+      "temp_C": 55,
+      "tol_C": 2,
+      "dias": 7,
+      "exoterma_significativa_C": 2,
+      "fuente": "AEISG-RG §8 y App.",
+      "estado": "R1"
+    },
+    "ensayo_permanencia": {
+      "factor": 4,
+      "max_dias": 28,
+      "fuente": "AEISG-RG §8.3.1",
+      "estado": "R1"
+    },
+    "permanencia_max_reactivo_dias": { "valor": 7, "fuente": "AEISG-RG §8.3.1", "estado": "R1" },
+    "permanencia_sin_ensayo_h": {
+      "valor": 8,
+      "producto": "muy inhibido",
+      "fuente": "AEISG-RG diagrama de flujo §7",
+      "estado": "R1"
+    },
+    "anfo_pirita_inicio_C": {
+      "rango": [80, 120],
+      "urea_pct": 5,
+      "urea_hasta_C": 180,
+      "fuente": "R1 F24 [P1-S4 p48-49]",
+      "estado": "R1"
+    },
+    "indicadores": [
+      "sulfuros",
+      "sedimentos negros con sulfuros",
+      "sales blancas o amarillas",
+      "agua ácida amarilla a rojo pardo",
+      "corrosión de pernos o mallas",
+      "combustión espontánea",
+      "olor a SO2",
+      "taladros o terreno calientes"
+    ],
+    "indicadores_fuente": "AEISG-RG §4",
+    "reglas": [
+      {
+        "si": "indicios y sin ensayo",
+        "entonces": "no usar producto no inhibido; producto muy inhibido y unas 8 h de permanencia; muestrear",
+        "fuente": "AEISG-RG §7",
+        "estado": "R1"
+      },
+      {
+        "si": "reactivo confirmado",
+        "entonces": "solo producto inhibido; permanencia fijada por el proveedor (máx. usual 7 d); sin ANFO",
+        "fuente": "AEISG-RG §6-8",
+        "estado": "R1"
+      },
+      {
+        "si": "taladro > límite del producto",
+        "entonces": "no cargar o rellenar",
+        "fuente": "AEISG-RG §5.4.4",
+        "estado": "R1"
+      },
+      {
+        "si": "terreno caliente",
+        "entonces": "medir cada taladro; cargar en el orden de salida y los más calientes al final",
+        "fuente": "AEISG-RG §5.4.5",
+        "estado": "R1"
+      }
+    ]
+  },
+
+  "oxygen_balance": {
+    "an": 0.2,
+    "fuel_oil": -3.42,
+    "anfo_estequiometrico": { "an": 0.945, "fo": 0.055, "ob": 0.0 },
+    "anfo_practica_curso": { "an": 0.94, "fo": 0.06, "ob_aprox": -0.02 },
+    "formula": "OB_mezcla = sum(w_i * OB_i)",
+    "efectos": [
+      {
+        "si": "OB > 0 (poco FO, FO absorbido por el terreno, agua)",
+        "entonces": "NOx (humo naranja), menos energía"
+      },
+      { "si": "OB < 0 (exceso de FO)", "entonces": "CO" }
+    ],
+    "fuente": "PSU-MNG230 8.2.1; R1 F17 [P5 p32; V2-04-1 p19]; LAPSE 2023; NIOSH-NOx",
+    "estado": "R1"
+  },
+
+  "nox": {
+    "factores_riesgo": [
+      "producto no resistente al agua en taladro húmedo o desaguado",
+      "agua dinámica",
+      "permanencia larga",
+      "estrato blando sin alivio",
+      "desensibilización entre taladros o decks",
+      "cebo insuficiente o mal ubicado",
+      "cordón detonante en el taladro",
+      "contaminación con lodo o detritus",
+      "taco que penetra en producto bombeable",
+      "carga total grande en un evento",
+      "mala formulación o calibración"
+    ],
+    "escala_visual": {
+      "0": "sin NOx",
+      "1": "leve",
+      "2": "amarillo-naranja menor",
+      "3": "naranja",
+      "4": "naranja-rojo",
+      "5": "rojo-púrpura"
+    },
+    "no2_ppm": {
+      "idlh": 20,
+      "aegl1_todas": 0.5,
+      "aegl2": { "10min": 20, "30min": 15, "60min": 12, "4h": 8.2, "8h": 6.7 },
+      "aegl3": { "10min": 34, "30min": 25, "60min": 20, "4h": 14, "8h": 11 }
+    },
+    "fuente": "AEISG-NOx §5, App. 6, Tabla 1",
+    "estado": "R1"
+  },
+
+  "fragmentation": {
+    "modelo": "Kuz-Ram FC-26 (R2); Swebrec FC-27 (R1)",
+    "x50_proporcional": "(V/Q)^0.8 * Q^(1/6) * (115/RWS)^(19/30) * A",
+    "retardo_fino_ms_por_ft_burden": {
+      "rango": [1, 17],
+      "ms_por_m": [3.3, 56],
+      "fuente": "Stagg 1987",
+      "estado": "R1"
+    },
+    "p80_objetivo": {
+      "planta_primaria_mm": {
+        "rango": [200, 600],
+        "fuente": "K-Mine (webinar comercial)",
+        "estado": "R0"
+      },
+      "sag_mm": { "rango": [150, 250], "fuente": "K-Mine", "estado": "R0" },
+      "desmonte": { "texto": "lo limita la cuchara de la pala o el cargador", "estado": "R0" },
+      "regla": "pedirlo al ingeniero o a la planta; si no hay dato, dejarlo como parámetro"
+    },
+    "submalla": {
+      "texto": "mineral: malla más apretada o más carga; desmonte: más abierta. Alternativas: mismo diámetro con distinta carga, o distinta malla con igual carga por taladro",
+      "fuente": "R1 F24 [P4-C6 p4; P1-S5 p22-25]",
+      "estado": "R1 (criterio) / R0 (transición)"
+    }
+  },
+
+  "timing": {
+    "entre_taladros_ms_m_S": {
+      "curso": [3, 9],
+      "app_DF19": [3, 8],
+      "fuente": "R1 F20 [P4-C5 p19-20]; DF-19",
+      "estado": "R1 / R0"
+    },
+    "entre_filas_ms_m_B": {
+      "curso": [10, 15],
+      "adverso": 3,
+      "app_DF19": [6, 12],
+      "fuente": "R1 F20; DF-19",
+      "estado": "R1 / R0"
+    },
+    "alivio_ms_m": {
+      "roca_dura": [15, 20],
+      "media_blanda": [20, 25],
+      "contorno": [30, 40],
+      "fuente": "R1 F20 [P4-C5 p30]",
+      "estado": "R1"
+    },
+    "pila_ms_m": {
+      "apretada_pala": [6, 12],
+      "suelta_cargador": [12, 30],
+      "sobreexcavacion_menor_que": 6,
+      "fuente": "R1 F20 [P5 p69-71]",
+      "estado": "R1"
+    },
+    "filas_sobre_taladros": { "rango": [2, 3], "fuente": "R1 F20 [P5 p67]", "estado": "R1" },
+    "entre_filas_ms": {
+      "min_taco_expulsado": 35,
+      "max_confinamiento": 150,
+      "fracturada_max": 60,
+      "blanda_min": 75,
+      "fuente": "R1 F20 [P5 p72, p77-80]",
+      "estado": "R1"
+    },
+    "ultima_fila_min_ms": { "valor": 42, "fuente": "R1 F20 [P5 p77-80]", "estado": "R1" },
+    "hagan_ms_m_B": {
+      "entre_taladros_min": 4,
+      "entre_filas": [4, 8],
+      "fuente": "Hagan 1977",
+      "estado": "R1"
+    },
+    "osmre_ms_ft_B": { "valor": 2, "fuente": "OSMRE-M3", "estado": "R1" },
+    "mic_ventana_ms": {
+      "valor": 8,
+      "semiabierta": true,
+      "fuente": "FC-23; DF-12; 30 CFR 816.67(d)(3)",
+      "estado": "R3"
+    },
+    "dispersion_pct": {
+      "pirotecnico": [1, 5],
+      "baja_precision_max": 7,
+      "electronico": 0.01,
+      "fuente": "R1 F22; DF-15",
+      "estado": "R1"
+    },
+    "alivio_min_ms_m": { "valor": 3, "fuente": "DF-21", "estado": "R0" }
+  },
+
+  "cutoff": {
+    "mecanismo": "el movimiento de la roca o la onda de un taladro anterior corta la línea, el tubo o la columna de un vecino antes de que le llegue la señal: queda explosivo sin detonar en la pila",
+    "velocidad_roca_m_s": { "rango": [15, 30], "fuente": "OSMRE-M3", "estado": "R1" },
+    "fragmentacion_ms": { "rango": [5, 15], "fuente": "OSMRE-M3", "estado": "R1" },
+    "reglas": [
+      {
+        "texto": "todos (o el máximo posible) los retardos de superficie encendidos antes del movimiento de terreno; si no, los pendientes lejos del inicio",
+        "fuente": "DN-SL",
+        "estado": "R1"
+      },
+      {
+        "texto": "usar retardo de fondo (típico 500 ms con 17-176 ms en superficie)",
+        "fuente": "DN-NONEL p48",
+        "estado": "R1"
+      },
+      {
+        "texto": "sin retardo de fondo: <= 1 ms por cada 0,3 m de espaciamiento",
+        "ms_por_m_S_max": 3.3,
+        "fuente": "DN-NONEL p47",
+        "estado": "R1"
+      },
+      {
+        "texto": "conector de retardo junto al taladro o fila retardada; tapar los bloques con detritus",
+        "fuente": "DN-NONEL",
+        "estado": "R1"
+      }
+    ],
+    "chequeo_app": {
+      "texto": "para cada taladro i: todo vecino j a distancia <= radio debe cumplir t_superficie_j < t_detonacion_i; si no, aviso de riesgo de corte",
+      "radio_en_B": [2, 3],
+      "estado": "R0 (radio sin fuente; parámetro)"
+    }
+  },
+
+  "ppv_limits_mm_s": [
+    {
+      "receptor": "vivienda revoque/listones, baja frecuencia",
+      "ppv": 12.7,
+      "fuente": "USBM RI 8507",
+      "estado": "R1s"
+    },
+    {
+      "receptor": "vivienda drywall, baja frecuencia",
+      "ppv": 19.0,
+      "fuente": "USBM RI 8507",
+      "estado": "R1s"
+    },
+    { "receptor": "vivienda, f > 40 Hz", "ppv": 50.8, "fuente": "USBM RI 8507", "estado": "R1s" },
+    {
+      "receptor": "estructura protegida a 0-91 m (OSMRE)",
+      "ppv": 31.75,
+      "ds_m_kg05": 22.6,
+      "fuente": "30 CFR 816.67(d)(2)",
+      "estado": "R1"
+    },
+    {
+      "receptor": "estructura protegida a 92-1524 m (OSMRE)",
+      "ppv": 25.4,
+      "ds_m_kg05": 24.9,
+      "fuente": "30 CFR 816.67(d)(2)",
+      "estado": "R1"
+    },
+    {
+      "receptor": "estructura protegida a > 1524 m (OSMRE)",
+      "ppv": 19.05,
+      "ds_m_kg05": 29.4,
+      "fuente": "30 CFR 816.67(d)(2)",
+      "estado": "R1"
+    },
+    {
+      "receptor": "DIN 4150-3 comercial/industrial (1-10/10-50/50-100 Hz)",
+      "ppv": [20, 40, 50],
+      "fuente": "DIN 4150-3:1999 T1",
+      "estado": "R1s"
+    },
+    {
+      "receptor": "DIN 4150-3 vivienda",
+      "ppv": [5, 15, 20],
+      "fuente": "DIN 4150-3:1999 T1",
+      "estado": "R1s"
+    },
+    {
+      "receptor": "DIN 4150-3 sensible/patrimonio",
+      "ppv": [3, 8, 10],
+      "fuente": "DIN 4150-3:1999 T1",
+      "estado": "R0 (sin confirmar)"
+    },
+    {
+      "receptor": "roca intacta: sin fractura",
+      "ppv": 254,
+      "fuente": "Bauer y Calder 1978 (secundaria)",
+      "estado": "R1s"
+    },
+    {
+      "receptor": "roca: descostramiento leve (254-635)",
+      "ppv": 635,
+      "fuente": "Bauer y Calder 1978",
+      "estado": "R1s"
+    },
+    {
+      "receptor": "roca: agrietamiento fuerte (635-2540)",
+      "ppv": 2540,
+      "fuente": "Bauer y Calder 1978",
+      "estado": "R1s"
+    },
+    {
+      "receptor": "talud, criterio 1/4·VPPc (caso de mina)",
+      "ppv": 777.5,
+      "fuente": "R1 F25 [V1-04M p24]; FC-33",
+      "estado": "R1"
+    }
+  ],
+  "ppv_regla": "vale el límite del EIA o de la autorización de la operación (DF-14); el de la app (10 mm/s) es de demostración",
+
+  "airblast_db": {
+    "lineal_0_1Hz": 134,
+    "lineal_2Hz": 133,
+    "lineal_6Hz": 129,
+    "C_slow_dBC": 105,
+    "fuente": "30 CFR 816.67(b)",
+    "estado": "R1"
+  },
+
+  "flyrock": {
+    "taco_min_sobre_B": { "valor": 0.7, "fuente": "CK-02; OSMRE-M3", "estado": "R1" },
+    "material_taco_sobre_D": {
+      "rango": [0.05, 0.15],
+      "tipico": 0.1,
+      "fuente": "R1 F06 [P4-C4 p5]; RM-04",
+      "estado": "R1"
+    },
+    "material_taco_mm_D50_130": { "rango": [6, 14], "fuente": "RM-04", "estado": "R1" },
+    "agua_como_taco": { "permitido": false, "fuente": "RM-01", "estado": "R1" },
+    "sdob_cortes_m_kg13": {
+      "craterViolento": 0.62,
+      "incontrolado": 0.92,
+      "controlado": 1.44,
+      "muyControlado": 1.84,
+      "fuente": "FC-34",
+      "estado": "R3"
+    },
+    "sdob_avisos_app": { "severo": 0.4, "bajo": 1.2, "fuente": "CK-08; DF-20", "estado": "R0" },
+    "lundborg": {
+      "Lmax_m": "260*d_in^(2/3)",
+      "fragmento_m": "0.1*d_in^(2/3)",
+      "fuente": "FC-29",
+      "estado": "R1"
+    },
+    "richards_moore": {
+      "frente": "(k^2/g)*(sqrt(m)/B)^2.6",
+      "crater": "(k^2/g)*(sqrt(m)/T)^2.6",
+      "rifling": "crater*sin(2*theta)",
+      "k_blanda": 13.5,
+      "k_dura": 27,
+      "calibrar_en_sitio": true,
+      "fuente": "FC-45; R&M 2004 (secundaria)",
+      "estado": "R1s"
+    },
+    "retardo_filas_min_ms": { "valor": 35, "fuente": "R1 F20 [P5 p77]", "estado": "R1" }
+  },
+
+  "swell": {
+    "factor_defecto": {
+      "valor": 1.5,
+      "rango": [1.35, 1.6],
+      "pila_reciente": [1.2, 1.5],
+      "fuente": "FC-41",
+      "estado": "R1"
+    },
+    "angulo_reposo_deg": { "valor": 37, "rango": [34, 37], "fuente": "FC-42", "estado": "R1" },
+    "desplazamiento_ejemplo_m": {
+      "techo": [6.6, 9.2],
+      "base": [3.2, 4.0],
+      "banco_m": 7.5,
+      "fuente": "Husab 2024",
+      "estado": "R1s (de un solo sitio)"
+    },
+    "perdida_mineral_sin_corregir_pct": {
+      "rango": [9, 24],
+      "fuente": "Thornton 2009",
+      "estado": "R1s"
+    },
+    "modelo_bloques": {
+      "bloque_m": [10, 10, 15],
+      "destinos": ["planta", "stock", "botadero"],
+      "regla": "la salida no debe cruzar el mineral hacia el desmonte; pedir a la app la pila por bloques (FC-39)",
+      "estado": "R0 (criterio)"
+    }
+  },
+
+  "sin_fuente": [
+    "distancia precorte-buffer 0,4-0,6 B (solo fuente secundaria débil)",
+    "radio o filas de adelanto del frente de encendido contra los cortes",
+    "P80 objetivo por tipo de chancadora y relación con la boca de admisión",
+    "diámetro crítico del ANFO",
+    "DIN 4150-3, estructuras sensibles, en la edición vigente",
+    "transición entre submallas de mineral y desmonte"
+  ]
+}

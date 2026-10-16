@@ -27,7 +27,12 @@ describe('loadConfig', () => {
       apiKey: 'k',
       model: 'gemini-flash-latest',
       ttsModel: 'gemini-3.8-flash-lite-tts',
+      liveModel: 'gemini-3.1-flash-live-preview',
+      liveVoice: 'Sulafat',
     });
+    expect(
+      loadConfig({ ...BASE, GEMINI_API_KEY: 'k', GEMINI_LIVE_MODEL: 'live-x' }).ai?.liveModel,
+    ).toBe('live-x');
     expect(
       loadConfig({ ...BASE, GEMINI_API_KEY: 'k', GEMINI_TTS_MODEL: 'tts-x' }).ai?.ttsModel,
     ).toBe('tts-x');

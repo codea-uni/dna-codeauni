@@ -1,4 +1,4 @@
-import type { ApiErrorBody } from '@cronos/api';
+import { ROOM_DESIGN_MAX, type ApiErrorBody } from '@cronos/api';
 import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import type { Auth } from './auth/auth';
@@ -7,6 +7,7 @@ import type { AiConfig } from './config';
 import { aiRoutes } from './routes/ai';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
+import { knowledgeRoutes } from './routes/knowledge';
 import { organizationRoutes } from './routes/organizations';
 import { platformRoutes } from './routes/platform';
 import { projectRoutes } from './routes/projects';
@@ -49,7 +50,9 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   });
 
   // Salas de presentación en VR (D-19): mensajes chicos; el límite corta abusos.
-  void app.register(websocket, { options: { maxPayload: 64 * 1024 } });
+  // La sala de diseño en vivo manda mallas y fotos del proyecto (ROOM_DESIGN_MAX); con 64 KB una
+  // malla de ~200 taladros cortaba el socket y al reconectar se cargaba la foto vieja.
+  void app.register(websocket, { options: { maxPayload: ROOM_DESIGN_MAX } });
   void app.register(
     (api, _opts, done) => {
       healthRoutes(api, deps);
@@ -59,6 +62,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       projectRoutes(api, deps);
       versionRoutes(api, deps);
       topographyRoutes(api, deps);
+      knowledgeRoutes(api, deps);
       aiRoutes(api, deps);
       roomRoutes(api, deps);
       done();

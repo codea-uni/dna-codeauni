@@ -160,4 +160,33 @@ describe.runIf(await databaseAvailable())('sala de VR por proyecto (D-19)', () =
     late.terminate();
     viewer.terminate();
   });
+
+  it('diseño en vivo: cambios y tarjetas llegan a los demás; quien entra tarde recibe la última foto', async () => {
+    const { ws: quest, box: q } = await join(url, designer);
+    await q.next('welcome');
+    const { ws: pc, box: w } = await join(url, admin);
+    await w.next('welcome');
+
+    // Una malla nueva es grande: pasa aunque supere el tope de los mensajes chicos.
+    const ops = [
+      { type: 'holes/add', holes: Array.from({ length: 400 }, (_, i) => ({ id: `h${i}` })) },
+    ];
+    expect(JSON.stringify(ops).length).toBeGreaterThan(4096);
+    quest.send(JSON.stringify({ type: 'ops', seq: 1, ops, label: 'IA: malla' }));
+    expect(await w.next('ops')).toMatchObject({ seq: 1, label: 'IA: malla' });
+    quest.send(JSON.stringify({ type: 'design', seq: 1, snapshot: 'H4sIAAAA' }));
+    expect(await w.next('design')).toMatchObject({ seq: 1, snapshot: 'H4sIAAAA' });
+    quest.send(
+      JSON.stringify({ type: 'feed', item: { kind: 'caption', role: 'user', text: 'Diseña' } }),
+    );
+    expect(await w.next('feed')).toMatchObject({ item: { kind: 'caption', text: 'Diseña' } });
+    // A quien lo mandó no le vuelve.
+    expect(q.got.some((m) => m.type === 'ops' || m.type === 'design')).toBe(false);
+
+    const { ws: late, box: l } = await join(url, admin);
+    expect(await l.next('design')).toMatchObject({ seq: 1, snapshot: 'H4sIAAAA' });
+    quest.terminate();
+    pc.terminate();
+    late.terminate();
+  });
 });

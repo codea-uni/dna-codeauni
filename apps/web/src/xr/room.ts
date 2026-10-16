@@ -13,7 +13,9 @@ import { muckpileEnd, sequenceTimes } from '../analysis/visualize';
 import { API_BASE, serverMode } from '../server/api';
 import { useProjectSession } from '../server/projectSession';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { useUiStore } from '../stores/uiStore';
 import { applyXrLayers, useXrRoom, xrLayers } from './xrState';
+import { createLiveDesign, useLiveFeed } from './liveDesign';
 
 /** Desvío tolerado entre la secuencia del presentador y la propia [s] (supuesto, QUESTIONS §2). */
 const SYNC_DRIFT = 0.1;
@@ -40,6 +42,9 @@ export function setPresenting(on: boolean): void {
   presentInActiveRoom?.(on);
 }
 
+/** La animación que sigue al presentador ya incluye el vuelo de la pila. */
+let playingWithPile = false;
+
 /** La secuencia propia sigue la del presentador (se corrige solo si se aleja más de SYNC_DRIFT). */
 export function followSequence(engine: Engine, seq: RoomState['sequence']): void {
   const s = store();
@@ -53,10 +58,12 @@ export function followSequence(engine: Engine, seq: RoomState['sequence']): void
     return;
   }
   const drift = s.sequenceTime === null ? Infinity : Math.abs(s.sequenceTime - seq.t);
+  const withPile = !!s.muckpile && xrLayers().pile;
   if (seq.playing) {
-    if (s.sequencePlaying && drift <= SYNC_DRIFT) return;
-    const end =
-      s.muckpile && xrLayers().pile ? muckpileEnd(s.muckpile, null) : a.timing.lastTime + 0.3;
+    // Si la pila llegó con la animación ya en marcha, se retoma desde el mismo tiempo con ella.
+    if (s.sequencePlaying && drift <= SYNC_DRIFT && withPile === playingWithPile) return;
+    const end = s.muckpile && withPile ? muckpileEnd(s.muckpile, null) : a.timing.lastTime + 0.3;
+    playingWithPile = withPile;
     engine.playSequence(sequenceTimes(a), seq.speed, seq.t, end);
     s.set({ sequencePlaying: true, sequenceSpeed: seq.speed });
   } else if (s.sequencePlaying || drift > SYNC_DRIFT) {
@@ -80,6 +87,9 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
   const role = (): RoomRole =>
     presenterId !== null && presenterId === you ? 'presenter' : 'viewer';
   let hole: HoleId | null = null;
+  let webWasPlaying = false;
+  /** Presentador por el que la web ya pasó a 3D. */
+  let webIn3dFor: string | null = null;
   let lastSent = '';
   let lastLayers = '';
   let lastHole: string | null = null;
@@ -111,8 +121,29 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
     engine.setAvatars(list);
   };
   const applyState = (state: RoomState) => {
-    // Desde la web no se sigue al presentador: solo se lo ve (no se le cambia la vista a nadie).
-    if (role() !== 'viewer' || !engine.xrMode) return;
+    if (role() !== 'viewer') return;
+    // Desde la web se sigue la secuencia de quien presenta en el visor (se puede apagar con
+    // «Seguir»): al empezar una animación la web pasa sola a 3D para verla. De las capas solo se
+    // toma la pila: sin ella la web corría el tiempo (el panel avanzaba) pero no se veía el vuelo
+    // de los bloques que sí se ve en el visor. Se calcula apenas el visor la tiene prendida, para
+    // que esté lista al disparar.
+    if (!engine.xrMode) {
+      if (!useLiveFeed.getState().follow) return;
+      // El estado solo lo manda quien presenta DENTRO del visor: apenas entra, la web pasa a 3D
+      // (una vez por presentador; si después la persona vuelve a planta, se respeta).
+      if (webIn3dFor !== presenterId) {
+        webIn3dFor = presenterId;
+        if (useUiStore.getState().viewMode !== '3d') useUiStore.getState().setViewMode('3d');
+      }
+      const starts = state.sequence.playing && !webWasPlaying;
+      webWasPlaying = state.sequence.playing;
+      if (state.layers.pile && (starts || !store().muckpile))
+        applyXrLayers({ ...xrLayers(), pile: true });
+      if (starts && useUiStore.getState().viewMode !== '3d')
+        useUiStore.getState().setViewMode('3d');
+      followSequence(engine, state.sequence);
+      return;
+    }
     // Capas y taladro solo cuando el presentador los cambia: entre medio, cada uno mira lo suyo.
     const layers = JSON.stringify(state.layers);
     if (layers !== lastLayers) {
@@ -125,6 +156,9 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
     }
     followSequence(engine, state.sequence);
   };
+
+  const live = createLiveDesign(engine, send);
+  const nameOf = (id: string) => peers.get(id)?.name ?? '—';
 
   const connect = () => {
     const socket = new WebSocket(roomUrl(projectId));
@@ -139,6 +173,7 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
       const parsed = roomServerMessageSchema.safeParse(raw);
       if (!parsed.success) return;
       const m = parsed.data;
+      live.onMessage(m, nameOf);
       switch (m.type) {
         case 'welcome':
           peers.clear();
@@ -146,6 +181,9 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
           you = m.you;
           presenterId = m.presenter;
           if (m.state) applyState(m.state);
+          // Reconectado dentro del visor sin presentador: vuelve a presentar (si no, la web dejaba
+          // de ver la secuencia).
+          if (engine.xrMode && m.presenter === null) send({ type: 'claim' });
           break;
         case 'join':
           peers.set(m.peer.id, m.peer);
@@ -156,6 +194,9 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
           break;
         case 'presenter':
           presenterId = m.id;
+          // Nuevo presentador (o el mismo que volvió a entrar): la próxima animación se sigue.
+          webWasPlaying = false;
+          if (m.id === null) webIn3dFor = null;
           lastSent = '';
           shareState(true);
           break;
@@ -225,6 +266,8 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
     // Al salir del visor se deja de presentar; la sala sigue (desde la web se ve a los demás).
     engine.on('xrSession', (mode) => {
       if (!mode && role() === 'presenter') send({ type: 'release' });
+      // Quien entra al visor presenta (si nadie lo hace): la web ve su secuencia en vivo.
+      if (mode && presenterId === null) send({ type: 'claim' });
       drawAvatars();
     }),
   ];
@@ -241,6 +284,7 @@ export function joinRoom(engine: Engine, projectId: string): () => void {
     clearInterval(poseTimer);
     clearInterval(stateTimer);
     for (const off of offs) off();
+    live.dispose();
     ws?.close();
     engine.setAvatars([]);
     useXrRoom.setState({ role: null, presenter: null, peers: 0 });

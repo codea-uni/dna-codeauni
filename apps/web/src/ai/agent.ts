@@ -1,8 +1,10 @@
 import { ApiError, type AiContent } from '@cronos/api';
+import { logEntry } from './transcript';
 import { create } from 'zustand';
-import { useLocale } from '../i18n';
 import { api } from '../server/api';
-import { AI_FUNCTION_DECLARATIONS, designSummary, READ_ONLY_TOOLS, runTool } from './tools';
+import { loadKnowledge } from './knowledge';
+import { textSystemInstruction } from './prompts';
+import { AI_FUNCTION_DECLARATIONS, orderToolCalls, READ_ONLY_TOOLS, runTool } from './tools';
 
 /**
  * Asistente de IA (Gemini con function calling). La conversación vive aquí; el servidor solo
@@ -29,6 +31,7 @@ export const useAiStore = create<AiState>((set) => ({
   busy: false,
   push: (entry) => {
     set((s) => ({ entries: [...s.entries, entry] }));
+    logEntry(entry);
   },
   reset: () => {
     set({ entries: [], busy: false });
@@ -42,38 +45,6 @@ const MAX_CONTENTS = 80;
 
 let history: AiContent[] = [];
 let controller: AbortController | null = null;
-
-const SYSTEM_PROMPT = `You are the blast design assistant inside Cronos, a mining blast design and simulation app (open pit benches). The user is a mining/blasting engineer who talks to you by voice or text, usually in Spanish. You control the open design ONLY through the provided tools.
-
-Language: answer in the user's language (Spanish by default), short and spoken-friendly (your text may be read aloud): 1–3 sentences, numbers with units, plain text only (no markdown, asterisks, bullets or tables). Go straight to the answer: never restate the request ("dijiste…", "me pides…", "entendí que…").
-
-Precision rules:
-- Use exactly the values the user gives. Never invent burden, spacing, diameter, charges or delays. If a value needed for a change is missing and there is no current value to keep, ask for it.
-- When the user changes one parameter ("ahora en malla cuadrada"), keep the others from the current pattern (the tools do this if you omit them).
-- "Malla triangular", "tresbolillo", "al tresbolillo", "triángulo" mean kind "staggered". "Cuadrada" = square, "rectangular" = rectangular.
-- Rows are numbered from the free face: row 1 is the front row. Hole labels are strings like "12".
-- Product names (explosives, detonators, connectors, primers, stemming) must come from the library (get_design). Connectors can also be given by their delay in ms.
-- Lengths in m, diameter in mm, angles in degrees (inclination from vertical, azimuth clockwise from North), delays in ms, coordinates x = East and y = North.
-
-Perimeter rules (important):
-- If a perimeter exists, ALWAYS work on it: the active one, or the only one, or the one the user names. Never create another perimeter to do a pattern change.
-- Check \`perimeters\` in the design summary before any pattern request. If it is empty there is NO perimeter, even if holes or an old pattern remain: do not create one on your own. Suggest drawing it first (ribbon Diseño → Dibujar perímetro, key B, and mark the free face with key C), and offer to create it yourself if they give its size and position. Only call create_perimeter after the user explicitly says yes; then confirm which side is the free face.
-
-Working style:
-- Act directly when the request is clear; you do not need to ask for confirmation of normal design changes (every change can be undone with "deshacer" or Ctrl+Z).
-- Destructive or large changes the user did not clearly ask for (deleting holes, replacing a charged and tied pattern) need a quick confirmation first.
-- Regenerating a pattern creates new holes without charge or tie-up: tell the user and, if they had them, offer to re-apply the same charge and timing (or do it if they asked for it).
-- To try another tie-up or firing sequence, use set_tie_up (nonel surface, V / line / echelon) or set_electronic_timing; then call get_analysis and report coincident delays (holes within the same 8 ms window) and the firing span.
-- After changes, confirm what you did with the key numbers (holes, burden × spacing, kg, ms). If a tool returns an error, explain it plainly or fix the call.
-- You are not a source of mining rules or formulas: report the app's own checks (get_analysis) instead of inventing recommendations.`;
-
-function systemInstruction(): string {
-  const locale = useLocale.getState().locale;
-  return `${SYSTEM_PROMPT}
-
-Interface language: ${locale === 'en' ? 'English' : 'Spanish'}.
-Current design summary (call get_design for details): ${JSON.stringify(designSummary())}`;
-}
 
 /** Descarta los turnos más viejos sin cortar un par llamada–respuesta de herramientas. */
 function trimmed(contents: AiContent[]): AiContent[] {
@@ -141,11 +112,13 @@ export async function sendToAssistant(text: string, audio?: VoiceAudio): Promise
       : [{ text: text.trim() }],
   });
   try {
+    // Capas de conocimiento del proyecto (empresa, sitio, proyecto) para el contexto del turno.
+    await loadKnowledge();
     for (let step = 0; step < MAX_STEPS; step++) {
       signal.throwIfAborted();
       const res = await api.aiGenerate(
         {
-          systemInstruction: systemInstruction(),
+          systemInstruction: textSystemInstruction(),
           contents: [...history],
           tools: [{ functionDeclarations: AI_FUNCTION_DECLARATIONS }],
         },
@@ -169,7 +142,7 @@ export async function sendToAssistant(text: string, audio?: VoiceAudio): Promise
       const said = textOf(res.content);
       if (said) useAiStore.getState().push({ kind: 'assistant', text: said });
       const responses: Record<string, unknown>[] = [];
-      for (const call of calls) {
+      for (const call of orderToolCalls(calls)) {
         signal.throwIfAborted();
         const out = await runTool(call.name, call.args);
         if (!READ_ONLY_TOOLS.has(call.name) || !out.ok)

@@ -242,3 +242,16 @@ export function nextHoleNumber(holes: readonly Pick<Hole, 'label'>[]): number {
   }
   return max + 1;
 }
+
+/** Renumera una malla que reemplaza a otra usando los menores enteros libres de la voladura. */
+export function numberHolesFromFirstFree(
+  holes: readonly Hole[],
+  remaining: readonly Pick<Hole, 'label'>[],
+): Hole[] {
+  const used = new Set(remaining.map((h) => h.label));
+  let n = 1;
+  return holes.map((h) => {
+    while (used.has(String(n))) n++;
+    return { ...h, label: String(n++) };
+  });
+}

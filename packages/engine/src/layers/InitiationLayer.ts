@@ -19,6 +19,8 @@ export class InitiationLayer {
   readonly root = new Group();
   private readonly lines: LineSegments<BufferGeometry, LineBasicMaterial>;
   private readonly starts: LineSegments<BufferGeometry, LineBasicMaterial>;
+  /** Vértices de conexiones (6 por conexión), ordenadas por la llegada de la señal. */
+  private vertexCount = 0;
 
   constructor() {
     this.lines = new LineSegments(
@@ -70,11 +72,22 @@ export class InitiationLayer {
         pos.push(x, y, z);
         col.push(color.r, color.g, color.b);
       };
-      for (const c of blast.initiation.connections) {
+      const delayOf = (c: Blast['initiation']['connections'][number]) =>
+        c.delayOverride ?? delays.get(c.connectorId) ?? 0;
+      // En el orden en que llega la señal (para dibujar el amarre como se propaga).
+      const arrival = signalArrival(blast, delayOf);
+      const key = (ref: Blast['initiation']['connections'][number]['from']) =>
+        ref.kind === 'hole' ? `h${ref.holeId}` : `n${ref.nodeId}`;
+      const ordered = [...blast.initiation.connections].sort(
+        (p, q) =>
+          (arrival.get(key(p.from)) ?? Infinity) - (arrival.get(key(q.from)) ?? Infinity) ||
+          delayOf(p) - delayOf(q),
+      );
+      for (const c of ordered) {
         const a = resolve(c.from);
         const b = resolve(c.to);
         if (!a || !b) continue;
-        color.setHex(connectorColorHex(c.delayOverride ?? delays.get(c.connectorId) ?? 0));
+        color.setHex(connectorColorHex(delayOf(c)));
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const len = Math.hypot(dx, dy);
@@ -109,9 +122,22 @@ export class InitiationLayer {
         }
       }
     }
+    this.vertexCount = pos.length / 3;
     this.lines.geometry.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    this.lines.geometry.setDrawRange(0, Infinity);
     this.lines.geometry.setAttribute('color', new Float32BufferAttribute(col, 3));
     this.starts.geometry.setAttribute('position', new Float32BufferAttribute(startPos, 3));
+  }
+
+  /** Cantidad de conexiones dibujadas. */
+  get connectionCount(): number {
+    return this.vertexCount / 6;
+  }
+
+  /** Pintado en vivo: dibuja solo la fracción `t` (0–1) del amarre, en orden de la señal. */
+  setReveal(t: number): void {
+    const n = Math.floor(this.connectionCount * Math.min(1, Math.max(0, t)));
+    this.lines.geometry.setDrawRange(0, t >= 1 ? Infinity : n * 6);
   }
 
   dispose(): void {
@@ -119,5 +145,86 @@ export class InitiationLayer {
     this.lines.material.dispose();
     this.starts.geometry.dispose();
     this.starts.material.dispose();
+  }
+}
+
+/**
+ * Llegada de la señal de superficie a cada nodo (taladro `h<id>` o nodo `n<id>`) desde los puntos de
+ * inicio, sumando el retardo de cada conector (camino más corto; para ordenar el dibujo).
+ */
+function signalArrival(
+  blast: Blast,
+  delayOf: (c: Blast['initiation']['connections'][number]) => number,
+): Map<string, number> {
+  const key = (ref: Blast['initiation']['connections'][number]['from']) =>
+    ref.kind === 'hole' ? `h${ref.holeId}` : `n${ref.nodeId}`;
+  const out = new Map<string, { to: string; d: number }[]>();
+  for (const c of blast.initiation.connections) {
+    const k = key(c.from);
+    let list = out.get(k);
+    if (!list) out.set(k, (list = []));
+    list.push({ to: key(c.to), d: Math.max(0, delayOf(c)) });
+  }
+  const time = new Map<string, number>();
+  const queue: { k: string; t: number }[] = [];
+  for (const ip of blast.initiation.initiationPoints) {
+    const k = key(ip.at);
+    if ((time.get(k) ?? Infinity) <= ip.time) continue;
+    time.set(k, ip.time);
+    queue.push({ k, t: ip.time });
+  }
+  const heap = new MinHeap();
+  for (const q of queue) heap.push(q);
+  for (let cur = heap.pop(); cur; cur = heap.pop()) {
+    if (cur.t > (time.get(cur.k) ?? Infinity)) continue;
+    for (const e of out.get(cur.k) ?? []) {
+      const t = cur.t + e.d;
+      if (t < (time.get(e.to) ?? Infinity)) {
+        time.set(e.to, t);
+        heap.push({ k: e.to, t });
+      }
+    }
+  }
+  return time;
+}
+
+/** Montículo binario mínimo por tiempo. */
+class MinHeap {
+  private readonly a: { k: string; t: number }[] = [];
+
+  push(x: { k: string; t: number }): void {
+    const a = this.a;
+    a.push(x);
+    let i = a.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      const ap = a[p];
+      if (!ap || ap.t <= x.t) break;
+      a[i] = ap;
+      i = p;
+    }
+    a[i] = x;
+  }
+
+  pop(): { k: string; t: number } | undefined {
+    const a = this.a;
+    const top = a[0];
+    const last = a.pop();
+    if (a.length === 0 || !last) return top;
+    let i = 0;
+    for (;;) {
+      const l = 2 * i + 1;
+      if (l >= a.length) break;
+      const r = l + 1;
+      const al = a[l];
+      const ar = a[r];
+      const c = ar && al && ar.t < al.t ? r : l;
+      const ac = a[c];
+      if (!ac || ac.t >= last.t) break;
+      a[i] = ac;
+      i = c;
+    }
+    a[i] = last;
+    return top;
   }
 }

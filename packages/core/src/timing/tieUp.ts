@@ -94,11 +94,23 @@ export function rowTieUp(
   );
   if (echelon) {
     // Cada taladro desde el de su columna en la fila anterior (hacia ambos lados de la de inicio).
-    const byCol = (row: number) => new Map((rows.get(row) ?? []).map((h) => [h.col ?? 0, h]));
+    // Sin taladro en la misma columna de la fila anterior (perímetro irregular, filas cortas), se
+    // inicia desde el más cercano de esa fila: antes quedaba suelto, y con él toda su columna.
     const chain = (from: number, to: number) => {
-      const a = byCol(from);
-      for (const [col, h] of byCol(to)) {
-        const prev = a.get(col);
+      const prevRow = rows.get(from) ?? [];
+      const a = new Map(prevRow.map((h) => [h.col ?? 0, h]));
+      for (const h of rows.get(to) ?? []) {
+        let prev = a.get(h.col ?? 0);
+        if (!prev) {
+          let best = Infinity;
+          for (const q of prevRow) {
+            const d = Math.hypot(q.collar.x - h.collar.x, q.collar.y - h.collar.y);
+            if (d < best) {
+              best = d;
+              prev = q;
+            }
+          }
+        }
         if (prev) link(prev.id, h.id, o.interRowConnectorId);
       }
     };

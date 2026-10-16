@@ -169,17 +169,44 @@ export class BlocksLayer {
         x = d.origin[3 * k] ?? 0;
         y = d.origin[3 * k + 1] ?? 0;
         z = d.origin[3 * k + 2] ?? 0;
-      } else if (t < hit) {
-        const tau = t - launch;
-        x = (d.origin[3 * k] ?? 0) + (d.velocity[3 * k] ?? 0) * tau;
-        y = (d.origin[3 * k + 1] ?? 0) + (d.velocity[3 * k + 1] ?? 0) * tau;
-        z = (d.origin[3 * k + 2] ?? 0) + (d.velocity[3 * k + 2] ?? 0) * tau - 0.5 * G * tau * tau;
       } else {
-        const s = Math.min(1, (t - (Number.isFinite(hit) ? hit : launch)) / SETTLE);
-        const w = s * s * (3 - 2 * s);
-        x = lerp(d.impact[3 * k] ?? 0, d.destination[3 * k] ?? 0, w);
-        y = lerp(d.impact[3 * k + 1] ?? 0, d.destination[3 * k + 1] ?? 0, w);
-        z = lerp(d.impact[3 * k + 2] ?? 0, d.destination[3 * k + 2] ?? 0, w);
+        // El sitio final está en la pila ya formada (con el esponjamiento, ~3 de cada 4 bloques
+        // terminan más alto de lo que vuelan). Antes el bloque caía hasta la superficie de ese
+        // instante (aún sin el material que llega después), se hundía y luego subía en línea recta.
+        // Ahora: si su vuelo alcanza la cota final, vuela hasta cruzarla bajando y se desliza a su
+        // sitio; si no, se levanta y avanza de forma continua hasta él, sin bajar antes.
+        const ox = d.origin[3 * k] ?? 0;
+        const oy = d.origin[3 * k + 1] ?? 0;
+        const oz = d.origin[3 * k + 2] ?? 0;
+        const vx = d.velocity[3 * k] ?? 0;
+        const vy = d.velocity[3 * k + 1] ?? 0;
+        const vz = d.velocity[3 * k + 2] ?? 0;
+        const dx = d.destination[3 * k] ?? 0;
+        const dy = d.destination[3 * k + 1] ?? 0;
+        const dz = d.destination[3 * k + 2] ?? 0;
+        const tau = t - launch;
+        const disc = vz * vz + 2 * G * (oz - dz);
+        const tLand = disc >= 0 ? (vz + Math.sqrt(disc)) / G : NaN;
+        if (Number.isFinite(tLand) && tLand > 0) {
+          if (tau < tLand) {
+            x = ox + vx * tau;
+            y = oy + vy * tau;
+            z = oz + vz * tau - 0.5 * G * tau * tau;
+          } else {
+            const s = Math.min(1, (tau - tLand) / SETTLE);
+            const w = s * s * (3 - 2 * s);
+            x = lerp(ox + vx * tLand, dx, w);
+            y = lerp(oy + vy * tLand, dy, w);
+            z = dz;
+          }
+        } else {
+          const span = Math.max(SETTLE, (Number.isFinite(hit) ? hit : launch) - launch + SETTLE);
+          const s = Math.min(1, tau / span);
+          const w = s * s * (3 - 2 * s);
+          x = lerp(ox, dx, w);
+          y = lerp(oy, dy, w);
+          z = lerp(oz, dz, w);
+        }
       }
       this.p.set(x - o.x, y - o.y, z - o.z);
       this.s.set(d.size * GAP, d.size * GAP, (d.height[k] ?? d.size) * GAP);

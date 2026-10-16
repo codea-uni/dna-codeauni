@@ -65,6 +65,9 @@ async function load(projectId: string, version?: number) {
  * Abrir un proyecto: metadatos y contenido desde la API; el JSON se parsea, migra y valida en el
  * worker (regla 2). Solo lectura para el revisor (H-801) y para versiones anteriores.
  */
+/** Número de la última apertura pedida (las anteriores que terminen tarde se descartan). */
+let openTicket = 0;
+
 export const useProjectSession = create<ProjectSessionState>((set, get) => ({
   status: 'idle',
   current: null,
@@ -74,6 +77,9 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
   error: null,
 
   open: async (projectId, version) => {
+    // Aperturas seguidas (p. ej. el agente abre uno y otro dispositivo pide otro): solo cuenta la
+    // última. Si una anterior termina después, no carga su contenido bajo el proyecto nuevo.
+    const ticket = ++openTicket;
     const cur = get().current;
     const same =
       cur?.projectId === projectId &&
@@ -82,6 +88,7 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
     set({ status: 'loading', error: null, draft: null });
     try {
       const { detail, base, parsed } = await load(projectId, version);
+      if (ticket !== openTicket) return;
       if (!base) {
         set({ status: 'error', error: 'workspace.error.notFound' });
         return;
@@ -95,6 +102,7 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
       session.document.setReadOnly(false);
       setDraftBase(editable ? base.id : null);
       if (parsed.file.embeddedAssets) await storeEmbeddedAssets(parsed.file.embeddedAssets);
+      if (ticket !== openTicket) return;
       // La topografía que no esté en este navegador se baja de la mina (D-16).
       const mineId = detail.mine.id;
       setRemoteAssetSource((hash) => api.asset(mineId, hash));
@@ -119,7 +127,7 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
         if (draft && Date.parse(draft.savedAt) > Date.parse(base.createdAt)) set({ draft });
       }
     } catch (err) {
-      set({ status: 'error', error: workspaceErrorKey(err) });
+      if (ticket === openTicket) set({ status: 'error', error: workspaceErrorKey(err) });
     }
   },
 
@@ -159,6 +167,7 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
   },
 
   close: () => {
+    openTicket++;
     setRemoteAssetSource(null);
     session.document.setReadOnly(false);
     setDraftBase(null);

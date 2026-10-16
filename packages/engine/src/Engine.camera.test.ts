@@ -87,6 +87,7 @@ describe('cámara al cambiar la geometría', () => {
       scene3dDirty: false,
       rebuildAll: vi.fn(),
       stopSequence,
+      resetBuild: vi.fn(),
       setMuckpile: vi.fn(() => {
         oldPile = false;
       }),

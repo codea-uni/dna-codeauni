@@ -246,6 +246,11 @@ export class XrPanel {
     return this.dragging !== '';
   }
 
+  /** ¿El botón bajo el rayo es un slider? (no se elige por permanencia: se arrastra). */
+  get hoveredSlider(): boolean {
+    return this.cell(this.hovered)?.slider !== undefined;
+  }
+
   dispose(): void {
     this.texture.dispose();
     this.mesh.geometry.dispose();

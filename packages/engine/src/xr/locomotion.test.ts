@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { SNAP_ANGLE, axis, flySpeed, flyVelocity, snapTurn } from './locomotion';
+import {
+  ARC_GRAVITY,
+  ARC_SPEED,
+  SNAP_ANGLE,
+  axis,
+  flySpeed,
+  flyVelocity,
+  snapTurn,
+  teleportArc,
+} from './locomotion';
 
 describe('locomoción XR', () => {
   it('zona muerta y reescalado del stick', () => {
@@ -40,5 +49,33 @@ describe('locomoción XR', () => {
     s = snapTurn(s.armed, 0.1);
     expect(s.armed).toBe(true);
     expect(snapTurn(s.armed, -0.8).angle).toBe(SNAP_ANGLE);
+  });
+});
+
+describe('arco del teletransporte', () => {
+  const flat = () => 0;
+
+  it('cae donde lo dice el tiro parabólico (terreno plano)', () => {
+    // Tiro a 45° desde 1,7 m: z(t) = 1,7 + v·sen45·t − g·t²/2 = 0 (cinemática, no regla minera).
+    const s = Math.SQRT1_2;
+    const { hit, points } = teleportArc({ x: 0, y: 0, z: 1.7 }, { x: 0, y: s, z: s }, flat);
+    const vs = ARC_SPEED * s;
+    const t = (vs + Math.sqrt(vs * vs + 2 * ARC_GRAVITY * 1.7)) / ARC_GRAVITY;
+    expect(hit?.y).toBeCloseTo(vs * t, 3);
+    expect(hit?.x).toBeCloseTo(0, 9);
+    expect(hit?.z).toBe(0);
+    expect(points.length).toBeGreaterThan(10);
+  });
+
+  it('se detiene en un talud más alto que el punto de partida', () => {
+    // Pared vertical de 5 m a 10 m al Norte.
+    const wall = (_x: number, y: number) => (y >= 10 ? 5 : 0);
+    const { hit } = teleportArc({ x: 0, y: 0, z: 1.7 }, { x: 0, y: 0.8, z: 0.6 }, wall);
+    expect(hit?.z).toBe(5);
+    expect(hit?.y).toBeGreaterThanOrEqual(10);
+  });
+
+  it('sin terreno debajo no hay llegada', () => {
+    expect(teleportArc({ x: 0, y: 0, z: 2 }, { x: 0, y: 1, z: 0 }, () => null).hit).toBeNull();
   });
 });

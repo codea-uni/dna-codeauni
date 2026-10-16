@@ -95,27 +95,40 @@ export class SiteLayer {
     this.zone.material.gapSize = 6 * metersPerPixel;
   }
 
-  /** Diana de radio `sizeM` metros en cada punto de control. */
-  setMarkers(points: readonly MonitoringPoint[], origin: Vec3, sizeM: number): void {
+  /**
+   * Diana de radio `sizeM` metros en cada punto de control. En 3D, con `ground` la diana va sobre el
+   * terreno y con `poleM` lleva un poste vertical de ese alto (se ve desde lejos: una comunidad a
+   * más de 1 km era una diana de 3 m imposible de encontrar).
+   */
+  setMarkers(
+    points: readonly MonitoringPoint[],
+    origin: Vec3,
+    sizeM: number,
+    ground: Ground | null = null,
+    poleM = 0,
+  ): void {
     const pos: number[] = [];
     const seg = 16;
     for (const p of points) {
       const cx = p.position.x - origin.x;
       const cy = p.position.y - origin.y;
+      const g = ground?.(p.position.x, p.position.y);
+      const z = g === null || g === undefined ? 0 : g - origin.z - this.root.position.z;
       for (let k = 0; k < seg; k++) {
         const a0 = (k / seg) * Math.PI * 2;
         const a1 = ((k + 1) / seg) * Math.PI * 2;
         pos.push(
           cx + Math.cos(a0) * sizeM,
           cy + Math.sin(a0) * sizeM,
-          0,
+          z,
           cx + Math.cos(a1) * sizeM,
           cy + Math.sin(a1) * sizeM,
-          0,
+          z,
         );
       }
       const s = sizeM * 1.6;
-      pos.push(cx - s, cy, 0, cx + s, cy, 0, cx, cy - s, 0, cx, cy + s, 0);
+      pos.push(cx - s, cy, z, cx + s, cy, z, cx, cy - s, z, cx, cy + s, z);
+      if (poleM > 0) pos.push(cx, cy, z, cx, cy, z + poleM);
     }
     this.markers.geometry.setAttribute('position', new Float32BufferAttribute(pos, 3));
   }

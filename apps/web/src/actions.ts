@@ -8,6 +8,7 @@ import {
   makeGroup,
   newId,
   nextHoleNumber,
+  numberHolesFromFirstFree,
   rowTieUp,
   type Blast,
   type BoundaryId,
@@ -296,7 +297,16 @@ export async function generatePattern(
       blast.calcParams.subdrillConvention,
     );
     // Con el banco sobre la topografía, cada boca va en el terreno (D-16).
-    const { holes, outside, floor } = await drapeNewHoles(blast, generated, boundary);
+    const { holes, outside, floor } = await drapeNewHoles(
+      blast,
+      replaced.length > 0
+        ? numberHolesFromFirstFree(
+            generated,
+            blast.holes.filter((h) => !replaced.some((p) => p.id === h.patternId)),
+          )
+        : generated,
+      boundary,
+    );
     const t1 = performance.now();
     // Si el piso no correspondía a las bocas sobre el terreno (S-18), se ajusta en el mismo paso
     // y solo el del perímetro de esta malla: los demás perímetros no se mueven.

@@ -11,7 +11,7 @@ import { PublishDialog } from '../server/PublishDialog';
 import { useServerDialogs } from '../server/ProjectContext';
 import { hasUnpublished, useProjectSession } from '../server/projectSession';
 import { VersionHistoryDialog } from '../server/VersionHistoryDialog';
-import { session } from '../session';
+import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 
 /**
@@ -85,7 +85,12 @@ export function ProjectEditor() {
     (status === 'ready' &&
       current?.projectId === projectId &&
       (version === undefined ? !current.viewingOld : current.base.number === version));
-  if (!loaded)
+  // En el visor, cambiar de proyecto (p. ej. por voz) no desmonta el editor: desmontarlo cierra
+  // la sesión VR y la voz. El documento se reemplaza en su sitio al terminar de cargar. Incluye el
+  // primer render tras navegar (todavía «ready» con el proyecto anterior, antes de que el efecto
+  // pase a «loading»): ahí también se desmontaba y el visor salía de la VR.
+  const switchingInXr = current !== null && Boolean(getEngine()?.xrMode);
+  if (!loaded && !switchingInXr)
     return (
       <div className="loading-screen" role="status">
         {t('projects.loading')}

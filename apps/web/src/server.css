@@ -219,6 +219,24 @@ a.button-link.primary:hover {
   border-right: 1px solid var(--border);
 }
 
+.auth-logo {
+  height: 30px;
+  width: auto;
+  justify-self: start;
+}
+
+.auth-hero .wordmark-sub {
+  font-size: 0.45em;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.auth-hero {
+  background:
+    radial-gradient(1200px 600px at 10% 0%, rgba(72, 105, 255, 0.16), transparent 60%), var(--bg);
+}
+
 .auth-hero .wordmark {
   font-family: var(--font-display);
   font-size: 44px;
@@ -410,6 +428,24 @@ a.button-link.primary:hover {
     padding: 24px 16px;
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+
+  .auth-logo {
+    height: 30px;
+    width: auto;
+    justify-self: start;
+  }
+
+  .auth-hero .wordmark-sub {
+    font-size: 0.45em;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0;
+  }
+
+  .auth-hero {
+    background:
+      radial-gradient(1200px 600px at 10% 0%, rgba(72, 105, 255, 0.16), transparent 60%), var(--bg);
   }
 
   .auth-hero .wordmark {
@@ -1317,4 +1353,47 @@ a.button-link.primary:hover {
 .modal-backdrop,
 .modal {
   overscroll-behavior: contain;
+}
+
+/* Capas de conocimiento del agente */
+.kb-doc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 12px 4px;
+}
+
+.kb-doc .row-title {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.kb-doc .actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.kb-content {
+  grid-column: 1 / -1;
+  max-height: 22rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+}
+
+.kb-text {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+}
+
+.kb-text textarea {
+  width: 100%;
+  font: inherit;
+  resize: vertical;
 }

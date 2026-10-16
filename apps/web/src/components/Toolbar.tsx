@@ -189,7 +189,10 @@ export function Toolbar() {
 
   return (
     <header className="toolbar">
-      <strong className="brand">Cronos</strong>
+      <strong className="brand" translate="no">
+        <img className="brand-logo" src="/brand/codeauni-blanco.png" alt="CODEa UNI" />
+        <span>Cronos</span>
+      </strong>
       {serverMode && <ProjectContext />}
       <nav
         className="ribbon-tabs"

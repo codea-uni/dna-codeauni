@@ -21,6 +21,12 @@ const envSchema = z.object({
   GEMINI_MODEL: z.string().min(1).default('gemini-flash-latest'),
   /** Modelo de voz para leer las respuestas en el visor (`/api/ai/speech`). */
   GEMINI_TTS_MODEL: z.string().min(1).default('gemini-3.8-flash-lite-tts'),
+  /** Modelo de voz a voz en vivo (`/api/ai/live-token`): el más rápido medido en FleetView. */
+  GEMINI_LIVE_MODEL: z.string().min(1).default('gemini-3.1-flash-live-preview'),
+  /** Voz de Gemini Live. */
+  GEMINI_LIVE_VOICE: z.string().min(1).default('Sulafat'),
+  /** Carpeta donde guardar las conversaciones con el asistente (JSONL por día); sin ella, no se guardan. */
+  AI_LOG_DIR: z.string().min(1).optional(),
 });
 
 export interface ServerConfig {
@@ -41,6 +47,11 @@ export interface AiConfig {
   model: string;
   /** Modelo de texto a voz (por defecto el de `GEMINI_TTS_MODEL`). */
   ttsModel?: string;
+  /** Modelo de Gemini Live y su voz (por defecto los de `GEMINI_LIVE_MODEL` y `GEMINI_LIVE_VOICE`). */
+  liveModel?: string;
+  liveVoice?: string;
+  /** Carpeta del registro de conversaciones (`AI_LOG_DIR`). */
+  logDir?: string;
 }
 
 /** Nombres anteriores de las variables del superadministrador (siguen valiendo). */
@@ -78,7 +89,14 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
           }
         : null,
     ai: e.GEMINI_API_KEY
-      ? { apiKey: e.GEMINI_API_KEY, model: e.GEMINI_MODEL, ttsModel: e.GEMINI_TTS_MODEL }
+      ? {
+          apiKey: e.GEMINI_API_KEY,
+          model: e.GEMINI_MODEL,
+          ttsModel: e.GEMINI_TTS_MODEL,
+          liveModel: e.GEMINI_LIVE_MODEL,
+          liveVoice: e.GEMINI_LIVE_VOICE,
+          ...(e.AI_LOG_DIR ? { logDir: e.AI_LOG_DIR } : {}),
+        }
       : null,
   };
 }

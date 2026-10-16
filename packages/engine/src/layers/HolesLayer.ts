@@ -31,6 +31,12 @@ export class HolesLayer {
   /** Boca y fondo por slot en coordenadas de render: [cx, cy, cz, tx, ty, tz]. */
   private geom = new Float32Array(INITIAL_CAPACITY * 6);
   private selected = new Uint8Array(INITIAL_CAPACITY);
+  /**
+   * Pintado en vivo (`build/BuildReveal.ts`) por slot: tamaño del símbolo (0 = oculto, > 1 = el
+   * «pop» al aparecer) y fracción perforada de la traza. 1 y 1 = taladro normal.
+   */
+  private revealSymbol = new Float32Array(INITIAL_CAPACITY).fill(1);
+  private revealDrill = new Float32Array(INITIAL_CAPACITY).fill(1);
   private hoverSlot = -1;
   private previewIds: HoleId[] = [];
   /** Color base por taladro (p.ej. por tiempo o kg); null = color por defecto. */
@@ -53,17 +59,22 @@ export class HolesLayer {
         uniform float uRadiusPx;
         varying vec2 vUv;
         varying vec3 vColor;
+        varying float vGlow;
         void main() {
+          // El tamaño del símbolo viaja en la escala de la matriz (pintado en vivo; 1 = normal).
+          float reveal = instanceMatrix[0][0];
           vec4 center = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-          center.xy += position.xy * (uRadiusPx * 2.0 / uViewport) * center.w;
+          center.xy += position.xy * (uRadiusPx * 2.0 / uViewport) * center.w * reveal;
           gl_Position = center;
           vUv = position.xy;
           vColor = instanceColor;
+          vGlow = clamp((reveal - 1.0) * 2.0, 0.0, 1.0);
         }
       `,
       fragmentShader: /* glsl */ `
         varying vec2 vUv;
         varying vec3 vColor;
+        varying float vGlow;
         void main() {
           float r = length(vUv);
           float aa = fwidth(r);
@@ -71,6 +82,7 @@ export class HolesLayer {
           if (alpha <= 0.0) discard;
           float ring = smoothstep(0.62 - aa, 0.62, r);
           vec3 color = mix(vColor * 0.28, vColor, ring);
+          color = mix(color, vec3(0.75, 0.9, 1.0), vGlow);
           gl_FragColor = vec4(color, alpha);
           #include <colorspace_fragment>
         }
@@ -121,6 +133,8 @@ export class HolesLayer {
     this.hoverSlot = -1;
     this.previewIds = [];
     this.selected.fill(0);
+    this.revealSymbol.fill(1);
+    this.revealDrill.fill(1);
     this.flush();
   }
 
@@ -146,6 +160,15 @@ export class HolesLayer {
     this.writeSlot(slot, 0, 0);
   }
 
+  /** Pintado en vivo: tamaño del símbolo (0 oculto, > 1 aparece) y fracción perforada (0–1). */
+  setReveal(id: HoleId, symbol: number, drill: number): void {
+    const slot = this.slotOf.get(id);
+    if (slot === undefined) return;
+    this.revealSymbol[slot] = symbol;
+    this.revealDrill[slot] = drill;
+    this.writeSlot(slot, 0, 0);
+  }
+
   remove(id: HoleId): void {
     const slot = this.slotOf.get(id);
     if (slot === undefined) return;
@@ -156,11 +179,15 @@ export class HolesLayer {
       if (lastId === undefined) throw new Error('Slot de taladro inconsistente');
       this.geom.copyWithin(slot * 6, last * 6, last * 6 + 6);
       this.selected[slot] = this.selected[last] ?? 0;
+      this.revealSymbol[slot] = this.revealSymbol[last] ?? 1;
+      this.revealDrill[slot] = this.revealDrill[last] ?? 1;
       this.ids[slot] = lastId;
       this.slotOf.set(lastId, slot);
       if (this.hoverSlot === last) this.hoverSlot = slot;
       this.writeSlot(slot, 0, 0);
     }
+    this.revealSymbol[last] = 1;
+    this.revealDrill[last] = 1;
     this.slotOf.delete(id);
     this.ids.length = last;
     this.count = last;
@@ -281,6 +308,12 @@ export class HolesLayer {
     const selected = new Uint8Array(capacity);
     selected.set(this.selected);
     this.selected = selected;
+    const symbol = new Float32Array(capacity).fill(1);
+    symbol.set(this.revealSymbol);
+    this.revealSymbol = symbol;
+    const drill = new Float32Array(capacity).fill(1);
+    drill.set(this.revealDrill);
+    this.revealDrill = drill;
     const trace = new Float32Array(capacity * 6);
     trace.set(this.tracePositions);
     this.tracePositions = trace;
@@ -297,15 +330,17 @@ export class HolesLayer {
     const cx = (g[o] ?? 0) + dx;
     const cy = (g[o + 1] ?? 0) + dy;
     const m = this.mesh.instanceMatrix.array;
+    m[slot * 16] = this.revealSymbol[slot] ?? 1;
     m[slot * 16 + 12] = cx;
     m[slot * 16 + 13] = cy;
     m[slot * 16 + 14] = 0;
     const t = this.tracePositions;
+    const drill = this.revealDrill[slot] ?? 1;
     t[o] = cx;
     t[o + 1] = cy;
     t[o + 2] = 0;
-    t[o + 3] = (g[o + 3] ?? 0) + dx;
-    t[o + 4] = (g[o + 4] ?? 0) + dy;
+    t[o + 3] = cx + ((g[o + 3] ?? 0) + dx - cx) * drill;
+    t[o + 4] = cy + ((g[o + 4] ?? 0) + dy - cy) * drill;
     t[o + 5] = 0;
     this.writeColor(slot);
   }

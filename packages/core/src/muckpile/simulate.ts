@@ -693,7 +693,17 @@ export function simulateMuckpile(
   };
   const grids = cellAttributes(hm, before, blocks, domains.length);
   const stats = {
-    ...pileStats(blast, blocks, hm, before, inFootprint, params.swell, staticBlocks),
+    ...pileStats(
+      blast,
+      blocks,
+      hm,
+      before,
+      inFootprint,
+      params.swell,
+      staticBlocks,
+      // Piso de lo volado (cada perímetro puede tener el suyo): la altura de la pila se mide desde él.
+      Math.min(...footprints.map((f) => f.floor)),
+    ),
     wedgeVolume,
   };
   const classes = options.sizeClasses ?? DEFAULT_SIZE_CLASSES;
@@ -1089,6 +1099,7 @@ function pileStats(
   inFootprint: Uint8Array,
   swell: number,
   staticBlocks: number,
+  floor: number,
 ): Omit<MuckpileStats, 'wedgeVolume'> {
   const l = hm.lattice;
   let inSitu = 0;
@@ -1176,8 +1187,8 @@ function pileStats(
     maxDrop: Number.isFinite(maxDrop) ? maxDrop : 0,
     meanDrop: footCells > 0 ? sumDrop / footCells : 0,
     lateralSpread: Number.isFinite(spread) ? spread : 0,
-    maxElevation: Number.isFinite(maxElevation) ? maxElevation : blast.bench.floorElevation,
-    maxHeight: Number.isFinite(maxElevation) ? maxElevation - blast.bench.floorElevation : 0,
+    maxElevation: Number.isFinite(maxElevation) ? maxElevation : floor,
+    maxHeight: Number.isFinite(maxElevation) ? maxElevation - floor : 0,
     direction,
     blocks: blocks.count,
     staticBlocks,

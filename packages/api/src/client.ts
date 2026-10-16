@@ -55,9 +55,13 @@ import {
 } from './projects';
 import {
   aiGenerateResponseSchema,
+  aiLiveTokenResponseSchema,
   aiSpeechResponseSchema,
   type AiGenerateRequest,
   type AiGenerateResponse,
+  type AiLiveTokenRequest,
+  type AiLiveTokenResponse,
+  type AiLogRequest,
   type AiSpeechRequest,
   type AiSpeechResponse,
 } from './ai';
@@ -68,6 +72,28 @@ import {
   type AssetInfo,
   type MineSurvey,
 } from './topography';
+import {
+  companyExplosiveListSchema,
+  companyExplosiveSchema,
+  designPresetListSchema,
+  designPresetSchema,
+  type CreateDesignPreset,
+  type DesignPreset,
+  knowledgeDocDetailSchema,
+  knowledgeDocListSchema,
+  knowledgeDocSchema,
+  knowledgeSearchResultSchema,
+  projectKnowledgeSchema,
+  type CompanyExplosive,
+  type CreateKnowledgeDoc,
+  type KnowledgeDoc,
+  type KnowledgeDocDetail,
+  type KnowledgeHit,
+  type KnowledgeLayer,
+  type ProjectKnowledge,
+  type UpdateKnowledgeDoc,
+} from './knowledge';
+import type { Explosive } from '@cronos/core';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
 export class ApiError extends Error {
@@ -154,6 +180,20 @@ export class ApiClient {
       body,
       ...(signal ? { signal } : {}),
     });
+  }
+
+  /** Token de un uso para la voz en vivo (Gemini Live, el audio va directo a Google). */
+  aiLiveToken(body: AiLiveTokenRequest, signal?: AbortSignal): Promise<AiLiveTokenResponse> {
+    return this.request('/ai/live-token', aiLiveTokenResponseSchema, {
+      method: 'POST',
+      body,
+      ...(signal ? { signal } : {}),
+    });
+  }
+
+  /** Registro de la conversación con el asistente (para revisar sesiones de prueba). */
+  async aiLog(body: AiLogRequest): Promise<void> {
+    await this.requestText('/ai/log', { method: 'POST', body });
   }
 
   health(signal?: AbortSignal): Promise<Health> {
@@ -409,6 +449,90 @@ export class ApiClient {
     return (
       await this.request(`/organizations/${enc(orgId)}/audit?limit=${limit}`, auditListSchema)
     ).events;
+  }
+
+  // Capas de conocimiento del agente
+
+  knowledge(layer: KnowledgeLayer, ownerId: string | null) {
+    const owner = ownerId ? `&ownerId=${enc(ownerId)}` : '';
+    return this.request(`/knowledge?layer=${layer}${owner}`, knowledgeDocListSchema);
+  }
+
+  knowledgeDoc(id: string): Promise<KnowledgeDocDetail> {
+    return this.request(`/knowledge/${enc(id)}`, knowledgeDocDetailSchema);
+  }
+
+  createKnowledgeDoc(body: CreateKnowledgeDoc): Promise<KnowledgeDoc> {
+    return this.request('/knowledge', knowledgeDocSchema, { method: 'POST', body });
+  }
+
+  updateKnowledgeDoc(id: string, body: UpdateKnowledgeDoc): Promise<KnowledgeDoc> {
+    return this.request(`/knowledge/${enc(id)}`, knowledgeDocSchema, { method: 'PATCH', body });
+  }
+
+  async deleteKnowledgeDoc(id: string): Promise<void> {
+    await this.request(`/knowledge/${enc(id)}`, okSchema, { method: 'DELETE' });
+  }
+
+  /** Capas que alcanzan al proyecto y catálogo de su empresa (contexto del agente). */
+  projectKnowledge(projectId: string, signal?: AbortSignal): Promise<ProjectKnowledge> {
+    return this.request(
+      `/projects/${enc(projectId)}/knowledge`,
+      projectKnowledgeSchema,
+      signal ? { signal } : {},
+    );
+  }
+
+  async searchKnowledge(
+    projectId: string,
+    q: string,
+    options: { layer?: KnowledgeLayer; limit?: number } = {},
+  ): Promise<KnowledgeHit[]> {
+    const params = new URLSearchParams({ q });
+    if (options.layer) params.set('layer', options.layer);
+    if (options.limit) params.set('limit', String(options.limit));
+    return (
+      await this.request(
+        `/projects/${enc(projectId)}/knowledge/search?${params.toString()}`,
+        knowledgeSearchResultSchema,
+      )
+    ).hits;
+  }
+
+  async companyExplosives(orgId: string): Promise<CompanyExplosive[]> {
+    return (
+      await this.request(`/organizations/${enc(orgId)}/explosives`, companyExplosiveListSchema)
+    ).explosives;
+  }
+
+  saveCompanyExplosive(orgId: string, explosive: Explosive): Promise<CompanyExplosive> {
+    return this.request(
+      `/organizations/${enc(orgId)}/explosives/${enc(explosive.id)}`,
+      companyExplosiveSchema,
+      { method: 'PUT', body: { explosive } },
+    );
+  }
+
+  async presets(projectId: string): Promise<DesignPreset[]> {
+    return (await this.request(`/projects/${enc(projectId)}/presets`, designPresetListSchema))
+      .presets;
+  }
+
+  createPreset(projectId: string, body: CreateDesignPreset): Promise<DesignPreset> {
+    return this.request(`/projects/${enc(projectId)}/presets`, designPresetSchema, {
+      method: 'POST',
+      body,
+    });
+  }
+
+  async deletePreset(id: string): Promise<void> {
+    await this.request(`/presets/${enc(id)}`, okSchema, { method: 'DELETE' });
+  }
+
+  async deleteCompanyExplosive(orgId: string, id: string): Promise<void> {
+    await this.request(`/organizations/${enc(orgId)}/explosives/${enc(id)}`, okSchema, {
+      method: 'DELETE',
+    });
   }
 }
 

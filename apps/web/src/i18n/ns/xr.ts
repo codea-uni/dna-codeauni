@@ -3,9 +3,13 @@
  * taladro dentro del visor. `satisfies` exige las mismas claves en ambos idiomas.
  */
 export const es = {
+  'xr.liveFeed.badge': 'EN VIVO',
+  'xr.liveFeed.follow': 'Seguir animación',
+  'xr.liveFeed.following': 'Siguiendo animación',
+  'xr.liveFeed.agent': 'Agente',
   'xr.enterVr': 'Entrar en VR',
   'xr.hint':
-    'Entra con un visor (Meta Quest): maqueta sobre tu mesa, dentro de la voladura o maqueta aislada. Con el servidor se edita por voz manteniendo A.',
+    'Entra con un visor (Meta Quest): maqueta sobre tu mesa, dentro de la voladura o maqueta aislada. Con el servidor, el agente de voz escucha siempre: diseña, carga y amarra hablando, solo con las manos.',
   'xr.error': 'No se pudo abrir el visor: {message}',
   'xr.group': 'Realidad virtual',
   'xr.room.presenting': 'Presentando · {n} conectados',
@@ -53,6 +57,29 @@ export const es = {
   'xr.voice.greeting':
     'Hola, soy el asistente de Cronos. Mantén A y háblame: puedo explicarte esta voladura, cambiar la malla o darte recomendaciones para mejorarla.',
   'xr.voice.error': 'No se pudo usar la voz: {message}',
+  'xr.live.connecting': 'Conectando con el asistente…',
+  'xr.live.ready': 'Te escucho · habla cuando quieras',
+  'xr.live.muted': 'Micrófono en pausa · toca Hablar',
+  'xr.live.listening': 'Escuchando…',
+  'xr.live.latency': 'Respondió en {s} s',
+  'xr.live.pause': '⏸ Pausar micrófono',
+  'xr.live.resume': '● Escuchar',
+  'xr.live.retry': '⟲ Reintentar',
+  'xr.hint.live': 'Habla cuando quieras · pausa o interrumpe',
+  'xr.hint.hands':
+    'Manos: pellizco corto elige · pellizca y mueve para arrastrar · dos manos: girar y acercar',
+  'xr.hint.trigger': 'Gatillo',
+  'xr.hint.pick': 'elegir con cualquiera de los dos controles',
+  'xr.hint.stick': 'Palanca',
+  'xr.hint.walkStick': 'adelante: arco de salto · lados: girar',
+  'xr.hint.moveWalk': 'panel: moverlo · con la palanca: subir o bajar',
+  'xr.hint.exit': 'mantener: salir del visor',
+  'xr.hud.title': 'Secuencia de disparo',
+  'xr.hud.done': 'Disparo completo',
+  'xr.hud.time': 't = {ms} ms',
+  'xr.hud.holes': '{n} de {total} taladros disparados',
+  'xr.live.greetPrompt':
+    '[El usuario acaba de entrar al visor de realidad virtual] Salúdalo en una sola frase como el agente de voladura de CODEa UNI y ofrécele diseñar o revisar esta voladura por voz.',
 
   'xr.legend.vibration': 'Vibración · PPV',
   'xr.legend.airblast': 'Sobrepresión de aire',
@@ -73,14 +100,20 @@ export const es = {
   'xr.info.deck': '{name} · {length}',
   'xr.info.deckCharged': '{name} · {length} · {kg} kg',
   'xr.info.initiator': 'Iniciador: {name} a {depth}',
+  'xr.info.detDelay': 'Retardo del detonador: {ms} ms',
+  'xr.manual': '¿Cómo moverse en VR?',
   'xr.info.loadingFactor': 'Factor de carga: {value} kg/m³',
   'xr.info.diameter': 'Diámetro: {value} {unit}',
 };
 
 export const en = {
+  'xr.liveFeed.badge': 'LIVE',
+  'xr.liveFeed.follow': 'Follow animation',
+  'xr.liveFeed.following': 'Following animation',
+  'xr.liveFeed.agent': 'Agent',
   'xr.enterVr': 'Enter VR',
   'xr.hint':
-    'Enter with a headset (Meta Quest): tabletop model on your table, inside the blast or isolated model. With the server, edit by voice holding A.',
+    'Enter with a headset (Meta Quest): tabletop model on your table, inside the blast or isolated model. With the server, the voice agent always listens: design, load and tie up by talking, hands only.',
   'xr.error': 'Could not open the headset: {message}',
   'xr.group': 'Virtual reality',
   'xr.room.presenting': 'Presenting · {n} connected',
@@ -128,6 +161,28 @@ export const en = {
   'xr.voice.greeting':
     "Hi, I'm the Cronos assistant. Hold A and talk to me: I can explain this blast, change the pattern or give you recommendations to improve it.",
   'xr.voice.error': 'Voice unavailable: {message}',
+  'xr.live.connecting': 'Connecting to the assistant…',
+  'xr.live.ready': 'Listening · speak whenever you want',
+  'xr.live.muted': 'Microphone paused · tap Talk',
+  'xr.live.listening': 'Listening…',
+  'xr.live.latency': 'Answered in {s} s',
+  'xr.live.pause': '⏸ Pause microphone',
+  'xr.live.resume': '● Listen',
+  'xr.live.retry': '⟲ Retry',
+  'xr.hint.live': 'Speak whenever you want · pause or interrupt',
+  'xr.hint.hands': 'Hands: short pinch picks · pinch and move to drag · both hands: rotate and zoom',
+  'xr.hint.trigger': 'Trigger',
+  'xr.hint.pick': 'pick with either controller',
+  'xr.hint.stick': 'Stick',
+  'xr.hint.walkStick': 'forward: jump arc · sides: turn',
+  'xr.hint.moveWalk': 'panel: move it · with the stick: up or down',
+  'xr.hint.exit': 'hold: leave the headset',
+  'xr.hud.title': 'Firing sequence',
+  'xr.hud.done': 'Firing complete',
+  'xr.hud.time': 't = {ms} ms',
+  'xr.hud.holes': '{n} of {total} holes fired',
+  'xr.live.greetPrompt':
+    '[The user just entered the VR headset] Greet them in one sentence as the CODEa UNI blast design agent and offer to design or review this blast by voice.',
 
   'xr.legend.vibration': 'Vibration · PPV',
   'xr.legend.airblast': 'Airblast overpressure',
@@ -148,6 +203,8 @@ export const en = {
   'xr.info.deck': '{name} · {length}',
   'xr.info.deckCharged': '{name} · {length} · {kg} kg',
   'xr.info.initiator': 'Initiator: {name} at {depth}',
+  'xr.info.detDelay': 'Detonator delay: {ms} ms',
+  'xr.manual': 'How to move in VR',
   'xr.info.loadingFactor': 'Loading factor: {value} kg/m³',
   'xr.info.diameter': 'Diameter: {value} {unit}',
 } satisfies Record<keyof typeof es, string>;

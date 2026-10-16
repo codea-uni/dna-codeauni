@@ -1,0 +1,86 @@
+# Copia de prueba de la rama diseno-agente (agente de voladura por voz), aparte de producción:
+# contenedores, red, base y dominio propios. Uso:
+#   docker compose -p dna-agente -f docker-compose.agente.yml --env-file .env.agente up -d --build
+# El nginx apunta a la API por el nombre del contenedor (en la red `proxy` hay otro alias «api»).
+services:
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        VITE_API_URL: /api
+    container_name: dna-agente
+    restart: unless-stopped
+    volumes:
+      - ./deploy/nginx.agente.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - proxy
+      - backend
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=proxy'
+      - 'traefik.http.routers.dna-agente.rule=Host(`${DOMAIN}`)'
+      - 'traefik.http.routers.dna-agente.entrypoints=websecure'
+      - 'traefik.http.routers.dna-agente.tls.certresolver=mytlschallenge'
+      - 'traefik.http.services.dna-agente.loadbalancer.server.port=80'
+      # La URL anterior (sslip) redirige a la nueva.
+      - 'traefik.http.routers.dna-agente-old.rule=Host(`${OLD_DOMAIN}`)'
+      - 'traefik.http.routers.dna-agente-old.entrypoints=websecure'
+      - 'traefik.http.routers.dna-agente-old.tls.certresolver=mytlschallenge'
+      - 'traefik.http.routers.dna-agente-old.middlewares=dna-agente-old-redirect'
+      - 'traefik.http.middlewares.dna-agente-old-redirect.redirectregex.regex=^https?://[^/]+/(.*)'
+      - 'traefik.http.middlewares.dna-agente-old-redirect.redirectregex.replacement=https://${DOMAIN}/$${1}'
+      - 'traefik.http.middlewares.dna-agente-old-redirect.redirectregex.permanent=false'
+
+  api:
+    build:
+      context: .
+      target: server
+    container_name: dna-agente-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://cronos:${POSTGRES_PASSWORD}@dna-agente-postgres:5432/cronos
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: https://${DOMAIN}
+      CRONOS_SUPERADMIN_EMAIL: ${CRONOS_SUPERADMIN_EMAIL:-}
+      CRONOS_SUPERADMIN_PASSWORD: ${CRONOS_SUPERADMIN_PASSWORD:-}
+      CRONOS_DEMO_DATA: ${CRONOS_DEMO_DATA:-true}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      GEMINI_TTS_MODEL: ${GEMINI_TTS_MODEL:-gemini-3.8-flash-lite-tts}
+      GEMINI_LIVE_MODEL: ${GEMINI_LIVE_MODEL:-gemini-3.1-flash-live-preview}
+      GEMINI_LIVE_VOICE: ${GEMINI_LIVE_VOICE:-Sulafat}
+      # Conversaciones con el asistente (JSONL por día), para revisar las sesiones de prueba.
+      AI_LOG_DIR: /var/log/cronos-ai
+    volumes:
+      - ./deploy/ai-logs:/var/log/cronos-ai
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: dna-agente-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cronos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: cronos
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cronos']
+      interval: 5s
+      retries: 10
+    networks:
+      - backend
+
+networks:
+  proxy:
+    external: true
+  backend:
+
+volumes:
+  pgdata:

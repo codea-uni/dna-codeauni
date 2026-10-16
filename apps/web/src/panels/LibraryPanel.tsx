@@ -1,14 +1,56 @@
 import { commands, newId, type ProductLibrary } from '@cronos/core';
-import { useRef } from 'react';
+import { permissions } from '@cronos/api';
+import { useRef, useState } from 'react';
 import * as actions from '../actions';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { useProject } from '../hooks/useDocument';
 import { t, useT } from '../i18n';
 import { session } from '../session';
 import { Floatable } from '../components/Floatable';
+import { api } from '../server/api';
+import { useProjectSession } from '../server/projectSession';
 
 type Key = keyof ProductLibrary;
 type Item<K extends Key> = ProductLibrary[K][number];
+
+/**
+ * Sube las fichas de explosivos del proyecto al catálogo de la empresa (capa de conocimiento de la
+ * empresa): solo el administrador, en modo servidor; los nombres que ya están no se tocan.
+ */
+function CompanyCatalogButton() {
+  const t = useT();
+  const current = useProjectSession((s) => s.current);
+  const [msg, setMsg] = useState('');
+  if (!current || !permissions.manageMembers(current.role)) return null;
+  const orgId = current.mine.organizationId;
+  return (
+    <>
+      <button
+        title={t('lib.toCompanyHint')}
+        onClick={() => {
+          setMsg('');
+          void (async () => {
+            try {
+              const have = new Set(
+                (await api.companyExplosives(orgId)).map((c) => c.explosive.name.toLowerCase()),
+              );
+              const fresh = session.document.project.library.explosives.filter(
+                (e) => !have.has(e.name.toLowerCase()),
+              );
+              for (const e of fresh) await api.saveCompanyExplosive(orgId, { ...e, id: newId<'Explosive'>() });
+              setMsg(t('lib.toCompanyDone', { n: fresh.length }));
+            } catch (e) {
+              setMsg(e instanceof Error ? e.message : String(e));
+            }
+          })();
+        }}
+      >
+        {t('lib.toCompany')}
+      </button>
+      {msg && <span className="muted">{msg}</span>}
+    </>
+  );
+}
 
 /** Cuántos taladros (o conexiones, para conectores) usan un producto: se advierte antes de borrarlo. */
 function usage(key: Key, id: string): number {
@@ -248,6 +290,7 @@ export function LibraryPanel() {
           <div className="row">
             <button onClick={() => void actions.exportCatalog()}>{t('lib.exportCatalog')}</button>
             <button onClick={() => catalogInput.current?.click()}>{t('lib.importCatalog')}</button>
+            <CompanyCatalogButton />
             <input
               ref={catalogInput}
               type="file"

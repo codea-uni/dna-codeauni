@@ -89,6 +89,26 @@ describe('DocumentStore', () => {
     expect(events.at(-1)?.holes.added).toHaveLength(3);
   });
 
+  it('las operaciones aplicadas reproducen el estado en una copia (sala en vivo)', () => {
+    const { store } = setup(0);
+    const mirror = new DocumentStore(structuredClone(store.project));
+    // Por la sala viajan como JSON.
+    store.onApplied((ops, label) => {
+      mirror.dispatch(JSON.parse(JSON.stringify(ops)) as typeof ops, label);
+    });
+    const blast = store.project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    store.dispatch(addHoles(blast.id, makeHoles(4)), 'Agregar');
+    const first = store.project.blasts[0]?.holes[0];
+    if (!first) throw new Error('sin taladro');
+    store.dispatch(deleteHoles(store, [first.id]), 'Borrar');
+    store.undo();
+    store.redo();
+    store.undo();
+    expect(labels(mirror)).toEqual(labels(store));
+    expect(mirror.project).toEqual(store.project);
+  });
+
   it('borrar y deshacer restaura el orden exacto', () => {
     const { store, holes } = setup(6);
     const ids = [1, 4, 5].map((i) => at(holes, i).id);

@@ -235,7 +235,8 @@ const blast: z.ZodType<M.Blast> = z.object({
 
 const sourced = { source: z.string().exactOptional(), version: z.string().exactOptional() };
 
-const explosive: z.ZodType<M.Explosive> = z.object({
+/** Explosivo de la biblioteca (también valida el catálogo de la empresa en el servidor). */
+export const explosiveSchema: z.ZodType<M.Explosive> = z.object({
   ...sourced,
   id: id<'Explosive'>(),
   name: z.string(),
@@ -385,7 +386,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
     origin: vec3,
   }),
   library: z.object({
-    explosives: z.array(explosive),
+    explosives: z.array(explosiveSchema),
     detonators: z.array(detonator),
     surfaceConnectors: z.array(surfaceConnector),
     primers: z.array(primer),

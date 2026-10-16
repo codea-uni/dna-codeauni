@@ -1,0 +1,402 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manual del visor Cronos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: una columna de «tarjetas de gesto» (animación a la izquierda, instrucción a la derecha), luego controles y voz. Oscuro a propósito: es lo que se ve dentro del visor. */
+:root {
+  --bg: #0d1419;
+  --panel: #142029;
+  --line: #22343f;
+  --fg: #e6edf1;
+  --muted: #93a7b3;
+  --hand: #9fb4ff;      /* color de las articulaciones de las manos en el visor */
+  --blast: #f2a93b;     /* taladro elegido / acción */
+  --terrain: #3c5a4a;
+  --terrain-2: #2b4438;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.55;
+  margin: 0;
+  padding-inline: 16px;
+  padding-block: 28px 64px;
+}
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 40px; }
+header { display: grid; gap: 10px; }
+.eyebrow {
+  font-family: var(--mono); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--blast);
+}
+h1 {
+  font-family: var(--display); font-stretch: 112%; font-weight: 800; font-size: clamp(34px, 6vw, 56px);
+  line-height: 1.02; margin: 0; text-wrap: balance;
+}
+h2 {
+  font-family: var(--display); font-stretch: 105%; font-weight: 700; font-size: 26px; margin: 0; text-wrap: balance;
+}
+h3 { font-family: var(--display); font-weight: 700; font-size: 21px; margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 65ch; }
+.lead { color: var(--muted); font-size: 18px; }
+.rule { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 15px; }
+.rule b { color: var(--fg); }
+section { display: grid; gap: 18px; }
+
+.moves { display: grid; gap: 14px; }
+.move {
+  display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 22px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px;
+}
+.move svg { width: 100%; height: auto; display: block; border-radius: 10px; background: #0a1015; }
+.move .txt { display: grid; gap: 8px; min-width: 0; }
+.how { color: var(--muted); }
+.tag {
+  justify-self: start; font-family: var(--mono); font-size: 12px; letter-spacing: .06em;
+  color: var(--bg); background: var(--hand); border-radius: 999px; padding: 2px 10px;
+}
+.tag.both { background: var(--blast); }
+@media (max-width: 640px) { .move { grid-template-columns: 1fr; } }
+
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+.box { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; align-content: start; }
+dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; }
+dt { font-family: var(--mono); font-size: 13.5px; color: var(--blast); white-space: nowrap; padding-top: 2px; }
+dd { margin: 0; }
+.say { display: flex; flex-wrap: wrap; gap: 8px; }
+.say span {
+  border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 15.5px; background: var(--panel);
+}
+.say span::before { content: "«"; color: var(--muted); }
+.say span::after { content: "»"; color: var(--muted); }
+footer { color: var(--muted); font-size: 14px; }
+
+/* ---------- escenas animadas ---------- */
+.j { fill: var(--hand); }
+.jt { fill: #dbe3ff; }
+.grid line { stroke: var(--terrain); stroke-width: 1; }
+.hole { fill: #6f8290; }
+.halo { fill: #0a1015; opacity: .82; stroke: #1d2b35; }
+.hole.pick { fill: var(--blast); }
+.ray { stroke: #fff; stroke-width: 1.4; stroke-dasharray: 3 3; opacity: .7; }
+.ring { fill: none; stroke: var(--blast); stroke-width: 2; }
+.card { fill: #1c2c37; stroke: var(--blast); stroke-width: 1.2; }
+.card-t { fill: var(--fg); font: 600 10px var(--body); }
+.card-s { fill: var(--muted); font: 9px var(--mono); }
+.arrow { fill: none; stroke: var(--blast); stroke-width: 2; stroke-linecap: round; }
+.ab { fill: var(--blast); }
+.label { fill: var(--muted); font: 10px var(--mono); letter-spacing: .05em; }
+.anim * { transform-box: view-box; }
+:is(.sel, .drag, .rot, .zoom, .menu, .panelmv) { --d: 4.8s; }
+
+/* pellizco: punta del pulgar y del índice se juntan */
+.pinch .tT { animation: tipT var(--d) infinite ease-in-out; }
+.pinch .tI { animation: tipI var(--d) infinite ease-in-out; }
+.pinch .dI { animation: dipI var(--d) infinite ease-in-out; }
+@keyframes tipT { 0%,12% { transform: translate(0,0) } 20%,72% { transform: translate(9px,-8px) } 80%,100% { transform: translate(0,0) } }
+@keyframes tipI { 0%,12% { transform: translate(0,0) } 20%,72% { transform: translate(-11px,18px) } 80%,100% { transform: translate(0,0) } }
+@keyframes dipI { 0%,12% { transform: translate(0,0) } 20%,72% { transform: translate(-5px,8px) } 80%,100% { transform: translate(0,0) } }
+.quick .tT { animation: qT var(--d) infinite ease-in-out; }
+.quick .tI { animation: qI var(--d) infinite ease-in-out; }
+.quick .dI { animation: qD var(--d) infinite ease-in-out; }
+@keyframes qT { 0%,30% { transform: translate(0,0) } 36%,42% { transform: translate(9px,-8px) } 48%,100% { transform: translate(0,0) } }
+@keyframes qI { 0%,30% { transform: translate(0,0) } 36%,42% { transform: translate(-11px,18px) } 48%,100% { transform: translate(0,0) } }
+@keyframes qD { 0%,30% { transform: translate(0,0) } 36%,42% { transform: translate(-5px,8px) } 48%,100% { transform: translate(0,0) } }
+
+/* 1 · elegir */
+.sel .ring { transform-origin: 214px 78px; animation: ring var(--d) infinite; opacity: 0; }
+@keyframes ring { 0%,36% { opacity: 0; transform: scale(.4) } 40% { opacity: 1 } 60%,100% { opacity: 0; transform: scale(2.2) } }
+.sel .hole.pick { animation: pick var(--d) infinite steps(1); }
+@keyframes pick { 0%,38% { fill: #6f8290 } 39%,92% { fill: var(--blast) } 93%,100% { fill: #6f8290 } }
+.sel .cardg { animation: cardIn var(--d) infinite ease-out; transform-origin: 250px 40px; }
+@keyframes cardIn { 0%,40% { opacity: 0; transform: scale(.85) } 48%,88% { opacity: 1; transform: scale(1) } 95%,100% { opacity: 0 } }
+
+/* 2 · arrastrar con una mano */
+.drag .hand, .drag .world { animation: dragMove var(--d) infinite ease-in-out; }
+@keyframes dragMove { 0%,18% { transform: translate(0,0) } 70%,80% { transform: translate(-96px,-26px) } 92% { opacity: 1 } 96% { opacity: 0; transform: translate(-96px,-26px) } 97% { opacity: 0; transform: translate(0,0) } 100% { opacity: 1; transform: translate(0,0) } }
+
+/* 3 · girar con dos manos */
+.rot .spin { transform-origin: 160px 104px; animation: spin var(--d) infinite ease-in-out; }
+@keyframes spin { 0%,18% { transform: rotate(0deg) } 70%,80% { transform: rotate(38deg) } 100% { transform: rotate(0deg) } }
+
+/* 4 · acercar / alejar con dos manos */
+.zoom .map { transform-origin: 160px 104px; animation: grow var(--d) infinite ease-in-out; }
+.zoom .hl { animation: spreadL var(--d) infinite ease-in-out; }
+.zoom .hr { animation: spreadR var(--d) infinite ease-in-out; }
+@keyframes grow { 0%,18% { transform: scale(1) } 50%,58% { transform: scale(1.55) } 90%,100% { transform: scale(1) } }
+@keyframes spreadL { 0%,18% { transform: translate(0,0) } 50%,58% { transform: translate(-42px,0) } 90%,100% { transform: translate(0,0) } }
+@keyframes spreadR { 0%,18% { transform: translate(0,0) } 50%,58% { transform: translate(42px,0) } 90%,100% { transform: translate(0,0) } }
+.zoom .pinch .tT { animation-name: tipT2; }
+.zoom .pinch .tI { animation-name: tipI2; }
+.zoom .pinch .dI { animation-name: dipI2; }
+@keyframes tipT2 { 0%,12% { transform: translate(0,0) } 18%,90% { transform: translate(9px,-8px) } 96%,100% { transform: translate(0,0) } }
+@keyframes tipI2 { 0%,12% { transform: translate(0,0) } 18%,90% { transform: translate(-11px,18px) } 96%,100% { transform: translate(0,0) } }
+@keyframes dipI2 { 0%,12% { transform: translate(0,0) } 18%,90% { transform: translate(-5px,8px) } 96%,100% { transform: translate(0,0) } }
+
+/* 5 · menú en la muñeca izquierda */
+.menu .palm { transform-origin: 112px 150px; animation: turn var(--d) infinite ease-in-out; }
+@keyframes turn { 0%,70% { transform: scaleX(1) rotate(0deg) } 80%,92% { transform: scaleX(.35) rotate(-10deg) } 100% { transform: scaleX(1) rotate(0deg) } }
+.menu .wmenu { animation: menuIn var(--d) infinite ease-out; transform-origin: 160px 80px; }
+@keyframes menuIn { 0%,68% { opacity: 1; transform: translateY(0) } 76%,94% { opacity: 0; transform: translateY(8px) } 100% { opacity: 1; transform: translateY(0) } }
+
+/* 6 · mover un panel */
+.panelmv .carry { animation: carry var(--d) infinite ease-in-out; }
+@keyframes carry { 0%,20% { transform: translate(0,0) } 70%,100% { transform: translate(-110px,30px) } }
+.panelmv .handc { animation: carryH var(--d) infinite ease-in-out; }
+@keyframes carryH { 0%,20% { transform: translate(0,0) } 70%,80% { transform: translate(-110px,30px) } 96% { opacity: 0; transform: translate(-110px,30px) } 97% { opacity: 0; transform: translate(0,0) } 100% { opacity: 1; transform: translate(0,0) } }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim * { animation: none !important; }
+  .sel .cardg, .menu .wmenu { opacity: 1; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Cronos · BlastLab · Meta Quest</div>
+    <h1>Cómo moverte en el visor</h1>
+    <p class="lead">Seis gestos con las manos, los botones de los controles y lo que puedes pedir por voz. Las manos se ven como puntos azules, igual que en el visor.</p>
+    <div class="rule"><span><b>Una mano</b> mueve.</span><span><b>Dos manos</b> giran y acercan.</span><span><b>Pellizco corto</b> elige.</span><span><b>La voz</b> te lleva lejos.</span></div>
+  </header>
+
+  <section>
+    <h2>Con las manos</h2>
+    <div class="moves">
+
+      <article class="move">
+        <svg class="anim sel" viewBox="0 0 320 200" role="img" aria-label="Pellizco corto sobre un taladro: se marca y aparece su ficha">
+          <g class="grid"></g>
+          <g class="holes"></g>
+          <circle class="hole pick" cx="214" cy="78" r="5"></circle>
+          <circle class="ring" cx="214" cy="78" r="9"></circle>
+          <line class="ray" x1="96" y1="128" x2="210" y2="81"></line>
+          <g class="cardg">
+            <rect class="card" x="228" y="16" width="84" height="50" rx="6"></rect>
+            <text class="card-t" x="236" y="31">Taladro 25</text>
+            <text class="card-s" x="236" y="45">taco 3.4 m</text>
+            <text class="card-s" x="236" y="57">Emulgran · 412 kg</text>
+          </g>
+          <g data-hand="right" data-mode="quick" transform="translate(56 112) scale(.82)"></g>
+        </svg>
+        <div class="txt">
+          <span class="tag">una mano</span>
+          <h3>Elegir: pellizco corto</h3>
+          <p>Apunta con la mano derecha (sale un rayo), junta y suelta el pulgar y el índice. Sirve para taladros y botones. También puedes dejar el rayo quieto sobre un botón hasta que se llene el anillo.</p>
+          <p class="how">Al elegir un taladro aparece su ficha: taco, explosivo, kg, iniciador y retardo. Si pides uno por voz («muéstrame el taladro 25»), queda solo ese taladro a la vista hasta que digas «vista general».</p>
+        </div>
+      </article>
+
+      <article class="move">
+        <svg class="anim drag" viewBox="0 0 320 200" role="img" aria-label="Pellizcar y mover una mano arrastra el terreno">
+          <g class="world"><g class="grid wide"></g><g class="holes" data-ox="60"></g></g>
+          <path class="arrow" d="M250 150 C 210 145, 190 140, 160 128"></path>
+          <path class="ab" d="M160 128 l9 -1 l-5 8 z"></path>
+          <g class="hand"><g data-hand="right" data-mode="pinch" transform="translate(222 100) scale(.82)"></g></g>
+        </svg>
+        <div class="txt">
+          <span class="tag">una mano</span>
+          <h3>Arrastrar: pellizca y mueve</h3>
+          <p>Pellizca con cualquier mano y muévela: el terreno se queda pegado a tus dedos. Funciona hacia los lados, hacia ti y arriba o abajo. Tirar hacia abajo te sube.</p>
+          <p class="how">Desde lo alto rinde más: un gesto cruza la voladura. Los gestos son los mismos en la maqueta y en el terreno, y no cambian cuando el asistente te acerca o te enfoca algo.</p>
+        </div>
+      </article>
+
+      <article class="move">
+        <svg class="anim rot" viewBox="0 0 320 200" role="img" aria-label="Dos manos pellizcando giran la vista como un volante">
+          <g class="spin">
+            <rect x="96" y="54" width="128" height="100" rx="4" fill="#16252e" stroke="#2b4438"></rect>
+            <g class="holes" data-box="104,62,120,92"></g>
+            <text class="label" x="152" y="68">N</text>
+            <g data-hand="left" data-mode="pinch" transform="translate(84 92) scale(.72)"></g>
+            <g data-hand="right" data-mode="pinch" transform="translate(236 92) scale(.72)"></g>
+          </g>
+          <path class="arrow" d="M120 30 A 60 30 0 0 1 200 30"></path>
+          <path class="ab" d="M200 30 l-9 -4 l2 9 z"></path>
+        </svg>
+        <div class="txt">
+          <span class="tag both">dos manos</span>
+          <h3>Girar: como un volante</h3>
+          <p>Pellizca con las dos manos y gíralas alrededor de un centro, como si tomaras un mapa por los bordes. La vista gira contigo, sin saltos.</p>
+        </div>
+      </article>
+
+      <article class="move">
+        <svg class="anim zoom" viewBox="0 0 320 200" role="img" aria-label="Separar las manos acerca, juntarlas aleja">
+          <g class="map">
+            <rect x="120" y="74" width="80" height="60" rx="3" fill="#16252e" stroke="#2b4438"></rect>
+            <g class="holes" data-box="126,80,68,48"></g>
+          </g>
+          <g class="hl"><g data-hand="left" data-mode="pinch" transform="translate(96 96) scale(.72)"></g></g>
+          <g class="hr"><g data-hand="right" data-mode="pinch" transform="translate(224 96) scale(.72)"></g></g>
+          <text class="label" x="22" y="188">separar = acercar · juntar = alejar</text>
+        </svg>
+        <div class="txt">
+          <span class="tag both">dos manos</span>
+          <h3>Acercar y alejar: estira o junta</h3>
+          <p>Con las dos manos pellizcando, sepáralas para acercarte y júntalas para alejarte. Sobre la maqueta cambia el tamaño; en el terreno te acerca hacia donde están tus manos, sin achicar el mundo.</p>
+          <p class="how">Si sueltas una mano, la otra sigue arrastrando.</p>
+        </div>
+      </article>
+
+      <article class="move">
+        <svg class="anim menu" viewBox="0 0 320 200" role="img" aria-label="Mirar la palma izquierda abre el menú">
+          <g class="palm"><g data-hand="left" data-mode="open" transform="translate(70 90) scale(.9)"></g></g>
+          <g class="wmenu">
+            <rect class="card" x="168" y="34" width="122" height="104" rx="8"></rect>
+            <text class="card-t" x="180" y="54">Menú</text>
+            <rect x="180" y="62" width="98" height="16" rx="4" fill="#22343f"></rect><text class="card-s" x="186" y="74">Capas</text>
+            <rect x="180" y="84" width="98" height="16" rx="4" fill="#22343f"></rect><text class="card-s" x="186" y="96">Maqueta / terreno</text>
+            <rect x="180" y="106" width="98" height="16" rx="4" fill="#22343f"></rect><text class="card-s" x="186" y="118">Salir (sostener)</text>
+          </g>
+        </svg>
+        <div class="txt">
+          <span class="tag">mano izquierda</span>
+          <h3>Menú: mira tu palma izquierda</h3>
+          <p>Gira la mano izquierda con la palma hacia tu cara: aparece el menú junto a la muñeca. Elige con la derecha. Para salir del visor, mantén el rayo sobre «Salir» hasta que se llene el anillo.</p>
+        </div>
+      </article>
+
+      <article class="move">
+        <svg class="anim panelmv" viewBox="0 0 320 200" role="img" aria-label="Pellizcar un panel fuera de sus botones y llevarlo a otro lugar">
+          <rect x="40" y="130" width="90" height="56" rx="6" fill="none" stroke="#22343f" stroke-dasharray="4 4"></rect>
+          <g class="carry">
+            <rect class="card" x="150" y="30" width="110" height="66" rx="7"></rect>
+            <text class="card-t" x="162" y="50">Predicción</text>
+            <text class="card-s" x="162" y="64">P80 19.4 cm</text>
+            <text class="card-s" x="162" y="77">PPV 2.3 mm/s</text>
+          </g>
+          <g class="handc"><g data-hand="right" data-mode="pinch" transform="translate(236 70) scale(.72)"></g></g>
+        </svg>
+        <div class="txt">
+          <span class="tag">una mano</span>
+          <h3>Mover una tarjeta o panel</h3>
+          <p>Pellizca una tarjeta (voz, leyenda, resultados) en una zona sin botones y llévala adonde no estorbe. Se queda ahí al soltar.</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Con los controles</h2>
+    <div class="cols">
+      <div class="box">
+        <h3>Control izquierdo</h3>
+        <dl>
+          <dt>Stick</dt><dd>Volar en el plano, hacia donde miras.</dd>
+          <dt>Gatillo</dt><dd>Elegir (si apuntas con este control).</dd>
+          <dt>Agarre</dt><dd>Mover la maqueta. Con los dos agarres: girar y acercar, igual que con las manos.</dd>
+          <dt>Y (mantener)</dt><dd>Salir del visor.</dd>
+        </dl>
+      </div>
+      <div class="box">
+        <h3>Control derecho</h3>
+        <dl>
+          <dt>Gatillo</dt><dd>Elegir taladro o botón.</dd>
+          <dt>Stick ← →</dt><dd>Girar a saltos (así no marea).</dd>
+          <dt>Stick ↑</dt><dd>En el terreno: arco de teletransporte; al soltar, saltas.</dd>
+          <dt>Agarre</dt><dd>En el terreno: saltar adonde apunta el rayo; con el stick, subir o bajar. Sobre un panel: moverlo.</dd>
+          <dt>A (mantener)</dt><dd>Hablar con el asistente.</dd>
+          <dt>B (mantener)</dt><dd>Salir del visor.</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Por voz</h2>
+    <p>Para distancias largas es más cómodo pedirlo. Los saltos lejanos se hacen con un fundido a negro para no marear.</p>
+    <div class="say">
+      <span>Llévame al terreno</span>
+      <span>Déjame a 10 m del terreno</span>
+      <span>Aléjame 50 metros</span>
+      <span>Vista de planta</span>
+      <span>Muéstrame el taladro 25</span>
+      <span>¿Dónde está la comunidad?</span>
+      <span>Reproduce la secuencia</span>
+      <span>Ponme sobre la mesa</span>
+      <span>Vuelve a la vista general</span>
+    </div>
+  </section>
+
+  <footer>Si algo no responde, suelta las dos manos y vuelve a pellizcar. Si te pierdes, di «llévame a la voladura».</footer>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  // Mano derecha con la palma hacia quien mira (coordenadas de la mano, la muñeca abajo).
+  const J = {
+    wrist: [50, 112],
+    thumb: [[38, 100], [27, 88], [19, 76]],
+    tT: [13, 64],
+    fingers: [
+      [[41, 72], [38, 52]],               // índice (la articulación media y la punta se animan)
+      [[50, 70], [50, 48], [50, 35], [50, 24]],
+      [[60, 72], [62, 52], [63, 40], [64, 31]],
+      [[69, 78], [73, 62], [75, 52], [76, 44]],
+    ],
+    dI: [36, 40],
+    tI: [35, 30],
+    palm: [[42, 92], [58, 92], [46, 82], [56, 84]],
+  };
+  const dot = (g, [x, y], r, cls) => {
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', r);
+    c.setAttribute('class', cls);
+    g.appendChild(c);
+    return c;
+  };
+  for (const host of document.querySelectorAll('[data-hand]')) {
+    const left = host.dataset.hand === 'left';
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', host.dataset.mode);
+    g.setAttribute('transform', left ? 'scale(-1 1) translate(-50 -70)' : 'translate(-50 -70)');
+    dot(g, [50, 74], 50, 'halo');
+    dot(g, J.wrist, 4.2, 'j');
+    J.palm.forEach((p) => dot(g, p, 3, 'j'));
+    J.thumb.forEach((p) => dot(g, p, 3.4, 'j'));
+    J.fingers.forEach((f) => f.forEach((p) => dot(g, p, 3.2, 'j')));
+    const t = dot(g, J.tT, 4, 'jt tT');
+    const d = dot(g, J.dI, 3.2, 'j dI');
+    const i = dot(g, J.tI, 4, 'jt tI');
+    if (host.dataset.mode === 'open') { t.setAttribute('class', 'jt'); i.setAttribute('class', 'jt'); d.setAttribute('class', 'j'); }
+    host.appendChild(g);
+  }
+  // Cuadrícula del terreno y malla de taladros (tresbolillo).
+  for (const g of document.querySelectorAll('.grid')) {
+    const w = g.classList.contains('wide') ? 520 : 320;
+    for (let x = 0; x <= w; x += 32) {
+      const l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', x); l.setAttribute('y1', 0); l.setAttribute('x2', x); l.setAttribute('y2', 260);
+      g.appendChild(l);
+    }
+    for (let y = 0; y <= 260; y += 32) {
+      const l = document.createElementNS(NS, 'line');
+      l.setAttribute('x1', 0); l.setAttribute('y1', y); l.setAttribute('x2', w); l.setAttribute('y2', y);
+      g.appendChild(l);
+    }
+  }
+  for (const g of document.querySelectorAll('.holes')) {
+    const [bx, by, bw, bh] = (g.dataset.box || '150,40,140,110').split(',').map(Number);
+    const ox = Number(g.dataset.ox || 0);
+    const step = g.dataset.box ? 12 : 18;
+    let row = 0;
+    for (let y = by; y <= by + bh; y += step * 0.86, row++) {
+      for (let x = bx + ox + (row % 2 ? step / 2 : 0); x <= bx + ox + bw; x += step) {
+        dot(g, [x, y], g.dataset.box ? 2 : 2.6, 'hole');
+      }
+    }
+  }
+})();
+</script>
+</html>

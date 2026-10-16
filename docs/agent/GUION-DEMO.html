@@ -1,0 +1,329 @@
+<title>Guion DNA Blast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: una columna de lectura con pestañas; cada bloque = frase hablada a la izquierda, efecto a la derecha (apila en móvil) */
+:root{
+  --bg:#f5f6f4; --surface:#ffffff; --fg:#1d2321; --muted:#5d6762; --line:#d9ddd9;
+  --accent:#c2410c; --accent-soft:#fdeee5; --say:#13403a;
+  --check:#1f5f8b; --check-soft:#e6f0f7;
+  --display:"Archivo",system-ui,sans-serif; --body:"Source Sans 3",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141816; --surface:#1c211f; --fg:#e7ebe8; --muted:#9aa5a0; --line:#2e3532;
+  --accent:#fb8a4f; --accent-soft:#2c1d15; --say:#9fe0d2;
+  --check:#8cc4ea; --check-soft:#16242e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141816; --surface:#1c211f; --fg:#e7ebe8; --muted:#9aa5a0; --line:#2e3532;
+  --accent:#fb8a4f; --accent-soft:#2c1d15; --say:#9fe0d2;
+  --check:#8cc4ea; --check-soft:#16242e; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:17px/1.55 var(--body)}
+.wrap{max-width:820px;margin:0 auto;padding-inline:16px;padding-block:32px 64px}
+header{display:grid;gap:8px;margin-bottom:20px}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{font:800 clamp(28px,6vw,40px)/1.1 var(--display);margin:0;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:62ch}
+h2{font:700 22px/1.2 var(--display);margin:0;display:flex;gap:10px;align-items:baseline;text-wrap:balance}
+h2 .n{font:600 14px var(--mono);color:var(--accent)}
+section{display:grid;gap:14px;padding-block:24px;border-top:1px solid var(--line)}
+.prep{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;display:grid;gap:12px}
+.prep ol{margin:0;padding-left:22px;display:grid;gap:6px}
+code,.mono{font-family:var(--mono);font-size:.88em}
+code{background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+a{color:var(--accent)}
+.units{display:flex;flex-wrap:wrap;gap:8px}
+.units span{font:500 13px var(--mono);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
+.steps{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.row{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;padding:12px 16px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.say{color:var(--say);font-weight:600;min-width:0}
+.say::before{content:"«"}.say::after{content:"»"}
+.see{color:var(--muted);min-width:0;display:grid;gap:6px;align-content:start}
+.see b{color:var(--fg);font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+.check{justify-self:start;font:600 12px/1.35 var(--mono);color:var(--check);background:var(--check-soft);border-radius:6px;padding:3px 8px}
+.check::before{content:"Verificar · ";letter-spacing:.04em;text-transform:uppercase;font-size:11px}
+.note{color:var(--muted);margin:0;max-width:62ch}
+.hands{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--muted)}
+.hands b{color:var(--fg)}
+.tips{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.tips li{display:grid;grid-template-columns:minmax(0,13em) minmax(0,1fr);gap:12px}
+.tips .k{color:var(--muted)}
+
+/* Pestañas */
+.tabs{display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.tab{appearance:none;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;padding:10px 14px 9px;font:700 15px/1.2 var(--display);color:var(--muted);cursor:pointer;display:grid;gap:2px;text-align:left}
+.tab small{font:500 12px/1.2 var(--mono);color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.tab:hover{color:var(--fg)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+/* Resumen de la sesión real */
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px}
+.fact{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px}
+.fact .k{font:600 11px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.fact .v{font:700 20px/1.2 var(--display);font-variant-numeric:tabular-nums}
+.fact .d{font-size:14px;color:var(--muted)}
+
+@media (max-width:600px){
+  .row{grid-template-columns:1fr;gap:4px}
+  .see::before{content:"→ ";color:var(--accent)}
+  .tips li{grid-template-columns:1fr;gap:2px}
+}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Cronos · CODEa UNI · agente de voladura por voz</div>
+  <h1>Guion de la demo</h1>
+  <p class="lede">Di cada frase tal cual, espera a que el agente termine de hablar (o interrúmpelo hablando encima) y mira qué hace.</p>
+</header>
+
+<div class="tabs" role="tablist" aria-label="Guiones">
+  <button class="tab" role="tab" id="tab-demo" aria-controls="panel-demo" aria-selected="true">Demo en vivo<small>~15 min · perímetro nuevo</small></button>
+  <button class="tab" role="tab" id="tab-minero" aria-controls="panel-minero" aria-selected="false" tabindex="-1">Sesión con minero<small>~20 min · optimizar un diseño</small></button>
+</div>
+
+<!-- ============================================================ GUION 1 -->
+<div role="tabpanel" id="panel-demo" aria-labelledby="tab-demo">
+<div class="prep">
+  <h2>Antes de empezar</h2>
+  <ol>
+    <li>En la <b>PC</b> y en el <b>Quest</b>, entra a <a href="https://voladura.codeauni.com">voladura.codeauni.com</a> con la <b>misma cuenta</b>: <code>admin@cronos.local</code> / <code>cronos123</code>.</li>
+    <li>En uno de los dos, abre cualquier proyecto de <b>Cuajone</b>. El otro lo sigue solo: los dispositivos de una misma cuenta abren siempre el mismo proyecto y ven todo en vivo (el dibujo, las tarjetas y los subtítulos).</li>
+    <li>Panel <b>Asistente IA</b> → <b>Conversar en vivo</b> (o, en el Quest, el botón azul <b>Entrar en VR</b>). Desde aquí todo se hace hablando.</li>
+  </ol>
+  <div class="units"><span>Diámetro · mm</span><span>P80 · cm</span><span>Distancias · m</span><span>Vibración · mm/s</span></div>
+</div>
+
+<section>
+  <h2><span class="n">1</span>Dónde trabajamos</h2>
+  <div class="steps">
+    <div class="row"><div class="say">¿Qué proyectos tengo en Cuajone?</div><div class="see">Tarjeta <b>Proyectos</b> (se puede tocar uno).</div></div>
+    <div class="row"><div class="say">Crea un proyecto nuevo llamado Demo en vivo.</div><div class="see">Se abre el proyecto nuevo. La PC lo abre también.</div></div>
+    <div class="row"><div class="say">¿Qué topografías tengo cargadas?</div><div class="see">Tarjeta <b>Topografías</b>: las tres de la mina, la más nueva primero.</div></div>
+    <div class="row"><div class="say">Trabajemos sobre el levantamiento con dron del Sector Sur.</div><div class="see">La trae de la mina, apoya el banco en ella y la encuadra.</div></div>
+    <div class="row"><div class="say">Crea un perímetro de 60 por 40 metros, con la cara libre al norte.</div><div class="see">El contorno se <b>traza</b> sobre el relieve.</div></div>
+  </div>
+  <p class="note"><b>Otra opción, con un polígono ya hecho</b>, en vez de la última frase:</p>
+  <div class="steps">
+    <div class="row"><div class="say">¿Qué perímetros hay en los otros proyectos?</div><div class="see">Tarjeta <b>Perímetros</b> con los de toda la mina.</div></div>
+    <div class="row"><div class="say">Trae el perímetro Próxima voladura banco 3370 del proyecto Banco sobre topografía.</div><div class="see">Se copia aquí, queda activo y la cámara va a él.</div></div>
+  </div>
+  <p class="note">Si ya estás en un proyecto con diseño y quieres partir limpio: «Borra todo el diseño y empecemos de cero» → «Sí».</p>
+</section>
+
+<section>
+  <h2><span class="n">2</span>La entrevista</h2>
+  <div class="steps">
+    <div class="row"><div class="say">La roca es andesita fracturada, de 120 megapascales.</div><div class="see">Tarjeta <b>Condiciones del sitio</b>.</div></div>
+    <div class="row"><div class="say">Los taladros tienen agua.</div><div class="see">Avisa que el ANFO no sirve con agua.</div></div>
+    <div class="row"><div class="say">No hay sulfuros.</div><div class="see">Terreno no reactivo.</div></div>
+    <div class="row"><div class="say">Es mineral para la chancadora, con un P80 de 20 centímetros.</div><div class="see">P80 objetivo en la tarjeta.</div></div>
+    <div class="row"><div class="say">Hay una comunidad a 1200 metros al este, con límite de 5 milímetros por segundo.</div><div class="see">Tarjeta <b>Punto protegido</b>.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">3</span>Diseño dibujado en vivo</h2>
+  <div class="steps">
+    <div class="row"><div class="say">Recomiéndame un diseño con taladros de 200 milímetros.</div><div class="see">Tarjeta <b>Propuesta de diseño</b> con burden, espaciamiento, explosivo y P80 previsto.</div></div>
+    <div class="row"><div class="say">Aplícalo y cárgalo.</div><div class="see">Los taladros se <b>perforan uno a uno</b> y la carga sube desde el fondo. La cámara sigue el dibujo.</div></div>
+    <div class="row"><div class="say">Pon precorte en la pared sur y una fila buffer.</div><div class="see">Se dibujan el precorte y la fila buffer, con un explosivo apto para agua.</div></div>
+    <div class="row"><div class="say">Prográmalos con electrónicos: 25 milisegundos entre taladros y 100 entre filas.</div><div class="see">Una <b>onda amarilla</b> recorre los taladros en orden de disparo. Si el precorte o el buffer quedan sin programar, lo dice.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">4</span>Predicción</h2>
+  <div class="steps">
+    <div class="row"><div class="say">¿Cómo quedan la fragmentación y la vibración?</div><div class="see">Tarjeta <b>Predicción</b>: P80 contra el objetivo y vibración en la comunidad.</div></div>
+    <div class="row"><div class="say">¿Hay riesgo de tiros cortados o de gases?</div><div class="see">Revisa la señal y el explosivo con agua.</div></div>
+    <div class="row"><div class="say">Baja la vibración en la comunidad.</div><div class="see">Cambia los tiempos y da la nueva vibración.</div></div>
+    <div class="row"><div class="say">Elimina el taladro 5.</div><div class="see">El taladro se apaga en rojo.</div></div>
+    <div class="row"><div class="say">Deshaz eso.</div><div class="see">Vuelve el taladro.</div></div>
+    <div class="row"><div class="say">Dame el reporte de carga.</div><div class="see">Tarjeta <b>Reporte de carga y perforación</b>.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">5</span>Resultados</h2>
+  <div class="steps">
+    <div class="row"><div class="say">Reproduce la secuencia de disparo.</div><div class="see">El disparo animado. La PC pasa sola a la vista 3D y lo muestra también.</div></div>
+    <div class="row"><div class="say">¿Hacia dónde se mueve la pila y cuánto esponja?</div><div class="see">Tarjeta <b>Movimiento de la pila</b>.</div></div>
+    <div class="row"><div class="say">Muéstrame el mapa de vibración.</div><div class="see">Mapa sobre el terreno.</div></div>
+    <div class="row"><div class="say">Oculta los resultados.</div><div class="see">Vuelve el diseño limpio.</div></div>
+    <div class="row"><div class="say">Guarda la versión: demo en vivo.</div><div class="see">Publica la versión. La PC deja de marcar cambios sin guardar.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">6</span>Realidad virtual (en el Quest)</h2>
+  <ul class="hands">
+    <li><b>«Ven»</b> con la mano derecha (palma hacia ti, cierras y abres los dedos, o traes la mano hacia la cara): te acerca.</li>
+    <li><b>Empujar</b> con la mano abierta, palma adelante: te aleja.</li>
+    <li><b>Perilla</b>: pellizcas con los dedos hacia arriba y giras la muñeca; la vista gira con la mano.</li>
+    <li>Mano izquierda: pellizcas y mueves la maqueta. Dos manos: estiras, giras y mueves.</li>
+    <li>Mano derecha: pellizco corto para elegir; pellizcar con la mano acostada y mover arrastra.</li>
+    <li>Con mandos: apuntas y eliges con el gatillo; <b>B</b> o <b>Y</b> para salir.</li>
+  </ul>
+  <div class="steps">
+    <div class="row"><div class="say">Muéstrame la voladura.</div><div class="see">La maqueta vuela al frente.</div></div>
+    <div class="row"><div class="say">Llévame al taladro 12.</div><div class="see">Vuela al taladro y muestra su ficha.</div></div>
+    <div class="row"><div class="say">Muéstrame dónde está la comunidad.</div><div class="see">Te pone en alto y de costado: la voladura y la comunidad (poste verde con su nombre) a la vez.</div></div>
+    <div class="row"><div class="say">Reproduce la secuencia.</div><div class="see">El disparo en vista isométrica, a 60 m del borde.</div></div>
+    <div class="row"><div class="say">Llévame dentro de la voladura.</div><div class="see">Escala real, sobre el banco.</div></div>
+    <div class="row"><div class="say">Acércame.</div><div class="see">Avanzas hacia la voladura.</div></div>
+    <div class="row"><div class="say">Llévame al terreno.</div><div class="see">Te pone de pie sobre la topografía.</div></div>
+    <div class="row"><div class="say">Sal de la realidad virtual.</div><div class="see">Vuelve a la web.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Si algo sale distinto</h2>
+  <ul class="tips">
+    <li><span class="k">Pregunta de más</span><span>«Usa lo que ya tienes y sigue.»</span></li>
+    <li><span class="k">Entendió mal un número</span><span>«No, dije doscientos milímetros.»</span></li>
+    <li><span class="k">Cortar una respuesta</span><span>Habla encima.</span></li>
+    <li><span class="k">El dibujo tarda</span><span>Botón <b>Saltar</b>.</span></li>
+    <li><span class="k">Volver atrás</span><span>«Deshaz eso.»</span></li>
+    <li><span class="k">La PC no siguió al Quest</span><span>Revisa que sea la misma cuenta. Si la PC tenía cambios sin publicar, no se mueve y avisa: ábrela a mano o publica primero.</span></li>
+    <li><span class="k">¿Quedó guardado?</span><span>Lo diseñado se comparte en vivo, pero solo queda en el servidor al decir «guarda la versión».</span></li>
+  </ul>
+</section>
+</div>
+
+<!-- ============================================================ GUION 2 -->
+<div role="tabpanel" id="panel-minero" aria-labelledby="tab-minero" hidden>
+<p class="lede" style="margin-bottom:20px">Basado en la sesión real del 14 de octubre con un ingeniero de minas (01:00–01:21). Sigue su recorrido: parte de un diseño recomendado, lo cuestiona y lo optimiza hasta dar con el P80 objetivo, revisa la vibración y guarda. Las frases son las suyas, ordenadas. Los avisos <span class="check" style="display:inline">en azul</span> marcan dónde falló esa vez y qué debe pasar ahora.</p>
+
+<div class="facts">
+  <div class="fact"><span class="k">P80</span><span class="v num">48,4 → 19,4 cm</span><span class="d">objetivo 20 cm</span></div>
+  <div class="fact"><span class="k">Proyecciones</span><span class="v num">1029 → 657 m</span><span class="d">alcance calculado</span></div>
+  <div class="fact"><span class="k">Diámetro</span><span class="v num">200 → 102 mm</span><span class="d">malla 2,2 × 2,6 m</span></div>
+  <div class="fact"><span class="k">Vibración</span><span class="v num">2,3 mm/s</span><span class="d">comunidad a 2 km</span></div>
+</div>
+
+<div class="prep" style="margin-top:20px">
+  <h2>Antes de empezar</h2>
+  <ol>
+    <li>Misma cuenta en la PC y el Quest: <code>admin@cronos.local</code> / <code>cronos123</code>.</li>
+    <li>Proyecto de <b>Cuajone</b> con la topografía <b>Tajo · levantamiento DXF</b>, sin perímetro. Si no lo tienes: «Crea un proyecto nuevo llamado Sesión minero» → «Usa la topografía Tajo levantamiento DXF».</li>
+    <li>Condiciones del sitio ya cargadas (andesita fracturada, 120 MPa, con agua, P80 20 cm). Si no: «La roca es andesita fracturada de 120 megapascales, con agua, para chancadora con P80 de 20 centímetros».</li>
+  </ol>
+  <div class="units"><span>Diámetro · mm</span><span>Malla · m</span><span>P80 · cm</span><span>Proyecciones · m</span><span>Vibración · mm/s</span></div>
+</div>
+
+<section>
+  <h2><span class="n">1</span>Perímetro de otro proyecto</h2>
+  <div class="steps">
+    <div class="row"><div class="say">¿Qué perímetros hay en los otros proyectos?</div><div class="see">Tarjeta <b>Perímetros</b> de toda la mina.</div></div>
+    <div class="row"><div class="say">Trae el perímetro 1 del proyecto Mina sobre levantamiento DXF.</div><div class="see">Se copia aquí y queda activo: <span class="num">5660 m²</span>, cara libre irregular.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">2</span>Primera propuesta</h2>
+  <div class="steps">
+    <div class="row"><div class="say">Recomiéndame un diseño.</div><div class="see">Tarjeta <b>Propuesta</b>: tresbolillo <span class="num">4,5 × 5,2 m</span>, Ø <span class="num">200 mm</span>, Emulgran 600, taco <span class="num">3,1 m</span>. Espera tu sí.</div></div>
+    <div class="row"><div class="say">Sí, aplícalo, cárgalo y amárralo en V con 17 y 42 milisegundos.</div><div class="see">Se perforan <span class="num">~242</span> taladros, se cargan y se amarran.</div></div>
+    <div class="row"><div class="say">Reproduce la secuencia de disparo.</div><div class="see">El disparo con el vuelo de la pila. En el Quest, vista isométrica a 60 m; la PC pasa sola a 3D.<span class="check">antes la PC no lo mostraba y el visor te mandaba a más de 1 km</span></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">3</span>«¿Cómo podemos mejorar esto?»</h2>
+  <div class="steps">
+    <div class="row"><div class="say">¿Cómo podemos mejorar esto?</div><div class="see">Lee la predicción: P80 en objetivo, pero <b>proyecciones de 1029 m</b>. Propone más taco y espera.</div></div>
+    <div class="row"><div class="say">Sí, sube el taco a 3,5 metros.</div><div class="see">Cambia solo el taco y conserva el explosivo.<span class="check">esa vez cambió a ANFO pesado sin pedirlo (no apto con agua)</span></div></div>
+    <div class="row"><div class="say">¿Cómo cambió el alcance de proyección?</div><div class="see">Nueva predicción con el taco mayor.</div></div>
+    <div class="row"><div class="say">Prueba con taladros de 102 milímetros.</div><div class="see">Propone malla para Ø <span class="num">102 mm</span>; al aceptarla, la perfora.</div></div>
+    <div class="row"><div class="say">Aplica la carga y el amarre anteriores y ejecuta la simulación.</div><div class="see">Las proyecciones bajan a <span class="num">~657 m</span>, pero el P80 sube (más grueso que el objetivo). Lo dice claro.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">4</span>Optimizar explosivo y malla</h2>
+  <div class="steps">
+    <div class="row"><div class="say">Recomiéndame una configuración de explosivo y taco para esta malla. Puedes cambiar el burden y el espaciamiento como gustes.</div><div class="see">Propone SAN-G Aurum (emulsión gasificable, apta para agua), malla <span class="num">2,2 × 2,6 m</span>, taco <span class="num">1,6 m</span>.</div></div>
+    <div class="row"><div class="say">Sí, por favor.</div><div class="see">Perfora <span class="num">~988</span> taladros, los carga y los amarra.</div></div>
+    <div class="row"><div class="say">Ejecuta la simulación y dame los resultados.</div><div class="see">P80 <b class="num">19,4 cm</b> (en objetivo), proyecciones <b class="num">657 m</b>, sin riesgo de humos naranjas.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">5</span>Vibración</h2>
+  <div class="steps">
+    <div class="row"><div class="say">Hay una comunidad a 2 kilómetros al norte.</div><div class="see">Tarjeta <b>Punto protegido</b>; pregunta el límite.</div></div>
+    <div class="row"><div class="say">¿Ahora sí me puedes hablar de la vibración?</div><div class="see">Vibración en la comunidad: <b class="num">2,3 mm/s</b>.</div></div>
+    <div class="row"><div class="say">No tenemos límite, solo las normas nacionales.</div><div class="see">Dice qué referencia usa como guía (DIN 4150-3 o USBM para viviendas) y pide confirmar el límite legal.<span class="check">esa vez presentó la norma alemana como si fuera la nacional</span></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">6</span>Guardar y probar otro amarre</h2>
+  <div class="steps">
+    <div class="row"><div class="say">Guarda esta versión.</div><div class="see">Publica la versión y no toca nada más. La PC deja de marcar cambios sin guardar.<span class="check">esa vez guardó y en el mismo turno cambió el amarre; la web decía «sin guardar»</span></div></div>
+    <div class="row"><div class="say">Recomiéndame un tipo de amarre diferente al actual y probemos.</div><div class="see">Propone uno (por ejemplo, en escalón) con su motivo y espera tu sí.</div></div>
+    <div class="row"><div class="say">Sí, aplícalo y ejecuta la simulación.</div><div class="see">Todos los taladros cargados salen en la animación.<span class="check">esa vez el escalón dejó 315 taladros sin salir</span></div></div>
+    <div class="row"><div class="say">Muéstrame los taladros que no salen.</div><div class="see">Si quedara alguno, solo esos quedan a la vista con su número. Si no, dice que salen todos.</div></div>
+    <div class="row"><div class="say">Volvamos a la vista general.</div><div class="see">Vuelven todas las capas.</div></div>
+    <div class="row"><div class="say">Guarda la versión con el nuevo amarre.</div><div class="see">Versión nueva publicada.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">7</span>Mostrarlo en el visor</h2>
+  <ul class="hands">
+    <li><b>«Ven»</b> te acerca; <b>empujar</b> te aleja; <b>perilla</b> (pellizco con dedos arriba y girar la muñeca) gira la vista.</li>
+  </ul>
+  <div class="steps">
+    <div class="row"><div class="say">Muéstrame dónde está la comunidad.</div><div class="see">En alto y de costado: voladura y comunidad (poste verde) a la vez, sin volver a bajar.<span class="check">esa vez te dejaba al ras del terreno</span></div></div>
+    <div class="row"><div class="say">Ponme en vista de planta.</div><div class="see">Te sube por encima de la voladura.</div></div>
+    <div class="row"><div class="say">Déjame a 10 metros del terreno.</div><div class="see">Exactamente a 10 m sobre el terreno.</div></div>
+    <div class="row"><div class="say">Muéstrame solo los taladros con su numeración.</div><div class="see">Solo los taladros, con etiquetas. Se queda así hasta que digas «vista general».</div></div>
+    <div class="row"><div class="say">Reproduce la secuencia de disparo.</div><div class="see">Isométrica a 60 m; las rocas vuelan y se asientan sin hundirse y volver a subir.</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Qué mirar durante la sesión</h2>
+  <ul class="tips">
+    <li><span class="k">Cambia solo lo pedido</span><span>Si pides el taco, no toca el explosivo ni la malla. «Recomiéndame» propone y espera.</span></li>
+    <li><span class="k">Avisos claros</span><span>Explosivo no apto para agua, taladros que no salen, límites de vibración: lo dice sin que preguntes.</span></li>
+    <li><span class="k">Guardado real</span><span>Después de «guarda», la PC y el Quest muestran la misma versión, sin cambios pendientes.</span></li>
+    <li><span class="k">Si se equivoca dos veces</span><span>No repite lo mismo: explica qué dice el resultado y te muestra los taladros afectados.</span></li>
+  </ul>
+</section>
+</div>
+</div>
+
+<script>
+(() => {
+  const tabs = [...document.querySelectorAll('.tab')];
+  const ids = { demo: 'tab-demo', minero: 'tab-minero' };
+  const select = (tab, focus) => {
+    for (const t of tabs) {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    }
+    if (focus) tab.focus();
+    const key = tab.id === 'tab-minero' ? 'minero' : 'demo';
+    try { localStorage.setItem('guion.tab', key); } catch {}
+    if (location.hash.slice(1) !== key) history.replaceState(null, '', '#' + key);
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => select(t, false));
+    t.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+      select(tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length], true);
+    });
+  });
+  let start = location.hash.slice(1);
+  if (!ids[start]) { try { start = localStorage.getItem('guion.tab') || 'demo'; } catch { start = 'demo'; } }
+  select(document.getElementById(ids[start] || 'tab-demo'), false);
+})();
+</script>

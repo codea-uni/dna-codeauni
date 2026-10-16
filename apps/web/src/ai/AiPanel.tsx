@@ -4,6 +4,7 @@ import { useLocale, useT, type MessageKey } from '../i18n';
 import { serverMode } from '../server/api';
 import { canRecord, startRecording, type Recording } from './audio';
 import { ERROR_KEYS, speak, speechLang, TOOL_LABELS } from './labels';
+import LiveBar from './LiveBar';
 import {
   cancelAssistant,
   resetAssistant,
@@ -237,6 +238,7 @@ export default function AiPanel() {
   return (
     <div className="ai-panel">
       {!serverMode && <p className="hint ai-warning">{t('ai.needsServer')}</p>}
+      <LiveBar />
       <div className="ai-log" ref={log} aria-live="polite">
         {entries.length === 0 && (
           <div className="ai-empty">

@@ -37,6 +37,7 @@ export function PageShell({ children }: { children: ReactNode }) {
           {role && permissions.manageMembers(role) && (
             <NavLink to="/admin">{t('workspace.admin')}</NavLink>
           )}
+          {(organization !== null || isSuperAdmin) && <NavLink to="/knowledge">{t('kb.nav')}</NavLink>}
           {isSuperAdmin && <NavLink to="/platform">{t('platform.title')}</NavLink>}
         </nav>
         <div className="toolbar-account">

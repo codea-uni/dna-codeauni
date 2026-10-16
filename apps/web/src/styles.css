@@ -1,15 +1,18 @@
 /* Superficies neutras para el editor técnico; el color del plano conserva su significado. */
 :root {
-  --bg: #171b20;
-  --panel: #23282f;
-  --panel-2: #2d343d;
-  --border: #3b444f;
-  --text: #e4e8ed;
-  --muted: #a2acb9;
-  --accent: #91b7df;
-  --accent-ink: #132435;
-  --accent-2: #86aed9;
-  --amber: #e0ad5b;
+  /* Marca CODEa UNI: navy #0A2030 y acento #4869FF (como FleetView). */
+  --bg: #08151f;
+  --panel: #0e2130;
+  --panel-2: #14304a;
+  --border: #20405a;
+  --text: #eef3f8;
+  --muted: #8fa3b8;
+  --accent: #5b7aff;
+  --accent-ink: #ffffff;
+  --accent-2: #4869ff;
+  --brand: #4869ff;
+  --brand-green: #72ad3a;
+  --amber: #ffae00;
   --danger: #ed8279;
   --font: 'Segoe UI', 'Noto Sans', Arial, sans-serif;
   --font-display: var(--font);
@@ -1993,3 +1996,590 @@ button.link {
   align-items: center;
   gap: 6px;
 }
+
+/* ------------------------------------------------------------------ Marca CODEa UNI */
+
+.toolbar .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-logo {
+  height: 16px;
+  width: auto;
+  display: block;
+}
+.toolbar .brand span {
+  letter-spacing: 0.01em;
+}
+
+/* ------------------------------------------------------------------ Voz en vivo (Gemini Live) */
+
+.live-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--brand);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(72, 105, 255, 0.22), rgba(72, 105, 255, 0.06));
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.live-start:hover {
+  background: linear-gradient(135deg, rgba(72, 105, 255, 0.34), rgba(72, 105, 255, 0.1));
+}
+.live-start span {
+  display: grid;
+}
+.live-start small {
+  color: var(--muted);
+}
+.live-bar {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--brand);
+  border-radius: 10px;
+  background: rgba(72, 105, 255, 0.1);
+}
+.live-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.live-state {
+  flex: 1;
+  font-weight: 600;
+}
+.live-latency {
+  color: var(--muted);
+  font-size: 12px;
+}
+.live-orb {
+  --level: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 calc(2px + var(--level) * 10px) rgba(72, 105, 255, 0.35);
+  transition: box-shadow 80ms linear;
+}
+.phase-speaking .live-orb {
+  background: var(--brand-green);
+  animation: live-pulse 0.9s ease-in-out infinite;
+}
+.phase-thinking .live-orb {
+  background: var(--amber);
+  animation: live-pulse 0.6s ease-in-out infinite;
+}
+.phase-error .live-orb {
+  background: var(--danger);
+}
+@keyframes live-pulse {
+  50% {
+    transform: scale(0.7);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-orb {
+    animation: none !important;
+    transition: none;
+  }
+}
+.live-heard {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-style: italic;
+}
+.live-said {
+  margin: 4px 0 0;
+}
+
+/* Pintado en vivo: aviso flotante mientras el asistente dibuja. */
+.build-chip {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  padding: 6px 8px 6px 12px;
+  border: 1px solid var(--brand);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  animation: build-chip-in 0.25s ease-out;
+}
+.build-chip > span:nth-child(2) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.build-chip button {
+  flex: none;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.build-chip button.on {
+  border-color: var(--brand);
+  color: var(--text);
+  background: rgba(72, 105, 255, 0.18);
+}
+.build-chip-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7fd4ff;
+  box-shadow: 0 0 0 0 rgba(127, 212, 255, 0.7);
+  animation: build-chip-pulse 1.1s ease-out infinite;
+}
+@keyframes build-chip-pulse {
+  to {
+    box-shadow: 0 0 0 9px rgba(127, 212, 255, 0);
+  }
+}
+@keyframes build-chip-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .build-chip,
+  .build-chip-dot {
+    animation: none;
+  }
+}
+
+/* «Entrar en VR» siempre a la vista en el visor (sin buscarlo en la pestaña Vista). */
+.xr-fab {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand), #6f8bff);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  box-shadow:
+    0 8px 28px rgba(72, 105, 255, 0.45),
+    0 0 0 0 rgba(72, 105, 255, 0.55);
+  cursor: pointer;
+  animation: xr-fab-pulse 2.4s ease-out infinite;
+}
+.xr-fab:hover {
+  filter: brightness(1.1);
+}
+@keyframes xr-fab-pulse {
+  70% {
+    box-shadow:
+      0 8px 28px rgba(72, 105, 255, 0.45),
+      0 0 0 14px rgba(72, 105, 255, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xr-fab {
+    animation: none;
+  }
+}
+
+/* Enlace al manual de gestos, encima de «Entrar en VR». */
+.xr-manual {
+  position: absolute;
+  right: 20px;
+  bottom: 84px;
+  z-index: 6;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 32, 0.85);
+  color: #dbe3ff;
+  font-size: 15px;
+  text-decoration: none;
+}
+.xr-manual:hover {
+  text-decoration: underline;
+}
+
+/* Tarjetas de reporte del asistente (como FleetView): a la derecha, se arrastran. */
+.agent-cards {
+  position: absolute;
+  top: 56px;
+  right: 16px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  max-height: calc(100% - 140px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+.agent-cards > * {
+  pointer-events: auto;
+}
+.agent-card {
+  position: relative;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 14px 12px;
+  border: 1px solid rgba(72, 105, 255, 0.55);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  animation: agent-card-in 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.agent-card.floating {
+  position: absolute;
+  z-index: 7;
+}
+/* Esquinas «de holograma». */
+.agent-card::before,
+.agent-card::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--brand);
+  pointer-events: none;
+}
+.agent-card::before {
+  top: 6px;
+  left: 6px;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 6px;
+}
+.agent-card::after {
+  right: 6px;
+  bottom: 6px;
+  border-left: none;
+  border-top: none;
+  border-bottom-right-radius: 6px;
+}
+.agent-card header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.agent-card header:active {
+  cursor: grabbing;
+}
+.agent-card-grip {
+  flex: none;
+  width: 6px;
+  height: 30px;
+  margin-top: 4px;
+  border-radius: 3px;
+  background: radial-gradient(circle, var(--muted) 1.2px, transparent 1.6px) 0 0 / 6px 6px;
+  opacity: 0.6;
+}
+.agent-card header > div {
+  flex: 1;
+  min-width: 0;
+}
+.agent-card header small {
+  color: var(--brand);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.agent-card h3 {
+  margin: 1px 0 0;
+  font-size: 16px;
+  line-height: 1.2;
+}
+.agent-card header p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.agent-card header button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.agent-card header button:hover {
+  color: var(--text);
+  border-color: var(--brand);
+}
+.agent-card dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0;
+}
+.agent-card dl > div {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid var(--border);
+}
+.agent-card dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+.agent-card dd {
+  margin: 1px 0 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.agent-card .tone-ok {
+  --tone: var(--brand-green);
+}
+.agent-card .tone-warn {
+  --tone: var(--amber);
+}
+.agent-card .tone-bad {
+  --tone: #ff4d5e;
+}
+.agent-card .tone-accent {
+  --tone: var(--brand);
+}
+.agent-card dl > div[class] {
+  border-left-color: var(--tone);
+}
+.agent-card-bar {
+  margin-top: 9px;
+}
+.agent-card-bar-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.agent-card-bar-text span {
+  color: var(--muted);
+}
+.agent-card-track {
+  position: relative;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.agent-card-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  background: var(--tone);
+  animation: agent-card-fill 0.9s 0.15s ease-out both;
+}
+.agent-card-track b {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text);
+}
+.agent-card ul {
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.agent-card li {
+  padding: 4px 0 4px 10px;
+  border-left: 3px solid var(--tone, var(--border));
+  color: var(--text);
+}
+.agent-cards-clear {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+@keyframes agent-card-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px) scale(0.7);
+    box-shadow: 0 0 40px rgba(72, 105, 255, 0.9);
+  }
+}
+@keyframes agent-card-fill {
+  from {
+    width: 0;
+  }
+}
+@media (max-width: 640px) {
+  .agent-cards {
+    left: 16px;
+    right: 16px;
+    align-items: stretch;
+  }
+  .agent-card {
+    width: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-card,
+  .agent-card-track i {
+    animation: none;
+  }
+}
+
+/* Diseño en vivo: quien mira desde la web ve quién diseña y los subtítulos de la conversación. */
+.live-badge {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid rgba(255, 77, 94, 0.6);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font-size: 12.5px;
+}
+.live-badge strong {
+  color: #ff4d5e;
+  letter-spacing: 0.08em;
+}
+.live-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d5e;
+  animation: live-dot 1.4s ease-in-out infinite;
+}
+.live-badge button {
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.live-badge button.on {
+  border-color: var(--brand);
+  color: var(--text);
+  background: rgba(72, 105, 255, 0.18);
+}
+@keyframes live-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+.live-captions {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  z-index: 6;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 32px));
+  display: grid;
+  gap: 6px;
+  pointer-events: none;
+}
+.live-captions p {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(6, 14, 22, 0.82);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.35;
+  animation: live-caption-in 0.3s ease-out;
+}
+.live-captions p b {
+  margin-right: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.live-captions p.assistant b {
+  color: var(--brand);
+}
+@keyframes live-caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-badge-dot,
+  .live-captions p {
+    animation: none;
+  }
+}
+
+/* Opciones elegibles de una tarjeta del asistente (presets, escenarios, topografía nueva). */
+.agent-card-choices {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.agent-card-choices button {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  color: inherit;
+  cursor: pointer;
+}
+.agent-card-choices button:hover {
+  background: color-mix(in srgb, #5b7aff 22%, transparent);
+}
+.agent-card-choices span {
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+/* Ficha persistente: todos los tramos y retardos quedan accesibles en la web. */
+.agent-card-detail { max-height: min(60vh, 560px); overflow-y: auto; line-height: 1.45; }
+.agent-card-detail p { margin: 6px 0; }
+.agent-card-column { display: flex; height: 14px; overflow: hidden; border-radius: 4px; margin: 8px 0; }

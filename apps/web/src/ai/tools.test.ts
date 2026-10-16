@@ -116,6 +116,50 @@ describe('herramientas del asistente de IA', () => {
     expect(blast().holes.filter((h) => h.row === 0)).toEqual(before);
   });
 
+  it('filtra por explosivo («los taladros con ANFO pesado»), sin carga y sin detonador', async () => {
+    await ok('set_charge', {
+      target: { rows: [1] },
+      bottom_explosive: 'ANFO pesado 30/70',
+      bottom_length: 3,
+      column_explosive: 'ANFO',
+      stemming: 4.5,
+    });
+    const row1 = blast()
+      .holes.filter((h) => h.row === 0)
+      .map((h) => h.label)
+      .sort();
+    const r = await ok('list_holes', { target: { explosive: 'anfo pesado 30/70' } });
+    const labels = (r.holes as { label: string }[]).map((h) => h.label).sort();
+    expect(labels).toEqual(expect.arrayContaining(row1));
+    // «ANFO» exacto no arrastra al «ANFO pesado».
+    const lib = document.project.library.explosives;
+    const anfo = lib.find((e) => e.name === 'ANFO')?.id;
+    const r2 = await ok('list_holes', { target: { explosive: 'ANFO' } });
+    for (const h of r2.holes as { label: string }[]) {
+      const hole = blast().holes.find((x) => x.label === h.label);
+      expect(hole?.decks.some((d) => d.kind === 'explosive' && d.explosiveId === anfo)).toBe(true);
+    }
+    const bad = await runTool('list_holes', { target: { explosive: 'Dinamita X' } });
+    expect(!bad.ok && bad.error).toMatch(/No explosive "Dinamita X"/);
+  });
+
+  it('renombrar un perímetro no lo duplica (y limpia copias con el mismo id)', async () => {
+    const b = blast().boundaries[0];
+    if (!b) throw new Error('sin perímetro');
+    document.load({ ...document.project, blasts: [{ ...blast(), boundaries: [b, b] }] });
+    await ok('edit_perimeter', { perimeter: b.name, rename: 'Banco 3370' });
+    await ok('edit_perimeter', { perimeter: 'Banco 3370', rename: 'Banco 3370 B' });
+    expect(blast().boundaries.map((x) => x.name)).toEqual(['Banco 3370 B']);
+  });
+
+  it('el foco queda hasta volver a la vista general', async () => {
+    const r = await ok('spotlight', { holes: { rows: [1] } });
+    expect(r.showing_only).toEqual(expect.arrayContaining(['holes', 'labels']));
+    expect(String(r.note)).toContain('vista general');
+    expect(r.seconds).toBeUndefined();
+    expect(await ok('spotlight', { restore: true })).toMatchObject({ restored: true });
+  });
+
   it('un producto desconocido no cambia nada y devuelve la lista para corregir', async () => {
     const version = document.version;
     const out = await runTool('set_charge', {
@@ -146,8 +190,20 @@ describe('herramientas del asistente de IA', () => {
     }
   });
 
-  it('amarre en V de 17/42 ms: un solo árbol que une todos los taladros desde el centro de la fila 1', async () => {
+  it('amarre sin confirmar: solo propone (simulado, con tarjeta) y no cambia el diseño', async () => {
+    const before = blast().initiation.connections.length;
     const r = await ok('set_tie_up', { mode: 'v', inter_hole: 17, inter_row: '42' });
+    expect(r.applied).toBe(false);
+    const p = r.proposal as Record<string, unknown>;
+    expect(p.connections).toBeGreaterThan(0);
+    expect(p.charged_holes_not_firing).toBe(0);
+    expect(blast().initiation.connections).toHaveLength(before);
+    const res = await runTool('set_tie_up', { mode: 'v', inter_hole: 17, inter_row: 150 });
+    expect(res.ok).toBe(false);
+  });
+
+  it('amarre en V de 17/42 ms: un solo árbol que une todos los taladros desde el centro de la fila 1', async () => {
+    const r = await ok('set_tie_up', { mode: 'v', inter_hole: 17, inter_row: '42', confirmed: true });
     const holes = blast().holes.filter((h) => h.patternId === blast().patterns[0]?.id);
     // Un amarre por filas conecta n taladros con n − 1 conexiones (una red sin ciclos).
     expect(blast().initiation.connections).toHaveLength(holes.length - 1);

@@ -9,6 +9,7 @@ export * from './units/units';
 export * from './geometry/vec';
 export * from './geometry/hole';
 export * from './geometry/polygon';
+export * from './geometry/clip';
 export * from './geometry/snap';
 export * from './geometry/boundary';
 export * from './geometry/solid';
@@ -28,6 +29,7 @@ export * from './charging/chargeAnalysis';
 export * from './timing/timing';
 export * from './timing/isochrones';
 export * from './timing/tieUp';
+export * from './timing/cutoff';
 export * from './analysis/analyzeBlast';
 export * from './energy/energy';
 export * from './energy/contours';
@@ -62,7 +64,7 @@ export type { HoleEdit } from './document/commands';
 
 // IO
 export * from './io/projectFile';
-export { topographySurveySchema } from './io/projectSchema';
+export { explosiveSchema, topographySurveySchema } from './io/projectSchema';
 export * from './io/csv';
 export * from './io/dxf';
 export * from './io/geojson';

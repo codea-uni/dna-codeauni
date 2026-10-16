@@ -56,3 +56,57 @@ export function snapTurn(armed: boolean, x: number): { armed: boolean; angle: nu
   if (!armed && Math.abs(x) < SNAP_REARM) return { armed: true, angle: 0 };
   return { armed, angle: 0 };
 }
+
+/** Velocidad de salida del arco de teletransporte [m/s] y gravedad del arco [m/s²]. */
+export const ARC_SPEED = 26;
+export const ARC_GRAVITY = 9.81;
+/** Stick hacia adelante que arma el arco y vuelta al centro que lo suelta (con histéresis). */
+export const ARC_ON = 0.6;
+export const ARC_OFF = 0.3;
+
+/**
+ * Arco parabólico del teletransporte (coordenadas del modelo, Z arriba): sale de `origin` en la
+ * dirección unitaria `dir` y cae con la gravedad hasta tocar el terreno `height(x, y)` (null fuera
+ * del terreno: sigue cayendo). Devuelve los puntos del arco para dibujarlo y el punto de llegada
+ * (refinado por bisección), o null si no toca el terreno en `maxSteps` pasos.
+ */
+export function teleportArc(
+  origin: Vec3,
+  dir: Vec3,
+  height: (x: number, y: number) => number | null,
+  speed = ARC_SPEED,
+  gravity = ARC_GRAVITY,
+  step = 0.05,
+  maxSteps = 120,
+): { points: Vec3[]; hit: Vec3 | null } {
+  const at = (t: number): Vec3 => ({
+    x: origin.x + dir.x * speed * t,
+    y: origin.y + dir.y * speed * t,
+    z: origin.z + dir.z * speed * t - 0.5 * gravity * t * t,
+  });
+  const under = (t: number): boolean => {
+    const p = at(t);
+    const h = height(p.x, p.y);
+    return h !== null && p.z <= h;
+  };
+  const points: Vec3[] = [origin];
+  if (under(0)) return { points, hit: null };
+  for (let i = 1; i <= maxSteps; i++) {
+    const t = i * step;
+    if (under(t)) {
+      let lo = t - step;
+      let hi = t;
+      for (let k = 0; k < 20; k++) {
+        const mid = (lo + hi) / 2;
+        if (under(mid)) hi = mid;
+        else lo = mid;
+      }
+      const p = at(hi);
+      const hit = { x: p.x, y: p.y, z: height(p.x, p.y) ?? p.z };
+      points.push(hit);
+      return { points, hit };
+    }
+    points.push(at(t));
+  }
+  return { points, hit: null };
+}
