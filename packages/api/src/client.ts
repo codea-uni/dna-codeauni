@@ -64,6 +64,7 @@ import {
   type AiLogRequest,
   type AiSpeechRequest,
   type AiSpeechResponse,
+  type AiUsageReport,
 } from './ai';
 import {
   assetInfoSchema,
@@ -189,6 +190,11 @@ export class ApiClient {
       body,
       ...(signal ? { signal } : {}),
     });
+  }
+
+  /** Tokens de un turno de voz en vivo, para el registro de costo (sin contenido). */
+  async aiUsage(body: AiUsageReport): Promise<void> {
+    await this.requestText('/ai/usage', { method: 'POST', body });
   }
 
   /** Registro de la conversación con el asistente (para revisar sesiones de prueba). */

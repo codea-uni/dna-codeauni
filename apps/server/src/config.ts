@@ -27,7 +27,36 @@ const envSchema = z.object({
   GEMINI_LIVE_VOICE: z.string().min(1).default('Sulafat'),
   /** Carpeta donde guardar las conversaciones con el asistente (JSONL por día); sin ella, no se guardan. */
   AI_LOG_DIR: z.string().min(1).optional(),
+  /**
+   * Topes y ajustes de costo de la IA (ver `AiLimits` en routes/ai.ts); sin ellos rigen los
+   * valores por defecto de allí. `LIVE_CONTEXT_TRIGGER_TOKENS=0` apaga el recorte del contexto Live.
+   */
+  AI_CHAT_PER_HOUR: z.coerce.number().int().positive().optional(),
+  AI_SPEECH_PER_HOUR: z.coerce.number().int().positive().optional(),
+  AI_DAILY_CHAT: z.coerce.number().int().positive().optional(),
+  AI_DAILY_SPEECH: z.coerce.number().int().positive().optional(),
+  AI_DAILY_LIVE: z.coerce.number().int().positive().optional(),
+  AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().optional(),
+  AI_FALLBACK_MODEL: z.string().min(1).optional(),
+  AI_TTS_CACHE_DIR: z.string().min(1).optional(),
+  AI_TTS_CACHE_MB: z.coerce.number().int().positive().optional(),
+  LIVE_CONTEXT_TRIGGER_TOKENS: z.coerce.number().int().min(0).optional(),
+  LIVE_CONTEXT_TARGET_TOKENS: z.coerce.number().int().positive().optional(),
 });
+
+const LIMIT_ENV = {
+  AI_CHAT_PER_HOUR: 'chatPerHour',
+  AI_SPEECH_PER_HOUR: 'speechPerHour',
+  AI_DAILY_CHAT: 'dailyChat',
+  AI_DAILY_SPEECH: 'dailySpeech',
+  AI_DAILY_LIVE: 'dailyLive',
+  AI_MAX_OUTPUT_TOKENS: 'maxOutputTokens',
+  AI_FALLBACK_MODEL: 'fallbackModel',
+  AI_TTS_CACHE_DIR: 'ttsCacheDir',
+  AI_TTS_CACHE_MB: 'ttsCacheMb',
+  LIVE_CONTEXT_TRIGGER_TOKENS: 'liveContextTrigger',
+  LIVE_CONTEXT_TARGET_TOKENS: 'liveContextTarget',
+} as const;
 
 export interface ServerConfig {
   databaseUrl: string;
@@ -52,6 +81,22 @@ export interface AiConfig {
   liveVoice?: string;
   /** Carpeta del registro de conversaciones (`AI_LOG_DIR`). */
   logDir?: string;
+  /** Topes y ajustes de costo; lo que falte toma el valor por defecto de routes/ai.ts. */
+  limits?: Partial<AiLimits>;
+}
+
+export interface AiLimits {
+  chatPerHour: number;
+  speechPerHour: number;
+  dailyChat: number;
+  dailySpeech: number;
+  dailyLive: number;
+  maxOutputTokens: number;
+  fallbackModel: string;
+  ttsCacheDir: string;
+  ttsCacheMb: number;
+  liveContextTrigger: number;
+  liveContextTarget: number;
 }
 
 /** Nombres anteriores de las variables del superadministrador (siguen valiendo). */
@@ -72,6 +117,11 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new Error(`Variables de entorno inválidas o faltantes: ${fields}`);
   }
   const e = parsed.data;
+  const limits: Partial<Record<keyof AiLimits, string | number>> = {};
+  for (const [name, field] of Object.entries(LIMIT_ENV)) {
+    const v = e[name as keyof typeof LIMIT_ENV];
+    if (v !== undefined) limits[field] = v;
+  }
   return {
     databaseUrl: e.DATABASE_URL,
     host: e.HOST,
@@ -96,6 +146,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
           liveModel: e.GEMINI_LIVE_MODEL,
           liveVoice: e.GEMINI_LIVE_VOICE,
           ...(e.AI_LOG_DIR ? { logDir: e.AI_LOG_DIR } : {}),
+          ...(Object.keys(limits).length ? { limits: limits as Partial<AiLimits> } : {}),
         }
       : null,
   };

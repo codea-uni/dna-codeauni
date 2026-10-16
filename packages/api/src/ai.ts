@@ -62,6 +62,17 @@ export const aiLiveTokenResponseSchema = z.object({
 export type AiLiveTokenResponse = z.infer<typeof aiLiveTokenResponseSchema>;
 
 /**
+ * `POST /api/ai/usage`: tokens de un turno de Gemini Live tal como los manda Google al navegador
+ * (`usageMetadata`). Solo números: el servidor estima el costo y lo anota sin contenido.
+ */
+export interface AiUsageReport {
+  model: string;
+  usage: Record<string, unknown>;
+  /** Duración del turno [ms]. */
+  ms?: number;
+}
+
+/**
  * `POST /api/ai/log`: registro de lo que se habló con el asistente (lo que dijo cada uno y las
  * herramientas con sus argumentos), para revisar sesiones de prueba. Sin `AI_LOG_DIR` no se guarda.
  */

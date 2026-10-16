@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "reset-password": "tsx --env-file-if-exists=.env src/resetPassword.ts",
-    "seed-demo": "tsx --env-file-if-exists=.env src/seedDemo.ts"
+    "seed-demo": "tsx --env-file-if-exists=.env src/seedDemo.ts",
+    "ai-usage": "tsx src/aiUsageReport.ts"
   },
   "dependencies": {
     "@cronos/api": "workspace:*",

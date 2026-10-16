@@ -113,7 +113,7 @@ describe.runIf(await databaseAvailable())('asistente de IA (/api/ai/generate)', 
       const body = JSON.parse(init?.body as string) as Record<string, unknown>;
       bodies.push(body);
       return Promise.resolve(
-        'generationConfig' in body
+        JSON.stringify(body.generationConfig ?? {}).includes('thinkingConfig')
           ? Response.json(
               { error: { message: 'Thinking level is not supported' } },
               { status: 400 },
@@ -136,7 +136,223 @@ describe.runIf(await databaseAvailable())('asistente de IA (/api/ai/generate)', 
     expect(bodies[0]).toMatchObject({
       generationConfig: { thinkingConfig: { thinkingLevel: 'low' } },
     });
-    expect(bodies[1]).not.toHaveProperty('generationConfig');
+    expect(bodies[1]?.generationConfig).not.toHaveProperty('thinkingConfig');
+    expect(bodies[1]).toMatchObject({ generationConfig: { maxOutputTokens: 8192 } });
+  });
+
+  it('5xx: un solo reintento; 4xx: ninguno; y cada llamada queda en el registro de uso sin texto', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'aiuse-'));
+    let n = 0;
+    const fake: typeof fetch = () => {
+      n++;
+      return Promise.resolve(
+        n === 1
+          ? Response.json({ error: { message: 'overloaded' } }, { status: 503 })
+          : Response.json({
+              candidates: [{ content: { role: 'model', parts: [{ text: 'Listo.' }] } }],
+              usageMetadata: {
+                promptTokenCount: 1000,
+                candidatesTokenCount: 10,
+                cachedContentTokenCount: 800,
+              },
+            }),
+      );
+    };
+    const s = createTestApp(t, {
+      ai: { apiKey: 'clave', model: 'gemini-x', logDir: dir },
+      fetch: fake,
+    });
+    const cookie = await signedIn(s, { email: 'reintento@mina.pe' });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/generate',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: turn,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(n).toBe(2);
+    const files = (await readdir(dir)).filter((f) => f.startsWith('usage-'));
+    const raw = await readFile(join(dir, files[0] ?? ''), 'utf8');
+    expect(raw).not.toContain('malla');
+    const lines = raw
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({
+      task: 'chat',
+      model: 'gemini-x',
+      retried: 'http_503',
+      tokens: { in: 1000, out: 10, cached: 800 },
+    });
+
+    let m = 0;
+    const bad: typeof fetch = () => {
+      m++;
+      return Promise.resolve(Response.json({ error: { message: 'quota' } }, { status: 429 }));
+    };
+    const s2 = createTestApp(t, { ai: { apiKey: 'clave', model: 'gemini-x' }, fetch: bad });
+    const cookie2 = await signedIn(s2, { email: 'cuota@mina.pe' });
+    const res2 = await s2.app.inject({
+      method: 'POST',
+      url: '/api/ai/generate',
+      headers: { ...TEST_ORIGIN, cookie: cookie2 },
+      payload: turn,
+    });
+    expect(res2.statusCode).toBe(502);
+    expect(m).toBe(1);
+  });
+
+  it('respuesta vacía o cortada: un reintento con el modelo de respaldo', async () => {
+    const models: string[] = [];
+    const fake: typeof fetch = (url) => {
+      const u = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+      models.push(u.split('/models/')[1]?.split(':')[0] ?? '');
+      return Promise.resolve(
+        models.length === 1
+          ? Response.json({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] })
+          : Response.json({
+              candidates: [
+                { content: { role: 'model', parts: [{ text: 'Listo.' }] }, finishReason: 'STOP' },
+              ],
+            }),
+      );
+    };
+    const s = createTestApp(t, {
+      ai: { apiKey: 'clave', model: 'gemini-x', limits: { fallbackModel: 'gemini-y' } },
+      fetch: fake,
+    });
+    const cookie = await signedIn(s, { email: 'vacia@mina.pe' });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/generate',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: turn,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(models).toEqual(['gemini-x', 'gemini-y']);
+    expect(res.json()).toMatchObject({ finishReason: 'STOP' });
+  });
+
+  it('tope por usuario y hora: 429 ai_rate_limited sin llamar a Gemini', async () => {
+    let n = 0;
+    const fake: typeof fetch = () => {
+      n++;
+      return Promise.resolve(
+        Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: 'ok' }] } }] }),
+      );
+    };
+    const s = createTestApp(t, {
+      ai: { apiKey: 'clave', model: 'gemini-x', limits: { chatPerHour: 1 } },
+      fetch: fake,
+    });
+    const cookie = await signedIn(s, { email: 'tope@mina.pe' });
+    const send = () =>
+      s.app.inject({
+        method: 'POST',
+        url: '/api/ai/generate',
+        headers: { ...TEST_ORIGIN, cookie },
+        payload: turn,
+      });
+    expect((await send()).statusCode).toBe(200);
+    const second = await send();
+    expect(second.statusCode).toBe(429);
+    expect(second.json()).toMatchObject({ code: 'ai_rate_limited' });
+    expect(n).toBe(1);
+  });
+
+  it('voz: el mismo texto sale de la caché exacta sin volver a pagarlo', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'aitts-'));
+    let n = 0;
+    const fake: typeof fetch = () => {
+      n++;
+      return Promise.resolve(
+        Response.json({
+          candidates: [
+            { content: { parts: [{ inlineData: { mimeType: 'audio/wav', data: 'UklGRg==' } }] } },
+          ],
+        }),
+      );
+    };
+    const s = createTestApp(t, {
+      ai: { apiKey: 'clave', model: 'gemini-x', logDir: dir },
+      fetch: fake,
+    });
+    const cookie = await signedIn(s, { email: 'cache-voz@mina.pe' });
+    const say = (text: string) =>
+      s.app.inject({
+        method: 'POST',
+        url: '/api/ai/speech',
+        headers: { ...TEST_ORIGIN, cookie },
+        payload: { text },
+      });
+    const a = await say('Listo, lo calculo.');
+    const b = await say('Listo, lo calculo.');
+    const c = await say('Listo, lo calculo');
+    expect(a.json()).toEqual(b.json());
+    expect(c.statusCode).toBe(200);
+    expect(n).toBe(2);
+    const usage = (await readdir(dir)).filter((f) => f.startsWith('usage-'));
+    const lines = (await readFile(join(dir, usage[0] ?? ''), 'utf8')).trim().split('\n');
+    expect(lines.map((l) => (JSON.parse(l) as { cacheHit?: boolean }).cacheHit ?? false)).toEqual([
+      false,
+      true,
+      false,
+    ]);
+  });
+
+  it('voz en vivo: informa el uso del turno (solo números) y fija el recorte de contexto', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ailive-'));
+    const calls: string[] = [];
+    const fake: typeof fetch = (_url, init) => {
+      calls.push(init?.body as string);
+      return Promise.resolve(Response.json({ name: 'auth_tokens/abc' }));
+    };
+    const s = createTestApp(t, {
+      ai: { apiKey: 'clave', model: 'gemini-x', logDir: dir },
+      fetch: fake,
+    });
+    const cookie = await signedIn(s, { email: 'vivo-uso@mina.pe' });
+    await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/live-token',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: { systemInstruction: 'x', tools: [] },
+    });
+    expect(JSON.parse(calls[0] ?? '{}')).toMatchObject({
+      bidiGenerateContentSetup: {
+        contextWindowCompression: { triggerTokens: 32000, slidingWindow: { targetTokens: 16000 } },
+      },
+    });
+    const res = await s.app.inject({
+      method: 'POST',
+      url: '/api/ai/usage',
+      headers: { ...TEST_ORIGIN, cookie },
+      payload: {
+        model: 'gemini-3.1-flash-live-preview',
+        usage: {
+          promptTokenCount: 20000,
+          responseTokenCount: 300,
+          promptTokensDetails: [
+            { modality: 'TEXT', tokenCount: 19000 },
+            { modality: 'AUDIO', tokenCount: 1000 },
+          ],
+          responseTokensDetails: [{ modality: 'AUDIO', tokenCount: 300 }],
+        },
+      },
+    });
+    expect(res.statusCode).toBe(204);
+    const usage = (await readdir(dir)).filter((f) => f.startsWith('usage-'));
+    const line = JSON.parse((await readFile(join(dir, usage[0] ?? ''), 'utf8')).trim()) as Record<
+      string,
+      unknown
+    >;
+    // 19k texto × 0,50 + 1k audio × 3 + 300 audio × 12 (USD por millón).
+    expect(line).toMatchObject({
+      task: 'live',
+      tokens: { in: 20000, audioIn: 1000, audioOut: 300 },
+    });
+    expect(line.costUsd).toBeCloseTo(0.0161, 4);
   });
 
   it('voz: pide audio a Gemini TTS con la clave y devuelve el audio tal cual', async () => {
