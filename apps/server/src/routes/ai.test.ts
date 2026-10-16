@@ -321,7 +321,7 @@ describe.runIf(await databaseAvailable())('asistente de IA (/api/ai/generate)', 
     });
     expect(JSON.parse(calls[0] ?? '{}')).toMatchObject({
       bidiGenerateContentSetup: {
-        contextWindowCompression: { triggerTokens: 32000, slidingWindow: { targetTokens: 16000 } },
+        contextWindowCompression: { triggerTokens: 48000, slidingWindow: { targetTokens: 32000 } },
       },
     });
     const res = await s.app.inject({

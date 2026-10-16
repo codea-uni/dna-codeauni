@@ -60,11 +60,12 @@ export const DEFAULT_AI_LIMITS: AiLimits = {
   fallbackModel: '',
   ttsCacheDir: '',
   ttsCacheMb: 200,
-  // Live re-cobra todo el contexto acumulado en cada turno. Al pasar de 32k tokens Gemini recorta
-  // los turnos más viejos hasta 16k (las instrucciones se conservan y cada turno trae la nota
-  // [context] con el diseño actual, así que no se pierde el estado). 0 = sin recorte propio.
-  liveContextTrigger: 32_000,
-  liveContextTarget: 16_000,
+  // Live re-cobra todo el contexto acumulado en cada turno. Lo fijo (instrucciones ~7k tokens +
+  // herramientas ~12k) ya ronda los 19k; al pasar de 48k Gemini recorta los turnos más viejos
+  // hasta 32k (quedan ~13k de conversación reciente, y cada turno trae la nota [context] con el
+  // diseño actual, así que no se pierde el estado). 0 = sin recorte propio (el de Gemini).
+  liveContextTrigger: 48_000,
+  liveContextTarget: 32_000,
 };
 
 /** Respuestas que no sirven y justifican UN reintento: vacía, cortada o herramienta mal llamada. */
