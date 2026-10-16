@@ -58,7 +58,14 @@ describe('bucle del asistente', () => {
     const second = generate.mock.calls[1]?.[0];
     // El turno del modelo vuelve tal cual (con su firma) y la respuesta lleva el id de la llamada.
     expect(second?.contents).toEqual([
-      { role: 'user', parts: [{ text: 'malla cuadrada de 5 metros' }] },
+      {
+        role: 'user',
+        parts: [
+          { text: 'malla cuadrada de 5 metros' },
+          // El estado del diseño viaja en el mensaje, no en las instrucciones.
+          { text: expect.stringContaining('[context] design:') as string },
+        ],
+      },
       { role: 'model', parts: [call] },
       {
         role: 'user',
@@ -74,6 +81,9 @@ describe('bucle del asistente', () => {
       },
     ]);
     expect(second?.systemInstruction).toContain('ALWAYS work on it');
+    // Instrucciones idénticas entre pasos: prefijo estable para la caché implícita de Gemini.
+    expect(second?.systemInstruction).toBe(generate.mock.calls[0]?.[0].systemInstruction);
+    expect(second?.systemInstruction).not.toContain('"holes"');
     expect(useAiStore.getState().entries.map((e) => e.kind)).toEqual(['user', 'tool', 'assistant']);
     expect(useAiStore.getState().busy).toBe(false);
   });
@@ -93,7 +103,10 @@ describe('bucle del asistente', () => {
     });
     await sendToAssistant('de nuevo');
     expect(generate.mock.calls[1]?.[0].contents).toEqual([
-      { role: 'user', parts: [{ text: 'de nuevo' }] },
+      {
+        role: 'user',
+        parts: [{ text: 'de nuevo' }, { text: expect.stringContaining('[context]') as string }],
+      },
     ]);
   });
 });

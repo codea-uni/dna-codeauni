@@ -3,7 +3,7 @@ import { logEntry } from './transcript';
 import { create } from 'zustand';
 import { api } from '../server/api';
 import { loadKnowledge } from './knowledge';
-import { textSystemInstruction } from './prompts';
+import { textContextNote, textSystemInstruction } from './prompts';
 import { AI_FUNCTION_DECLARATIONS, orderToolCalls, READ_ONLY_TOOLS, runTool } from './tools';
 
 /**
@@ -114,6 +114,9 @@ export async function sendToAssistant(text: string, audio?: VoiceAudio): Promise
   try {
     // Capas de conocimiento del proyecto (empresa, sitio, proyecto) para el contexto del turno.
     await loadKnowledge();
+    // El estado del momento va en el mensaje, no en las instrucciones (prefijo estable y cacheable).
+    const turn = history[mark];
+    if (turn) history[mark] = { ...turn, parts: [...turn.parts, { text: textContextNote() }] };
     for (let step = 0; step < MAX_STEPS; step++) {
       signal.throwIfAborted();
       const res = await api.aiGenerate(

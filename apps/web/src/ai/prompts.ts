@@ -100,14 +100,23 @@ ${BLAST_SKILL}`;
 /** Estilo para voz: frases cortas, para escuchar. */
 const VOICE_STYLE = `Voice mode: this is a live spoken conversation. Answer in Spanish of Peru (or the user's language), warm and direct, like a senior blasting engineer colleague. Keep replies to one to three short sentences (they are heard, not read); numbers rounded with units, said naturally ("tres coma cinco metros", "ochenta milímetros por segundo"); no lists, no markdown. Never repeat or paraphrase what the user said. While you call tools, you may say a very short filler ("Listo, lo calculo"). If what you hear is not addressed to you (background talk, noise), answer only "¿Sí?".`;
 
+/**
+ * Instrucciones del asistente de texto: FIJAS (solo cambian con el idioma). El estado del diseño
+ * va en la nota [context] de cada mensaje (`textContextNote`): así instrucciones + herramientas +
+ * conversación previa son un prefijo idéntico entre pasos y mensajes, y Gemini lo cobra al 10 %
+ * desde su caché implícita. Antes el resumen del diseño cambiaba el prefijo en cada paso.
+ */
 export function textSystemInstruction(): string {
   const locale = useLocale.getState().locale;
   return `${BASE_PROMPT}
 
 Interface language: ${locale === 'en' ? 'English' : 'Spanish'}.
-Current design summary (call get_design for details): ${JSON.stringify(designSummary())}
-Site conditions saved: ${JSON.stringify(siteSummary())}
-Knowledge layers: ${JSON.stringify(knowledgeSummary())}`;
+Each user message starts with a [context] note: the design summary at that moment (call get_design for details), the saved site conditions and the knowledge layers. Use it; do not repeat it to the user.`;
+}
+
+/** Nota de contexto al principio de cada mensaje del usuario en el asistente de texto. */
+export function textContextNote(): string {
+  return `[context] design: ${JSON.stringify(designSummary())}; site: ${JSON.stringify(siteSummary())}; knowledge: ${JSON.stringify(knowledgeSummary())}`;
 }
 
 /** Instrucciones de la sesión en vivo: fijas en el token (el contexto viaja en cada turno). */

@@ -140,6 +140,8 @@ interface FunctionCall {
 
 interface ServerMessage {
   setupComplete?: unknown;
+  /** Tokens de la respuesta (para el registro de costo). */
+  usageMetadata?: Record<string, unknown>;
   goAway?: unknown;
   toolCall?: { functionCalls?: FunctionCall[] };
   serverContent?: {
@@ -553,6 +555,7 @@ class LiveVoice {
     const ws = new WebSocket(WS_URL + encodeURIComponent(token.token));
     this.ws = ws;
     ws.onopen = () => {
+      this.model = token.model;
       ws.send(JSON.stringify({ setup: { model: `models/${token.model}` } }));
     };
     ws.onmessage = async (ev: MessageEvent<string | Blob>) => {
@@ -594,7 +597,20 @@ class LiveVoice {
     }
   }
 
+  /** Último `usageMetadata` del turno; se informa al cerrarse (uno por respuesta, sin contenido). */
+  private usage: Record<string, unknown> | null = null;
+  /** Modelo de la sesión abierta (lo fija el token). */
+  private model = '';
+  private reportUsage(): void {
+    const usage = this.usage;
+    this.usage = null;
+    if (!usage || !this.model) return;
+    void api.aiUsage({ model: this.model, usage }).catch(() => undefined);
+  }
+
   private message(m: ServerMessage, ws: WebSocket): void {
+    if (m.usageMetadata) this.usage = m.usageMetadata;
+    if (m.serverContent?.turnComplete || m.serverContent?.interrupted) this.reportUsage();
     if (m.setupComplete) {
       startConversation(this.surface.name ?? 'voice');
       this.wsReady = true;
