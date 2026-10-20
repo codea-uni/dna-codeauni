@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unsafe-assignment -- datos de prueba fijos */
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- datos de prueba fijos */
 import { createHole, DEFAULT_BENCH, DEFAULT_HOLE_TEMPLATE } from '@cronos/core';
 import { describe, expect, it } from 'vitest';
 import { HoleProximity } from './holeProximity';

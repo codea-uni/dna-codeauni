@@ -242,6 +242,7 @@ export function lithologyTable(
       if (own) return own;
       const typical = matchLithology(c);
       if (!typical) return { name: c };
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se descartan alias y nombre
       const { aliases: _aliases, name: _name, ...values } = typical;
       return { name: c, ...values };
     });

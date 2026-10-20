@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion, @typescript-eslint/no-unsafe-assignment -- datos de prueba fijos */
+/* eslint-disable @typescript-eslint/no-non-null-assertion -- datos de prueba fijos */
 import { buildExample, EXAMPLE_SPECS, newId } from '@cronos/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generatePattern } from '../actions';

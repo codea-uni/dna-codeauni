@@ -456,7 +456,7 @@ export function onRockModelsChange(listener: () => void): () => void {
 function pushRockModels(): void {
   const models = [...loaded.values()].flatMap((s) =>
     s.blocks && s.survey.blockModel?.geotechnical
-      ? [{ surveyId: s.survey.id as string, blocks: s.blocks }]
+      ? [{ surveyId: s.survey.id, blocks: s.blocks }]
       : [],
   );
   const key = models.map((m) => m.surveyId).join(',');

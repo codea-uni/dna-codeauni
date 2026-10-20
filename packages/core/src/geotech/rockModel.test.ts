@@ -22,6 +22,11 @@ import {
   type RockProvider,
 } from './rockModel';
 
+function must<T>(x: T | null | undefined): T {
+  if (x === null || x === undefined) throw new Error('falta un valor');
+  return x;
+}
+
 const enc = (s: string) => new TextEncoder().encode(s);
 const DEG = 59;
 const A = (DEG * Math.PI) / 180;
@@ -167,7 +172,7 @@ describe('modelo de bloques geotécnico', () => {
     );
     expect(c.tonnage).toBeCloseTo(200 * 2500, 3);
     expect(c.powderFactor * c.tonnage).toBeCloseTo(400, 6);
-    const col = colorBlocksByCompetence(p.models[0]!, 'rmr');
+    const col = colorBlocksByCompetence(must(p.models[0]), 'rmr');
     expect(col.legend.kind).toBe('category');
     if (col.legend.kind === 'category') expect(col.legend.items[1]?.count).toBe(2);
   });

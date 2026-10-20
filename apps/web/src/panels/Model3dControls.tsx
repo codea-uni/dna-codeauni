@@ -240,9 +240,10 @@ function ColumnMapping({
 }) {
   const t = useT();
   const setColumn = (field: keyof BlockModelMapping['columns'], name: string) => {
-    const columns = { ...mapping.columns };
-    if (name === '') delete columns[field];
-    else columns[field] = name;
+    // Sin columna = se quita la clave (no se guarda `undefined`).
+    const columns = Object.fromEntries(
+      Object.entries({ ...mapping.columns, [field]: name }).filter(([, c]) => c !== ''),
+    ) as BlockModelMapping['columns'];
     onChange({ ...mapping, columns });
   };
   const lith = mapping.columns.lithology
@@ -253,9 +254,10 @@ function ColumnMapping({
     const v = raw.trim() === '' ? undefined : Number(raw.replace(',', '.'));
     const next = table.map((r) => {
       if (r.name !== row.name) return r;
-      const copy: LithologyProps = { ...r };
-      if (v === undefined || !Number.isFinite(v)) delete copy[field];
-      else copy[field] = v;
+      const keep = v !== undefined && Number.isFinite(v);
+      const copy = Object.fromEntries(
+        Object.entries({ ...r, [field]: v }).filter(([k]) => keep || k !== field),
+      ) as unknown as LithologyProps;
       return copy;
     });
     onChange({ ...mapping, lithologies: next });

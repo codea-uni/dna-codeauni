@@ -284,7 +284,7 @@ function blockIndex(b: BlockModelData): { find: GeotechModel['find']; minSize: n
         Math.floor((c - h + eps) / (cell[a] ?? 1)),
         Math.floor((c + h - eps) / (cell[a] ?? 1)),
       ];
-    }) as [number, number][];
+    });
     const [ri, rj, rk] = r as [[number, number], [number, number], [number, number]];
     for (let k = rk[0]; k <= rk[1]; k++)
       for (let j = rj[0]; j <= rj[1]; j++)
@@ -331,6 +331,7 @@ export function blockRock(m: GeotechModel, i: number, base: RockMass): RockSampl
   const st = finiteOrNull(m.tensileStrength[i]);
   const vppc = finiteOrNull(m.vppc[i]);
   const rqd = finiteOrNull(m.rqd[i]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- se recalculan por bloque
   const { blastability: _b, swebrecB: _s, ...rest } = base;
   return {
     ...rest,
