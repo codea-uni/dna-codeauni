@@ -74,8 +74,11 @@
   margin: 0 0 1.8rem;
 }
 
-/* Tarjeta, no botón de una línea: el texto se ajusta (los botones globales son `nowrap`). */
-.tool-entry {
+/*
+ * Tarjeta, no botón de una línea: el texto se ajusta. `.tool-entries >` gana a `.page button`
+ * (inline-flex, nowrap), que si no la aplana en una fila.
+ */
+.tool-entries > .tool-entry {
   display: grid;
   grid-template-areas:
     'icon title count'
@@ -140,12 +143,12 @@
   border-radius: 999px;
 }
 
-.tool-entry:hover:not(:disabled) {
+.tool-entries > .tool-entry:hover:not(:disabled) {
   background: var(--panel-2);
   border-color: color-mix(in srgb, var(--tool-color) 60%, var(--border));
 }
 
-.tool-entry[aria-pressed='true'] {
+.tool-entries > .tool-entry[aria-pressed='true'] {
   background: color-mix(in srgb, var(--tool-color) 9%, var(--panel));
   border-color: var(--tool-color);
   box-shadow: inset 0 0 0 1px var(--tool-color);
