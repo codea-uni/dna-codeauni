@@ -26,6 +26,11 @@ Precision rules:
 - Product names (explosives, detonators, connectors, primers, stemming) must come from the library (get_design). Connectors can also be given by their delay in ms.
 - Lengths in m, diameter in mm, angles in degrees (inclination from vertical, azimuth clockwise from North), delays in ms, coordinates x = East and y = North.
 
+Vibration between surface and underground (mixed projects):
+- "Mide la vibración en la galería / en la labor / en el nivel 3370", "pon un punto de control en la labor X o a cota Z" → add_working_point (working name or x, y, z; kind underground-working, slope for pit walls/taludes, community for comunidades). "Compártelo con la mina" → share_with_mine true.
+- "¿Cuánto llega a la labor / al talud / a la comunidad?", "¿la voladura subterránea daña el talud del tajo?" → vibration_report (project and mine points). Say the PPV vs limit of the points that matter and any EXCEEDS warning with its admissible charge per delay.
+- "Calibra la ley / el factor de terreno con los sismógrafos" → calibrate_vibration_law (by zone and type; 95 % by default). If the report says the law is uncalibrated, mention it once.
+
 Underground (subterránea):
 - "Diseña la malla del frente", "la ronda / el disparo del túnel, crucero, galería, rampa, by-pass de 4 por 4", "malla de perforación subterránea" → design_tunnel_face. Ask ONE short question at a time ONLY for what is missing and matters: section (ancho × alto and shape), drill bit diameter and relief (rimado) diameter, jumbo bar length, explosive (cartridges and their size, or bulk emulsion). If the user says "lo típico" / "usa lo estándar", use the current values (underground_state) and say them in one sentence.
 - "Abanicos", "taladros largos", "anillos", "tajeo", "sublevel stoping", "voladura de producción en el tajeo" → design_stope_rings (stope width and height relative to the drive, burden between rings, toe spacing, diameter, number of rings).

@@ -51,6 +51,7 @@ import { KNOWLEDGE_READ_ONLY, KNOWLEDGE_TOOLS } from './knowledgeTools';
 import { SCENE_READ_ONLY, SCENE_TOOLS } from './sceneTools';
 import { WORKSPACE_READ_ONLY, WORKSPACE_TOOLS } from './workspaceTools';
 import { UNDERGROUND_READ_ONLY, UNDERGROUND_TOOLS } from './undergroundTools';
+import { VIBRATION_READ_ONLY, VIBRATION_TOOLS } from './vibrationTools';
 import { recordStep } from './steps';
 import { logTool } from './transcript';
 import { cardFromTool, closeCard, pushCard, type AgentCard } from './cards';
@@ -1497,6 +1498,7 @@ const TOOLS: Record<string, ToolDef> = {
   ...SCENE_TOOLS,
   ...WORKSPACE_TOOLS,
   ...UNDERGROUND_TOOLS,
+  ...VIBRATION_TOOLS,
   get_design: {
     description:
       'Full design state: bench, perimeters (vertices, edges, free faces), patterns, hole counts, tie-up and the product library. Call it before acting when unsure.',
@@ -1604,6 +1606,7 @@ export const READ_ONLY_TOOLS = new Set([
   ...SCENE_READ_ONLY,
   ...WORKSPACE_READ_ONLY,
   ...UNDERGROUND_READ_ONLY,
+  ...VIBRATION_READ_ONLY,
 ]);
 
 // ------------------------------------------------------------------ Gemini
@@ -1657,6 +1660,8 @@ const PHASE: Record<string, number> = {
   set_free_face: 3,
   set_site_conditions: 4,
   add_protected_point: 4,
+  add_working_point: 4,
+  calibrate_vibration_law: 4,
   split_zone: 5,
   generate_pattern: 6,
   design_tunnel_face: 6,
@@ -1673,6 +1678,7 @@ const PHASE: Record<string, number> = {
   set_hole_delays: 12,
   get_analysis: 13,
   predict_results: 13,
+  vibration_report: 13,
   track_blocks: 14,
   show_results: 15,
   set_layers: 15,
