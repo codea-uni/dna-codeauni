@@ -47,6 +47,7 @@ import { Emitter } from './events';
 import { InputRouter } from './input/InputRouter';
 import { BoundaryLayer } from './layers/BoundaryLayer';
 import { Model3dLayer, type BlockModelView, type PointCloudView } from './layers/Model3dLayer';
+import { TunnelLayer, type TunnelView } from './layers/TunnelLayer';
 import { COLORS } from './layers/colors';
 import { GridLayer } from './layers/GridLayer';
 import { turbo } from './layers/colormap';
@@ -327,6 +328,9 @@ export class Engine {
   private readonly models3d = new Model3dLayer();
   private cloudViews: readonly PointCloudView[] = [];
   private blockViews: readonly BlockModelView[] = [];
+  /** Excavaciones subterráneas de contexto (galería y tajeo del diseño subterráneo). */
+  private readonly tunnels3d = new TunnelLayer();
+  private tunnelViews: readonly TunnelView[] = [];
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
   private tieConnectorId: SurfaceConnectorId | undefined;
@@ -453,6 +457,7 @@ export class Engine {
       this.muckpileVectors3d.root,
       this.muckpileBlocksRoot,
       this.models3d.root,
+      this.tunnels3d.root,
       this.avatars3d.root,
       this.buildFx3d.root,
     );
@@ -1319,6 +1324,13 @@ export class Engine {
     this.loop.invalidate();
   }
 
+  /** Excavaciones subterráneas de contexto en 3D (coordenadas de proyecto); [] las quita. */
+  setTunnels(tunnels: readonly TunnelView[]): void {
+    this.tunnelViews = tunnels;
+    this.tunnels3d.set(tunnels, this.origin);
+    this.loop.invalidate();
+  }
+
   /** Tamaño de los puntos de las nubes [m]. */
   setPointSize(size: number): void {
     this.models3d.setPointSize(size);
@@ -1685,6 +1697,7 @@ export class Engine {
     this.events.clear();
     this.grid.dispose();
     this.holes.dispose();
+    this.tunnels3d.dispose();
     this.labels.dispose();
     this.boundaries.dispose();
     this.boundaryLabels.dispose();
@@ -2472,6 +2485,7 @@ export class Engine {
   private rebuildAll(checkRebase = true): void {
     // El origen de render pudo cambiar (recentrado o proyecto nuevo).
     this.applyModels3d();
+    this.tunnels3d.set(this.tunnelViews, this.origin);
     this.holes.clear();
     this.labels.clear();
     this.hover = null;

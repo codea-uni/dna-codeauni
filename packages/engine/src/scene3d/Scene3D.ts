@@ -288,7 +288,11 @@ export class Scene3D {
       let outlines = blast.boundaries
         .filter((x) => x.polygon.length >= 3)
         .map((x) => ({ poly: x.polygon, bench: boundaryBench(blast.bench, x) }));
-      if (outlines.length === 0 && Number.isFinite(b.minX)) {
+      // Un diseño solo subterráneo (frentes y anillos) no tiene banco: no se dibuja el plano.
+      const underground =
+        blast.holes.length > 0 &&
+        blast.holes.every((h) => h.tags?.some((tag) => tag.startsWith('ug-')) ?? false);
+      if (outlines.length === 0 && Number.isFinite(b.minX) && !underground) {
         const pad = 5;
         outlines = [
           {

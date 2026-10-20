@@ -13,6 +13,7 @@ import * as panelsB from './ns/panelsB';
 import * as platform from './ns/platform';
 import * as projects from './ns/projects';
 import * as topography from './ns/topography';
+import * as underground from './ns/underground';
 import * as workspace from './ns/workspace';
 import * as xr from './ns/xr';
 
@@ -29,6 +30,7 @@ export const en = {
   ...platform.en,
   ...projects.en,
   ...topography.en,
+  ...underground.en,
   ...workspace.en,
   ...xr.en,
   'toolbar.documentation': 'Documentation',

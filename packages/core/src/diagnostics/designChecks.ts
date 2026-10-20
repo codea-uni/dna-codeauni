@@ -3,6 +3,7 @@ import { boundaryAt } from '../geometry/boundary';
 import type { Blast, CalcParams, HoleId } from '../model/types';
 import type { TimingResult } from '../timing/timing';
 import { DEFAULT_CALC_PARAMS } from '../model/factories';
+import { isUndergroundHole, RELIEF_TAG } from '../underground/toHoles';
 
 export type CheckSeverity = 'error' | 'warning' | 'info';
 
@@ -52,7 +53,10 @@ export function designChecks(
   const lowStiffness: HoleId[] = [];
   const subdrillRange: HoleId[] = [];
   const benchDiameter: HoleId[] = [];
-  for (const h of blast.holes) {
+  // Frentes y anillos (Fase 3): las reglas de banco (H/B, J/B, H/Ø, cara libre del banco, taco
+  // en burdens, vecinos en planta) no les aplican; sus reglas propias están en `underground/`.
+  const surface = blast.holes.filter((h) => !isUndergroundHole(h));
+  for (const h of surface) {
     const burden = h.patternId ? burdenOf.get(h.patternId) : undefined;
     if (burden !== undefined) {
       if (H / burden <= options.minStiffness) lowStiffness.push(h.id);
@@ -69,7 +73,7 @@ export function designChecks(
     title: 'Sin cara libre definida',
     detail:
       'Solo queda la superficie del banco como cara libre: voladura confinada, más vibración y peor fragmentación (RM-06). Marca la cara libre en el perímetro (herramienta C).',
-    holes: hasFreeFace ? [] : blast.holes.map((h) => h.id),
+    holes: hasFreeFace ? [] : surface.map((h) => h.id),
   });
   add({
     id: 'lowStiffness',
@@ -108,7 +112,8 @@ export function designChecks(
   for (const h of blast.holes) {
     const hasExplosive = h.decks.some((d) => d.kind === 'explosive' && d.length > 0);
     if (!hasExplosive) {
-      unloaded.push(h.id);
+      // Los alivios del arranque van vacíos por diseño.
+      if (!h.tags?.includes(RELIEF_TAG)) unloaded.push(h.id);
       continue;
     }
     loaded.push(h.id);
@@ -124,7 +129,7 @@ export function designChecks(
       .reduce((s, i) => s + i.deck.length, 0);
     const burden = (h.patternId ? burdenOf.get(h.patternId) : undefined) ?? defaultBurden;
     if (stemming <= 0) noStemming.push(h.id);
-    else {
+    else if (!isUndergroundHole(h)) {
       // P-04: 0,7·B; sin burden conocido (taladro suelto), ~20·Ø como respaldo.
       const minStemming =
         burden !== undefined
@@ -223,7 +228,17 @@ export function designChecks(
       for (let dy = -1; dy <= 1; dy++) {
         for (const other of grid.get(`${gx + dx},${gy + dy}`) ?? []) {
           const o = byId.get(other);
-          if (o && Math.hypot(o.collar.x - h.collar.x, o.collar.y - h.collar.y) < cell) {
+          if (!o) continue;
+          // Un frente tiene muchas bocas en la misma vertical y el arranque las junta a pocos
+          // centímetros del alivio: entre taladros subterráneos se mide en 3D y solo cuenta si
+          // las bocas se tocan (distancia < suma de radios).
+          const ug = isUndergroundHole(o) && isUndergroundHole(h);
+          const dist = Math.hypot(
+            o.collar.x - h.collar.x,
+            o.collar.y - h.collar.y,
+            ug ? o.collar.z - h.collar.z : 0,
+          );
+          if (dist < (ug ? (o.diameter + h.diameter) / 2 : cell)) {
             dup.add(o.id);
             dup.add(h.id);
           }
@@ -276,6 +291,7 @@ function neighborCoincidences(
   const grid = new Map<string, { id: HoleId; x: number; y: number; t: number }[]>();
   const out = new Set<HoleId>();
   for (const h of blast.holes) {
+    if (isUndergroundHole(h)) continue;
     const th = t.get(h.id) ?? NaN;
     if (!Number.isFinite(th)) continue;
     const gx = Math.floor(h.collar.x / radius);

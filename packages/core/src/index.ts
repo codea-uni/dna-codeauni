@@ -121,3 +121,6 @@ export * from './topography/blockModel';
 
 // Subterráneo (Fase 3)
 export * from './underground';
+
+// Subterráneo (Fase 3)
+export * from './underground';

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, type ComponentType } from 'react';
-import { BookOpen, Bot, Layers, LayoutGrid, Mountain, Shapes } from 'lucide-react';
+import { BookOpen, Bot, Layers, LayoutGrid, Mountain, Pickaxe, Shapes } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { tabAvailable, useWorkflow, type TabRequirement } from '../hooks/useWorkflow';
 import { useT, type MessageKey } from '../i18n';
@@ -15,6 +15,7 @@ import { FloatingWindow } from './Floatable';
 
 const DocumentationPanel = lazy(() => import('../documentation/DocumentationPanel'));
 const AiPanel = lazy(() => import('../ai/AiPanel'));
+const UndergroundPanel = lazy(() => import('../panels/UndergroundPanel'));
 
 type Section = 'home' | 'tools' | 'charge' | 'timing' | 'analysis' | 'library' | 'ai' | 'reference';
 interface WorkspacePanel {
@@ -61,6 +62,14 @@ export const WORKSPACE_PANELS: WorkspacePanel[] = [
     Content: TopographyPanel,
   },
   {
+    id: 'underground',
+    section: 'tools',
+    label: 'ug.title',
+    icon: Pickaxe,
+    requires: null,
+    Content: UndergroundPanel,
+  },
+  {
     id: 'pattern',
     section: 'tools',
     label: 'pattern.generate',
@@ -100,11 +109,13 @@ export function openWorkspacePanel(id: string) {
       windowId,
       id === 'documentation'
         ? 1100
-        : id === 'library' || id === 'scenarios'
-          ? 900
-          : id === 'ai'
-            ? 440
-            : 640,
+        : id === 'underground'
+          ? 980
+          : id === 'library' || id === 'scenarios'
+            ? 900
+            : id === 'ai'
+              ? 440
+              : 640,
     );
 }
 

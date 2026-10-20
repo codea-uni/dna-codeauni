@@ -4,3 +4,4 @@ export * from './faceDesign';
 export * from './ringDesign';
 export * from './energy';
 export * from './transform';
+export * from './toHoles';
