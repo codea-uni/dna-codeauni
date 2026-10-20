@@ -192,7 +192,7 @@ export function ViewPanel() {
         <p className="hint">{t('view.noTimes')}</p>
       ) : (
         <>
-          <div className="row">
+          <div className="row seq-controls">
             {s.sequencePlaying ? (
               <button onClick={pause}>⏸ {t('view.pause')}</button>
             ) : (
@@ -232,6 +232,16 @@ export function ViewPanel() {
           <p className="muted mono">
             t = {s.sequenceTime === null ? '—' : `${(s.sequenceTime * 1000).toFixed(0)} ms`}
           </p>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={s.blastEffects}
+              onChange={(e) => {
+                s.set({ blastEffects: e.target.checked });
+              }}
+            />
+            {t('view.blastEffects')}
+          </label>
         </>
       )}
     </section>

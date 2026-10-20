@@ -327,6 +327,17 @@ button.danger:hover:not(:disabled) {
   text-overflow: ellipsis;
 }
 
+/* Reproducir / detener / velocidad de la secuencia: los botones no se aplastan. */
+.row.seq-controls button,
+.row.ug-sim-controls button {
+  flex: 0 0 auto;
+}
+
+.row.seq-controls select {
+  flex: 1 1 5rem;
+  width: auto;
+}
+
 .muted {
   color: var(--muted);
 }

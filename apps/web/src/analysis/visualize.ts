@@ -295,6 +295,7 @@ export function bindVisualization(engine: Engine): () => void {
           blockColors(s.muckpile, s.muckpileColorBy, domains),
         );
     }
+    if (changed('blastEffects')) engine.setBlastEffects(s.blastEffects);
     if (changed('muckpileOpacity')) engine.setMuckpileOpacity(s.muckpileOpacity);
     if (changed('muckpileSection'))
       engine.setSectionLine(s.muckpileSection?.a ?? null, s.muckpileSection?.b ?? null);

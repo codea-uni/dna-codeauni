@@ -307,6 +307,7 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const speed = useAnalysisStore((a) => a.sequenceSpeed);
   const muckpile = useAnalysisStore((a) => a.muckpile);
   const pileComputing = useAnalysisStore((a) => a.muckpileComputing);
+  const blastEffects = useAnalysisStore((a) => a.blastEffects);
   // «Simular voladura» pidió la pila: arranca cuando llega (o sin ella si no se pudo calcular).
   const pendingPlay = useRef(false);
   // Diseños subterráneos presentes (frente, abanicos y plantillas por método), por su marca.
@@ -590,7 +591,10 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
           </span>
         )}
       </div>
-      <div className="row" style={{ flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+      <div
+        className="row ug-sim-controls"
+        style={{ flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}
+      >
         {!playing ? (
           <button className="primary" disabled={!times || times.size === 0} onClick={play}>
             {t('uga.simulate')}
@@ -614,6 +618,16 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
             }}
           />
           {t('uga.showPile')}
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={blastEffects}
+            onChange={(e) => {
+              useAnalysisStore.getState().set({ blastEffects: e.target.checked });
+            }}
+          />
+          {t('view.blastEffects')}
         </label>
         {pileComputing && s.showPile && <span className="muted">{t('uga.pileComputing')}</span>}
         <label className="check">

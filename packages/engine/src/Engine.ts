@@ -6,6 +6,7 @@ import {
   Raycaster,
   Scene,
   Vector2,
+  Vector3,
   WebGLRenderer,
 } from 'three';
 import type { Object3D } from 'three';
@@ -70,6 +71,7 @@ import { HolesLayer } from './layers/HolesLayer';
 import { InitiationLayer } from './layers/InitiationLayer';
 import { IsochronesLayer, type IsochroneData } from './layers/IsochronesLayer';
 import { LabelsLayer } from './layers/LabelsLayer';
+import { BlastFxLayer } from './layers/BlastFxLayer';
 import { BlocksLayer, type BlocksData } from './layers/BlocksLayer';
 import { DomainsLayer } from './layers/DomainsLayer';
 import {
@@ -355,6 +357,12 @@ export class Engine {
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
   private tieConnectorId: SurfaceConnectorId | undefined;
+  /** Efectos de detonación (fogonazo, luz, gases y polvo) de la reproducción de la secuencia. */
+  private readonly blastFx = new BlastFxLayer();
+  /** Disparos ordenados de la secuencia y el próximo que falta mostrar. */
+  private fxShots: { t: number; id: HoleId }[] = [];
+  private fxNext = 0;
+  private fxLast = 0;
   private sequence: {
     times: ReadonlyMap<HoleId, number>;
     t: number;
@@ -483,6 +491,7 @@ export class Engine {
       this.context3d.root,
       this.avatars3d.root,
       this.buildFx3d.root,
+      this.blastFx.root,
     );
     this.muckpileBlocks.onMeshChange = (mesh, previous) => {
       if (previous) this.muckpileBlocksRoot.remove(previous);
@@ -525,7 +534,10 @@ export class Engine {
         this.advanceSequence();
         this.advanceBuild();
         this.advanceCameraFlight();
+        const shake = this.advanceBlastFx();
+        if (shake) this.camera3d.position.add(shake);
         this.renderer.render(this.scene, this.viewMode === '3d' ? this.camera3d : this.camera);
+        if (shake) this.camera3d.position.sub(shake);
       },
       (stats) => {
         this.events.emit('frameStats', stats);
@@ -1734,7 +1746,85 @@ export class Engine {
       end: Math.max(end + 0.3, until ?? this.muckpileData?.end ?? -Infinity),
       last: performance.now(),
     };
+    this.resetBlastFx(times, start);
     this.applyHoleColors();
+  }
+
+  /** Prende o apaga los efectos de detonación de la secuencia (apagados no cuestan nada). */
+  setBlastEffects(on: boolean): void {
+    this.blastFx.setEnabled(on);
+    if (on && this.sequence) this.resetBlastFx(this.sequence.times, this.sequence.t);
+    this.loop.invalidate();
+  }
+
+  /** Ordena los disparos y deja pendientes los que salen después de `t`. */
+  private resetBlastFx(times: ReadonlyMap<HoleId, number>, t: number): void {
+    this.blastFx.clear();
+    if (!this.blastFx.isEnabled) {
+      this.fxShots = [];
+      this.fxNext = 0;
+      return;
+    }
+    this.fxShots = [...times]
+      .filter(([, x]) => Number.isFinite(x))
+      .map(([id, x]) => ({ t: x, id }))
+      .sort((a, b) => a.t - b.t);
+    this.fxNext = this.fxShots.findIndex((s) => s.t > t);
+    if (this.fxNext < 0) this.fxNext = this.fxShots.length;
+    this.blastFx.setHoleCount(this.fxShots.length);
+  }
+
+  /**
+   * Dispara los efectos de los taladros que detonaron desde el cuadro anterior y avanza los que
+   * están en el aire. Devuelve la sacudida de la cámara de este cuadro (o null).
+   */
+  private advanceBlastFx(): Vector3 | null {
+    if (!this.blastFx.isEnabled) return null;
+    const now = performance.now() / 1000;
+    const dt = this.fxLast > 0 ? now - this.fxLast : 0;
+    this.fxLast = now;
+    const seq = this.sequence;
+    if (seq && this.viewMode === '3d' && !this.xr) {
+      // Si el reloj saltó mucho (cuadros perdidos), solo los últimos 60 disparos tienen efecto.
+      let count = 0;
+      while (
+        this.fxNext < this.fxShots.length &&
+        (this.fxShots[this.fxNext]?.t ?? Infinity) <= seq.t
+      ) {
+        const shot = this.fxShots[this.fxNext];
+        const first = this.fxNext === 0;
+        this.fxNext++;
+        if (!shot) continue;
+        const remaining = this.fxShots.length - this.fxNext;
+        if (++count > 60 && remaining > 0 && (this.fxShots[this.fxNext]?.t ?? Infinity) <= seq.t)
+          continue;
+        const h = this.document.findHole(shot.id)?.hole;
+        if (!h) continue;
+        const si = Math.sin(h.inclination);
+        this.blastFx.detonate(
+          {
+            collar: new Vector3(
+              h.collar.x - this.origin.x,
+              h.collar.y - this.origin.y,
+              h.collar.z - this.origin.z,
+            ),
+            axis: new Vector3(
+              Math.sin(h.azimuth) * si,
+              Math.cos(h.azimuth) * si,
+              -Math.cos(h.inclination),
+            ),
+            length: h.length,
+            underground: h.tags?.some((tag) => tag.startsWith('ug-')) ?? false,
+          },
+          now,
+          first,
+        );
+      }
+    }
+    const scale = (this.height * this.camera3d.projectionMatrix.elements[5]) / 2;
+    const alive = this.blastFx.update(now, dt, scale);
+    if (alive) this.loop.invalidate();
+    return this.viewMode === '3d' ? this.blastFx.shakeOffset(now) : null;
   }
 
   pauseSequence(): void {
@@ -1757,6 +1847,7 @@ export class Engine {
   seekSequence(times: ReadonlyMap<HoleId, number>, t: number): void {
     const speed = this.sequence?.speed ?? 0.1;
     this.sequence = { times, t, playing: false, speed, end: Infinity, last: performance.now() };
+    this.resetBlastFx(times, t);
     this.applyHoleColors();
     this.muckpileBlocks.update(t);
     this.applyMuckpileSurfaceVisibility();
@@ -1767,6 +1858,8 @@ export class Engine {
   stopSequence(): void {
     if (!this.sequence) return;
     this.sequence = null;
+    this.blastFx.clear();
+    this.fxShots = [];
     this.applyHoleColors();
     this.muckpileBlocks.update(null);
     this.applyMuckpileSurfaceVisibility();
@@ -1896,6 +1989,7 @@ export class Engine {
     for (const unsubscribe of this.unsubscribers) unsubscribe();
     this.buildFx.dispose();
     this.buildFx3d.dispose();
+    this.blastFx.dispose();
     this.resizeObserver.disconnect();
     this.input.dispose();
     this.loop.dispose();
