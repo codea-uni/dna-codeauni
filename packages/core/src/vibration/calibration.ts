@@ -45,9 +45,25 @@ export function recordDistance(r: SeismographRecord): number | null {
   return null;
 }
 
-/** Distancia escalada SD = R / W^(1/2) o R / W^(1/3). */
+/**
+ * Distancia escalada: SD = R / W^(1/2) (USBM), R / W^(1/3) (Ambraseys-Hendron) o
+ * R^(3/4) / W^(1/2) (Langefors-Kihlström). La ley es siempre PPV = K · SD^(−β).
+ */
 export function scaledDistance(distance: number, charge: number, scaling: LawScaling): number {
+  if (scaling === 'langefors') return Math.pow(distance, 3 / 4) / Math.sqrt(charge);
   return distance / Math.pow(charge, scaling === 'square-root' ? 1 / 2 : 1 / 3);
+}
+
+/** Distancia R [m] que da la distancia escalada `sd` con la carga W [kg] (inversa de `scaledDistance`). */
+export function distanceFromScaled(sd: number, charge: number, scaling: LawScaling): number {
+  if (scaling === 'langefors') return Math.pow(sd * Math.sqrt(charge), 4 / 3);
+  return sd * Math.pow(charge, scaling === 'square-root' ? 1 / 2 : 1 / 3);
+}
+
+/** Carga W [kg] que da la distancia escalada `sd` a la distancia R [m] (inversa de `scaledDistance`). */
+export function chargeFromScaled(sd: number, distance: number, scaling: LawScaling): number {
+  if (scaling === 'langefors') return Math.pow(Math.pow(distance, 3 / 4) / sd, 2);
+  return Math.pow(distance / sd, scaling === 'square-root' ? 2 : 3);
 }
 
 export interface VibrationFit {
@@ -144,6 +160,8 @@ export interface ZoneFit {
   n: number;
   squareRoot: VibrationFit | null;
   cubeRoot: VibrationFit | null;
+  /** Langefors-Kihlström (SD = R^¾/√W, VS-07). */
+  langefors: VibrationFit | null;
 }
 
 /** Ajustes por tipo (superficial/subterránea) para todas las zonas juntas y para cada zona. */
@@ -173,6 +191,7 @@ export function fitByZone(records: readonly SeismographRecord[]): ZoneFit[] {
       n: g.list.length,
       squareRoot: fitVibrationLaw(g.list, 'square-root'),
       cubeRoot: fitVibrationLaw(g.list, 'cube-root'),
+      langefors: fitVibrationLaw(g.list, 'langefors'),
     });
   }
   return out.sort(

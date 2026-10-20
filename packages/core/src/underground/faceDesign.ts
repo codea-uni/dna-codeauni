@@ -107,6 +107,9 @@ export interface FaceDesignInput {
   empiricalAreaFactor?: number;
 }
 
+/** Chequeo empírico N = P/E + K·A (EXSA): E [m] y K [1/m²] por defecto (roca intermedia). */
+export const EMPIRICAL_HOLE_COUNT = { perimeterSpacing: 0.6, areaFactor: 1.5 } as const;
+
 export interface ChargeSection {
   /** Concentración lineal [kg/m]. */
   linearCharge: number;
@@ -664,8 +667,8 @@ export function designFaceRound(input: FaceDesignInput): FaceDesignResult {
   const drilledMeters = ordered.reduce((acc, h) => acc + h.length, 0);
   const totalCharge = charged.reduce((acc, h) => acc + (h.charge?.mass ?? 0), 0);
   const volume = profile.area * advance;
-  const E = input.empiricalPerimeterSpacing ?? 0.6;
-  const K = input.empiricalAreaFactor ?? 1.5;
+  const E = input.empiricalPerimeterSpacing ?? EMPIRICAL_HOLE_COUNT.perimeterSpacing;
+  const K = input.empiricalAreaFactor ?? EMPIRICAL_HOLE_COUNT.areaFactor;
   const kpis: FaceKpis = {
     chargedHoles: charged.length,
     reliefHoles: ordered.filter((h) => h.role === 'relief').length,

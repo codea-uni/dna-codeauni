@@ -22,6 +22,15 @@ export function rockFactor(
   return 0.06 * (description + rdi + hf);
 }
 
+/**
+ * Variante de Kuz-Ram: Cunningham 1987 (exponente 19/30 del RWS, n con 2,2 − 14·B/d) o 2005
+ * (19/20 y √(2 − 30·B/d)). En banco la de 1987 es la de siempre (FC-26).
+ */
+export type KuzRamVariant = 'cunningham2005' | 'cunningham1987';
+
+/** Curva de distribución con la que se informan P20/P50/P80, sobretamaño y finos. */
+export type FragmentationCurve = 'swebrec' | 'rosinRammler';
+
 /** Entradas de Kuz-Ram (unidades SI salvo donde se indica). */
 export interface KuzRamInputs {
   /** Factor de roca A (adimensional). */
@@ -47,6 +56,8 @@ export interface KuzRamInputs {
   patternFactor: number;
   /** Exponente b de Swebrec de la roca; si falta se deriva de n (KCO). */
   swebrecB?: number;
+  /** Variante de Kuz-Ram (Cunningham 1987 por defecto). */
+  variant?: KuzRamVariant;
 }
 
 export interface KuzRamResult {
@@ -59,20 +70,26 @@ export interface KuzRamResult {
 }
 
 /**
- * Kuz-Ram (Cunningham 1983/1987):
+ * Kuz-Ram (Cunningham 1983/1987, por defecto):
  *   x50[cm] = A · K^−0.8 · Q^(1/6) · (115 / RWS)^(19/30)       (RWS con ANFO = 100)
  *   n = (2.2 − 14 B/d) · √((1 + S/B)/2) · (1 − W/B) · (|BCL − CCL|/L + 0.1)^0.1 · (L/H)   (d en mm)
+ * Cunningham 2005 (`variant: 'cunningham2005'`): exponente 19/20 y primer factor √(2 − 30 B/d)
+ * (sin factor de tiempos ni calibración C: valen 1).
  */
 export function kuzRam(i: KuzRamInputs): KuzRamResult {
+  const v2005 = i.variant === 'cunningham2005';
   const x50cm =
     i.rockFactor *
     Math.pow(i.loadingFactor, -0.8) *
     Math.pow(i.chargePerHole, 1 / 6) *
-    Math.pow(115 / (i.rws * 100), 19 / 30);
+    Math.pow(115 / (i.rws * 100), v2005 ? 19 / 20 : 19 / 30);
   const dMm = i.diameter * 1000;
   const L = Math.max(i.chargeLength, 1e-6);
+  const first = v2005
+    ? Math.sqrt(Math.max(2 - (30 * i.burden) / dMm, 0))
+    : 2.2 - (14 * i.burden) / dMm;
   let n =
-    (2.2 - (14 * i.burden) / dMm) *
+    first *
     Math.sqrt((1 + i.spacing / i.burden) / 2) *
     (1 - i.drillDeviation / i.burden) *
     Math.pow(Math.abs(i.bottomChargeLength - i.columnChargeLength) / L + 0.1, 0.1) *
@@ -185,6 +202,31 @@ export function fragmentation(
   };
 }
 
+/** Percentiles, sobretamaño y finos de la curva elegida (Swebrec o Rosin-Rammler). */
+export interface FragmentationHeadline {
+  curve: FragmentationCurve;
+  p20: Meters;
+  p50: Meters;
+  p80: Meters;
+  /** Fracciones (0–1) sobre el tamaño de sobretamaño y bajo el de finos. */
+  oversize: number;
+  fines: number;
+}
+
+export function fragmentationHeadline(
+  r: Pick<FragmentationResult, 'p20' | 'p50' | 'p80' | 'oversize' | 'fines'>,
+  curve: FragmentationCurve,
+): FragmentationHeadline {
+  return {
+    curve,
+    p20: r.p20[curve],
+    p50: r.p50[curve],
+    p80: r.p80[curve],
+    oversize: r.oversize[curve],
+    fines: r.fines[curve],
+  };
+}
+
 /**
  * Entradas de Kuz-Ram por defecto a partir de la voladura: malla (del patrón indicado o el primero),
  * y promedios de los taladros cargados (kg, largo de carga, RWS ponderado por masa).
@@ -253,5 +295,6 @@ export function kuzRamInputsFromBlast(
     benchHeight: blast.bench.height,
     patternFactor: pattern?.kind === 'staggered' ? (equilateral ? 1.15 : 1.1) : 1,
     ...(rock.swebrecB !== undefined ? { swebrecB: rock.swebrecB } : {}),
+    variant: blast.calcParams.fragmentation?.model ?? 'cunningham1987',
   };
 }

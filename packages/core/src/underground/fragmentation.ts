@@ -1,4 +1,5 @@
 import {
+  type KuzRamVariant,
   rockFactor,
   rosinRammlerPassing,
   swebrecB,
@@ -23,8 +24,6 @@ import type { RingDesignResult } from './ringDesign';
  *   K = carga del anillo / (B·A_anillo) (Oñederra & Chitombo 2007) [CG]; tiende a subestimar X50
  *   en roca dura: calibrar con C.
  */
-
-export type KuzRamVariant = 'cunningham2005' | 'cunningham1987';
 
 export interface UgFragmentationZone {
   /** Nombre de la zona (`cut`, `stoping`, `contour`, `lifter`, `ring`). */

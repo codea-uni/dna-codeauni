@@ -300,6 +300,14 @@ export interface CalcParams {
   /** Desviación de perforación W de Kuz-Ram [m] (término 1 − W/B de n; CT-08, parámetro). */
   drillDeviation: number;
   /**
+   * Metodología de fragmentación elegida (selector junto al «Detalle»): variante de Kuz-Ram y curva
+   * con la que se informan los percentiles. Sin valor: Cunningham 1987 y Swebrec (lo de siempre).
+   */
+  fragmentation?: {
+    model: 'cunningham1987' | 'cunningham2005';
+    curve: 'swebrec' | 'rosinRammler';
+  };
+  /**
    * Sobreperforación de taladros inclinados (P-05): `vertical` = J bajo el piso medido en vertical,
    * L = (H + J)/cos α (geometría exacta, defecto); `lopezJimeno` = L = H/cos α + (1 − α°/100)·J y
    * volumen B·S·H/cos α (criterio empírico con el que se construyó CR-03).
@@ -780,11 +788,17 @@ export interface SiteModels {
   flyrock: FlyrockParams;
 }
 
-/** PPV = k · SD^(−beta). SD = R / W^(1/2) (raíz cuadrada) o R / W^(1/3) (raíz cúbica). R [m], W [kg] por retardo. */
+/**
+ * PPV = k · SD^(−beta). SD = R / W^(1/2) (raíz cuadrada, USBM), R / W^(1/3) (raíz cúbica,
+ * Ambraseys-Hendron) o R^(3/4) / W^(1/2) (Langefors-Kihlström: PPV = k·(W/R^(3/2))^(beta/2)).
+ * R [m], W [kg] por retardo.
+ */
+export type VibrationScaling = 'square-root' | 'cube-root' | 'langefors';
+
 export interface VibrationLaw {
   id: VibrationLawId;
   name: string;
-  scaling: 'square-root' | 'cube-root';
+  scaling: VibrationScaling;
   /** Constante de sitio con PPV en m/s [m/s · (m/kg^n)^beta]. */
   k: number;
   beta: number;
