@@ -22,6 +22,23 @@ const famesa = (code: string, rev: string, file: string) =>
   }) as const;
 const KCAL = 4184; // J/kcal
 
+/**
+ * Ficha técnica de Enaex (Chile/Perú), leída el 2026-10-20 de enaex.com. Solo los productos con
+ * ficha pública completa; si la ficha da un rango de VOD sin valor nominal, se usa el centro del
+ * rango (se indica en cada caso). Cada tamaño de cartucho es un producto aparte (la librería
+ * guarda un cartucho por explosivo y el diseño subterráneo elige el que entra en el taladro).
+ */
+const enaex = (file: string) =>
+  ({
+    manufacturer: 'Enaex',
+    source: `Enaex, https://www.enaex.com/${file}`,
+    version: 'Ficha pública (consultada 2026-10-20)',
+  }) as const;
+const EMULTEX_CN = 'cl/content/uploads/sites/2/2021/05/Emultex°-CN.pdf';
+const EMULTEX_CH = 'cl/content/uploads/sites/2/2021/05/Emultex°-CH.pdf';
+const EMULTEX_PG = 'cl/content/uploads/sites/2/2021/05/Emultex°-PG.pdf';
+const X_BOOSTER = 'cl/content/uploads/sites/2/2021/05/X-Booster.pdf';
+
 export function createDefaultLibrary(): ProductLibrary {
   const emulsionId = newId<'Explosive'>();
   return {
@@ -181,6 +198,176 @@ export function createDefaultLibrary(): ProductLibrary {
         // Tubo Ø 17,5 × 512 mm; 144 piezas en 20 kg.
         cartridge: { diameter: 0.0175, length: 0.512, mass: 20 / 144 },
       },
+      // Productos Enaex con ficha técnica pública completa (demo Enaex, 2026-10-21).
+      {
+        id: newId<'Explosive'>(),
+        ...enaex(EMULTEX_CN),
+        name: 'Emultex CN 1″ × 8″ (Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1150,
+        densityRange: { min: 1104, max: 1196 },
+        vod: 4600, // ficha: 4 000–5 200 m/s (centro del rango)
+        energy: 3.94e6,
+        rws: 1.01,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0254, length: 0.203, mass: 0.119 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex(EMULTEX_CN),
+        name: 'Emultex CN 1 1/8″ × 8″ (Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1150,
+        densityRange: { min: 1104, max: 1196 },
+        vod: 4600, // ficha: 4 000–5 200 m/s (centro del rango)
+        energy: 3.94e6,
+        rws: 1.01,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0286, length: 0.203, mass: 0.1506 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex(EMULTEX_CN),
+        name: 'Emultex CN 1 1/4″ × 8″ (Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1150,
+        densityRange: { min: 1104, max: 1196 },
+        vod: 4600, // ficha: 4 000–5 200 m/s (centro del rango)
+        energy: 3.94e6,
+        rws: 1.01,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0318, length: 0.203, mass: 0.1866 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex(EMULTEX_CN),
+        name: 'Emultex CN 1 1/2″ × 8″ (Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1150,
+        densityRange: { min: 1104, max: 1196 },
+        vod: 4600, // ficha: 4 000–5 200 m/s (centro del rango)
+        energy: 3.94e6,
+        rws: 1.01,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0381, length: 0.203, mass: 0.2717 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex(EMULTEX_CH),
+        name: 'Emultex CH 1 1/4″ × 8″ (Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1150,
+        densityRange: { min: 1104, max: 1196 },
+        vod: 4600,
+        energy: 4.25e6,
+        rws: 1.07,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0318, length: 0.203, mass: 0.186 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex(EMULTEX_CH),
+        name: 'Emultex CH 1 1/2″ × 8″ (Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1150,
+        densityRange: { min: 1104, max: 1196 },
+        vod: 4600,
+        energy: 4.25e6,
+        rws: 1.07,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0381, length: 0.203, mass: 0.272 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex(EMULTEX_PG),
+        name: 'Emultex PG 2 1/2″ × 16″ (Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1220,
+        densityRange: { min: 1183, max: 1257 },
+        vod: 4850, // ficha: 4 200–5 500 m/s (centro del rango)
+        energy: 3.37e6,
+        rws: 0.89,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0635, length: 0.406, mass: 1.597 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex(EMULTEX_PG),
+        name: 'Emultex PG 3″ × 16″ (Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1220,
+        densityRange: { min: 1183, max: 1257 },
+        vod: 4850, // ficha: 4 200–5 500 m/s (centro del rango)
+        energy: 3.37e6,
+        rws: 0.89,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0762, length: 0.406, mass: 2.3 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex('cl/content/uploads/sites/2/2021/05/ENAEX-FT-Enaline-V0822.pdf'),
+        name: 'Enaline 1 1/4″ × 4 m (precorte, Enaex)',
+        family: 'emulsion',
+        form: 'packaged',
+        density: 1100, // ficha: 1,0–1,2 g/cm³ (centro del rango)
+        densityRange: { min: 1000, max: 1200 },
+        vod: 3500, // mínimo de la ficha (6 000 m/s con cordón adosado)
+        energy: 3.371e6,
+        rws: 0.89,
+        waterResistance: 'high',
+        cartridge: { diameter: 0.0318, length: 4, mass: 3.4 },
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex('cl/content/uploads/sites/2/2021/05/Emultex°PDBG.pdf'),
+        name: 'Emultex PDBG (granel, desarrollo, Enaex)',
+        family: 'emulsion',
+        form: 'bulk',
+        needsBooster: true,
+        density: 1150,
+        densityRange: { min: 1092.5, max: 1207.5 },
+        vod: 4054,
+        energy: 2.877e6,
+        rws: 0.79,
+        waterResistance: 'high',
+        criticalDiameter: 0.0381,
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex('cl/content/uploads/sites/2/2021/05/Duoblast-V°.pdf'),
+        name: 'Duoblast V (granel, tiros ascendentes, Enaex)',
+        family: 'emulsion',
+        form: 'bulk',
+        needsBooster: true,
+        density: 1150,
+        vod: 4500, // ficha: 4 000–5 000 m/s (centro del rango)
+        energy: 2.736e6,
+        rws: 0.77,
+        waterResistance: 'high',
+        criticalDiameter: 0.0381,
+      },
+      {
+        id: newId<'Explosive'>(),
+        ...enaex('cl/content/uploads/sites/2/2021/05/Duoblast°-H.pdf'),
+        name: 'Duoblast H (granel, frentes, Enaex)',
+        family: 'emulsion',
+        form: 'bulk',
+        needsBooster: true,
+        density: 1150,
+        densityRange: { min: 1092.5, max: 1207.5 },
+        vod: 4000, // mínimo de la ficha (no da valor nominal)
+        energy: 2.736e6,
+        rws: 0.77,
+        waterResistance: 'high',
+      },
     ],
     detonators: [
       {
@@ -210,6 +397,35 @@ export function createDefaultLibrary(): ProductLibrary {
         delayScatter: 0.0001,
         programmableRange: { min: 0, max: 20, step: 0.001 },
         costPerUnit: 22,
+      },
+      // Enaex DaveyTronic: la ficha da incrementos de 1 ms pero no el retardo máximo ni la
+      // dispersión; esos dos valores son los genéricos del detonador electrónico de arriba.
+      {
+        id: newId<'Detonator'>(),
+        ...enaex('cl/content/uploads/sites/2/2024/02/DaveyTronic-Swift_ESP_V01.24.pdf'),
+        name: 'DaveyTronic Swift (desarrollo y túneles, Enaex)',
+        type: 'electronic',
+        nominalDelay: 0,
+        delayScatter: 0.0001,
+        programmableRange: { min: 0, max: 20, step: 0.001 },
+      },
+      {
+        id: newId<'Detonator'>(),
+        ...enaex('cl/content/uploads/sites/2/2021/10/DaveyTronic-UG-ENG.pdf'),
+        name: 'DaveyTronic UG Evolución (producción subterránea, Enaex)',
+        type: 'electronic',
+        nominalDelay: 0,
+        delayScatter: 0.0001,
+        programmableRange: { min: 0, max: 20, step: 0.001 },
+      },
+      {
+        id: newId<'Detonator'>(),
+        ...enaex('cl/content/uploads/sites/2/2021/10/DaveyTronic-SP-ENG.pdf'),
+        name: 'DaveyTronic SP Evolución (cielo abierto, Enaex)',
+        type: 'electronic',
+        nominalDelay: 0,
+        delayScatter: 0.0001,
+        programmableRange: { min: 0, max: 20, step: 0.001 },
       },
     ],
     surfaceConnectors: [
@@ -275,6 +491,41 @@ export function createDefaultLibrary(): ProductLibrary {
         id: newId<'Primer'>(),
         name: 'Booster HDP 1E (450 g, Famesa)',
         mass: 0.45,
+      },
+      {
+        source: enaex(X_BOOSTER).source,
+        version: enaex(X_BOOSTER).version,
+        id: newId<'Primer'>(),
+        name: 'X-Booster (150 g, pentolita, Enaex)',
+        mass: 0.15,
+      },
+      {
+        source: enaex(X_BOOSTER).source,
+        version: enaex(X_BOOSTER).version,
+        id: newId<'Primer'>(),
+        name: 'X-Booster (225 g, pentolita, Enaex)',
+        mass: 0.225,
+      },
+      {
+        source: enaex(X_BOOSTER).source,
+        version: enaex(X_BOOSTER).version,
+        id: newId<'Primer'>(),
+        name: 'X-Booster (450 g, pentolita, Enaex)',
+        mass: 0.45,
+      },
+      {
+        source: enaex(X_BOOSTER).source,
+        version: enaex(X_BOOSTER).version,
+        id: newId<'Primer'>(),
+        name: 'X-Booster (900 g, pentolita, Enaex)',
+        mass: 0.9,
+      },
+      {
+        source: enaex('cl/content/uploads/sites/2/2021/05/Miniblaster°.pdf').source,
+        version: enaex('cl/content/uploads/sites/2/2021/05/Miniblaster°.pdf').version,
+        id: newId<'Primer'>(),
+        name: 'Miniblaster 40 g (subterránea, Enaex)',
+        mass: 0.04,
       },
     ],
     stemmingMaterials: [
