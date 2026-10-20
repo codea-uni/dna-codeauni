@@ -3,7 +3,7 @@ import { boundaryAt } from '../geometry/boundary';
 import type { Blast, CalcParams, HoleId } from '../model/types';
 import type { TimingResult } from '../timing/timing';
 import { DEFAULT_CALC_PARAMS } from '../model/factories';
-import { isUndergroundHole, RELIEF_TAG } from '../underground/toHoles';
+import { isEmptyByDesign, isUndergroundHole } from '../underground/toHoles';
 
 export type CheckSeverity = 'error' | 'warning' | 'info';
 
@@ -112,8 +112,8 @@ export function designChecks(
   for (const h of blast.holes) {
     const hasExplosive = h.decks.some((d) => d.kind === 'explosive' && d.length > 0);
     if (!hasExplosive) {
-      // Los alivios del arranque van vacíos por diseño.
-      if (!h.tags?.includes(RELIEF_TAG)) unloaded.push(h.id);
+      // Los alivios del arranque y las guías del contorno van vacíos por diseño.
+      if (!isEmptyByDesign(h)) unloaded.push(h.id);
       continue;
     }
     loaded.push(h.id);

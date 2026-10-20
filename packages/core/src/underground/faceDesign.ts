@@ -80,6 +80,11 @@ export interface FaceDesignInput {
   smoothBlastingK?: number;
   /** Relación S/B del contorno con voladura suave (0,8 → B = 1,25·S). */
   smoothSpacingBurdenRatio?: Ratio;
+  /**
+   * Contorno «uno sí, uno no» (precorte/recorte con taladros guía): en la corona y los hastiales
+   * se carga un taladro de cada dos; los otros quedan vacíos como guía del corte (false).
+   */
+  alternateContour?: boolean;
   /** Distancia de emboquille del contorno y zapateras hacia adentro del perfil [m] (0,15). */
   contourInset?: Meters;
   /** Taco del contorno con voladura suave [m]; por defecto 0,5·B del contorno. */
@@ -133,8 +138,10 @@ export interface FaceHole {
   diameter: Meters;
   /** Burden práctico de diseño [m] (0 en el alivio). */
   burden: Meters;
-  /** null en el alivio (vacío). */
+  /** null en el alivio y en los taladros guía (vacíos). */
   charge: FaceHoleCharge | null;
+  /** Taladro guía del contorno «uno sí, uno no»: perforado y sin carga. */
+  guide?: boolean;
   /** Número de retardo sugerido (1 = primero); null en el alivio. */
   delay: number | null;
 }
@@ -175,6 +182,8 @@ export interface FaceWarning {
 export interface FaceKpis {
   chargedHoles: number;
   reliefHoles: number;
+  /** Taladros guía vacíos del contorno (0 si no se alterna). */
+  guideHoles: number;
   drilledMeters: Meters;
   totalCharge: Kilograms;
   /** Avance esperado I = 0,95·H [m]. */
@@ -459,7 +468,7 @@ export function designFaceRound(input: FaceDesignInput): FaceDesignResult {
       charge: chargeFor(role, depth, Bp, B, cutQ),
       ...extra,
     });
-  const lookingOut = (role: FaceHoleRole, p: UV, dir: UV, Bp: Meters, B: Meters) =>
+  const lookingOut = (role: FaceHoleRole, p: UV, dir: UV, Bp: Meters, B: Meters, guide = false) =>
     holes.push({
       role,
       collar: { u: p.u, v: p.v },
@@ -468,7 +477,8 @@ export function designFaceRound(input: FaceDesignInput): FaceDesignResult {
       length: holeLengthLookOut,
       diameter: d,
       burden: Bp,
-      charge: chargeFor(role, holeLengthLookOut, Bp, B),
+      charge: guide ? null : chargeFor(role, holeLengthLookOut, Bp, B),
+      ...(guide ? { guide: true } : {}),
     });
 
   // Alivios: uno al centro o n en un círculo con separación entre centros reliefSpacing.
@@ -542,11 +552,15 @@ export function designFaceRound(input: FaceDesignInput): FaceDesignResult {
     const contourPts = pointsAlong(perimeter, ['wall', 'roof'], groupSpacing.contour).filter(
       (p) => !p.endpoint,
     );
+    // «Uno sí, uno no»: a lo largo del contorno, los pares quedan como guía vacía.
+    let k = 0;
     for (const p of contourPts) {
       const role: FaceHoleRole = smooth ? 'contour' : p.tag === 'roof' ? 'roof' : 'wall';
       const Bp = smooth ? contourB : p.tag === 'roof' ? roofBp : wallBp;
       const B = smooth ? contourB : p.tag === 'roof' ? Br : Bw;
-      if (!inCutCore(p)) lookingOut(role, p, p.normal, Bp, B);
+      if (inCutCore(p)) continue;
+      lookingOut(role, p, p.normal, Bp, B, (input.alternateContour ?? false) && k % 2 === 1);
+      k++;
     }
   }
   if (smooth) {
@@ -608,8 +622,9 @@ export function designFaceRound(input: FaceDesignInput): FaceDesignResult {
   // (del interior al exterior), hastiales, techo y contorno, zapateras y al final las esquinas. ---
   const ordered: FaceHole[] = [];
   let delay = 0;
+  // Los taladros vacíos (alivio, guía) no llevan retardo.
   const push = (h: Omit<FaceHole, 'index' | 'delay'>, dl: number | null) =>
-    ordered.push({ ...h, index: ordered.length + 1, delay: dl });
+    ordered.push({ ...h, index: ordered.length + 1, delay: h.charge ? dl : null });
   for (const h of inside.filter((x) => x.role === 'relief')) push(h, null);
   const cuts = inside
     .filter((x) => x.role === 'cut')
@@ -653,7 +668,8 @@ export function designFaceRound(input: FaceDesignInput): FaceDesignResult {
   const K = input.empiricalAreaFactor ?? 1.5;
   const kpis: FaceKpis = {
     chargedHoles: charged.length,
-    reliefHoles: ordered.length - charged.length,
+    reliefHoles: ordered.filter((h) => h.role === 'relief').length,
+    guideHoles: ordered.filter((h) => h.guide).length,
     drilledMeters,
     totalCharge,
     advance,

@@ -91,12 +91,43 @@ export interface BlockModelData {
   densityAttribute?: string;
 }
 
+/** Perfil de una labor: el tipo de sección de `profiles.ts` con su ancho y alto [m]. */
+export interface WorkingProfileSpec {
+  kind: 'arched' | 'horseshoe' | 'rectangular' | 'roundedShoulders' | 'circular';
+  width: number;
+  height: number;
+}
+
+/** Eje de una labor: de dónde salió y su sección (si se conoce). */
+export interface WorkingAxisMeta {
+  name: string;
+  /** `axis` = línea de eje del archivo; `solid` = eje estimado de un sólido (3DFACE, polyface). */
+  source: 'axis' | 'solid';
+  profile?: WorkingProfileSpec;
+  /** Ancho y alto medidos en el sólido (el tipo de sección no se conoce). */
+  estimated?: boolean;
+}
+
+/**
+ * Labores subterráneas (túneles, galerías, rampas): la malla 3D que se dibuja (sólidos importados
+ * y túneles generados a partir de un eje con su perfil) y los ejes al nivel del piso, donde se
+ * ubica un frente o un abanico. El eje i va de los puntos `axisOffsets[i]` a `axisOffsets[i+1] - 1`.
+ */
+export interface WorkingsData {
+  vertices: Float64Array;
+  triangles: Uint32Array;
+  axisCoords: Float64Array;
+  axisOffsets: Uint32Array;
+  axes: WorkingAxisMeta[];
+}
+
 export type TopographyAsset =
   | { kind: 'tin'; tin: TinData }
   | { kind: 'lines'; lines: LineSetData }
   | { kind: 'image'; image: OrthoImageData }
   | { kind: 'cloud'; cloud: PointCloudData }
-  | { kind: 'blocks'; blocks: BlockModelData };
+  | { kind: 'blocks'; blocks: BlockModelData }
+  | { kind: 'workings'; workings: WorkingsData };
 
 type SectionType = 'f64' | 'f32' | 'u32' | 'u8';
 interface Section {
@@ -199,6 +230,22 @@ function sectionsOf(asset: TopographyAsset): { header: Header; arrays: Arr[] } {
           ...b.numeric.map((a) => a.values),
           ...b.categorical.map((a) => a.codes),
         ],
+      };
+    }
+    case 'workings': {
+      const w = asset.workings;
+      return {
+        header: {
+          kind: 'workings',
+          sections: [
+            { name: 'vertices', type: 'f64', length: w.vertices.length },
+            { name: 'triangles', type: 'u32', length: w.triangles.length },
+            { name: 'axisCoords', type: 'f64', length: w.axisCoords.length },
+            { name: 'axisOffsets', type: 'u32', length: w.axisOffsets.length },
+          ],
+          meta: { axes: w.axes },
+        },
+        arrays: [w.vertices, w.triangles, w.axisCoords, w.axisOffsets],
       };
     }
   }
@@ -311,6 +358,19 @@ export function decodeAsset(bytes: Uint8Array): TopographyAsset {
           numeric,
           categorical,
           ...(meta.densityAttribute ? { densityAttribute: meta.densityAttribute } : {}),
+        },
+      };
+    }
+    case 'workings': {
+      const meta = header.meta as { axes: WorkingAxisMeta[] };
+      return {
+        kind: 'workings',
+        workings: {
+          vertices: f64('vertices'),
+          triangles: u32('triangles'),
+          axisCoords: f64('axisCoords'),
+          axisOffsets: u32('axisOffsets'),
+          axes: meta.axes,
         },
       };
     }

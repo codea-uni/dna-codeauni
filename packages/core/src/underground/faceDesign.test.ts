@@ -209,3 +209,44 @@ describe('método sueco: variantes y avisos', () => {
     expect(r2.warnings.map((w) => w.code)).toContain('reliefNotLarger');
   });
 });
+
+describe('contorno «uno sí, uno no» (precorte con taladros guía)', () => {
+  const full = designFaceRound({ ...base, profile: arched(4, 2) });
+  const alt = designFaceRound({ ...base, profile: arched(4, 2), alternateContour: true });
+  const contour = (r: typeof full) => r.holes.filter((h) => h.role === 'contour');
+
+  it('misma perforación; en el contorno se carga uno de cada dos', () => {
+    expect(alt.holes.length).toBe(full.holes.length);
+    const c = contour(alt);
+    const guides = c.filter((h) => h.guide);
+    expect(guides.length).toBe(Math.floor(c.length / 2));
+    expect(alt.kpis.guideHoles).toBe(guides.length);
+    expect(full.kpis.guideHoles).toBe(0);
+    for (const h of guides) {
+      expect(h.charge).toBeNull();
+      expect(h.delay).toBeNull();
+    }
+    // Las guías no cuentan como alivios y la carga baja en lo que llevaban.
+    expect(alt.kpis.reliefHoles).toBe(1);
+    expect(alt.kpis.chargedHoles).toBe(full.kpis.chargedHoles - guides.length);
+    expect(alt.kpis.totalCharge).toBeLessThan(full.kpis.totalCharge);
+  });
+
+  it('alternan a lo largo del contorno: nunca dos guías ni dos cargados seguidos', () => {
+    const c = contour(alt);
+    for (let i = 1; i < c.length; i++)
+      expect(Boolean(c[i]?.guide)).not.toBe(Boolean(c[i - 1]?.guide));
+  });
+
+  it('sin voladura suave alterna la fila de hastiales y corona', () => {
+    const r = designFaceRound({
+      ...base,
+      profile: arched(4, 2),
+      smoothBlasting: false,
+      alternateContour: true,
+    });
+    const g = r.holes.filter((h) => h.guide);
+    expect(g.length).toBeGreaterThan(2);
+    for (const h of g) expect(['wall', 'roof']).toContain(h.role);
+  });
+});

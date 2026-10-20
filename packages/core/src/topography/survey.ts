@@ -8,6 +8,7 @@ import {
   type OrthoImageData,
   type TinData,
   type TopographyAsset,
+  type WorkingsData,
 } from './asset';
 
 export interface SurveyInput {
@@ -27,12 +28,16 @@ export interface SurveyParts {
   image?: OrthoImageData;
   cloud?: PointCloudData;
   blocks?: BlockModelData;
+  /** Labores subterráneas (sólidos y ejes). */
+  workings?: WorkingsData;
 }
 
 /** Hashes de todos los assets de un levantamiento (para subirlos, exportarlos o verificarlos). */
 export function surveyAssetHashes(s: Pick<TopographySurvey, 'assets'>): string[] {
   const a = s.assets;
-  return [a.tin, a.lines, a.image, a.cloud, a.blocks].filter((h): h is string => h !== undefined);
+  return [a.tin, a.lines, a.image, a.cloud, a.blocks, a.workings].filter(
+    (h): h is string => h !== undefined,
+  );
 }
 
 export interface BuiltSurvey {
@@ -109,6 +114,11 @@ export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey
     add('blocks', { kind: 'blocks', blocks: parts.blocks });
     bounds = blockModelBounds(parts.blocks, bounds);
   }
+  if (parts.workings) {
+    add('workings', { kind: 'workings', workings: parts.workings });
+    bounds = boundsOf(parts.workings.vertices, bounds);
+    bounds = boundsOf(parts.workings.axisCoords, bounds);
+  }
   const finite = bounds && Number.isFinite(bounds.minX);
   return {
     survey: {
@@ -125,13 +135,23 @@ export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey
       stats: {
         points: parts.tin
           ? parts.tin.vertices.length / 3
-          : parts.cloud
-            ? parts.cloud.positions.length / 3
-            : parts.blocks
-              ? parts.blocks.centers.length / 3
-              : 0,
-        triangles: parts.tin ? parts.tin.triangles.length / 3 : 0,
-        lines: parts.lines ? Math.max(0, parts.lines.offsets.length - 1) : 0,
+          : parts.workings
+            ? parts.workings.vertices.length / 3
+            : parts.cloud
+              ? parts.cloud.positions.length / 3
+              : parts.blocks
+                ? parts.blocks.centers.length / 3
+                : 0,
+        triangles: parts.tin
+          ? parts.tin.triangles.length / 3
+          : parts.workings
+            ? parts.workings.triangles.length / 3
+            : 0,
+        lines: parts.lines
+          ? Math.max(0, parts.lines.offsets.length - 1)
+          : parts.workings
+            ? parts.workings.axes.length
+            : 0,
         ...(parts.cloud ? { sourcePoints: parts.cloud.sourcePoints } : {}),
       },
       assets: hashes,

@@ -358,6 +358,7 @@ export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
       'legacy',
       'cloud',
       'blockmodel',
+      'workings',
     ]),
     files: z.array(z.string()),
     sourceEpsg: z.int().positive().exactOptional(),
@@ -376,6 +377,7 @@ export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
     image: hash.exactOptional(),
     cloud: hash.exactOptional(),
     blocks: hash.exactOptional(),
+    workings: hash.exactOptional(),
   }),
 });
 
