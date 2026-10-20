@@ -1,0 +1,123 @@
+/* Subterránea · pestaña «Método de minado» (plantillas por método). */
+
+.ugm-picker .hint {
+  margin-top: 0;
+}
+
+.ugm-group h3 {
+  margin: 0.8rem 0 0.4rem;
+}
+
+.ugm-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.5rem;
+}
+
+.ugm-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+  white-space: normal;
+  height: auto;
+}
+
+.ugm-card:hover,
+.ugm-card:focus-visible {
+  border-color: var(--accent, #5b7aff);
+}
+
+.ugm-thumb {
+  height: 110px;
+  border-radius: 6px;
+  background: radial-gradient(ellipse at 50% 40%, #102638 0%, var(--bg) 75%);
+  overflow: hidden;
+}
+
+.ugm-thumb-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ugm-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 12px;
+}
+
+.ugm-card-body strong {
+  font-size: 13px;
+}
+
+.ugm-use {
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.ugm-pf {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ugm-code {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #ffae00;
+}
+
+.ugm-back {
+  margin-bottom: 0.3rem;
+}
+
+.ugm-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.3rem 0;
+}
+
+.ugm-presets .chip {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11.5px;
+  height: auto;
+}
+
+.ugm-views {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.ugm-views.n2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ugm-views.n2 .ugm-svg {
+  height: 320px;
+}
+
+.ug-kpis .kpi.ok strong {
+  color: #72ad3a;
+}
+
+.ug-kpis .kpi.warn strong {
+  color: #ffae00;
+}
+
+@media (max-width: 760px) {
+  .ugm-views.n2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

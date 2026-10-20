@@ -18,6 +18,7 @@ import * as topography from './ns/topography';
 import * as underground from './ns/underground';
 import * as undergroundAnalysis from './ns/undergroundAnalysis';
 import * as vibration from './ns/vibration';
+import * as undergroundMethods from './ns/undergroundMethods';
 import * as workspace from './ns/workspace';
 import * as xr from './ns/xr';
 
@@ -38,6 +39,7 @@ export const es = {
   ...underground.es,
   ...undergroundAnalysis.es,
   ...vibration.es,
+  ...undergroundMethods.es,
   ...workspace.es,
   ...xr.es,
   'toolbar.documentation': 'Documentación',

@@ -8,3 +8,5 @@ export * from './toHoles';
 export * from './analysis';
 export * from './fragmentation';
 export * from './workings';
+export * from './methods';
+export * from './methodToHoles';

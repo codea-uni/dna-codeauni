@@ -417,15 +417,16 @@ export function designSummary() {
   const blast = document.project.blasts[0];
   if (!blast) return { blast: null };
   const activeId = useUiStore.getState().activeBoundaryId;
-  const underground = (['ug-face', 'ug-ring'] as const)
-    .map(
-      (tag) =>
-        [
-          tag === 'ug-face' ? 'tunnel_face' : 'stope_rings',
-          blast.holes.filter((h) => h.tags?.includes(tag)).length,
-        ] as const,
-    )
-    .filter(([, count]) => count > 0);
+  // Por marca: frente (`ug-face`), abanicos (`ug-ring`) y plantillas por método (`ug-…`).
+  const ugCounts = new Map<string, number>();
+  for (const h of blast.holes)
+    for (const tag of h.tags ?? [])
+      if (tag.startsWith('ug-') && tag !== 'ug-relief')
+        ugCounts.set(tag, (ugCounts.get(tag) ?? 0) + 1);
+  const underground = [...ugCounts].map(
+    ([tag, count]) =>
+      [tag === 'ug-face' ? 'tunnel_face' : tag === 'ug-ring' ? 'stope_rings' : tag, count] as const,
+  );
   return {
     project: document.project.name,
     blast: blast.name,
@@ -1679,6 +1680,7 @@ const PHASE: Record<string, number> = {
   generate_pattern: 6,
   design_tunnel_face: 6,
   design_stope_rings: 6,
+  design_by_method: 6,
   design_presplit: 7,
   design_buffer: 8,
   add_holes: 9,

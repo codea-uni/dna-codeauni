@@ -100,7 +100,7 @@ export function frameOf(p: Placement): PlaneFrame {
   });
 }
 
-function products(project: Project, explosiveId: string | null, contourId?: string | null) {
+export function products(project: Project, explosiveId: string | null, contourId?: string | null) {
   const lib = project.library;
   const explosive = pickExplosive(lib, explosiveId);
   if (!explosive) return null;
@@ -120,7 +120,7 @@ function products(project: Project, explosiveId: string | null, contourId?: stri
   return { products: out, electronic: detonator?.type === 'electronic', hasDetonator: !!detonator };
 }
 
-function guard(): Blast | null {
+export function guard(): Blast | null {
   const notify = useUiStore.getState().notify;
   if (document.readOnly) {
     notify(t('ug.readOnly'), 'error');
@@ -139,7 +139,7 @@ function guard(): Blast | null {
  * electrónico (como `set_electronic_timing`) cada taladro sale a t0 + su tiempo programado y no
  * hace falta red de superficie; con nonel de fondo, un punto de inicio a t = 0 en cada taladro.
  */
-function replaceOps(blast: Blast, tag: string, holes: Hole[], electronic: boolean): Op[] {
+export function replaceOps(blast: Blast, tag: string, holes: Hole[], electronic: boolean): Op[] {
   const old = taggedHoles(blast, tag);
   const removed = new Set<string>(old.map((h) => h.id));
   const touches = (ref: { kind: string; holeId?: HoleId }) =>
@@ -225,7 +225,7 @@ export function startTunnelSync(): () => void {
 }
 
 /** Op que reemplaza las excavaciones de `tag` en la voladura. */
-function excavationOp(blast: Blast, tag: string, items: UndergroundExcavation[]): Op {
+export function excavationOp(blast: Blast, tag: string, items: UndergroundExcavation[]): Op {
   return {
     type: 'blast/patch',
     blastId: blast.id,
@@ -242,7 +242,13 @@ function extrude(frame: PlaneFrame, points: readonly UV[], from: number, to: num
   });
 }
 
-function fly(frame: PlaneFrame, center: UV, along: number, size: number, azimuthDeg: number) {
+export function fly(
+  frame: PlaneFrame,
+  center: UV,
+  along: number,
+  size: number,
+  azimuthDeg: number,
+) {
   const at = localToWorld(frame, center, along);
   useUiStore.getState().setViewMode('3d');
   getEngine()?.flyCamera({
@@ -255,7 +261,7 @@ function fly(frame: PlaneFrame, center: UV, along: number, size: number, azimuth
   });
 }
 
-function done(n: number, hasDetonator: boolean) {
+export function done(n: number, hasDetonator: boolean) {
   const notify = useUiStore.getState().notify;
   notify(t('ug.sent', { n }));
   if (!hasDetonator) notify(t('ug.noDetonator'), 'error');

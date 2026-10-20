@@ -20,9 +20,9 @@ proyección, tiros cortados y gases. Funciona por texto, por voz en vivo en la w
 | Tiros cortados y recorte de zonas (núcleo, con tests)                                         | `packages/core/src/timing/cutoff.ts`, `packages/core/src/geometry/clip.ts`                    |
 | Solo manos en VR (pellizco corto elige, una mano arrastra, dos manos giran/escalan/arrastran) | `packages/engine/src/xr/XrSession.ts`                                                         |
 
-| Capas de conocimiento (general, empresa, sitio, proyecto) y catálogo de explosivos           | `apps/server/src/routes/knowledge.ts`, `apps/web/src/ai/knowledge*.ts`, página `/knowledge` (ver `CAPAS-CONOCIMIENTO.md`) |
-| Presets (empresa o sitio), escenarios, cámara, edición de perímetros y puntos, opciones       | `apps/web/src/ai/sceneTools.ts`, `steps.ts`; tarjetas con opciones (`cards.ts`)               |
-| Aviso al cargar topografía o perímetro y opción elegida en una tarjeta                        | `apps/web/src/ai/designWatch.ts`                                                              |
+| Capas de conocimiento (general, empresa, sitio, proyecto) y catálogo de explosivos | `apps/server/src/routes/knowledge.ts`, `apps/web/src/ai/knowledge*.ts`, página `/knowledge` (ver `CAPAS-CONOCIMIENTO.md`) |
+| Presets (empresa o sitio), escenarios, cámara, edición de perímetros y puntos, opciones | `apps/web/src/ai/sceneTools.ts`, `steps.ts`; tarjetas con opciones (`cards.ts`) |
+| Aviso al cargar topografía o perímetro y opción elegida en una tarjeta | `apps/web/src/ai/designWatch.ts` |
 
 | Espacio de trabajo por voz: listar minas/proyectos/topografías/perímetros, abrir o crear proyecto, traer topografía de la mina, usar o copiar perímetros, publicar versión | `apps/web/src/ai/workspaceTools.ts` (`workspace`, `open_project`, `use_topography`, `use_perimeter`, `save_version`) |
 | Misma cuenta en varios dispositivos: el proyecto que abre uno lo abren los demás (y comparten la sala en vivo) | `apps/server/src/routes/rooms.ts` (`/api/me/ws`), `apps/web/src/server/deviceSync.ts` |
@@ -34,7 +34,9 @@ Herramientas nuevas: `search_knowledge`, `company_explosives`, `enable_explosive
 `edit_protected_point`, `show_choices`, `set_site_conditions`, `add_protected_point`, `recommend_design`,
 `predict_results`, `evaluate_explosive`, `design_presplit`, `design_buffer`, `split_zone`,
 `track_blocks`, `show_results`, `vr_view`, `add_working_point`, `vibration_report`,
-`calibrate_vibration_law` (vibración entre superficie y subterránea, `apps/web/src/ai/vibrationTools.ts`).
+`calibrate_vibration_law` (vibración entre superficie y subterránea, `apps/web/src/ai/vibrationTools.ts`), `track_blocks`, `show_results`, `vr_view`, `list_mining_methods` y `design_by_method` (plantillas
+subterráneas por método de minado UG-01 a UG-19: `packages/core/src/underground/methods.ts`,
+pestaña «Método de minado» del panel Subterránea, reglas UG-R en `docs/RULES.md` §8).
 
 ## Pendiente (supuestos a confirmar con el ingeniero)
 

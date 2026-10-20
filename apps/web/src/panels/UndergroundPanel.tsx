@@ -45,6 +45,8 @@ import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
 import { useUgAnalysisStore } from '../underground/analysisStore';
 import { UndergroundAnalysis } from '../underground/UndergroundAnalysis';
+import { useMethodStore } from '../underground/methodStore';
+import { MethodsTab } from './underground/MethodsTab';
 
 const DEG = Math.PI / 180;
 
@@ -78,21 +80,27 @@ export function UndergroundPanel() {
     if (!placements) setPlacements(defaultPlacements(project));
   }, [placements, project, setPlacements]);
 
+  // Pestaña «Método de minado» (plantillas por método): estado propio para no tocar `tab`.
+  const methods = useMethodStore((s) => s.active);
+  const setMethods = useMethodStore((s) => s.setActive);
+  const current = methods ? 'methods' : tab;
+
   return (
     <section className="panel ug">
       <div className="segmented" role="tablist">
-        {(['face', 'ring'] as const).map((id) => (
+        {(['methods', 'face', 'ring'] as const).map((id) => (
           <button
             key={id}
             role="tab"
-            aria-selected={!analysisOpen && tab === id}
-            className={!analysisOpen && tab === id ? 'active' : ''}
+            aria-selected={!analysisOpen && current === id}
+            className={!analysisOpen && current === id ? 'active' : ''}
             onClick={() => {
-              setTab(id);
               setAnalysis({ open: false });
+              setMethods(id === 'methods');
+              if (id !== 'methods') setTab(id);
             }}
           >
-            {t(id === 'face' ? 'ug.tab.face' : 'ug.tab.ring')}
+            {t(id === 'methods' ? 'ugm.tab' : id === 'face' ? 'ug.tab.face' : 'ug.tab.ring')}
           </button>
         ))}
         <button
@@ -106,7 +114,15 @@ export function UndergroundPanel() {
           {t('uga.tab')}
         </button>
       </div>
-      {analysisOpen ? <UndergroundAnalysis /> : tab === 'face' ? <FaceTab /> : <RingTab />}
+      {analysisOpen ? (
+        <UndergroundAnalysis />
+      ) : current === 'methods' ? (
+        <MethodsTab />
+      ) : current === 'face' ? (
+        <FaceTab />
+      ) : (
+        <RingTab />
+      )}
     </section>
   );
 }
