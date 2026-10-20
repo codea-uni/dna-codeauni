@@ -45,6 +45,14 @@ export const RELIEF_TAG = 'ug-relief';
 /** Marca de los taladros cargados del arranque (cuele): están juntos por diseño. */
 export const CUT_TAG = 'ug-cut';
 
+/** Marca de los taladros guía del contorno «uno sí, uno no» (vacíos por diseño). */
+export const GUIDE_TAG = 'ug-guide';
+
+/** Taladro vacío por diseño (alivio del arranque o guía del contorno): no lleva carga. */
+export function isEmptyByDesign(hole: Pick<Hole, 'tags'>): boolean {
+  return hole.tags?.some((t) => t === RELIEF_TAG || t === GUIDE_TAG) ?? false;
+}
+
 /** Taladro de un diseño subterráneo (frente o anillo): las reglas de banco no le aplican. */
 export function isUndergroundHole(hole: Pick<Hole, 'tags'>): boolean {
   return hole.tags?.some((t) => t.startsWith(UNDERGROUND_TAG_PREFIX)) ?? false;
@@ -145,7 +153,10 @@ export function faceFiringTimes(
   });
 }
 
-/** Taladros de la ronda del frente en coordenadas de proyecto. Los alivios quedan vacíos. */
+/**
+ * Taladros de la ronda del frente en coordenadas de proyecto. Los alivios y las guías del contorno
+ * quedan vacíos.
+ */
 export function faceRoundToHoles(input: FaceToHolesInput): Hole[] {
   const prefix = input.labelPrefix ?? 'F-';
   const tag = input.tag ?? 'ug-face';
@@ -167,7 +178,14 @@ export function faceRoundToHoles(input: FaceToHolesInput): Hole[] {
       decks,
       initiators: h.delay === null ? [] : initiators(input.products, primed, depth, times[k] ?? 0),
       status: 'designed',
-      tags: h.role === 'relief' ? [tag, RELIEF_TAG] : h.role === 'cut' ? [tag, CUT_TAG] : [tag],
+      tags:
+        h.role === 'relief'
+          ? [tag, RELIEF_TAG]
+          : h.guide
+            ? [tag, GUIDE_TAG]
+            : h.role === 'cut'
+              ? [tag, CUT_TAG]
+              : [tag],
     } satisfies Hole;
   });
 }

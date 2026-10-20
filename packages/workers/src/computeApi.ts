@@ -33,6 +33,11 @@ import {
   generatePatternHoles,
   parseProjectFile,
   buildSurvey,
+  buildWorkings,
+  readWorkingsFiles,
+  type BuildWorkingsOptions,
+  type TopoWarning,
+  type WorkingsData,
   parseBlockModelCsv,
   parseCloudText,
   readIbpc,
@@ -467,6 +472,34 @@ export const computeApi = {
     return transfer(
       built,
       built.assets.map((a) => a.bytes.buffer as ArrayBuffer),
+    );
+  },
+
+  /**
+   * Labores subterráneas: lee los DXF y `.str`/`.dtm` de Surpac, convierte los ejes en túneles con
+   * el perfil dado y estima el eje de cada sólido.
+   */
+  async importWorkings(
+    files: readonly Blob[],
+    names: readonly string[],
+    options: BuildWorkingsOptions,
+  ): Promise<{ workings: WorkingsData; warnings: TopoWarning[] }> {
+    const read = await Promise.all(
+      files.map(async (f, i) => ({
+        name: names[i] ?? '',
+        bytes: new Uint8Array(await f.arrayBuffer()),
+      })),
+    );
+    const src = readWorkingsFiles(read);
+    const workings = buildWorkings(src, options);
+    return transfer(
+      { workings, warnings: src.warnings },
+      uniqueBuffers([
+        workings.vertices,
+        workings.triangles,
+        workings.axisCoords,
+        workings.axisOffsets,
+      ]),
     );
   },
 

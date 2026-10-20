@@ -267,6 +267,32 @@ export const es = {
   'topo.warn.topo.duplicates': '{n} puntos repetidos en planta se unieron.',
   'topo.warn.topo.skippedConstraints':
     '{n} tramos de línea se cruzan con otros y no se impusieron.',
+  // Labores subterráneas (sólidos y ejes de túneles)
+  'topo.format.workings': 'Labores subterráneas',
+  'topo.workings.import': 'Labores subterráneas (DXF/Surpac)',
+  'topo.workings.importHint':
+    'Sólidos de túneles (3DFACE, polyface) y ejes de labores (polilíneas 3D, LINE, cadenas .str de Surpac); los ejes se convierten en túnel con el perfil elegido. Se ven en 3D y sirven para ubicar el frente en Subterránea.',
+  'topo.workings.profile': 'Perfil para los ejes',
+  'topo.workings.width': 'Ancho',
+  'topo.workings.height': 'Alto',
+  'topo.workings.axisAt': 'El eje está en',
+  'topo.workings.axisFloor': 'el piso (gradiente)',
+  'topo.workings.axisCenter': 'el centro de la sección',
+  'topo.workings.choose': 'Elegir archivos…',
+  'topo.workings.cancel': 'Cancelar',
+  'topo.workings.reading': 'Leyendo labores {name}…',
+  'topo.workings.done': '{name}: {n} labores en 3D ({solids} de sólidos, {axes} de ejes).',
+  'topo.workings.undo': 'Importar labores {name}',
+  'topo.workings.failed': 'No se pudieron leer las labores {name}: {error}',
+  'topo.workings.stats': '{n} labores · {triangles} triángulos',
+  'topo.workings.layer': 'Labores subterráneas',
+  'topo.warn.workings.polygonMesh':
+    '{n} mallas poligonales M×N no se leyeron: expórtalas como 3DFACE o polyface.',
+  'topo.warn.workings.meshEntity':
+    'Las entidades MESH no se leen: expórtalas como 3DFACE o polyface.',
+  'topo.warn.workings.flatAxis': '{n} ejes sin cota (z = 0): revisa que sean polilíneas 3D.',
+  'topo.warn.workings.empty': 'El archivo no tiene sólidos ni ejes de labores.',
+  'topo.warn.workings.unknownFile': '{name}: formato no reconocido (usa .dxf o .str con su .dtm).',
 };
 
 export const en = {
@@ -525,4 +551,29 @@ export const en = {
   'topo.warn.topo.farFromProject': 'It lies {km} km from the design: check the coordinate system.',
   'topo.warn.topo.duplicates': '{n} points repeated in plan were merged.',
   'topo.warn.topo.skippedConstraints': '{n} line segments cross others and were not enforced.',
+  // Underground workings (tunnel solids and axes)
+  'topo.format.workings': 'Underground workings',
+  'topo.workings.import': 'Underground workings (DXF/Surpac)',
+  'topo.workings.importHint':
+    'Tunnel solids (3DFACE, polyface) and working axes (3D polylines, LINE, Surpac .str strings); axes become tunnels with the chosen profile. Shown in 3D and used to place the face in Underground.',
+  'topo.workings.profile': 'Profile for the axes',
+  'topo.workings.width': 'Width',
+  'topo.workings.height': 'Height',
+  'topo.workings.axisAt': 'The axis is at',
+  'topo.workings.axisFloor': 'the floor (grade line)',
+  'topo.workings.axisCenter': 'the section centre',
+  'topo.workings.choose': 'Choose files…',
+  'topo.workings.cancel': 'Cancel',
+  'topo.workings.reading': 'Reading workings {name}…',
+  'topo.workings.done': '{name}: {n} workings in 3D ({solids} from solids, {axes} from axes).',
+  'topo.workings.undo': 'Import workings {name}',
+  'topo.workings.failed': 'Could not read the workings {name}: {error}',
+  'topo.workings.stats': '{n} workings · {triangles} triangles',
+  'topo.workings.layer': 'Underground workings',
+  'topo.warn.workings.polygonMesh':
+    '{n} M×N polygon meshes were not read: export them as 3DFACE or polyface.',
+  'topo.warn.workings.meshEntity': 'MESH entities are not read: export them as 3DFACE or polyface.',
+  'topo.warn.workings.flatAxis': '{n} axes without elevation (z = 0): check they are 3D polylines.',
+  'topo.warn.workings.empty': 'The file has no working solids or axes.',
+  'topo.warn.workings.unknownFile': '{name}: unknown format (use .dxf, or .str with its .dtm).',
 } satisfies Record<keyof typeof es, string>;

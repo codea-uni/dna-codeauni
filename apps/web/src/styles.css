@@ -2580,9 +2580,21 @@ button.link {
 }
 
 /* Ficha persistente: todos los tramos y retardos quedan accesibles en la web. */
-.agent-card-detail { max-height: min(60vh, 560px); overflow-y: auto; line-height: 1.45; }
-.agent-card-detail p { margin: 6px 0; }
-.agent-card-column { display: flex; height: 14px; overflow: hidden; border-radius: 4px; margin: 8px 0; }
+.agent-card-detail {
+  max-height: min(60vh, 560px);
+  overflow-y: auto;
+  line-height: 1.45;
+}
+.agent-card-detail p {
+  margin: 6px 0;
+}
+.agent-card-column {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 4px;
+  margin: 8px 0;
+}
 
 /* Nubes de puntos y modelos de bloques (panel de Topografía). */
 .model3d-controls {
@@ -2648,6 +2660,24 @@ button.link {
   margin-top: 0.8rem;
   padding-top: 0.2rem;
   border-top: 1px solid var(--border);
+}
+
+/* Ubicación del frente sobre una labor importada (progresiva y vista de frente). */
+.ug-location {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px dashed var(--border);
+}
+
+.ug-location select,
+.ug-station input[type='range'] {
+  width: 100%;
+}
+
+.ug-location .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
 
 .ug-results {

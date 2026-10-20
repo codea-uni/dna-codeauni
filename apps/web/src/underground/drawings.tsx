@@ -1,4 +1,4 @@
-import type { FaceDesignResult, FaceHole, FaceHoleRole, UV } from '@cronos/core';
+import type { FaceDesignResult, FaceHole, FaceHoleRole, SectionSegment, UV } from '@cronos/core';
 import type { ReactNode } from 'react';
 import { useFormat, useT } from '../i18n';
 import type { FaceComputation, RingComputation } from './model';
@@ -105,11 +105,21 @@ function cutSquares(design: FaceDesignResult): UV[][] {
   );
 }
 
-export function FaceDrawing({ face }: { face: FaceComputation }) {
+/** Color del contorno real de la labor cortada en el frente. */
+export const SECTION_COLOR = '#ff3b30';
+
+export function FaceDrawing({
+  face,
+  contour,
+}: {
+  face: FaceComputation;
+  /** Contorno de la labor real en el plano del frente (segmentos u, v), si hay una elegida. */
+  contour?: readonly SectionSegment[] | null;
+}) {
   const t = useT();
   const fmt = useFormat();
   const { profile, design } = face;
-  const pb = boxOf(profile.points);
+  const pb = boxOf([...profile.points, ...(contour ?? []).flatMap((s) => [s.a, s.b])]);
   const extent = Math.max(pb.maxU - pb.minU, pb.maxV - pb.minV);
   const fs = extent / 34;
   const r = extent / 95;
@@ -141,6 +151,20 @@ export function FaceDrawing({ face }: { face: FaceComputation }) {
         strokeWidth={1.6}
         vectorEffect="non-scaling-stroke"
       />
+      {contour && contour.length > 0 && (
+        <path
+          d={contour
+            .map((s) => `M${String(s.a.u)} ${String(-s.a.v)}L${String(s.b.u)} ${String(-s.b.v)}`)
+            .join('')}
+          fill="none"
+          stroke={SECTION_COLOR}
+          strokeWidth={1.8}
+          strokeDasharray="6 3"
+          vectorEffect="non-scaling-stroke"
+        >
+          <title>{t('ug.loc.contour')}</title>
+        </path>
+      )}
       {cutSquares(design).map((sq, i) =>
         sq.length >= 3 ? (
           <path
@@ -181,9 +205,19 @@ export function FaceDrawing({ face }: { face: FaceComputation }) {
                 vectorEffect="non-scaling-stroke"
               />
             )}
-            <circle cx={h.collar.u} cy={-h.collar.v} r={r} fill={ROLE_COLORS[h.role]}>
+            <circle
+              cx={h.collar.u}
+              cy={-h.collar.v}
+              r={r}
+              fill={h.guide ? 'none' : ROLE_COLORS[h.role]}
+              stroke={h.guide ? ROLE_COLORS[h.role] : 'none'}
+              strokeWidth={h.guide ? 1.4 : 0}
+              vectorEffect="non-scaling-stroke"
+            >
               <title>
-                {`${t(`ug.role.${h.role}`)} · #${String(h.index)} · ${fmt(h.charge?.mass ?? 0, 2)} kg`}
+                {h.guide
+                  ? `${t('ug.role.guide')} · #${String(h.index)}`
+                  : `${t(`ug.role.${h.role}`)} · #${String(h.index)} · ${fmt(h.charge?.mass ?? 0, 2)} kg`}
               </title>
             </circle>
           </g>

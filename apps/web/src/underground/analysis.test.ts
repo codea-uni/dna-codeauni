@@ -35,6 +35,7 @@ vi.mock('../topography/session', () => ({
   collectAssets: vi.fn(),
   drapeNewHoles: vi.fn(),
   storeEmbeddedAssets: vi.fn(),
+  loadedWorkings: () => [],
 }));
 
 const { document } = session;

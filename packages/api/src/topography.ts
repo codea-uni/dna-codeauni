@@ -19,7 +19,7 @@ export const missingAssetsResultSchema = z.object({ missing: z.array(assetHashSc
 
 export const assetInfoSchema = z.object({
   hash: assetHashSchema,
-  kind: z.enum(['tin', 'lines', 'image', 'cloud', 'blocks']),
+  kind: z.enum(['tin', 'lines', 'image', 'cloud', 'blocks', 'workings']),
   sizeBytes: z.int().nonnegative(),
 });
 export type AssetInfo = z.infer<typeof assetInfoSchema>;

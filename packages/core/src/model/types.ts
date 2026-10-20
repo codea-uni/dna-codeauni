@@ -405,7 +405,9 @@ export type TopographyFormat =
   /** Nube de puntos para ver, sin triangular (texto XYZ RGB, `.ibpc`). */
   | 'cloud'
   /** Modelo de bloques (CSV de Datamine/Vulcan/Surpac). */
-  | 'blockmodel';
+  | 'blockmodel'
+  /** Labores subterráneas: sólidos (3DFACE, polyface) y ejes de túnel (DXF, Surpac `.str`). */
+  | 'workings';
 
 /** Caja envolvente 3D [m]. */
 export interface Bounds3 {
@@ -446,7 +448,14 @@ export interface TopographySurvey {
     sourcePoints?: number;
   };
   /** Hash SHA-256 de cada asset `CRTS`. */
-  assets: { tin?: string; lines?: string; image?: string; cloud?: string; blocks?: string };
+  assets: {
+    tin?: string;
+    lines?: string;
+    image?: string;
+    cloud?: string;
+    blocks?: string;
+    workings?: string;
+  };
   /** Qué es el modelo de bloques y qué columna da cada propiedad de la roca (viaja con él). */
   blockModel?: BlockModelMapping;
 }

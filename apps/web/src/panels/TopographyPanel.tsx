@@ -22,6 +22,7 @@ import { useUiStore } from '../stores/uiStore';
 import { importModel3dFiles, MODEL3D_ACCEPT } from '../topography/models3d';
 import { BlockModelControls, PointCloudControls } from './Model3dControls';
 import { TopographyDesignTools } from './TopographyDesignTools';
+import { WorkingsImport } from './WorkingsImport';
 
 const FORMAT_KEY = {
   dxf: 'topo.format.dxf',
@@ -34,6 +35,7 @@ const FORMAT_KEY = {
   legacy: 'topo.format.legacy',
   cloud: 'topo.format.cloud',
   blockmodel: 'topo.format.blockmodel',
+  workings: 'topo.format.workings',
 } as const satisfies Record<TopographyFormat, string>;
 
 /**
@@ -125,18 +127,23 @@ export function TopographyPanel() {
                 </div>
                 <div className="muted small">
                   {t(FORMAT_KEY[s.source.format])} ·{' '}
-                  {s.source.format === 'blockmodel'
-                    ? t('topo.model3d.statsBlocks', { n: fmt(s.stats.points) })
-                    : s.source.format === 'cloud'
-                      ? t('topo.model3d.statsCloud', {
-                          points: fmt(s.stats.points),
-                          source: fmt(s.stats.sourcePoints ?? s.stats.points),
-                        })
-                      : t('topo.panel.stats', {
-                          points: fmt(s.stats.points),
-                          triangles: fmt(s.stats.triangles),
-                          lines: fmt(s.stats.lines),
-                        })}
+                  {s.source.format === 'workings'
+                    ? t('topo.workings.stats', {
+                        n: fmt(s.stats.lines),
+                        triangles: fmt(s.stats.triangles),
+                      })
+                    : s.source.format === 'blockmodel'
+                      ? t('topo.model3d.statsBlocks', { n: fmt(s.stats.points) })
+                      : s.source.format === 'cloud'
+                        ? t('topo.model3d.statsCloud', {
+                            points: fmt(s.stats.points),
+                            source: fmt(s.stats.sourcePoints ?? s.stats.points),
+                          })
+                        : t('topo.panel.stats', {
+                            points: fmt(s.stats.points),
+                            triangles: fmt(s.stats.triangles),
+                            lines: fmt(s.stats.lines),
+                          })}
                 </div>
                 <div className="muted small">
                   {t('topo.panel.relief', {
@@ -151,7 +158,7 @@ export function TopographyPanel() {
                   </div>
                 )}
                 {!isTopographyLoaded(s.id) &&
-                  (s.assets.tin ?? s.assets.cloud ?? s.assets.blocks) && (
+                  (s.assets.tin ?? s.assets.cloud ?? s.assets.blocks ?? s.assets.workings) && (
                     <div className="warn small">{t('topo.panel.missing')}</div>
                   )}
                 {s.assets.blocks && isTopographyLoaded(s.id) && <BlockModelControls survey={s} />}
@@ -186,6 +193,7 @@ export function TopographyPanel() {
       <button title={t('topo.model3d.importHint')} onClick={() => modelInput.current?.click()}>
         <Boxes size={14} aria-hidden /> {t('topo.model3d.import')}
       </button>
+      <WorkingsImport />
       <input
         ref={modelInput}
         type="file"

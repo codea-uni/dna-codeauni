@@ -50,6 +50,8 @@ export interface FaceForm {
   rockConstant: number;
   maxDrill: number;
   smooth: boolean;
+  /** Contorno «uno sí, uno no»: en corona y hastiales se carga un taladro de cada dos. */
+  alternateContour: boolean;
   /** Tiempo por número de retardo [s]. */
   delayInterval: number;
   /**
@@ -74,6 +76,7 @@ export const DEFAULT_FACE: FaceForm = {
   // Viga de 14 pies del jumbo.
   maxDrill: 4.0,
   smooth: true,
+  alternateContour: false,
   delayInterval: 0.1,
   holeInterval: 0.025,
 };
@@ -225,6 +228,7 @@ export function computeFace(form: FaceForm, explosive: Explosive): FaceComputati
     rockConstant: form.rockConstant,
     maxDrillLength: form.maxDrill,
     smoothBlasting: form.smooth,
+    alternateContour: form.alternateContour,
   });
   return { profile, design };
 }

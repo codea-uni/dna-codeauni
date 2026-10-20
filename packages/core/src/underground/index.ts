@@ -7,3 +7,4 @@ export * from './transform';
 export * from './toHoles';
 export * from './analysis';
 export * from './fragmentation';
+export * from './workings';

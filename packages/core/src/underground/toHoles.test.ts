@@ -11,6 +11,8 @@ import { designRing, replicateRings } from './ringDesign';
 import {
   effectiveChargeDiameter,
   faceRoundToHoles,
+  GUIDE_TAG,
+  isEmptyByDesign,
   isUndergroundHole,
   ringsToHoles,
 } from './toHoles';
@@ -201,5 +203,40 @@ describe('revisión del diseño con taladros subterráneos', () => {
     const first = must(blast.holes[1]);
     blast.holes.push({ ...first, id: 'otro' as Hole['id'], label: 'X' });
     expect(designChecks(blast, null).map((c) => c.id)).toContain('duplicate');
+  });
+});
+
+describe('contorno «uno sí, uno no» → taladros', () => {
+  const alt = designFaceRound({
+    profile,
+    holeDiameter: 0.045,
+    reliefDiameter: 0.102,
+    explosiveDensity: bulk.density,
+    rws: bulk.rws,
+    maxDrillLength: 4,
+    alternateContour: true,
+  });
+  const holes = faceRoundToHoles({
+    design: alt,
+    frame,
+    products: { explosive: bulk, stemmingMaterialId, detonatorId },
+    delayInterval: 0.1,
+  });
+
+  it('las guías van vacías, sin iniciador y con la marca ug-guide', () => {
+    const guides = holes.filter((h) => h.tags?.includes(GUIDE_TAG));
+    expect(guides.length).toBe(alt.kpis.guideHoles);
+    expect(guides.length).toBeGreaterThan(3);
+    for (const h of guides) {
+      expect(h.decks).toHaveLength(0);
+      expect(h.initiators).toHaveLength(0);
+      expect(isEmptyByDesign(h)).toBe(true);
+    }
+  });
+
+  it('la revisión del diseño no las marca como taladros sin carga', () => {
+    const blast = createBlast('Frente', createDefaultRockMass().id);
+    blast.holes = holes;
+    expect(designChecks(blast, null).map((c) => c.id)).not.toContain('unloaded');
   });
 });
