@@ -117,7 +117,18 @@ export interface MonitoringPoint {
   beta?: number;
   /** Tipo de estructura (vivienda, planta, línea…): elige las filas de `Project.ppvLimits` (P-12). */
   structure?: string;
+  /**
+   * Qué protege el punto: estructura o comunidad en superficie, talud, labor subterránea u otro.
+   * Elige el límite por defecto y si la distancia se mide al segmento de carga (bajo tierra).
+   */
+  kind?: MonitoringPointKind;
+  /** Labor o excavación donde está el punto (nombre libre o etiqueta `ug-*`), si es subterráneo. */
+  working?: string;
 }
+
+/** Tipo de punto de control (vibración en superficie, en el tajo o bajo tierra). */
+export type MonitoringPointKind =
+  'surface-structure' | 'community' | 'slope' | 'underground-working' | 'other';
 
 /**
  * Escenario (`docs/theory/03 §1`, principio 3): una variante completa del diseño (malla, cargas,
@@ -139,6 +150,11 @@ export interface Scenario {
 export interface PpvLimit {
   /** Tipo de estructura al que aplica; sin valor, a todas. */
   structure?: string;
+  /**
+   * Tipo de punto al que aplica. Sin valor, a los puntos de superficie (sin tipo, estructura,
+   * comunidad u otro): las filas del EIA no gobiernan taludes ni labores.
+   */
+  kind?: MonitoringPointKind;
   /** Distancia desde [m] (incluida). */
   from: Meters;
   /** Distancia hasta [m] (excluida); sin valor = sin límite superior. */
@@ -774,6 +790,10 @@ export interface VibrationLaw {
   beta: number;
   /** Nivel de confianza asociado (p.ej. 0.5 = mediana, 0.95). */
   confidence?: Ratio;
+  /** Para qué voladuras es (superficial o subterránea); sin valor, superficial. */
+  context?: 'surface' | 'underground';
+  /** Ajuste con mediciones de sismógrafo de la mina: zona, n y R² (calibración del factor de terreno). */
+  fit?: { zone: string; n: number; r2: number };
 }
 
 /** Sobrepresión: P = k · (R / W^(1/3))^(−beta) [Pa]. */

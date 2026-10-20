@@ -22,6 +22,8 @@ export interface Database {
   knowledge_chunk: KnowledgeChunkTable;
   organization_explosive: OrganizationExplosiveTable;
   design_preset: DesignPresetTable;
+  mine_monitoring_point: MineMonitoringPointTable;
+  mine_vibration_record: MineVibrationRecordTable;
 }
 
 type CreatedAt = ColumnType<Date, never, never>;
@@ -179,6 +181,26 @@ export interface DesignPresetTable {
   name: string;
   description: string | null;
   steps: JSONColumnType<{ tool: string; args: Record<string, unknown> }[]>;
+  createdBy: string | null;
+  createdAt: CreatedAt;
+}
+
+/** Punto de control compartido por la mina (`data` es el `MonitoringPoint` del núcleo). */
+export interface MineMonitoringPointTable {
+  mineId: string;
+  id: string;
+  data: JSONColumnType<Record<string, unknown>>;
+  sourceProjectId: string | null;
+  createdBy: string | null;
+  createdAt: CreatedAt;
+  updatedAt: ColumnType<Date, Date | undefined, Date>;
+}
+
+/** Medición de sismógrafo de la mina (`data` es el `SeismographRecord` del núcleo). */
+export interface MineVibrationRecordTable {
+  mineId: string;
+  id: string;
+  data: JSONColumnType<Record<string, unknown>>;
   createdBy: string | null;
   createdAt: CreatedAt;
 }

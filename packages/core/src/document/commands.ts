@@ -508,6 +508,8 @@ export function addMonitoringPoint(
   doc: DocumentReader,
   position: Vec3,
   name?: string,
+  /** Tipo y labor del punto (3D: en una excavación o con cota libre). */
+  extra: Pick<MonitoringPoint, 'kind' | 'working'> = {},
 ): { ops: Op[]; point: MonitoringPoint } {
   const list = doc.project.monitoringPoints ?? [];
   const used = new Set(list.map((p) => p.name));
@@ -517,6 +519,8 @@ export function addMonitoringPoint(
     id: newId<'MonitoringPoint'>(),
     name: name ?? `PC${n}`,
     position: { ...position },
+    ...(extra.kind ? { kind: extra.kind } : {}),
+    ...(extra.working ? { working: extra.working } : {}),
   };
   return { ops: [{ type: 'project/patch', patch: { monitoringPoints: [...list, point] } }], point };
 }
@@ -556,6 +560,14 @@ export function updateMonitoringPoint(
     if ('structure' in patch) {
       if (patch.structure === undefined) delete next.structure;
       else next.structure = patch.structure;
+    }
+    if ('kind' in patch) {
+      if (patch.kind === undefined) delete next.kind;
+      else next.kind = patch.kind;
+    }
+    if ('working' in patch) {
+      if (patch.working === undefined) delete next.working;
+      else next.working = patch.working;
     }
     return next;
   };

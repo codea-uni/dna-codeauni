@@ -37,6 +37,8 @@ export * from './energy/contours';
 export * from './energy/colormap';
 export * from './fragmentation/fragmentation';
 export * from './vibration/vibration';
+export * from './vibration/monitoring';
+export * from './vibration/calibration';
 export * from './diagnostics/designChecks';
 export * from './examples/examples';
 export type { ExampleBuild } from './examples/topographyExamples';
@@ -65,7 +67,12 @@ export type { HoleEdit } from './document/commands';
 
 // IO
 export * from './io/projectFile';
-export { explosiveSchema, topographySurveySchema } from './io/projectSchema';
+export {
+  explosiveSchema,
+  monitoringPointSchema,
+  seismographRecordSchema,
+  topographySurveySchema,
+} from './io/projectSchema';
 export * from './io/csv';
 export * from './io/dxf';
 export * from './io/geojson';

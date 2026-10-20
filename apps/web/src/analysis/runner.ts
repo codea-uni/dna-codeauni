@@ -8,6 +8,7 @@ import {
 } from '@cronos/core';
 import { getCompute, session } from '../session';
 import { onRockModelsChange, onTopographyChange, topographyTin } from '../topography/session';
+import { minePointsForCalc, useMineVibration } from '../vibration/mineStore';
 import { useAnalysisStore } from '../stores/analysisStore';
 
 const DEBOUNCE_MS = 120;
@@ -232,6 +233,8 @@ export function startVibrationRunner(): () => void {
           ...(s.vibLawId ? { lawId: s.vibLawId } : {}),
           extent: s.vibExtent,
           levels,
+          // Puntos de la mina (comunidad, taludes, labores compartidos por otros proyectos).
+          extraPoints: minePointsForCalc(),
         },
         // Receptores sobre el terreno del banco (su topografía, si está cargada).
         blast.bench.topographyId ? (topographyTin(blast.bench.topographyId) ?? null) : null,
@@ -253,6 +256,10 @@ export function startVibrationRunner(): () => void {
   const offTopo = onTopographyChange(() => {
     if (useAnalysisStore.getState().vibEnabled) schedule();
   });
+  const offMine = useMineVibration.subscribe((st, prev) => {
+    if (st.points === prev.points && st.useMinePoints === prev.useMinePoints) return;
+    if (useAnalysisStore.getState().vibEnabled) schedule();
+  });
   const keys = ['vibEnabled', 'vibMetric', 'vibLawId', 'vibExtent', 'vibLevels'] as const;
   const offOptions = useAnalysisStore.subscribe((s, prev) => {
     if (!keys.some((k) => s[k] !== prev[k])) return;
@@ -262,6 +269,7 @@ export function startVibrationRunner(): () => void {
   return () => {
     offDoc();
     offTopo();
+    offMine();
     offOptions();
     if (timer) clearTimeout(timer);
   };

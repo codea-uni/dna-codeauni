@@ -18,7 +18,7 @@ export type { MuckpileSurfaceData } from './layers/MuckpileLayer';
 export type { VectorsData } from './layers/VectorsLayer';
 export { TOPO_LINE_COLORS, type TopographyViewData } from './layers/TopographyLayer';
 export type { BlockModelView, PointCloudView } from './layers/Model3dLayer';
-export type { TunnelView } from './layers/TunnelLayer';
+export type { ContextLine, Pick3dHit, TunnelView } from './layers/TunnelLayer';
 export type { WorkingsView } from './layers/WorkingsLayer';
 export { fitBounds, panBy, screenToWorld, zoomAt, type PlanViewState } from './cameras/planView';
 export type { ToolName } from './tools/types';

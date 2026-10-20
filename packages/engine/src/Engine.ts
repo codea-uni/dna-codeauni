@@ -8,6 +8,7 @@ import {
   Vector2,
   WebGLRenderer,
 } from 'three';
+import type { Object3D } from 'three';
 import {
   DEFAULT_HOLE_TEMPLATE,
   LineSnapIndex,
@@ -32,6 +33,7 @@ import {
   type SnapOptions,
   type SnapResult,
   type Vec2,
+  type MonitoringPoint,
   type Vec3,
 } from '@cronos/core';
 import { fitBounds, screenToWorld, type PlanViewState } from './cameras/planView';
@@ -48,7 +50,13 @@ import { Emitter } from './events';
 import { InputRouter } from './input/InputRouter';
 import { BoundaryLayer } from './layers/BoundaryLayer';
 import { Model3dLayer, type BlockModelView, type PointCloudView } from './layers/Model3dLayer';
-import { TunnelLayer, type TunnelView } from './layers/TunnelLayer';
+import {
+  ContextLinesLayer,
+  TunnelLayer,
+  type ContextLine,
+  type Pick3dHit,
+  type TunnelView,
+} from './layers/TunnelLayer';
 import { WorkingsLayer, type WorkingsView } from './layers/WorkingsLayer';
 import { COLORS } from './layers/colors';
 import { GridLayer } from './layers/GridLayer';
@@ -339,6 +347,11 @@ export class Engine {
   private readonly workings3d = new WorkingsLayer();
   private workingsViews: readonly WorkingsView[] = [];
   private workingsSection: readonly Vec3[] | null = null;
+  /** Taladros y perímetros de otro proyecto de la mina (contexto de solo lectura). */
+  private readonly context3d = new ContextLinesLayer();
+  private contextLines: readonly ContextLine[] = [];
+  /** Puntos de control de la mina (compartidos) que se dibujan además de los del proyecto. */
+  private extraPoints: readonly MonitoringPoint[] = [];
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
   private tieConnectorId: SurfaceConnectorId | undefined;
@@ -467,6 +480,7 @@ export class Engine {
       this.models3d.root,
       this.tunnels3d.root,
       this.workings3d.root,
+      this.context3d.root,
       this.avatars3d.root,
       this.buildFx3d.root,
     );
@@ -531,6 +545,12 @@ export class Engine {
       getTool: () => this.tool,
       toToolPointer: (e) => this.toToolPointer(e),
       is3D: () => this.viewMode === '3d',
+      click3d: (sx, sy) => {
+        const tool = this.tool;
+        if (!tool.onClick3d) return;
+        const hit = this.pick3d(sx, sy);
+        if (hit) tool.onClick3d(hit, this.toolContext);
+      },
       orbit3d: (dx, dy) => {
         // Tocar la cámara cancela el vuelo del asistente.
         this.cameraFlight = null;
@@ -1424,6 +1444,98 @@ export class Engine {
     return cancel;
   }
 
+  /** Taladros y perímetros de otro proyecto de la mina en 3D (solo lectura); [] los quita. */
+  setContextLines(lines: readonly ContextLine[]): void {
+    this.contextLines = lines;
+    this.context3d.set(lines, this.origin);
+    this.loop.invalidate();
+  }
+
+  /** Puntos de control de la mina que se dibujan junto a los del proyecto (sin repetir id). */
+  setExtraMonitoringPoints(points: readonly MonitoringPoint[]): void {
+    this.extraPoints = points;
+    this.rebuildSite();
+    if (this.viewMode === '3d') this.rebuild3dOverlays();
+    this.loop.invalidate();
+  }
+
+  /** Puntos de control visibles: los del proyecto y los de la mina. */
+  private allMonitoringPoints(): MonitoringPoint[] {
+    const own = this.document.project.monitoringPoints ?? [];
+    if (this.extraPoints.length === 0) return own;
+    const ids = new Set(own.map((p) => p.id));
+    return [...own, ...this.extraPoints.filter((p) => !ids.has(p.id))];
+  }
+
+  /**
+   * Punto 3D bajo el cursor (px CSS del canvas) en la vista 3D: una excavación (labor), una nube o
+   * modelo de bloques, o el terreno y el diseño. null si no toca nada o no es la vista 3D.
+   */
+  pick3d(sx: number, sy: number): Pick3dHit | null {
+    if (this.viewMode !== '3d' || this.width <= 0 || this.height <= 0) return null;
+    const ray = new Raycaster();
+    ray.setFromCamera(
+      new Vector2((sx / this.width) * 2 - 1, -(sy / this.height) * 2 + 1),
+      this.camera3d,
+    );
+    const mpp = this.orbit
+      ? (2 * this.orbit.distance * Math.tan((this.camera3d.fov * Math.PI) / 360)) / this.height
+      : 0.5;
+    ray.params.Line = { threshold: 6 * mpp };
+    ray.params.Points = { threshold: 4 * mpp };
+    const visible = (o: Object3D): boolean => {
+      for (let n: Object3D | null = o; n !== null; n = n.parent) if (!n.visible) return false;
+      return true;
+    };
+    const hits = ray
+      .intersectObjects(
+        [
+          this.tunnels3d.root,
+          this.workings3d.root,
+          this.context3d.root,
+          this.models3d.root,
+          this.scene3d.root,
+        ],
+        true,
+      )
+      .filter((h) => visible(h.object));
+    const under = (root: Object3D, o: Object3D) => {
+      for (let n: Object3D | null = o; n !== null; n = n.parent) if (n === root) return true;
+      return false;
+    };
+    // Las labores ganan aunque estén detrás de la piel del terreno (se ven a través).
+    const working = hits.find(
+      (h) =>
+        under(this.tunnels3d.root, h.object) ||
+        under(this.workings3d.root, h.object) ||
+        under(this.context3d.root, h.object),
+    );
+    const skip: Object3D[] = [
+      this.site3d.root,
+      this.siteBeacons3d.root,
+      this.siteLabels3d.mesh,
+      this.labels3d.mesh,
+      this.energy3d.root,
+      this.vibration3d.root,
+      this.isochrones3d.lines,
+      this.initiation3d.root,
+      this.avatars3d.root,
+      this.buildFx3d.root,
+    ];
+    const h = working ?? hits.find((x) => !skip.some((root) => under(root, x.object))) ?? null;
+    if (!h) return null;
+    const point: Vec3 = {
+      x: h.point.x + this.origin.x,
+      y: h.point.y + this.origin.y,
+      z: h.point.z + this.origin.z,
+    };
+    if (working) {
+      const name = (working.object.userData as { tunnel?: string }).tunnel;
+      return { point, target: 'working', ...(name ? { name } : {}) };
+    }
+    return { point, target: under(this.models3d.root, h.object) ? 'model' : 'surface' };
+  }
+
   /** Tamaño de los puntos de las nubes [m]. */
   setPointSize(size: number): void {
     this.models3d.setPointSize(size);
@@ -1792,6 +1904,7 @@ export class Engine {
     this.holes.dispose();
     this.tunnels3d.dispose();
     this.workings3d.dispose();
+    this.context3d.clear();
     this.labels.dispose();
     this.boundaries.dispose();
     this.boundaryLabels.dispose();
@@ -1986,13 +2099,23 @@ export class Engine {
     );
     this.site3d.setElevation(top + 0.3);
     this.site3d.setZone(this.flyrockZone, this.origin, 0.6, ground);
-    const points = this.document.project.monitoringPoints ?? [];
-    this.site3d.setMarkers(points, this.origin, 6, ground, SITE_POLE_M);
-    this.siteBeacons3d.set(points, this.origin, ground, top + 0.3, SITE_POLE_M);
+    const points = this.allMonitoringPoints();
+    // Los puntos en una labor van a su cota (bajo tierra), no sobre el terreno.
+    const below = new Map<string, number>();
+    for (const p of points)
+      if (p.kind === 'underground-working')
+        below.set(`${String(p.position.x)},${String(p.position.y)}`, p.position.z);
+    const pointGround =
+      below.size === 0
+        ? ground
+        : (x: number, y: number) =>
+            below.get(`${String(x)},${String(y)}`) ?? ground?.(x, y) ?? null;
+    this.site3d.setMarkers(points, this.origin, 6, pointGround, SITE_POLE_M);
+    this.siteBeacons3d.set(points, this.origin, pointGround, top + 0.3, SITE_POLE_M);
     this.siteLabels3d.clear();
     for (const p of points) {
       // El nombre va en la punta del poste, sobre el terreno del punto.
-      const g = ground?.(p.position.x, p.position.y);
+      const g = pointGround?.(p.position.x, p.position.y);
       this.siteLabels3d.upsert(
         p.id,
         p.position.x - this.origin.x,
@@ -2135,7 +2258,7 @@ export class Engine {
 
   /** Marcadores y nombres de los puntos de control (tamaño constante en pantalla). */
   private rebuildSite(): void {
-    const points = this.document.project.monitoringPoints ?? [];
+    const points = this.allMonitoringPoints();
     this.site.setMarkers(points, this.origin, 5 * this.view.metersPerPixel);
     this.siteLabels.clear();
     for (const p of points) {
@@ -2582,6 +2705,7 @@ export class Engine {
     this.tunnels3d.set(this.tunnelViews, this.origin);
     this.workings3d.set(this.workingsViews, this.origin);
     this.workings3d.setSection(this.workingsSection, this.origin);
+    this.context3d.set(this.contextLines, this.origin);
     this.holes.clear();
     this.labels.clear();
     this.hover = null;

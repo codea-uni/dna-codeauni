@@ -1,11 +1,18 @@
 import {
   commands,
+  defaultKindPpvLimits,
+  defaultVibrationLaw,
+  excavationCenter,
+  isUncalibratedLaw,
+  MONITORING_POINT_KINDS,
+  type MonitoringPoint,
   type MonitoringPointId,
+  type MonitoringPointKind,
   type PpvLimit,
   type VibrationMetric,
 } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
-import { MapPin, Trash2 } from 'lucide-react';
+import { MapPin, Share2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { NumberField } from '../components/NumberField';
@@ -16,6 +23,9 @@ import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
 import { Floatable } from '../components/Floatable';
+import { namedWorkings, sharePoint, useMineVibration } from '../vibration/mineStore';
+import { MineVibrationSection } from '../vibration/MineVibrationSection';
+import { CrossingWarnings, kindLabelKey, Semaphore } from '../vibration/vibrationUi';
 
 const dB = (pa: number) => (pa > 0 ? 20 * Math.log10(pa / 20e-6) : 0);
 
@@ -29,7 +39,24 @@ export function VibrationPanel() {
   const setTool = useUiStore((st) => st.setTool);
   const tool = useUiStore((st) => st.tool);
   const site = project.siteModels;
-  const law = site.vibrationLaws.find((l) => l.id === s.vibLawId) ?? site.vibrationLaws[0];
+  // Sin elección, la ley del tipo de voladura (subterránea para taladros ug-*).
+  const law =
+    site.vibrationLaws.find((l) => l.id === s.vibLawId) ??
+    defaultVibrationLaw(project, project.blasts[0]) ??
+    undefined;
+  const canShare = useMineVibration((m) => m.mineId !== null && m.canEdit);
+  const minePoints = useMineVibration((m) => m.points);
+  const sharedIds = new Set(minePoints.map((p) => p.point.id));
+  const notify = useUiStore((st) => st.notify);
+  const share = (p: MonitoringPoint) => {
+    sharePoint(p)
+      .then(() => {
+        notify(t('mv.shared', { name: p.name }));
+      })
+      .catch((err: unknown) => {
+        notify(err instanceof Error ? err.message : String(err), 'error');
+      });
+  };
   const isPpv = s.vibMetric === 'ppv';
   const v = s.vibration;
   const [levelsText, setLevelsText] = useState(s.vibLevels.join('; '));
@@ -189,9 +216,12 @@ export function VibrationPanel() {
             <thead>
               <tr>
                 <th>{t('vib.point')}</th>
-                <th>R [{len.unit}]</th>
+                <th>{t('mv.kind')}</th>
+                <th title={t('mv.distance3dTitle')}>R [{len.unit}]</th>
+                <th title={t('mv.chargeTitle')}>kg</th>
                 <th>mm/s</th>
                 <th title={t('vib.limitTitle')}>{t('vib.limit')}</th>
+                <th />
                 <th title={t('vib.admissibleTitle')}>{t('vib.admissible')}</th>
                 <th>dB</th>
                 <th />
@@ -213,7 +243,19 @@ export function VibrationPanel() {
                         }}
                       />
                     </td>
+                    <td>
+                      <KindSelect
+                        value={p.kind}
+                        onChange={(kind) => {
+                          session.document.dispatch(
+                            commands.updateMonitoringPoint(session.document, p.id, { kind }),
+                            t('mv.undoKind'),
+                          );
+                        }}
+                      />
+                    </td>
                     <td className="num">{rec ? fmt(len.show(rec.distance)) : '—'}</td>
+                    <td className="num">{rec ? fmt(rec.charge, 1) : '—'}</td>
                     <td
                       className="num"
                       title={
@@ -227,11 +269,25 @@ export function VibrationPanel() {
                     <td className="num" title={rec?.limit?.source}>
                       {rec?.limit ? fmt(rec.limit.ppvMax * 1000, 0) : '—'}
                     </td>
+                    <td>
+                      <Semaphore rec={rec} />
+                    </td>
                     <td className="num">
                       {rec?.admissibleCharge != null ? fmt(rec.admissibleCharge) : '—'}
                     </td>
                     <td className="num">{rec ? fmt(rec.airblastDb, 0) : '—'}</td>
-                    <td>
+                    <td className="row-actions">
+                      {canShare && (
+                        <button
+                          className={`icon${sharedIds.has(p.id) ? ' active' : ''}`}
+                          title={t(sharedIds.has(p.id) ? 'mv.updateShared' : 'mv.share')}
+                          onClick={() => {
+                            share(p);
+                          }}
+                        >
+                          <Share2 size={13} aria-hidden />
+                        </button>
+                      )}
                       <button
                         className="icon danger"
                         title={t('vib.removePoint')}
@@ -251,17 +307,36 @@ export function VibrationPanel() {
             </tbody>
           </table>
         )}
+        {v && <CrossingWarnings receivers={v.receivers} underground={v.underground} />}
+        <p className="hint">{t('mv.hint3d')}</p>
+        <AddPointByCoordinates />
         {!s.vibEnabled && (project.monitoringPoints ?? []).length > 0 && (
           <p className="hint">{t('vib.enableHint')}</p>
         )}
         {(project.monitoringPoints ?? []).length > 0 && <PointSettings />}
       </section>
       <PpvLimitsTable />
+      <MineVibrationSection />
 
       <section className="panel">
         <h2>{t('vib.siteConstants')}</h2>
         {law && (
           <>
+            {isUncalibratedLaw(law) ? (
+              <p className="warn" title={t('mv.uncalibratedTitle')}>
+                {t('mv.uncalibrated', { name: law.name })}
+              </p>
+            ) : (
+              law.fit && (
+                <p className="hint">
+                  {t('mv.calibrated', {
+                    zone: law.fit.zone || t('mv.allZones'),
+                    n: law.fit.n,
+                    r2: fmt(law.fit.r2, 2),
+                  })}
+                </p>
+              )
+            )}
             {site.vibrationLaws.length > 1 && (
               <label className="field">
                 <span className="field-label">{t('vib.law')}</span>
@@ -422,6 +497,8 @@ function PointSettings() {
               <th title={t('vib.ownLimitTitle')}>{t('vib.ownLimit')}</th>
               <th title={t('vib.ownKTitle')}>K</th>
               <th title={t('vib.ownBetaTitle')}>β</th>
+              <th title={t('mv.zTitle')}>Z [m]</th>
+              <th title={t('mv.workingTitle')}>{t('mv.working')}</th>
             </tr>
           </thead>
           <tbody>
@@ -466,6 +543,23 @@ function PointSettings() {
                     }}
                   />
                 </td>
+                <td>
+                  <NumberCell
+                    value={p.position.z}
+                    decimals={2}
+                    onCommit={(z) => {
+                      update(p.id, { position: { ...p.position, z } }, 'mv.undoZ');
+                    }}
+                  />
+                </td>
+                <td>
+                  <TextCell
+                    value={p.working ?? ''}
+                    onCommit={(w) => {
+                      update(p.id, { working: w.trim() || undefined }, 'mv.undoWorking');
+                    }}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -500,6 +594,7 @@ function PpvLimitsTable() {
         <table className="grid-table compact">
           <thead>
             <tr>
+              <th title={t('mv.limitKindTitle')}>{t('mv.kind')}</th>
               <th>{t('vib.structure')}</th>
               <th>{t('vib.from')}</th>
               <th>{t('vib.to')}</th>
@@ -511,6 +606,27 @@ function PpvLimitsTable() {
           <tbody>
             {limits.map((l, i) => (
               <tr key={i}>
+                <td>
+                  <select
+                    value={l.kind ?? ''}
+                    onChange={(e) => {
+                      const next = { ...l };
+                      if (e.target.value) next.kind = e.target.value as MonitoringPointKind;
+                      else delete next.kind;
+                      set(
+                        limits.map((x, k) => (k === i ? next : x)),
+                        t('vib.editLimit'),
+                      );
+                    }}
+                  >
+                    <option value="">{t('mv.kind.surfaceRows')}</option>
+                    {MONITORING_POINT_KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {t(kindLabelKey(k))}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 <td>
                   <TextCell
                     value={l.structure ?? ''}
@@ -597,8 +713,140 @@ function PpvLimitsTable() {
           }}
         >
           {t('vib.addLimitButton')}
+        </button>{' '}
+        <button
+          title={t('mv.defaultLimitsTitle')}
+          onClick={() => {
+            const have = new Set(limits.map((l) => l.kind).filter(Boolean));
+            set(
+              [...limits, ...defaultKindPpvLimits().filter((l) => !have.has(l.kind))],
+              t('vib.addLimit'),
+            );
+          }}
+        >
+          {t('mv.defaultLimits')}
         </button>
       </Floatable>
     </section>
+  );
+}
+
+/** Tipo de punto de control (sin tipo = superficie, como los de siempre). */
+function KindSelect({
+  value,
+  onChange,
+}: {
+  value: MonitoringPointKind | undefined;
+  onChange: (kind: MonitoringPointKind | undefined) => void;
+}) {
+  const t = useT();
+  return (
+    <select
+      value={value ?? ''}
+      onChange={(e) => {
+        onChange((e.target.value || undefined) as MonitoringPointKind | undefined);
+      }}
+    >
+      <option value="">{t('mv.kind.none')}</option>
+      {MONITORING_POINT_KINDS.map((k) => (
+        <option key={k} value={k}>
+          {t(kindLabelKey(k))}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
+ * Punto de control con cota libre: por coordenadas X, Y, Z o en una labor (excavación de este
+ * proyecto o de otro de la mina mostrado como contexto), que pone el punto en su centro.
+ */
+function AddPointByCoordinates() {
+  const t = useT();
+  const fmt = useFormat();
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState<MonitoringPointKind | undefined>('underground-working');
+  // Por defecto, 50 m bajo el centro de la voladura (una labor debajo del tajo).
+  const [pos, setPos] = useState(() => {
+    const holes = session.document.project.blasts[0]?.holes ?? [];
+    if (holes.length === 0) return { x: 0, y: 0, z: 0 };
+    const avg = (f: (h: (typeof holes)[number]) => number) =>
+      Math.round(holes.reduce((a, h) => a + f(h), 0) / holes.length);
+    return { x: avg((h) => h.collar.x), y: avg((h) => h.collar.y), z: avg((h) => h.collar.z) - 50 };
+  });
+  const [working, setWorking] = useState('');
+  useMineVibration((m) => m.context);
+  const workings = namedWorkings();
+  const add = () => {
+    const { ops, point } = commands.addMonitoringPoint(
+      session.document,
+      pos,
+      name.trim() || undefined,
+      {
+        ...(kind ? { kind } : {}),
+        ...(working ? { working } : {}),
+      },
+    );
+    session.document.dispatch(ops, t('vib.addPoints'));
+    useAnalysisStore.getState().set({ vibEnabled: true });
+    setName('');
+    useUiStore.getState().notify(t('mv.added', { name: point.name }));
+  };
+  return (
+    <details>
+      <summary>{t('mv.addByCoordinates')}</summary>
+      {workings.length > 0 && (
+        <label className="field">
+          <span className="field-label">{t('mv.inWorking')}</span>
+          <select
+            value={working}
+            onChange={(e) => {
+              setWorking(e.target.value);
+              const w = workings.find((x) => x.name === e.target.value);
+              const c = w ? excavationCenter(w.sections) : null;
+              if (c) {
+                setPos(c);
+                setKind('underground-working');
+                if (!name) setName(w?.name ?? '');
+              }
+            }}
+          >
+            <option value="">—</option>
+            {workings.map((w) => (
+              <option key={w.name} value={w.name}>
+                {w.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <label className="field">
+        <span className="field-label">{t('vib.point')}</span>
+        <input
+          value={name}
+          placeholder="PC…"
+          onChange={(e) => {
+            setName(e.target.value);
+          }}
+        />
+      </label>
+      <label className="field">
+        <span className="field-label">{t('mv.kind')}</span>
+        <KindSelect value={kind} onChange={setKind} />
+      </label>
+      {(['x', 'y', 'z'] as const).map((c) => (
+        <NumberField
+          key={c}
+          label={c.toUpperCase()}
+          unit="m"
+          decimals={2}
+          value={pos[c]}
+          onCommit={(v) => {
+            setPos((p) => ({ ...p, [c]: v }));
+          }}
+        />
+      ))}
+      <button onClick={add}>{t('mv.addPoint', { z: fmt(pos.z, 1) })}</button>
+    </details>
   );
 }

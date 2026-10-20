@@ -8,6 +8,7 @@ import { aiRoutes } from './routes/ai';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
+import { mineVibrationRoutes } from './routes/mineVibration';
 import { organizationRoutes } from './routes/organizations';
 import { platformRoutes } from './routes/platform';
 import { projectRoutes } from './routes/projects';
@@ -63,6 +64,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       versionRoutes(api, deps);
       topographyRoutes(api, deps);
       knowledgeRoutes(api, deps);
+      mineVibrationRoutes(api, deps);
       aiRoutes(api, deps);
       roomRoutes(api, deps);
       done();

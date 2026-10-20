@@ -6,4 +6,5 @@ export * from './topography';
 export * from './ai';
 export * from './rooms';
 export * from './knowledge';
+export * from './vibration';
 export * from './client';

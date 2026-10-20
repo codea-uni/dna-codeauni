@@ -2,6 +2,8 @@ import { panBy, zoomAt, type PlanViewState } from '../cameras/planView';
 import type { Tool, ToolPointer } from '../tools/types';
 
 const WHEEL_ZOOM_SPEED = 0.0015;
+/** Movimiento máximo [px] para que soltar en 3D cuente como clic. */
+const CLICK_3D_PX = 4;
 
 export interface InputHost {
   readonly element: HTMLElement;
@@ -13,6 +15,8 @@ export interface InputHost {
   orbit3d(dx: number, dy: number): void;
   pan3d(dx: number, dy: number): void;
   dolly3d(factor: number): void;
+  /** Clic (sin arrastre) en la vista 3D, en px CSS del canvas (herramientas con `onClick3d`). */
+  click3d?(sx: number, sy: number): void;
   /** Convierte un evento de puntero a coordenadas de proyecto. */
   toToolPointer(e: PointerEvent | MouseEvent): ToolPointer;
   onPointerDown(p: ToolPointer): void;
@@ -41,6 +45,8 @@ export class InputRouter {
   private lastY = 0;
   private spaceHeld = false;
   private drag3d: { pointer: number; mode: 'orbit' | 'pan' } | null = null;
+  /** Dónde empezó el arrastre 3D y cuánto se movió (para distinguir un clic). */
+  private down3d: { x: number; y: number; moved: number } | null = null;
 
   constructor(private readonly host: InputHost) {
     const el = host.element;
@@ -85,6 +91,7 @@ export class InputRouter {
       this.host.element.setPointerCapture(e.pointerId);
       const orbit = e.button === 0 && !e.shiftKey && !this.spaceHeld;
       this.drag3d = { pointer: e.pointerId, mode: orbit ? 'orbit' : 'pan' };
+      this.down3d = orbit ? { x: e.clientX, y: e.clientY, moved: 0 } : null;
       this.lastX = e.clientX;
       this.lastY = e.clientY;
       this.host.onCursorChange('grabbing');
@@ -112,6 +119,13 @@ export class InputRouter {
       const dy = e.clientY - this.lastY;
       this.lastX = e.clientX;
       this.lastY = e.clientY;
+      if (this.down3d)
+        this.down3d.moved = Math.max(
+          this.down3d.moved,
+          Math.hypot(e.clientX - this.down3d.x, e.clientY - this.down3d.y),
+        );
+      // Un clic con temblor no gira la vista (con herramientas 3D, p. ej. puntos de control).
+      if (this.down3d && this.down3d.moved < CLICK_3D_PX && this.host.getTool().onClick3d) return;
       if (this.drag3d.mode === 'orbit') this.host.orbit3d(dx, dy);
       else this.host.pan3d(dx, dy);
       return;
@@ -134,6 +148,12 @@ export class InputRouter {
       this.host.element.releasePointerCapture(e.pointerId);
     if (this.drag3d?.pointer === e.pointerId) {
       this.drag3d = null;
+      const down = this.down3d;
+      this.down3d = null;
+      if (down && down.moved < CLICK_3D_PX && e.button === 0 && this.host.click3d) {
+        const rect = this.host.element.getBoundingClientRect();
+        this.host.click3d(e.clientX - rect.left, e.clientY - rect.top);
+      }
       this.host.onCursorChange('grab');
       return;
     }
