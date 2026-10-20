@@ -12,9 +12,11 @@ export const es = {
   'product.enter.surface': 'Entrar a Open Pit',
   'product.enter.underground': 'Entrar a Underground',
   'product.enterHint.surface':
-    'Bancos a cielo abierto: malla, cara libre, pila y voladura en banco.',
-  'product.enterHint.underground': 'Frentes de avance (método sueco) y abanicos de tajeo.',
+    'Bancos a cielo abierto: malla, cara libre, simulación de la pila y vibración.',
+  'product.enterHint.underground':
+    'Túneles, chimeneas y tajeos: métodos de minado, labores reales y simulación.',
   'product.count': '{n} proyectos',
+  'product.countOne': '1 proyecto',
   'product.projectsOf': 'Proyectos de {tool}',
   'product.empty': 'Esta mina todavía no tiene proyectos de {tool}.',
   'product.newIn': 'Proyecto nuevo de {tool}',
@@ -50,9 +52,12 @@ export const en = {
   'product.badge.underground': 'Underground',
   'product.enter.surface': 'Enter Open Pit',
   'product.enter.underground': 'Enter Underground',
-  'product.enterHint.surface': 'Open-pit benches: pattern, free face, muckpile and bench blasting.',
-  'product.enterHint.underground': 'Development faces (Swedish method) and stope rings.',
+  'product.enterHint.surface':
+    'Open-pit benches: pattern, free face, muckpile simulation and vibration.',
+  'product.enterHint.underground':
+    'Drifts, raises and stopes: mining methods, real workings and simulation.',
   'product.count': '{n} projects',
+  'product.countOne': '1 project',
   'product.projectsOf': '{tool} projects',
   'product.empty': 'This mine has no {tool} projects yet.',
   'product.newIn': 'New {tool} project',

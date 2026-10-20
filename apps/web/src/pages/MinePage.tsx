@@ -9,7 +9,6 @@ import { createEmptyProject, PROJECT_KINDS, type ProjectKind } from '@cronos/cor
 import { ArrowLeft, Eye, FilePlus, FileUp, History } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
-import { KindBadge } from '../product/CrossView';
 import {
   PRODUCT_ICON,
   PRODUCT_NAME,
@@ -138,6 +137,12 @@ export function MinePage() {
   const others = projects?.filter((p) => p.kind !== tool) ?? null;
   const otherTool: ProjectKind = tool === 'surface' ? 'underground' : 'surface';
 
+  const projectCount = (kind: ProjectKind) => {
+    if (!projects) return '…';
+    const n = projects.filter((p) => p.kind === kind).length;
+    return n === 1 ? t('product.countOne') : t('product.count', { n });
+  };
+
   return (
     <PageShell tool={tool}>
       <Link to="/" className="back-link">
@@ -182,14 +187,12 @@ export function MinePage() {
                     chooseTool(kind);
                   }}
                 >
-                  <Icon size={26} aria-hidden />
+                  <span className="tool-entry-icon" aria-hidden>
+                    <Icon size={22} />
+                  </span>
                   <strong translate="no">{t(`product.enter.${kind}`)}</strong>
+                  <span className="tool-entry-count">{projectCount(kind)}</span>
                   <small>{t(`product.enterHint.${kind}`)}</small>
-                  <small>
-                    {t('product.count', {
-                      n: projects ? projects.filter((p) => p.kind === kind).length : '…',
-                    })}
-                  </small>
                 </button>
               );
             })}
@@ -300,7 +303,7 @@ function ProjectRow({ project: p, tool }: { project: ProjectSummary; tool: Proje
   return (
     <li className="project-row">
       <span className="row-title">
-        <strong>{p.name}</strong> <KindBadge kind={p.kind} />
+        <strong>{p.name}</strong>
         <span className="row-meta">{t('projects.holes', { n: fmt(p.latest.holeCount) })}</span>
       </span>
       <span className="latest">

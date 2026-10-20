@@ -27,11 +27,11 @@ export function PageShell({ children, tool }: { children: ReactNode; tool?: Proj
   return (
     <div className="page">
       <header className="topbar">
+        {/* Una sola marca: «Cronos» y, dentro de una mina, la herramienta con su acento. */}
         <Link to="/" className="wordmark" translate="no">
           Cronos
+          {tool && <ProductMark tool={tool} short />}
         </Link>
-        {/* Herramienta elegida en la mina (Open Pit o Underground). */}
-        {tool && <ProductMark tool={tool} />}
         <nav aria-label={t('workspace.navigation')}>
           {organization && (
             <NavLink to="/" end>

@@ -12,13 +12,14 @@ import { isCrossView, useProjectSession } from '../server/projectSession';
 import { PRODUCT_ICON, PRODUCT_NAME, mineToolPath, otherKind, projectPath } from './product';
 
 /** Nombre e ícono de la herramienta (Cronos Open Pit / Cronos Underground). */
-export function ProductMark({ tool }: { tool: ProjectKind }) {
+export function ProductMark({ tool, short = false }: { tool: ProjectKind; short?: boolean }) {
   const t = useT();
   const Icon = PRODUCT_ICON[tool];
   return (
     <span className="product-mark" data-kind={tool} translate="no">
       <Icon size={15} aria-hidden />
-      {t(PRODUCT_NAME[tool])}
+      {/* `short`: junto a la palabra «Cronos» basta el nombre de la herramienta. */}
+      {t(short ? `product.badge.${tool}` : PRODUCT_NAME[tool])}
     </span>
   );
 }
