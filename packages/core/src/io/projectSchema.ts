@@ -377,6 +377,41 @@ export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
     cloud: hash.exactOptional(),
     blocks: hash.exactOptional(),
   }),
+  blockModel: z
+    .object({
+      geological: z.boolean(),
+      geotechnical: z.boolean(),
+      columns: z.partialRecord(
+        z.enum([
+          'density',
+          'ucs',
+          'rmr',
+          'gsi',
+          'q',
+          'rqd',
+          'youngModulus',
+          'vp',
+          'tensileStrength',
+          'lithology',
+        ]),
+        z.string(),
+      ),
+      lithologies: z
+        .array(
+          z.object({
+            name: z.string(),
+            density: num.exactOptional(),
+            ucs: num.exactOptional(),
+            youngModulus: num.exactOptional(),
+            vp: num.exactOptional(),
+            tensileStrength: num.exactOptional(),
+            rmr: num.exactOptional(),
+          }),
+        )
+        .exactOptional(),
+      useForRock: z.boolean().exactOptional(),
+    })
+    .exactOptional(),
 });
 
 const displayUnits: z.ZodType<M.DisplayUnits> = z.object({

@@ -1,4 +1,9 @@
-import type { Bounds3, TopographyFormat, TopographySurvey } from '../model/types';
+import type {
+  BlockModelMapping,
+  Bounds3,
+  TopographyFormat,
+  TopographySurvey,
+} from '../model/types';
 import {
   assetHash,
   encodeAsset,
@@ -19,6 +24,8 @@ export interface SurveyInput {
   epsg?: number;
   sourceEpsg?: number;
   transform?: string;
+  /** Mapeo del modelo de bloques (geológico/geotécnico y columnas). */
+  blockModel?: BlockModelMapping;
 }
 
 export interface SurveyParts {
@@ -135,6 +142,7 @@ export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey
         ...(parts.cloud ? { sourcePoints: parts.cloud.sourcePoints } : {}),
       },
       assets: hashes,
+      ...(parts.blocks && input.blockModel ? { blockModel: input.blockModel } : {}),
     },
     assets,
   };

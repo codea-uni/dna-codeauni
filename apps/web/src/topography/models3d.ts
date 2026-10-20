@@ -1,3 +1,4 @@
+import { detectMapping, type GeotechField } from '@cronos/core';
 import { formatNumber, t } from '../i18n';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
@@ -22,6 +23,8 @@ export async function importModel3dFiles(files: readonly File[]): Promise<void> 
     try {
       const r = await getCompute().api.importModel3d(file, file.name);
       const epsg = session.document.project.coordinateSystem.epsg;
+      // Modelo de bloques: qué columnas son de roca (UCS, RMR, litología…) y si es geotécnico.
+      const mapping = r.parts.blocks ? detectMapping(r.parts.blocks) : null;
       const { ops } = await createSurveyOps(
         {
           name,
@@ -29,6 +32,7 @@ export async function importModel3dFiles(files: readonly File[]): Promise<void> 
           format: r.kind === 'cloud' ? 'cloud' : 'blockmodel',
           files: [file.name],
           ...(epsg !== undefined ? { epsg } : {}),
+          ...(mapping ? { blockModel: mapping } : {}),
         },
         r.parts,
       );
@@ -48,6 +52,15 @@ export async function importModel3dFiles(files: readonly File[]): Promise<void> 
             name,
             n: formatNumber(blocks.centers.length / 3),
             deg: formatNumber((blocks.rotation * 180) / Math.PI, 1),
+          }),
+        );
+      if (mapping?.geotechnical)
+        ui.notify(
+          t('topo.geotech.detected', {
+            name,
+            columns: Object.entries(mapping.columns)
+              .map(([k, v]) => `${t(`topo.geotech.field.${k as GeotechField}`)} = ${v}`)
+              .join(', '),
           }),
         );
       for (const w of r.warnings) ui.notify(w);

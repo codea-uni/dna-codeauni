@@ -112,7 +112,18 @@ export async function syncProjectTopography(
     throw new HttpError(409, 'survey_other_mine', 'The project uses a survey of another mine');
   const knownIds = new Set(known.map((k) => k.id));
   for (const s of surveys) {
-    if (knownIds.has(s.id)) continue;
+    if (knownIds.has(s.id)) {
+      // El mapeo de un modelo de bloques (geológico/geotécnico, columnas) se edita después de
+      // importarlo: se guarda en la mina para que los demás proyectos lo reciban.
+      if (s.blockModel)
+        await db
+          .updateTable('topography_survey')
+          .set({ meta: JSON.stringify(s) })
+          .where('id', '=', s.id)
+          .where('mineId', '=', mine.id)
+          .execute();
+      continue;
+    }
     await db
       .insertInto('topography_survey')
       .values({

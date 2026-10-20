@@ -1,5 +1,13 @@
 import { readFileSync } from 'node:fs';
-import { createEmptyProject, DEFAULT_BENCH, DEFAULT_HOLE_TEMPLATE, newId } from '@cronos/core';
+import {
+  createEmptyProject,
+  DEFAULT_BENCH,
+  DEFAULT_HOLE_TEMPLATE,
+  detectMapping,
+  EXAMPLES,
+  newId,
+  parseBlockModelCsv,
+} from '@cronos/core';
 import { describe, expect, it } from 'vitest';
 import { computeApi } from './computeApi';
 
@@ -89,5 +97,68 @@ describe('computeApi', () => {
       origin: project.coordinateSystem.origin,
     });
     expect(typeof csv === 'string' && csv.split('\n').length).toBeGreaterThan(r.stats.blocks);
+  });
+});
+
+describe('computeApi: roca desde modelo geotécnico', () => {
+  it('sin modelo activo no cambia nada; activo usa A y densidad por bloque', async () => {
+    const example = EXAMPLES.find((e) => e.id === 'production');
+    if (!example) throw new Error('sin ejemplo');
+    const { project } = await example.build();
+    const blast = project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    // Un bloque de arenisca blanda de 10 × 10 × 40 m bajo cada taladro.
+    const rows = ['XC,YC,ZC,XSIZE,YSIZE,ZSIZE,LITO,UCS,RMR,DENSITY'];
+    const zc = blast.bench.floorElevation + blast.bench.height / 2;
+    const cells = new Set<string>();
+    for (const h of blast.holes) {
+      const key = `${String(Math.floor(h.collar.x / 10))},${String(Math.floor(h.collar.y / 10))}`;
+      if (cells.has(key)) continue;
+      cells.add(key);
+      const [i, j] = key.split(',').map(Number);
+      rows.push(
+        `${String((i ?? 0) * 10 + 5)},${String((j ?? 0) * 10 + 5)},${String(zc)},10,10,40,ARENISCA,40,35,2.3`,
+      );
+    }
+    const blocks = parseBlockModelCsv(new TextEncoder().encode(rows.join('\n')));
+    const mapping = detectMapping(blocks);
+    const survey = {
+      id: newId<'TopographySurvey'>(),
+      name: 'Geotecnia',
+      surveyDate: '2026-10-20',
+      source: { format: 'blockmodel' as const, files: ['g.csv'] },
+      bounds: { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 },
+      stats: { points: 0, triangles: 0, lines: 0 },
+      assets: {},
+      blockModel: { ...mapping, useForRock: false },
+    };
+    computeApi.setRockModels([{ surveyId: survey.id, blocks }]);
+    const off = { ...project, topography: [...project.topography, survey] };
+    const base = computeApi.fragmentationInputs(project, blast.id);
+    const baseCharge = computeApi.analyzeBlast(project, blast.id, { isochroneInterval: 0 })?.charge;
+    expect(computeApi.fragmentationInputs(off, blast.id)).toEqual(base);
+    expect(computeApi.analyzeBlast(off, blast.id, { isochroneInterval: 0 })?.charge.tonnage).toBe(
+      baseCharge?.tonnage,
+    );
+    expect(computeApi.holeRocks(off, blast.id)).toBeNull();
+
+    const on = {
+      ...project,
+      topography: [
+        ...project.topography,
+        { ...survey, blockModel: { ...mapping, useForRock: true } },
+      ],
+    };
+    const soft = computeApi.fragmentationInputs(on, blast.id);
+    expect(soft?.rockFactor).toBeLessThan(base?.rockFactor ?? 0);
+    const tonnage = computeApi.analyzeBlast(on, blast.id, { isochroneInterval: 0 })?.charge.tonnage;
+    // Tonelaje = volumen × 2,3 t/m³ (densidad del bloque, en float32).
+    expect((tonnage ?? 0) / (baseCharge?.volume ?? 1)).toBeCloseTo(2300, 3);
+    const rocks = computeApi.holeRocks(on, blast.id);
+    expect(rocks?.summary.inModel).toBe(blast.holes.length);
+    expect(rocks?.summary.byLithology[0]?.name).toBe('ARENISCA');
+    expect(rocks?.paths.length).toBe(project.monitoringPoints?.length ?? 0);
+    computeApi.setRockModels([]);
+    expect(computeApi.fragmentationInputs(on, blast.id)).toEqual(base);
   });
 });
