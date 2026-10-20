@@ -183,6 +183,8 @@ export interface UndergroundExcavation {
   kind: 'drive' | 'round' | 'stope';
   /** Secciones del perfil cada ~1 m a lo largo del eje [m]. */
   sections: Vec3[][];
+  /** Burden entre anillos [m] (tajeo): con él se cubica cada anillo aunque haya uno solo. */
+  burden?: Meters;
 }
 
 /**

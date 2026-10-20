@@ -1,7 +1,15 @@
 import { inFrontOfFace } from '../geometry/face';
 import { deckIntervals, indexLibrary, linearChargeDensity } from '../charging/charge';
 import { azimuthToUnit } from '../geometry/vec';
-import type { Blast, Hole, MetersPerSecond, ProductLibrary, RockMass } from '../model/types';
+import type {
+  Blast,
+  Hole,
+  Meters,
+  MetersPerSecond,
+  ProductLibrary,
+  RockMass,
+  Vec3,
+} from '../model/types';
 import { turboRgb } from './colormap';
 import { marchingSquares, type Contours, type ScalarGrid } from './contours';
 
@@ -86,6 +94,24 @@ export interface EnergyOptions {
    * plano a `elevation` (que queda donde no hay terreno). Es la energía en la superficie del banco.
    */
   onTerrain?: boolean;
+  /**
+   * Plano arbitrario (subterráneo: plano del frente o del abanico) en vez del horizontal a
+   * `elevation`. La grilla queda en coordenadas del plano (x = u, y = v); `elevation`,
+   * `onTerrain` y `clipToRock` no se usan.
+   */
+  plane?: EnergyPlane;
+}
+
+/**
+ * Plano de evaluación: P(a, b) = origin + a·u + b·v, con u y v ortonormales [m]. `bounds` fija la
+ * ventana en coordenadas del plano; sin ella, la de las cargas que pasan a menos del radio de
+ * influencia del plano.
+ */
+export interface EnergyPlane {
+  origin: Vec3;
+  u: Vec3;
+  v: Vec3;
+  bounds?: { minU: Meters; minV: Meters; maxU: Meters; maxV: Meters };
 }
 
 export const DEFAULT_ENERGY_OPTIONS: Omit<EnergyOptions, 'elevation'> = {
@@ -104,6 +130,8 @@ export interface EnergyResult extends ScalarGrid {
   elevation: number;
   /** Se evaluó sobre el terreno (cota por celda) y no en el plano a `elevation`. */
   onTerrain: boolean;
+  /** Plano arbitrario evaluado (la grilla está en sus coordenadas u, v); sin él, horizontal. */
+  plane?: EnergyPlane;
   min: number;
   max: number;
   contours: Contours;
@@ -127,13 +155,26 @@ interface ChargePoint {
 
 const SEGMENT = 0.25; // discretización de la columna [m]
 
-function chargePoints(hole: Hole, lib: ReturnType<typeof indexLibrary>): ChargePoint[] {
+/**
+ * `effective`: usa el diámetro efectivo del tramo (cartuchos desacoplados, subterráneo). El plano
+ * horizontal (banco) lo ignora, como siempre lo hizo, para no cambiar sus resultados.
+ */
+function chargePoints(
+  hole: Hole,
+  lib: ReturnType<typeof indexLibrary>,
+  effective = false,
+): ChargePoint[] {
   const pts: ChargePoint[] = [];
   for (const { deck, top, bottom } of deckIntervals(hole)) {
     if (deck.kind !== 'explosive') continue;
     const product = lib.explosives.get(deck.explosiveId);
     if (!product) continue;
-    const q = linearChargeDensity(product, hole.diameter, deck.densityOverride);
+    const q = linearChargeDensity(
+      product,
+      hole.diameter,
+      deck.densityOverride,
+      effective ? deck.effectiveDiameter : undefined,
+    );
     const t = Math.max(0, top);
     const len = bottom - t;
     if (len <= 0) continue;
@@ -215,6 +256,7 @@ export function computeEnergyGrid(
   surface?: { elevationAt(x: number, y: number): number | null } | null,
 ): EnergyResult {
   const t0 = performance.now();
+  if (options.plane) return computePlaneEnergyGrid(blast, library, options, options.plane, t0);
   const lib = indexLibrary(library);
   const nf = options.nearField;
   const isPpv = options.metric === 'nearFieldPpv';
@@ -428,6 +470,26 @@ export function computeEnergyGrid(
     }
   }
 
+  return finishGrid(sum, { minX, minY, cell, nx, ny }, options, {
+    elevation: options.elevation,
+    onTerrain,
+    t0,
+  });
+}
+
+/**
+ * Valores finales (PPV = K·S^α), contornos, áreas y raster de color de una grilla acumulada `sum`.
+ * Común al plano horizontal y a los planos arbitrarios (subterráneo).
+ */
+function finishGrid(
+  sum: Float64Array,
+  box: { minX: number; minY: number; cell: number; nx: number; ny: number },
+  options: EnergyOptions,
+  extra: { elevation: number; onTerrain: boolean; plane?: EnergyPlane; t0: number },
+): EnergyResult {
+  const { minX, minY, cell, nx, ny } = box;
+  const nf = options.nearField;
+  const isPpv = options.metric === 'nearFieldPpv';
   const values = new Float32Array(nx * ny);
   let min = Infinity;
   let max = -Infinity;
@@ -480,8 +542,9 @@ export function computeEnergyGrid(
   return {
     ...grid,
     metric: options.metric,
-    elevation: options.elevation,
-    onTerrain,
+    elevation: extra.elevation,
+    onTerrain: extra.onTerrain,
+    ...(extra.plane ? { plane: extra.plane } : {}),
     min,
     max,
     contours,
@@ -491,8 +554,206 @@ export function computeEnergyGrid(
     colorMin,
     colorMax,
     colorLog,
-    elapsedMs: performance.now() - t0,
+    elapsedMs: performance.now() - extra.t0,
   };
+}
+
+/** Núcleo de la métrica: Holmberg–Persson 1/d^(β/α) o gaussiana 3D normalizada (densidad). */
+function kernelOf(options: EnergyOptions): (d2: number) => number {
+  const nf = options.nearField;
+  if (options.metric === 'nearFieldPpv') {
+    const n = nf.beta / (2 * nf.alpha);
+    return (d2: number) => Math.pow(d2, -n);
+  }
+  const sigma = Math.max(0.1, options.sigma);
+  const gaussNorm = 1 / (Math.pow(2 * Math.PI, 1.5) * sigma * sigma * sigma);
+  return (d2: number) => gaussNorm * Math.exp(-d2 / (2 * sigma * sigma));
+}
+
+/** Mediana de la distancia 3D de cada boca a la más cercana (espaciamiento típico sin malla). */
+function typicalSpacing(holes: readonly Hole[]): number {
+  if (holes.length < 2) return 5;
+  const d: number[] = [];
+  for (const a of holes) {
+    let best = Infinity;
+    for (const b of holes) {
+      if (a === b) continue;
+      const r = Math.hypot(
+        a.collar.x - b.collar.x,
+        a.collar.y - b.collar.y,
+        a.collar.z - b.collar.z,
+      );
+      if (r > 1e-6) best = Math.min(best, r);
+    }
+    if (Number.isFinite(best)) d.push(best);
+  }
+  d.sort((x, y) => x - y);
+  return d[Math.floor(d.length / 2)] ?? 5;
+}
+
+const dot = (a: Vec3, b: Vec3) => a.x * b.x + a.y * b.y + a.z * b.z;
+
+/**
+ * Energía en un plano arbitrario (frente de un túnel, plano de un abanico): la misma integral por
+ * taladro de `computeEnergyGrid` (tabla ρ–s de cada firma de carga) evaluada en los puntos
+ * P = origin + a·u + b·v. PPV: máximo entre taladros; densidad: suma.
+ */
+function computePlaneEnergyGrid(
+  blast: Blast,
+  library: ProductLibrary,
+  options: EnergyOptions,
+  plane: EnergyPlane,
+  t0: number,
+): EnergyResult {
+  const lib = indexLibrary(library);
+  const isPpv = options.metric === 'nearFieldPpv';
+  const kernel = kernelOf(options);
+  const loaded = blast.holes.filter((h) => h.decks.some((d) => d.kind === 'explosive'));
+  const spacing = typicalSpacing(loaded);
+  const sigma = Math.max(0.1, options.sigma);
+  const cutoff = options.cutoff > 0 ? options.cutoff : isPpv ? 4 * spacing : 4 * sigma;
+  const n = {
+    x: plane.u.y * plane.v.z - plane.u.z * plane.v.y,
+    y: plane.u.z * plane.v.x - plane.u.x * plane.v.z,
+    z: plane.u.x * plane.v.y - plane.u.y * plane.v.x,
+  };
+  const o = plane.origin;
+  const toPlane = (p: Vec3) => {
+    const d = { x: p.x - o.x, y: p.y - o.y, z: p.z - o.z };
+    return { a: dot(d, plane.u), b: dot(d, plane.v), w: dot(d, n) };
+  };
+
+  interface Item {
+    hole: Hole;
+    table: ProfileTable;
+    axis: Vec3;
+    /** Tramo de carga recortado a |w| ≤ cutoff, en coordenadas del plano. */
+    a0: number;
+    b0: number;
+    a1: number;
+    b1: number;
+  }
+  const profiles = new Map<string, ProfileTable | null>();
+  const items: Item[] = [];
+  let minA = Infinity,
+    minB = Infinity,
+    maxA = -Infinity,
+    maxB = -Infinity;
+  for (const hole of loaded) {
+    let key = `${hole.diameter}|${hole.length}`;
+    for (const d of hole.decks)
+      key += `|${d.kind}:${d.kind === 'explosive' ? `${d.explosiveId}:${d.densityOverride ?? ''}:${d.effectiveDiameter ?? ''}` : ''}:${d.length}`;
+    let table = profiles.get(key);
+    if (table === undefined) {
+      const pts = chargePoints(hole, lib, true);
+      table =
+        pts.length === 0
+          ? null
+          : buildProfile(
+              pts,
+              kernel,
+              Math.max(hole.diameter / 2, 0.01),
+              cutoff,
+              (pts[0]?.s ?? 0) - cutoff,
+              (pts.at(-1)?.s ?? 0) + cutoff,
+            );
+      profiles.set(key, table);
+    }
+    if (!table) continue;
+    const h = azimuthToUnit(hole.azimuth);
+    const si = Math.sin(hole.inclination);
+    const axis = { x: h.x * si, y: h.y * si, z: -Math.cos(hole.inclination) };
+    // Tramo de carga: del primer al último punto de carga de la tabla (sMin + cutoff … sMax − cutoff).
+    const sTop = table.sMin + cutoff;
+    const sBot = table.sMin + (table.nS - 1) * table.sStep - cutoff;
+    const at = (s: number) =>
+      toPlane({
+        x: hole.collar.x + axis.x * s,
+        y: hole.collar.y + axis.y * s,
+        z: hole.collar.z + axis.z * s,
+      });
+    let p = at(sTop);
+    let q = at(Math.max(sTop, sBot));
+    // Recorte a la losa |w| ≤ cutoff.
+    const clip = (lim: number): boolean => {
+      const fp = p.w - lim;
+      const fq = q.w - lim;
+      const sign = lim > 0 ? 1 : -1;
+      if (sign * fp > 0 && sign * fq > 0) return false;
+      if (sign * fp > 0 || sign * fq > 0) {
+        const t = fp / (fp - fq);
+        const m = { a: p.a + (q.a - p.a) * t, b: p.b + (q.b - p.b) * t, w: lim };
+        if (sign * fp > 0) p = m;
+        else q = m;
+      }
+      return true;
+    };
+    if (!clip(cutoff) || !clip(-cutoff)) continue;
+    items.push({ hole, table, axis, a0: p.a, b0: p.b, a1: q.a, b1: q.b });
+    minA = Math.min(minA, p.a, q.a);
+    maxA = Math.max(maxA, p.a, q.a);
+    minB = Math.min(minB, p.b, q.b);
+    maxB = Math.max(maxB, p.b, q.b);
+  }
+  const margin = Math.min(cutoff, 1.5 * spacing);
+  const bounds = plane.bounds ?? {
+    minU: minA - margin,
+    minV: minB - margin,
+    maxU: maxA + margin,
+    maxV: maxB + margin,
+  };
+  const { minU, minV } = bounds;
+  const area = (bounds.maxU - minU) * (bounds.maxV - minV);
+  const extra = { elevation: o.z, onTerrain: false, plane, t0 };
+  if (items.length === 0 || !(area > 0)) {
+    const r = finishGrid(
+      new Float64Array(4),
+      { minX: minU || 0, minY: minV || 0, cell: 1, nx: 2, ny: 2 },
+      options,
+      extra,
+    );
+    return { ...r, nx: 0, ny: 0, values: new Float32Array(0), rgba: new Uint8Array(0) };
+  }
+  const cell =
+    options.cellSize > 0
+      ? Math.max(options.cellSize, Math.sqrt(area / options.maxCells))
+      : Math.max(0.02, Math.sqrt(area / options.maxCells), spacing / 8);
+  const nx = Math.max(2, Math.ceil((bounds.maxU - minU) / cell));
+  const ny = Math.max(2, Math.ceil((bounds.maxV - minV) / cell));
+  const sum = new Float64Array(nx * ny);
+  const { u, v } = plane;
+  for (const it of items) {
+    const { hole, table, axis } = it;
+    const i0 = Math.max(0, Math.floor((Math.min(it.a0, it.a1) - cutoff - minU) / cell));
+    const i1 = Math.min(nx - 1, Math.ceil((Math.max(it.a0, it.a1) + cutoff - minU) / cell));
+    const j0 = Math.max(0, Math.floor((Math.min(it.b0, it.b1) - cutoff - minV) / cell));
+    const j1 = Math.min(ny - 1, Math.ceil((Math.max(it.b0, it.b1) + cutoff - minV) / cell));
+    // Punto de la celda relativo a la boca: c + a·u + b·v, con c = origin − boca.
+    const cx = o.x - hole.collar.x;
+    const cy = o.y - hole.collar.y;
+    const cz = o.z - hole.collar.z;
+    for (let j = j0; j <= j1; j++) {
+      const b = minV + (j + 0.5) * cell;
+      const bx = cx + b * v.x;
+      const by = cy + b * v.y;
+      const bz = cz + b * v.z;
+      for (let i = i0; i <= i1; i++) {
+        const a = minU + (i + 0.5) * cell;
+        const px = bx + a * u.x;
+        const py = by + a * u.y;
+        const pz = bz + a * u.z;
+        const s = px * axis.x + py * axis.y + pz * axis.z;
+        const rx = px - axis.x * s;
+        const ry = py - axis.y * s;
+        const rz = pz - axis.z * s;
+        const val = sampleProfile(table, Math.sqrt(rx * rx + ry * ry + rz * rz), s);
+        if (val <= 0) continue;
+        const k = j * nx + i;
+        sum[k] = isPpv ? Math.max(sum[k] ?? 0, val) : (sum[k] ?? 0) + val;
+      }
+    }
+  }
+  return finishGrid(sum, { minX: minU, minY: minV, cell, nx, ny }, options, extra);
 }
 
 /** ~5 niveles redondos entre 0 y max. */

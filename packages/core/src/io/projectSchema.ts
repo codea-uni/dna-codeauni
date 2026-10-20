@@ -236,6 +236,7 @@ const blast: z.ZodType<M.Blast> = z.object({
         tag: z.string(),
         kind: z.enum(['drive', 'round', 'stope']),
         sections: z.array(z.array(vec3)),
+        burden: num.exactOptional(),
       }),
     )
     .exactOptional(),
