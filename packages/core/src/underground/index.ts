@@ -5,3 +5,5 @@ export * from './ringDesign';
 export * from './energy';
 export * from './transform';
 export * from './toHoles';
+export * from './methods';
+export * from './methodToHoles';
