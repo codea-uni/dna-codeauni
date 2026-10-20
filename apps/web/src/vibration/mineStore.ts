@@ -13,6 +13,7 @@ import { create } from 'zustand';
 import { api, serverMode } from '../server/api';
 import { useProjectSession } from '../server/projectSession';
 import { getCompute, getEngine, session } from '../session';
+import { workingTargets } from '../underground/location';
 import { setExtraTunnels } from '../underground/send';
 
 /**
@@ -236,8 +237,17 @@ export function namedWorkings(): NamedWorking[] {
         projectName: null,
       });
     });
+  // Labores importadas (DXF/Surpac): el punto va al centro de su eje, al nivel del piso.
+  const imported: NamedWorking[] = workingTargets()
+    .filter((w) => !w.id.startsWith('exc:'))
+    .map((w) => ({
+      name: `${w.group} · ${w.name}`,
+      kind: 'drive',
+      sections: [w.points],
+      projectName: null,
+    }));
   const ctx = Object.values(useMineVibration.getState().context).flatMap((c) => c.workings);
-  return [...own, ...ctx];
+  return [...own, ...imported, ...ctx];
 }
 
 /**
