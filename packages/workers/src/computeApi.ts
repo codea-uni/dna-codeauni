@@ -1,6 +1,10 @@
 import {
   EXAMPLES,
   type ExampleBuild,
+  rockForHoles,
+  weightedRockFactor,
+  type BlockModelData,
+  type RockSample,
   analyzeBlast,
   exportDxf,
   importDxf,
@@ -122,6 +126,14 @@ import {
   type SurfaceComparison,
   type Vec3,
 } from '@cronos/core';
+import {
+  chargeWithBlockDensities,
+  holeRocks,
+  rockAtPoint,
+  rockProviderFor,
+  setRockBlocks,
+  type HoleRocks,
+} from './rockModels';
 
 import { transfer } from 'comlink';
 import { buildReport, type ReportOptions } from './report/pdfReport';
@@ -166,7 +178,27 @@ export const computeApi = {
 
   /** Carguío, cubicación, tiempos e isócronas de una voladura. */
   analyzeBlast(project: Project, blastId: BlastId, options: AnalysisOptions): BlastAnalysis | null {
-    return analyzeBlast(project, blastId, options);
+    const r = analyzeBlast(project, blastId, options);
+    const blast = project.blasts.find((b) => b.id === blastId);
+    // Con «Roca desde modelo geotécnico», el tonelaje usa la densidad del bloque de cada taladro.
+    return r && blast ? { ...r, charge: chargeWithBlockDensities(project, blast, r.charge) } : r;
+  },
+
+  /** Modelos de bloques cargados en el navegador (para la roca por bloque); [] los suelta. */
+  setRockModels(models: { surveyId: string; blocks: BlockModelData }[]): void {
+    setRockBlocks(models);
+  },
+
+  /** Roca por taladro, resumen y caminos a los puntos de control (null sin modelo geotécnico activo). */
+  holeRocks(project: Project, blastId: BlastId): HoleRocks | null {
+    const blast = project.blasts.find((b) => b.id === blastId);
+    return blast ? holeRocks(project, blast) : null;
+  },
+
+  /** Roca en un punto (la del bloque o la del proyecto). */
+  rockAt(project: Project, blastId: BlastId, point: Vec3): RockSample | null {
+    const blast = project.blasts.find((b) => b.id === blastId);
+    return blast ? rockAtPoint(project, blast, point) : null;
   },
 
   /** Distribución de energía en un plano horizontal (PPV de campo cercano o densidad de carga). */
@@ -199,7 +231,11 @@ export const computeApi = {
       youngModulus: 50e9,
     };
     const charge = computeCharges(blast, project.library, rock.density);
-    return kuzRamInputsFromBlast(blast, project.library, charge, rock, patternId);
+    const inputs = kuzRamInputsFromBlast(blast, project.library, charge, rock, patternId);
+    // Con modelo geotécnico activo: A de cada taladro ponderado por su carga (GE-12).
+    const provider = inputs ? rockProviderFor(project, blast) : null;
+    const a = provider ? weightedRockFactor(rockForHoles(blast, provider), charge.perHole) : null;
+    return inputs && a !== null ? { ...inputs, rockFactor: a } : inputs;
   },
 
   /** Kuz-Ram + Swebrec (KCO). */
