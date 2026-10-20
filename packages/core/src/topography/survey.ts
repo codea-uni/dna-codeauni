@@ -3,6 +3,7 @@ import type {
   Bounds3,
   TopographyFormat,
   TopographySurvey,
+  WorkingKind,
 } from '../model/types';
 import {
   assetHash,
@@ -27,6 +28,8 @@ export interface SurveyInput {
   transform?: string;
   /** Mapeo del modelo de bloques (geológico/geotécnico y columnas). */
   blockModel?: BlockModelMapping;
+  /** Tipo de cada labor (índice = eje de las labores). */
+  workingKinds?: WorkingKind[];
 }
 
 export interface SurveyParts {
@@ -163,6 +166,7 @@ export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey
       },
       assets: hashes,
       ...(parts.blocks && input.blockModel ? { blockModel: input.blockModel } : {}),
+      ...(parts.workings && input.workingKinds ? { workingKinds: input.workingKinds } : {}),
     },
     assets,
   };

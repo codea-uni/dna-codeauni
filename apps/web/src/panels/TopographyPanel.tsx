@@ -21,6 +21,7 @@ import {
 import { useUiStore } from '../stores/uiStore';
 import { importModel3dFiles, MODEL3D_ACCEPT } from '../topography/models3d';
 import { BlockModelControls, PointCloudControls } from './Model3dControls';
+import { SurveyTools } from './SurveyTools';
 import { TopographyDesignTools } from './TopographyDesignTools';
 import { WorkingsImport } from './WorkingsImport';
 
@@ -163,6 +164,7 @@ export function TopographyPanel() {
                   )}
                 {s.assets.blocks && isTopographyLoaded(s.id) && <BlockModelControls survey={s} />}
                 {s.assets.cloud && isTopographyLoaded(s.id) && <PointCloudControls />}
+                <SurveyTools survey={s} />
                 {blast &&
                   s.assets.tin &&
                   (inUse ? (

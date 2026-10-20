@@ -8,6 +8,7 @@ export * from './toHoles';
 export * from './analysis';
 export * from './fragmentation';
 export * from './workings';
+export * from './workingKinds';
 export * from './methods';
 export * from './methodToHoles';
 export * from './muckpile';

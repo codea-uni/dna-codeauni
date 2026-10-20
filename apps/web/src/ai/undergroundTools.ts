@@ -1030,6 +1030,7 @@ function listWorkings() {
     return {
       name: x.name,
       source: x.group,
+      ...(x.kind ? { kind: x.kind } : {}),
       length_m: r(x.length, 1),
       ...(x.profile
         ? {

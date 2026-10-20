@@ -37,6 +37,7 @@ import {
   sectionOf,
   showSection,
   viewFront,
+  groupTargets,
   workingTargets,
   type WorkingTarget,
 } from '../underground/location';
@@ -1040,7 +1041,8 @@ function LocationBox({ which, placement }: { which: UndergroundTab; placement: P
   const ring = useUndergroundStore((s) => s.ring);
   const [picking, setPicking] = useState(false);
   const target = loc ? targets.find((x) => x.id === loc.targetId) : undefined;
-  const groups = [...new Set(targets.map((x) => x.group))];
+  const groups = groupTargets(targets, which);
+  const manySurveys = new Set(targets.filter((x) => x.kind).map((x) => x.group)).size > 1;
   const dims =
     which === 'face'
       ? { w: face.width, h: face.profile === 'circular' ? face.width : face.height }
@@ -1072,14 +1074,15 @@ function LocationBox({ which, placement }: { which: UndergroundTab; placement: P
         >
           <option value="">{t('ug.loc.manual')}</option>
           {groups.map((g) => (
-            <optgroup key={g} label={g}>
-              {targets
-                .filter((x) => x.group === g)
-                .map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {`${x.name} · ${fmt(x.length, 0)} m`}
-                  </option>
-                ))}
+            <optgroup
+              key={g.kind ?? 'designed'}
+              label={g.kind ? t(`topo.kind.${g.kind}`) : t('ug.loc.designed')}
+            >
+              {g.targets.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {`${x.name}${manySurveys && x.kind ? ` · ${x.group}` : ''} · ${fmt(x.length, 0)} m`}
+                </option>
+              ))}
             </optgroup>
           ))}
         </select>

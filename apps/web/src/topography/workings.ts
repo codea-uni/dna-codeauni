@@ -1,4 +1,4 @@
-import { WORKINGS_ACCEPT, type BuildWorkingsOptions } from '@cronos/core';
+import { WORKINGS_ACCEPT, workingKinds, type BuildWorkingsOptions } from '@cronos/core';
 import { topoWarningText } from '../dialogs/TopographyImportDialog';
 import { formatNumber, t } from '../i18n';
 import { getCompute, getEngine, session } from '../session';
@@ -9,6 +9,19 @@ import { createSurveyOps, isTopographyLoaded, onTopographyChange } from './sessi
 export { WORKINGS_ACCEPT };
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+/** Levantamiento de labores recién importado: su lista de tipos se abre sola para revisarla. */
+let reviewKindsOf: string | null = null;
+
+/** ¿Hay que abrir la lista de tipos de este levantamiento? (recién importado). */
+export function needsKindsReview(surveyId: string): boolean {
+  return reviewKindsOf === surveyId;
+}
+
+/** La lista ya se revisó (se cerró): no se vuelve a abrir sola. */
+export function clearKindsReview(): void {
+  reviewKindsOf = null;
+}
 
 /**
  * Importa labores subterráneas (sólidos y ejes de túneles de DXF o Surpac) como UN levantamiento
@@ -42,6 +55,8 @@ export async function importWorkingsFiles(
         format: 'workings',
         files: files.map((f) => f.name),
         ...(epsg !== undefined ? { epsg } : {}),
+        // Tipo de cada labor por su nombre o pendiente; el usuario lo revisa en la lista.
+        workingKinds: workingKinds(w),
       },
       { workings: w },
     );
@@ -55,6 +70,8 @@ export async function importWorkingsFiles(
         axes: formatNumber(w.axes.length - solids),
       }),
     );
+    ui.notify(t('topo.kind.review', { name }));
+    reviewKindsOf = survey.id;
     if (useUiStore.getState().viewMode !== '3d') useUiStore.getState().setViewMode('3d');
     // Las labores vienen en coordenadas de la mina, lejos del diseño: ir a verlas cuando se carguen.
     const frame = () => {

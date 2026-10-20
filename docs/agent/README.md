@@ -38,6 +38,8 @@ Herramientas nuevas: `search_knowledge`, `company_explosives`, `enable_explosive
 subterráneas por método de minado UG-01 a UG-19: `packages/core/src/underground/methods.ts`,
 pestaña «Método de minado» del panel Subterránea, reglas UG-R en `docs/RULES.md` §8).
 
+| Levantamientos de la mina: mover/girar (vector, centroide a un punto, «bajo la topografía»), tipo de cada labor (tajeo, galería…), nube → superficie TIN y DXF | `packages/core/src/topography/surveyTransform.ts`, `cloudSurface.ts`, `packages/core/src/underground/workingKinds.ts`, `apps/web/src/topography/surveyEdit.ts`, `apps/web/src/panels/SurveyTools.tsx`, herramientas `move_survey`, `set_working_kind`, `cloud_to_surface`, `export_survey_dxf` (`apps/web/src/ai/surveyTools.ts`) |
+
 ## Pendiente (supuestos a confirmar con el ingeniero)
 
 - Vecindad (2·B) y margen (0 ms) del chequeo de tiros cortados: R0, sin fuente numérica.

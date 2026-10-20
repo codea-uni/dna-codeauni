@@ -1,0 +1,185 @@
+/**
+ * Herramientas de un levantamiento ya importado: mover/rotar (también bajar bajo la topografía),
+ * nube → superficie TIN, exportar a DXF y tipo de cada labor (tajeo, galería…). `satisfies` exige
+ * las mismas claves en ambos idiomas.
+ */
+export const es = {
+  'topo.xform.open': 'Mover / rotar…',
+  'topo.xform.intro':
+    'Traslada todo el levantamiento respecto a su centroide (vector, punto de destino o profundidad bajo la topografía) y, si quieres, gíralo en planta. Se crea una copia movida; el original queda en la mina.',
+  'topo.xform.centroid': 'Centroide actual:',
+  'topo.xform.xyz': 'E {x} · N {y} · Z {z}',
+  'topo.xform.mode': 'Cómo mover',
+  'topo.xform.mode.vector': 'Vector ΔX ΔY ΔZ',
+  'topo.xform.mode.to': 'Llevar centroide a',
+  'topo.xform.mode.below': 'Bajo la topografía',
+  'topo.xform.noGround': 'Importa la topografía de superficie (TIN) para usar esta opción.',
+  'topo.xform.dx': 'ΔX (Este)',
+  'topo.xform.dy': 'ΔY (Norte)',
+  'topo.xform.dz': 'ΔZ (cota)',
+  'topo.xform.toX': 'X (Este) del centroide',
+  'topo.xform.toY': 'Y (Norte) del centroide',
+  'topo.xform.toZ': 'Z (cota) del centroide',
+  'topo.xform.ground': 'Topografía',
+  'topo.xform.depth': 'Profundidad bajo el terreno',
+  'topo.xform.centerOnGround': 'Centrar en planta sobre esa topografía',
+  'topo.xform.outside':
+    'El centroide no cae sobre la topografía: marca «Centrar en planta» o usa otro modo.',
+  'topo.xform.rotation': 'Giro en planta (horario)',
+  'topo.xform.newCentroid': 'Centroide nuevo:',
+  'topo.xform.offset': 'Desplazamiento:',
+  'topo.xform.offsetValue': 'ΔX {dx} · ΔY {dy} · ΔZ {dz} m ({d} m)',
+  'topo.xform.rotValue': 'giro {deg}°',
+  'topo.xform.groundAbove': 'Terreno encima:',
+  'topo.xform.groundValue': 'cota {z} m · profundidad {depth} m',
+  'topo.xform.view3d': 'Ver en 3D',
+  'topo.xform.apply': 'Aplicar',
+  'topo.xform.applying': 'Moviendo…',
+  'topo.xform.suffix': '(movido)',
+  'topo.xform.undo': 'Mover {name}',
+  'topo.xform.done': '{name} movido: ΔX {dx}, ΔY {dy}, ΔZ {dz} m, giro {rot}°. Ctrl+Z lo deshace.',
+  'topo.xform.history': 'Coordenadas movidas · historial: {n} · último: {date}',
+
+  'topo.kind.drift': 'Galería',
+  'topo.kind.crosscut': 'Crucero',
+  'topo.kind.ramp': 'Rampa',
+  'topo.kind.bypass': 'By-pass',
+  'topo.kind.raise': 'Chimenea',
+  'topo.kind.stope': 'Tajeo',
+  'topo.kind.access': 'Acceso',
+  'topo.kind.other': 'Otro',
+  'topo.kind.summary': 'Tipo de cada labor ({n} · {stopes} tajeos)',
+  'topo.kind.hint':
+    'Marca los tajeos (donde se carga explosivo para extraer mineral): se resaltan en 3D y se ofrecen primero para los abanicos. El tipo inicial sale del nombre de la capa o de la pendiente.',
+  'topo.kind.filter': 'Buscar labor…',
+  'topo.kind.of': 'Tipo de {name}',
+  'topo.kind.undo': 'Tipo de labores de {name}',
+  'topo.kind.review': '{name}: revisa el tipo de cada labor y marca los tajeos (panel Topografía).',
+
+  'topo.surface.open': 'Convertir en superficie (TIN)…',
+  'topo.surface.intro':
+    'Genera una superficie triangulada a partir de la nube ({n} puntos), como en los programas de topografía. Queda como un levantamiento de topografía más: relieve, curvas, cota bajo el cursor, usar en la voladura y vibración en superficie.',
+  'topo.surface.tunnelWarning':
+    'Una superficie 2.5D (una cota por punto en planta) sirve para el terreno, no para un túnel: para labores importa el DXF de sólidos.',
+  'topo.surface.cell': 'Tamaño de celda',
+  'topo.surface.modeLabel': 'Cota de cada celda',
+  'topo.surface.mode.min': 'Mínima (suelo)',
+  'topo.surface.mode.mean': 'Media',
+  'topo.surface.mode.max': 'Máxima',
+  'topo.surface.modeHint.min':
+    'La cota mínima de cada celda quita vegetación, equipos y ruido por encima del suelo.',
+  'topo.surface.modeHint.mean': 'La cota media suaviza el ruido; deja parte de la vegetación.',
+  'topo.surface.modeHint.max':
+    'La cota máxima sigue copas, techos y equipos (superficie de objetos).',
+  'topo.surface.trimLabel': 'Borde',
+  'topo.surface.trim.mask': 'Solo con puntos',
+  'topo.surface.trim.convex': 'Casco convexo',
+  'topo.surface.run': 'Generar superficie',
+  'topo.surface.busy': 'Generando…',
+  'topo.surface.working': 'Generando la superficie de {name}…',
+  'topo.surface.name': '{name} · superficie {cell} m',
+  'topo.surface.undo': 'Superficie de {name}',
+  'topo.surface.done':
+    '{name}: {triangles} triángulos (celda {cell} m). Úsala en la voladura desde la lista.',
+  'topo.surface.overhang':
+    'El {pct} % de las celdas tiene puntos a varias alturas (túnel, voladizo o vegetación alta): la superficie 2.5D no representa esa forma.',
+  'topo.surface.failed': 'No se pudo generar la superficie: {error}',
+  'topo.surface.empty': 'La nube no tiene puntos suficientes para una superficie.',
+
+  'topo.dxf.export': 'Exportar DXF',
+  'topo.dxf.title':
+    'DXF con coordenadas absolutas: la topografía como 3DFACE; las labores, cada una en su capa (tipo y nombre) con sus caras y su eje.',
+  'topo.dxf.done': 'Exportado {file}.',
+  'topo.dxf.nothing': 'Este levantamiento no tiene superficie ni labores para exportar.',
+};
+
+export const en = {
+  'topo.xform.open': 'Move / rotate…',
+  'topo.xform.intro':
+    'Translate the whole survey about its centroid (vector, target point or depth below the topography) and optionally rotate it in plan. A moved copy is created; the original stays in the mine.',
+  'topo.xform.centroid': 'Current centroid:',
+  'topo.xform.xyz': 'E {x} · N {y} · Z {z}',
+  'topo.xform.mode': 'How to move',
+  'topo.xform.mode.vector': 'Vector ΔX ΔY ΔZ',
+  'topo.xform.mode.to': 'Move centroid to',
+  'topo.xform.mode.below': 'Below the topography',
+  'topo.xform.noGround': 'Import the surface topography (TIN) to use this option.',
+  'topo.xform.dx': 'ΔX (East)',
+  'topo.xform.dy': 'ΔY (North)',
+  'topo.xform.dz': 'ΔZ (elevation)',
+  'topo.xform.toX': 'Centroid X (East)',
+  'topo.xform.toY': 'Centroid Y (North)',
+  'topo.xform.toZ': 'Centroid Z (elevation)',
+  'topo.xform.ground': 'Topography',
+  'topo.xform.depth': 'Depth below ground',
+  'topo.xform.centerOnGround': 'Centre in plan over that topography',
+  'topo.xform.outside':
+    'The centroid is not over the topography: tick «Centre in plan» or use another mode.',
+  'topo.xform.rotation': 'Rotation in plan (clockwise)',
+  'topo.xform.newCentroid': 'New centroid:',
+  'topo.xform.offset': 'Offset:',
+  'topo.xform.offsetValue': 'ΔX {dx} · ΔY {dy} · ΔZ {dz} m ({d} m)',
+  'topo.xform.rotValue': 'rotation {deg}°',
+  'topo.xform.groundAbove': 'Ground above:',
+  'topo.xform.groundValue': 'elevation {z} m · depth {depth} m',
+  'topo.xform.view3d': 'View in 3D',
+  'topo.xform.apply': 'Apply',
+  'topo.xform.applying': 'Moving…',
+  'topo.xform.suffix': '(moved)',
+  'topo.xform.undo': 'Move {name}',
+  'topo.xform.done':
+    '{name} moved: ΔX {dx}, ΔY {dy}, ΔZ {dz} m, rotation {rot}°. Ctrl+Z undoes it.',
+  'topo.xform.history': 'Coordinates moved · history: {n} · last: {date}',
+
+  'topo.kind.drift': 'Drift',
+  'topo.kind.crosscut': 'Crosscut',
+  'topo.kind.ramp': 'Ramp',
+  'topo.kind.bypass': 'Bypass',
+  'topo.kind.raise': 'Raise',
+  'topo.kind.stope': 'Stope',
+  'topo.kind.access': 'Access',
+  'topo.kind.other': 'Other',
+  'topo.kind.summary': 'Type of each working ({n} · {stopes} stopes)',
+  'topo.kind.hint':
+    'Mark the stopes (where explosive is loaded to extract ore): they are highlighted in 3D and offered first for rings. The initial type comes from the layer name or the gradient.',
+  'topo.kind.filter': 'Find working…',
+  'topo.kind.of': 'Type of {name}',
+  'topo.kind.undo': 'Working types of {name}',
+  'topo.kind.review':
+    '{name}: check the type of each working and mark the stopes (Topography panel).',
+
+  'topo.surface.open': 'Convert to surface (TIN)…',
+  'topo.surface.intro':
+    'Builds a triangulated surface from the cloud ({n} points), as survey software does. It becomes one more topography survey: relief, contours, elevation under the cursor, use in the blast and surface vibration.',
+  'topo.surface.tunnelWarning':
+    'A 2.5D surface (one elevation per plan point) fits terrain, not a tunnel: for workings import the solids DXF.',
+  'topo.surface.cell': 'Cell size',
+  'topo.surface.modeLabel': 'Elevation of each cell',
+  'topo.surface.mode.min': 'Minimum (ground)',
+  'topo.surface.mode.mean': 'Mean',
+  'topo.surface.mode.max': 'Maximum',
+  'topo.surface.modeHint.min':
+    'The minimum elevation of each cell removes vegetation, equipment and noise above the ground.',
+  'topo.surface.modeHint.mean': 'The mean elevation smooths noise; some vegetation remains.',
+  'topo.surface.modeHint.max': 'The maximum elevation follows canopies, roofs and equipment.',
+  'topo.surface.trimLabel': 'Boundary',
+  'topo.surface.trim.mask': 'Points only',
+  'topo.surface.trim.convex': 'Convex hull',
+  'topo.surface.run': 'Build surface',
+  'topo.surface.busy': 'Building…',
+  'topo.surface.working': 'Building the surface of {name}…',
+  'topo.surface.name': '{name} · surface {cell} m',
+  'topo.surface.undo': 'Surface of {name}',
+  'topo.surface.done':
+    '{name}: {triangles} triangles (cell {cell} m). Use it in the blast from the list.',
+  'topo.surface.overhang':
+    '{pct} % of the cells have points at several heights (tunnel, overhang or tall vegetation): the 2.5D surface does not represent that shape.',
+  'topo.surface.failed': 'Could not build the surface: {error}',
+  'topo.surface.empty': 'The cloud does not have enough points for a surface.',
+
+  'topo.dxf.export': 'Export DXF',
+  'topo.dxf.title':
+    'DXF with absolute coordinates: topography as 3DFACE; each working on its own layer (type and name) with its faces and axis.',
+  'topo.dxf.done': 'Exported {file}.',
+  'topo.dxf.nothing': 'This survey has no surface or workings to export.',
+} satisfies Record<keyof typeof es, string>;

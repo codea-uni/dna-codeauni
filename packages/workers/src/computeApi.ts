@@ -47,6 +47,7 @@ import {
   type BuiltSurvey,
   type SurveyInput,
   type SurveyParts,
+  type PointCloudData,
   assembleTopography,
   contoursFromTin,
   hillshade,
@@ -133,6 +134,13 @@ import {
   type MuckpileResult,
   type SurfaceComparison,
   type Vec3,
+  cloudToSurface,
+  exportMeshesDxf,
+  moveSurveyParts,
+  type CloudSurfaceOptions,
+  type CloudSurfaceResult,
+  type DxfMeshLayer,
+  type SurveyMove,
 } from '@cronos/core';
 import {
   chargeWithBlockDensities,
@@ -524,6 +532,29 @@ export const computeApi = {
   },
 
   /**
+   * Mueve (gira en planta y traslada) todas las partes de un levantamiento: copia nueva, lista
+   * para `buildSurvey`. O(n).
+   */
+  moveSurvey(parts: SurveyParts, move: SurveyMove): SurveyParts {
+    const out = moveSurveyParts(parts, move);
+    return transfer(out, partBuffers(out));
+  },
+
+  /** Superficie TIN de una nube de puntos (grilla en planta + Delaunay). O(n log n). */
+  cloudSurface(
+    cloud: PointCloudData,
+    options: Partial<CloudSurfaceOptions>,
+  ): CloudSurfaceResult & { cell: number } {
+    const r = cloudToSurface(cloud, options);
+    return transfer(r, uniqueBuffers([r.tin.vertices, r.tin.triangles]));
+  },
+
+  /** DXF (3DFACE y polilíneas 3D, coordenadas absolutas) de superficies o labores. */
+  meshesDxf(layers: DxfMeshLayer[]): string {
+    return exportMeshesDxf(layers);
+  },
+
+  /**
    * Nube de puntos o modelo de bloques para ver (no se triangulan). El archivo llega como `Blob`
    * (sin copiarlo): el `.ibpc` se lee por partes, así que uno de 500 MB no entra entero en memoria.
    */
@@ -753,6 +784,29 @@ function muckpileBuffers(r: MuckpileResult): ArrayBuffer[] {
     g.fragmentSize,
     g.domain,
     g.domainPurity,
+  ]);
+}
+
+/** Buffers de todas las partes de un levantamiento (para transferirlas sin copiar). */
+function partBuffers(p: SurveyParts): ArrayBuffer[] {
+  return uniqueBuffers([
+    p.tin?.vertices,
+    p.tin?.triangles,
+    p.lines?.coords,
+    p.lines?.offsets,
+    p.lines?.roles,
+    p.lines?.closed,
+    p.image?.bytes,
+    p.cloud?.positions,
+    p.cloud?.colors,
+    p.blocks?.centers,
+    p.blocks?.sizes,
+    ...(p.blocks?.numeric.map((a) => a.values) ?? []),
+    ...(p.blocks?.categorical.map((a) => a.codes) ?? []),
+    p.workings?.vertices,
+    p.workings?.triangles,
+    p.workings?.axisCoords,
+    p.workings?.axisOffsets,
   ]);
 }
 

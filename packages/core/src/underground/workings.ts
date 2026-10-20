@@ -423,7 +423,7 @@ export function tunnelMesh(
 }
 
 /** Partes conexas de una malla (triángulos que comparten vértices). */
-function connectedParts(vertices: readonly number[], tris: readonly number[]): number[][] {
+export function connectedParts(vertices: ArrayLike<number>, tris: ArrayLike<number>): number[][] {
   const nv = vertices.length / 3;
   const parent = Array.from({ length: nv }, (_, i) => i);
   const find = (i: number): number => {

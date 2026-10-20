@@ -35,6 +35,10 @@ import {
   projectRock,
   type BlockModelMapping,
   type GeotechModel,
+  workingKinds,
+  workingTriangleOwners,
+  workingTrianglesByKind,
+  type WorkingKind,
 } from '@cronos/core';
 import type {
   BlockModelView,
@@ -168,8 +172,68 @@ function coloringOf(id: string, m: BlockModelData): BlockColoring {
   return c;
 }
 
-/** Color de cada levantamiento de labores (cian, verde, magenta, ámbar). */
-const WORKINGS_COLORS = [0x4fc3f7, 0x81c784, 0xf06292, 0xffb74d];
+/**
+ * Color de cada tipo de labor en 3D: el tajeo (donde se carga explosivo) resalta en rojo anaranjado
+ * y más opaco; el desarrollo en tonos fríos.
+ */
+export const WORKING_KIND_COLORS: Record<WorkingKind, number> = {
+  drift: 0x4fc3f7,
+  crosscut: 0x81c784,
+  ramp: 0xffb74d,
+  bypass: 0x9575cd,
+  raise: 0xf06292,
+  stope: 0xff3d00,
+  access: 0xa1887f,
+  other: 0xb0bec5,
+};
+/** Labores sin eje asignado (partes pequeñas de un sólido). */
+const WORKINGS_UNASSIGNED = 0x90a4ae;
+
+/** Tipos de labor ocultos en 3D (filtro de la leyenda). */
+const hiddenKinds = new Set<WorkingKind>();
+
+export function isWorkingKindHidden(kind: WorkingKind): boolean {
+  return hiddenKinds.has(kind);
+}
+
+export function setWorkingKindHidden(kind: WorkingKind, hidden: boolean): void {
+  if (hidden) hiddenKinds.add(kind);
+  else hiddenKinds.delete(kind);
+  notify();
+}
+
+/** Dueño (eje) de cada triángulo de las labores: se calcula una vez por malla. */
+const ownersCache = new WeakMap<WorkingsData, Int32Array>();
+function ownersOf(w: WorkingsData): Int32Array {
+  let o = ownersCache.get(w);
+  if (!o) {
+    o = workingTriangleOwners(w);
+    ownersCache.set(w, o);
+  }
+  return o;
+}
+
+/** Tipo de cada labor de un levantamiento: el guardado o el de por defecto (nombre, pendiente). */
+export function surveyWorkingKinds(surveyId: string): WorkingKind[] {
+  const s = loaded.get(surveyId);
+  return s?.workings ? workingKinds(s.workings, s.survey.workingKinds) : [];
+}
+
+/** Operación que cambia el tipo de las labores de un levantamiento (viaja con él a la mina). */
+export function workingKindsOps(surveyId: string, kinds: WorkingKind[]): Op[] {
+  const topography = session.document.project.topography.map((s) =>
+    s.id === surveyId ? { ...s, workingKinds: kinds } : s,
+  );
+  return [{ type: 'project/patch', patch: { topography } }];
+}
+
+/** Vista previa de un levantamiento movido (malla en coordenadas nuevas), o null. */
+let movePreview: WorkingsView | null = null;
+
+export function setMovePreview(view: { vertices: Float64Array; triangles: Uint32Array } | null) {
+  movePreview = view ? { id: 'move-preview', ...view, color: 0xffd600, opacity: 0.35 } : null;
+  applyTopographyToEngine();
+}
 
 const loaded = new Map<string, LoadedSurvey>();
 /** De dónde bajar un asset que no está en el navegador (el servidor de la mina, D-16). */
@@ -225,15 +289,23 @@ export function applyTopographyToEngine(): void {
   }
   engine.setModels3d(clouds, blocks);
   const workings: WorkingsView[] = [];
-  let k = 0;
-  for (const [id, s] of loaded)
-    if (s.workings)
+  for (const [id, s] of loaded) {
+    if (!s.workings) continue;
+    // Un trozo de malla por tipo de labor: color propio y filtro de la leyenda.
+    const kinds = workingKinds(s.workings, s.survey.workingKinds);
+    const byKind = workingTrianglesByKind(s.workings, kinds, ownersOf(s.workings));
+    for (const [kind, triangles] of byKind) {
+      if (kind && hiddenKinds.has(kind)) continue;
       workings.push({
-        id,
+        id: `${id}:${kind ?? 'none'}`,
         vertices: s.workings.vertices,
-        triangles: s.workings.triangles,
-        color: WORKINGS_COLORS[k++ % WORKINGS_COLORS.length] ?? 0x4fc3f7,
+        triangles,
+        color: kind ? WORKING_KIND_COLORS[kind] : WORKINGS_UNASSIGNED,
+        ...(kind === 'stope' ? { opacity: 0.45 } : {}),
       });
+    }
+  }
+  if (movePreview) workings.push(movePreview);
   engine.setWorkings(workings);
   engine.setElevationSource(
     loaded.size > 0
@@ -424,6 +496,7 @@ export async function syncTopography(project: Project): Promise<void> {
   for (const s of project.topography) {
     const l = loaded.get(s.id);
     if (!l || l.survey === s) continue;
+    if (JSON.stringify(l.survey.workingKinds) !== JSON.stringify(s.workingKinds)) changed = true;
     if (JSON.stringify(l.survey.blockModel) !== JSON.stringify(s.blockModel)) {
       blockColorings.delete(s.id);
       const style = blockStyles.get(s.id);
@@ -673,6 +746,42 @@ export function loadedWorkings(): readonly { survey: TopographySurvey; workings:
   for (const s of loaded.values())
     if (s.workings) out.push({ survey: s.survey, workings: s.workings });
   return out;
+}
+
+/**
+ * Partes de un levantamiento cargado (para moverlo, convertirlo o exportarlo). La ortofoto se lee
+ * de su asset (en memoria solo está la imagen decodificada).
+ */
+export async function surveyParts(surveyId: string): Promise<SurveyParts | undefined> {
+  const s = loaded.get(surveyId);
+  if (!s) return undefined;
+  const imageAsset = await decode(s.survey.assets.image);
+  return {
+    ...(s.tin ? { tin: s.tin } : {}),
+    ...(s.lines ? { lines: s.lines } : {}),
+    ...(imageAsset?.kind === 'image' ? { image: imageAsset.image } : {}),
+    ...(s.cloud ? { cloud: s.cloud } : {}),
+    ...(s.blocks ? { blocks: s.blocks } : {}),
+    ...(s.workings ? { workings: s.workings } : {}),
+  };
+}
+
+/** Partes cargadas sin la ortofoto (síncrono: centroide y vista previa). */
+export function loadedParts(surveyId: string): SurveyParts | undefined {
+  const s = loaded.get(surveyId);
+  if (!s) return undefined;
+  return {
+    ...(s.tin ? { tin: s.tin } : {}),
+    ...(s.lines ? { lines: s.lines } : {}),
+    ...(s.cloud ? { cloud: s.cloud } : {}),
+    ...(s.blocks ? { blocks: s.blocks } : {}),
+    ...(s.workings ? { workings: s.workings } : {}),
+  };
+}
+
+/** Cota del terreno de un levantamiento con TIN en (x, y); null fuera de él o sin TIN. */
+export function surveyElevation(surveyId: string, x: number, y: number): number | null {
+  return loaded.get(surveyId)?.index?.elevationAt(x, y) ?? null;
 }
 
 /** ¿Están en este navegador los datos del levantamiento? */

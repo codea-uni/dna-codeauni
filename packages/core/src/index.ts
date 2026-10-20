@@ -126,6 +126,8 @@ export * from './topography/raster';
 export * from './topography/las';
 export * from './topography/pointCloud';
 export * from './topography/blockModel';
+export * from './topography/surveyTransform';
+export * from './topography/cloudSurface';
 export * from './geotech';
 
 // Subterráneo (Fase 3)

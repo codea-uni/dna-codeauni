@@ -8,7 +8,7 @@ import {
   type MethodWarning,
   type MiningMethodId,
 } from '@cronos/core';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useReducer, useState } from 'react';
 import { NumberField } from '../../components/NumberField';
 import { useActiveBlast, useProject } from '../../hooks/useDocument';
 import { useUnits } from '../../hooks/useUnits';
@@ -23,6 +23,8 @@ import {
 import { useMethodStore } from '../../underground/methodStore';
 import { faceWarningText } from '../../underground/warnings';
 import { defaultPlacements, type Placement } from '../../underground/send';
+import { groupTargets, placementOn, workingTargets } from '../../underground/location';
+import { onTopographyChange } from '../../topography/session';
 import { MethodDrawing, METHOD_ROLE_COLORS } from './MethodDrawing';
 import { MethodPicker } from './MethodPicker';
 import './methods.css';
@@ -528,6 +530,7 @@ function MethodSendBox({
     <div className="ug-send">
       <h3>{t('ugm.send')}</h3>
       <p className="hint">{t('ugm.sendHint')}</p>
+      <MethodWorkingPicker onPlace={onChange} />
       {coord('x', 'ug.originX')}
       {coord('y', 'ug.originY')}
       {coord('z', 'ug.originZ')}
@@ -563,5 +566,74 @@ function MethodSendBox({
         {t('ugm.send')}
       </button>
     </div>
+  );
+}
+
+/**
+ * Ubicar la plantilla sobre una labor importada (los tajeos primero): origen, azimut y pendiente
+ * salen del eje de la labor a la progresiva elegida.
+ */
+function MethodWorkingPicker({ onPlace }: { onPlace: (p: Placement) => void }) {
+  const t = useT();
+  const fmt = useFormat();
+  const { len } = useUnits();
+  const project = useProject();
+  const [version, refresh] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => onTopographyChange(refresh), []);
+  const targets = useMemo(
+    () => workingTargets(project).filter((x) => x.kind),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` cambia al cargar labores
+    [project, version],
+  );
+  const [targetId, setTargetId] = useState('');
+  const [station, setStation] = useState(0);
+  if (targets.length === 0) return null;
+  const target = targets.find((x) => x.id === targetId);
+  const place = (id: string, at: number) => {
+    const next = targets.find((x) => x.id === id);
+    if (!next) return;
+    const st = Math.max(0, Math.min(next.length, at));
+    onPlace(placementOn(next, { targetId: id, station: st, reverse: false }));
+  };
+  return (
+    <>
+      <label className="field">
+        <span className="field-label">{t('ug.loc.title')}</span>
+        <select
+          value={targetId}
+          onChange={(e) => {
+            setTargetId(e.target.value);
+            setStation(0);
+            place(e.target.value, 0);
+          }}
+        >
+          <option value="">{t('ug.loc.manual')}</option>
+          {groupTargets(targets, 'ring').map((g) => (
+            <optgroup key={g.kind ?? 'designed'} label={g.kind ? t(`topo.kind.${g.kind}`) : ''}>
+              {g.targets.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {`${x.name} · ${fmt(x.length, 0)} m`}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
+      {target && (
+        <NumberField
+          label={t('ug.loc.stationValue')}
+          unit={len.unit}
+          decimals={1}
+          min={0}
+          max={len.show(target.length)}
+          value={len.show(station)}
+          onCommit={(v) => {
+            const st = len.parse(v);
+            setStation(st);
+            place(target.id, st);
+          }}
+        />
+      )}
+    </>
   );
 }
