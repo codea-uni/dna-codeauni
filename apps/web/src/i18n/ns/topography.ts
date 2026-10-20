@@ -46,6 +46,10 @@ export const es = {
   'topo.panel.empty':
     'Sin topografía. Importa el levantamiento del tajo para ver el relieve, las curvas y la cota bajo el cursor.',
   'topo.panel.import': 'Importar topografía',
+  'topo.importHeading': 'Importar a la mina',
+  'topo.importHint.surface': 'Relieve del terreno: DXF, Surpac, LandXML, GeoTIFF, LAS.',
+  'topo.importHint.model3d': 'Escaneo láser (.ibpc, .xyz) o modelo de bloques CSV de Datamine.',
+  'topo.importHint.workings': 'Túneles existentes: sólidos DXF o ejes DXF/Surpac.',
   'topo.panel.useInBench': 'Usar en el banco',
   'topo.panel.inUse': 'En uso en el banco',
   'topo.panel.remove': 'Quitar del proyecto',
@@ -336,6 +340,10 @@ export const en = {
   'topo.panel.empty':
     'No topography. Import the pit survey to see the relief, the contours and the elevation under the cursor.',
   'topo.panel.import': 'Import topography',
+  'topo.importHeading': 'Import to the mine',
+  'topo.importHint.surface': 'Ground relief: DXF, Surpac, LandXML, GeoTIFF, LAS.',
+  'topo.importHint.model3d': 'Laser scan (.ibpc, .xyz) or Datamine CSV block model.',
+  'topo.importHint.workings': 'Existing tunnels: DXF solids or DXF/Surpac axes.',
   'topo.panel.useInBench': 'Use in the bench',
   'topo.panel.inUse': 'Used by the bench',
   'topo.panel.remove': 'Remove from the project',

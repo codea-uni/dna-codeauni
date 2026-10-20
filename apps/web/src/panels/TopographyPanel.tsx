@@ -183,17 +183,30 @@ export function TopographyPanel() {
         </ul>
       )}
       {blast && surveys.length > 0 && <TopographyDesignTools blast={blast} />}
-      <button
-        onClick={() => {
-          if (actions.requireCrs()) input.current?.click();
-        }}
-      >
-        <Mountain size={14} aria-hidden /> {t('topo.panel.import')}
-      </button>
-      <button title={t('topo.model3d.importHint')} onClick={() => modelInput.current?.click()}>
-        <Boxes size={14} aria-hidden /> {t('topo.model3d.import')}
-      </button>
-      <WorkingsImport />
+      {/* Qué se puede subir a la mina: cada botón dice qué es y qué archivos lee. */}
+      <div className="topo-import">
+        <h3>{t('topo.importHeading')}</h3>
+        <button
+          className="topo-import-btn"
+          onClick={() => {
+            if (actions.requireCrs()) input.current?.click();
+          }}
+        >
+          <Mountain size={18} aria-hidden />
+          <strong>{t('topo.panel.import')}</strong>
+          <small>{t('topo.importHint.surface')}</small>
+        </button>
+        <button
+          className="topo-import-btn"
+          title={t('topo.model3d.importHint')}
+          onClick={() => modelInput.current?.click()}
+        >
+          <Boxes size={18} aria-hidden />
+          <strong>{t('topo.model3d.import')}</strong>
+          <small>{t('topo.importHint.model3d')}</small>
+        </button>
+        <WorkingsImport />
+      </div>
       <input
         ref={modelInput}
         type="file"

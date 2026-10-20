@@ -29,13 +29,17 @@ export function WorkingsImport() {
   return (
     <>
       <button
+        className="topo-import-btn"
         title={t('topo.workings.importHint')}
+        aria-expanded={open}
         onClick={() => {
           if (!open && !actions.requireCrs()) return;
           setOpen(!open);
         }}
       >
-        <Spline size={14} aria-hidden /> {t('topo.workings.import')}
+        <Spline size={18} aria-hidden />
+        <strong>{t('topo.workings.import')}</strong>
+        <small>{t('topo.importHint.workings')}</small>
       </button>
       {open && (
         <div className="model3d-controls small">

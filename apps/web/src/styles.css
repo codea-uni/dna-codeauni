@@ -436,6 +436,11 @@ button.danger:hover:not(:disabled) {
   padding: 1px 2px;
 }
 
+/* Encabezado de una columna numérica alineado con sus valores (a la derecha). */
+.grid-table th.num {
+  text-align: right;
+}
+
 .grid-table.compact th:first-child {
   width: auto;
 }
@@ -2641,6 +2646,20 @@ button.link {
 }
 
 /* ------------------------------------------------------------------ Subterránea */
+/*
+ * Filas de controles en el panel subterráneo (Análisis): cada campo ocupa su parte de la fila con
+ * la etiqueta a su ancho y el control con espacio suficiente (sin cortar «Cunningham 2005»).
+ */
+.ug .row > .field {
+  flex: 1 1 15rem;
+  grid-template-columns: auto minmax(7.5rem, 1fr);
+  margin: 0;
+}
+
+.ug .row > .field select {
+  min-width: 0;
+}
+
 .ug .segmented {
   margin-top: 0;
 }
@@ -2798,4 +2817,43 @@ button.link {
 
 .ug-inputs .field:has(select) {
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+}
+
+/* Panel Topografía: qué se puede subir, uno debajo del otro, con lo que lee cada uno. */
+.topo-import {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+}
+
+.topo-import h3 {
+  margin: 0 0 0.1rem;
+}
+
+.topo-import > .topo-import-btn,
+.topo-import > button.topo-import-btn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 0.1rem 0.6rem;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  white-space: normal;
+  background: var(--panel-2);
+  border-radius: 6px;
+}
+
+.topo-import-btn svg {
+  grid-row: span 2;
+  color: var(--accent);
+}
+
+.topo-import-btn small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.topo-import-btn[aria-expanded='true'] {
+  border-color: var(--accent);
 }
