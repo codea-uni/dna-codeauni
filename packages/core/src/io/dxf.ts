@@ -93,6 +93,19 @@ class DxfWriter {
     }
     this.entity('SEQEND', layer);
   }
+  /** Polilínea 3D abierta (R12). */
+  polyline3d(layer: string, pts: readonly Vec3[]): void {
+    this.entity('POLYLINE', layer);
+    this.pair(66, 1);
+    this.point3(0, { x: 0, y: 0, z: 0 });
+    this.pair(70, 8);
+    for (const p of pts) {
+      this.entity('VERTEX', layer);
+      this.point3(0, p);
+      this.pair(70, 32);
+    }
+    this.entity('SEQEND', layer);
+  }
   face(layer: string, a: Vec3, b: Vec3, c: Vec3, d: Vec3 = c): void {
     this.entity('3DFACE', layer);
     this.point3(0, a);
@@ -100,7 +113,7 @@ class DxfWriter {
     this.point3(2, c);
     this.point3(3, d);
   }
-  toString(layers: string[]): string {
+  toString(layers: string[], colors: Record<string, number> = {}): string {
     const head: string[] = [];
     const p = (c: number, v: string | number) =>
       head.push(String(c), typeof v === 'number' ? String(v) : v);
@@ -120,7 +133,7 @@ class DxfWriter {
       p(0, 'LAYER');
       p(2, l);
       p(70, 0);
-      p(62, LAYER_COLORS[l] ?? 7);
+      p(62, colors[l] ?? LAYER_COLORS[l] ?? 7);
       p(6, 'CONTINUOUS');
     }
     p(0, 'ENDTAB');
@@ -198,6 +211,60 @@ export function exportDxf(blast: Blast, options: DxfExportOptions = {}): string 
   if (options.ties) layers.push(L.ties);
   if (options.surfaces?.length) layers.push(L.surface);
   return w.toString(layers);
+}
+
+/** Capa de un DXF de superficies: triángulos (3DFACE) y polilíneas 3D (ejes, bordes). */
+export interface DxfMeshLayer {
+  /** Nombre de la capa (se limpia: sin espacios ni caracteres que AutoCAD no acepta). */
+  name: string;
+  /** Color ACI (1–255). */
+  color?: number;
+  meshes?: readonly DxfTin[];
+  lines?: readonly (readonly Vec3[])[];
+}
+
+/** Nombre de capa válido en R12: mayúsculas, letras, números, `_` y `-`, hasta 31 caracteres. */
+export function dxfLayerName(name: string): string {
+  const clean = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 31);
+  return clean || 'CAPA';
+}
+
+/**
+ * DXF (R12, metros, coordenadas absolutas con Z) de superficies y sólidos: cada triángulo como
+ * 3DFACE y cada línea como POLYLINE 3D, por capa. Lo leen AutoCAD, Vulcan, Datamine, Surpac,
+ * Deswik y el propio importador de topografía y labores.
+ */
+export function exportMeshesDxf(layers: readonly DxfMeshLayer[]): string {
+  const w = new DxfWriter();
+  const names: string[] = [];
+  const colors: Record<string, number> = {};
+  for (const l of layers) {
+    const name = dxfLayerName(l.name);
+    if (!names.includes(name)) names.push(name);
+    if (l.color !== undefined) colors[name] = l.color;
+    for (const m of l.meshes ?? []) {
+      const v = (i: number): Vec3 => ({
+        x: m.vertices[i * 3] ?? 0,
+        y: m.vertices[i * 3 + 1] ?? 0,
+        z: m.vertices[i * 3 + 2] ?? 0,
+      });
+      for (let t = 0; t + 2 < m.triangles.length; t += 3)
+        w.face(
+          name,
+          v(m.triangles[t] ?? 0),
+          v(m.triangles[t + 1] ?? 0),
+          v(m.triangles[t + 2] ?? 0),
+        );
+    }
+    for (const pts of l.lines ?? []) if (pts.length >= 2) w.polyline3d(name, pts);
+  }
+  return w.toString(names, colors);
 }
 
 // ------------------------------------------------------------------ Lectura

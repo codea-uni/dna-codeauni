@@ -474,6 +474,39 @@ export interface TopographySurvey {
   };
   /** Qué es el modelo de bloques y qué columna da cada propiedad de la roca (viaja con él). */
   blockModel?: BlockModelMapping;
+  /**
+   * Tipo de cada labor (índice = eje de `WorkingsData.axes`): galería, rampa, tajeo… Lo elige el
+   * usuario al importar o después (por defecto, la heurística de `defaultWorkingKind`).
+   */
+  workingKinds?: WorkingKind[];
+  /**
+   * Traslaciones y giros que se hornearon en los datos (del más viejo al más nuevo), para saber de
+   * dónde vienen las coordenadas: el levantamiento movido es otro, con sus propios assets.
+   */
+  transforms?: SurveyTransformRecord[];
+}
+
+/**
+ * Tipo de labor subterránea. `stope` (tajeo) es donde se carga explosivo para extraer mineral; el
+ * resto son labores de desarrollo y acceso.
+ */
+export type WorkingKind =
+  'drift' | 'crosscut' | 'ramp' | 'bypass' | 'raise' | 'stope' | 'access' | 'other';
+
+/**
+ * Traslación y giro en planta horneados en un levantamiento: cada punto gira `rotationDeg`
+ * (horario, como el azimut) alrededor de `pivot` y luego se desplaza (dx, dy, dz) [m].
+ */
+export interface SurveyTransformRecord {
+  dx: number;
+  dy: number;
+  dz: number;
+  rotationDeg: number;
+  pivot: Vec2;
+  /** ISO 8601. */
+  date: string;
+  /** Levantamiento del que salió (el original queda en la mina). */
+  fromSurveyId?: string;
 }
 
 /** Propiedades de roca que puede traer una columna de un modelo de bloques geotécnico. */

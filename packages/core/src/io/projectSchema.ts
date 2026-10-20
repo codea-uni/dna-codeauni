@@ -454,6 +454,22 @@ export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
       useForRock: z.boolean().exactOptional(),
     })
     .exactOptional(),
+  workingKinds: z
+    .array(z.enum(['drift', 'crosscut', 'ramp', 'bypass', 'raise', 'stope', 'access', 'other']))
+    .exactOptional(),
+  transforms: z
+    .array(
+      z.object({
+        dx: num,
+        dy: num,
+        dz: num,
+        rotationDeg: num,
+        pivot: z.object({ x: num, y: num }),
+        date: z.string(),
+        fromSurveyId: z.string().exactOptional(),
+      }),
+    )
+    .exactOptional(),
 });
 
 const displayUnits: z.ZodType<M.DisplayUnits> = z.object({

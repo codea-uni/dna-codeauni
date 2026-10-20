@@ -3,9 +3,9 @@ export interface DecimateOptions {
   cell: number;
   /**
    * Qué punto conserva cada celda: la cota mínima (el suelo, sin equipos ni vegetación; S-14),
-   * la mediana o el promedio.
+   * la mediana, el promedio o la máxima (copas de árboles, techos).
    */
-  keep: 'min' | 'median' | 'mean';
+  keep: 'min' | 'median' | 'mean' | 'max';
 }
 
 export const DEFAULT_DECIMATE: DecimateOptions = { cell: 0.5, keep: 'min' };
@@ -50,6 +50,7 @@ export function decimateGrid(
     let z: number;
     // Sin `Math.min(...zs)`: una celda grande con muchos puntos desborda la pila.
     if (options.keep === 'min') z = zs.reduce((a, b) => (b < a ? b : a), Infinity);
+    else if (options.keep === 'max') z = zs.reduce((a, b) => (b > a ? b : a), -Infinity);
     else if (options.keep === 'mean') z = zs.reduce((a, b) => a + b, 0) / zs.length;
     else {
       zs.sort((a, b) => a - b);

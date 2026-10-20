@@ -161,4 +161,56 @@ describe('computeApi: roca desde modelo geotécnico', () => {
     computeApi.setRockModels([]);
     expect(computeApi.fragmentationInputs(on, blast.id)).toEqual(base);
   });
+
+  it('nube → superficie TIN que sirve como topografía (curvas e índice)', () => {
+    const pts: number[] = [];
+    for (let x = 0; x < 30; x += 0.5) for (let y = 0; y < 30; y += 0.5) pts.push(x, y, 0.2 * x);
+    const r = computeApi.cloudSurface(
+      {
+        origin: [350000, 8600000, 4000],
+        positions: Float32Array.from(pts),
+        sourcePoints: pts.length / 3,
+      },
+      { cell: 2, mode: 'min', trim: 'mask' },
+    );
+    expect(r.cells).toBe(225);
+    const built = computeApi.buildSurvey(
+      { name: 'Superficie', surveyDate: '2026-10-20', format: 'points', files: ['nube.xyz'] },
+      { tin: r.tin },
+    );
+    expect(built.survey.stats.triangles).toBeGreaterThan(300);
+    expect(built.survey.bounds.minZ).toBeCloseTo(4000, 0);
+    const c = computeApi.topographyContours(r.tin, { interval: 1 });
+    expect(c.levels.length).toBeGreaterThan(0);
+  });
+
+  it('mover un levantamiento de labores 250 m hacia abajo y exportarlo a DXF', () => {
+    const w = {
+      vertices: new Float64Array([0, 0, 100, 10, 0, 100, 10, 10, 100]),
+      triangles: new Uint32Array([0, 1, 2]),
+      axisCoords: new Float64Array([0, 5, 100, 10, 5, 100]),
+      axisOffsets: new Uint32Array([0, 2]),
+      axes: [{ name: 'TJ 1', source: 'axis' as const }],
+    };
+    const moved = computeApi.moveSurvey(
+      { workings: w },
+      { dx: 0, dy: 0, dz: -250, rotationDeg: 0, pivot: { x: 0, y: 0 } },
+    );
+    expect(moved.workings?.vertices[2]).toBe(-150);
+    expect(moved.workings?.axes[0]?.name).toBe('TJ 1');
+    const dxf = computeApi.meshesDxf([
+      {
+        name: 'TJ 1',
+        meshes: [moved.workings ?? w],
+        lines: [
+          [
+            { x: 0, y: 5, z: -150 },
+            { x: 10, y: 5, z: -150 },
+          ],
+        ],
+      },
+    ]);
+    expect(dxf).toContain('3DFACE');
+    expect(dxf).toContain('-150');
+  });
 });
