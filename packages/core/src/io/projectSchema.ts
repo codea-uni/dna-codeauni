@@ -445,6 +445,7 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
     )
     .exactOptional(),
   displayUnits,
+  kind: z.enum(['surface', 'underground']).exactOptional(),
 });
 
 export const projectFileSchema: z.ZodType<M.ProjectFile> = z.object({

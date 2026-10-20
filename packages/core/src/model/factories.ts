@@ -12,6 +12,7 @@ import type {
   MuckpileParams,
   PatternId,
   Project,
+  ProjectKind,
   RockMass,
   SubdrillConvention,
   SiteModels,
@@ -162,7 +163,11 @@ export function createBlast(
   };
 }
 
-export function createEmptyProject(name = 'Proyecto sin título', now = new Date()): Project {
+export function createEmptyProject(
+  name = 'Proyecto sin título',
+  now = new Date(),
+  kind: ProjectKind = 'surface',
+): Project {
   const rock = createDefaultRockMass();
   const iso = now.toISOString();
   return {
@@ -187,6 +192,7 @@ export function createEmptyProject(name = 'Proyecto sin título', now = new Date
       ppv: 'mm/s',
       pressure: 'dB',
     },
+    kind,
   };
 }
 

@@ -1,9 +1,14 @@
-import type { DiffSummary } from '@cronos/core';
+import type { DiffSummary, ProjectKind } from '@cronos/core';
 import { z } from 'zod';
 import { mineSchema } from './organizations';
 import { roleSchema } from './roles';
 
 const id = z.string().min(1);
+
+/** Tipo de proyecto; un servidor anterior no lo envía: entonces es superficial. */
+export const projectKindSchema = z
+  .enum(['surface', 'underground'])
+  .default('surface') satisfies z.ZodType<ProjectKind>;
 const isoDate = z.string();
 
 /** Resumen de cambios respecto de la versión anterior (`diffProjects` del núcleo). */
@@ -52,6 +57,8 @@ export const projectSummarySchema = z.object({
   id,
   mineId: id,
   name: z.string(),
+  /** Herramienta del proyecto: Cronos Open Pit (`surface`) o Cronos Underground (`underground`). */
+  kind: projectKindSchema,
   versionCount: z.number().int().nonnegative(),
   createdAt: isoDate,
   updatedAt: isoDate,

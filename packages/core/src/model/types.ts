@@ -94,7 +94,16 @@ export interface Project {
   scenarios?: Scenario[];
   /** Preferencias de visualización; nunca afectan cálculos. */
   displayUnits: DisplayUnits;
+  /**
+   * Herramienta del proyecto: Cronos Open Pit (`surface`, banco a cielo abierto) o Cronos
+   * Underground (`underground`, frente y abanicos). Falta en los proyectos anteriores: son
+   * superficiales (usar `projectKind`). Los proyectos de ambos tipos de una mina comparten topografía.
+   */
+  kind?: ProjectKind;
 }
+
+/** Tipo de proyecto (herramienta): a cielo abierto o subterráneo. */
+export type ProjectKind = 'surface' | 'underground';
 
 export interface MonitoringPoint {
   id: MonitoringPointId;

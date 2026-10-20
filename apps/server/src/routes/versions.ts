@@ -3,6 +3,7 @@ import {
   diffProjects,
   isEmptyDiff,
   parseProjectFile,
+  projectKind,
   uuidv7,
   type ProjectFile,
 } from '@cronos/core';
@@ -100,7 +101,12 @@ async function insertNextVersion(db: Db, reply: FastifyReply, v: NewVersion) {
       .execute();
     await tx
       .updateTable('project')
-      .set({ versionCount: number, name: v.file.project.name, updatedAt: new Date() })
+      .set({
+        versionCount: number,
+        name: v.file.project.name,
+        kind: projectKind(v.file.project),
+        updatedAt: new Date(),
+      })
       .where('id', '=', v.projectId)
       .execute();
     await recordAudit(tx, {
