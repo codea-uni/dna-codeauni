@@ -93,7 +93,14 @@ import {
   type ProjectKnowledge,
   type UpdateKnowledgeDoc,
 } from './knowledge';
-import type { Explosive } from '@cronos/core';
+import {
+  minePointListSchema,
+  minePointSchema,
+  vibrationRecordListSchema,
+  type MinePoint,
+  type SaveMinePoint,
+} from './vibration';
+import type { Explosive, SeismographRecord } from '@cronos/core';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
 export class ApiError extends Error {
@@ -527,6 +534,51 @@ export class ApiClient {
 
   async deletePreset(id: string): Promise<void> {
     await this.request(`/presets/${enc(id)}`, okSchema, { method: 'DELETE' });
+  }
+
+  // Vibración de la mina: puntos compartidos y mediciones de sismógrafo
+
+  async minePoints(mineId: string): Promise<MinePoint[]> {
+    return (await this.request(`/mines/${enc(mineId)}/monitoring-points`, minePointListSchema))
+      .points;
+  }
+
+  saveMinePoint(mineId: string, body: SaveMinePoint): Promise<MinePoint> {
+    return this.request(
+      `/mines/${enc(mineId)}/monitoring-points/${enc(body.point.id)}`,
+      minePointSchema,
+      { method: 'PUT', body },
+    );
+  }
+
+  async deleteMinePoint(mineId: string, pointId: string): Promise<void> {
+    await this.request(`/mines/${enc(mineId)}/monitoring-points/${enc(pointId)}`, okSchema, {
+      method: 'DELETE',
+    });
+  }
+
+  async vibrationRecords(mineId: string): Promise<SeismographRecord[]> {
+    return (
+      await this.request(`/mines/${enc(mineId)}/vibration-records`, vibrationRecordListSchema)
+    ).records;
+  }
+
+  async saveVibrationRecords(
+    mineId: string,
+    records: SeismographRecord[],
+  ): Promise<SeismographRecord[]> {
+    return (
+      await this.request(`/mines/${enc(mineId)}/vibration-records`, vibrationRecordListSchema, {
+        method: 'POST',
+        body: { records },
+      })
+    ).records;
+  }
+
+  async deleteVibrationRecord(mineId: string, id: string): Promise<void> {
+    await this.request(`/mines/${enc(mineId)}/vibration-records/${enc(id)}`, okSchema, {
+      method: 'DELETE',
+    });
   }
 
   async deleteCompanyExplosive(orgId: string, id: string): Promise<void> {

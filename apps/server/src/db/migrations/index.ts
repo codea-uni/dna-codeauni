@@ -8,6 +8,7 @@ import * as topography from './2026_09_30_06_topography';
 import * as knowledge from './2026_10_13_01_knowledge';
 import * as presets from './2026_10_13_02_presets';
 import * as cloudBlocks from './2026_10_20_01_cloud_blocks';
+import * as mineVibration from './2026_10_20_03_mine_vibration';
 
 /**
  * Migraciones en orden de nombre (`AAAA_MM_DD_NN_tema`). Se importan de forma estática para que el
@@ -23,4 +24,5 @@ export const migrations: Record<string, Migration> = {
   '2026_10_13_01_knowledge': knowledge,
   '2026_10_13_02_presets': presets,
   '2026_10_20_01_cloud_blocks': cloudBlocks,
+  '2026_10_20_03_mine_vibration': mineVibration,
 };
