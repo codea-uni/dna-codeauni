@@ -16,6 +16,12 @@ import {
 export interface UgAnalysisState {
   /** La pestaña Análisis está abierta (las de diseño usan `useUndergroundStore.tab`). */
   open: boolean;
+  /**
+   * Simulando: la ventana se reduce a una barra con los controles para dejar ver el 3D; guarda
+   * dónde estaba para volver a su tamaño.
+   */
+  compact: boolean;
+  savedWindow: { x: number; y: number; w: number; h: number } | null;
   /** Plano evaluado: el frente o el anillo `ringIndex` de los abanicos. */
   target: 'face' | 'ring';
   /** Diseño analizado: marca `ug-*` del frente, los abanicos o una plantilla (null = el primero). */
@@ -47,6 +53,8 @@ export interface UgAnalysisState {
 
 export const useUgAnalysisStore = create<UgAnalysisState>((set) => ({
   open: false,
+  compact: false,
+  savedWindow: null,
   target: 'face',
   designTag: null,
   ringIndex: 0,

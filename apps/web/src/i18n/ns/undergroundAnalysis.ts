@@ -5,6 +5,7 @@
  */
 export const es = {
   'uga.tab': 'Análisis',
+  'uga.showPanel': 'Mostrar el panel',
   'uga.showPile': 'Mostrar la roca volando y la pila',
   'uga.pileComputing': 'Calculando la pila…',
   'uga.section.pile': 'Pila de material',
@@ -148,6 +149,7 @@ export const es = {
 
 export const en = {
   'uga.tab': 'Analysis',
+  'uga.showPanel': 'Show the panel',
   'uga.showPile': 'Show the flying rock and the muckpile',
   'uga.pileComputing': 'Computing the muckpile…',
   'uga.section.pile': 'Muckpile',

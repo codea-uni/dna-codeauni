@@ -297,6 +297,33 @@ function holeMarks(view: PlaneView, target: 'face' | 'ring') {
   });
 }
 
+const UG_WINDOW = 'workspace.underground';
+
+/** Al simular, la ventana Subterránea baja a una barra con los controles para que se vea el 3D. */
+function enterSimulationBar(): void {
+  const s = useUgAnalysisStore.getState();
+  const ui = useUiStore.getState();
+  const win = ui.floating.find((f) => f.id === UG_WINDOW);
+  if (!win || s.compact) return;
+  const w = Math.min(760, window.innerWidth - 24);
+  const h = 132;
+  s.set({ compact: true, savedWindow: { x: win.x, y: win.y, w: win.w, h: win.h } });
+  ui.updateFloating(UG_WINDOW, {
+    w,
+    h,
+    x: Math.round((window.innerWidth - w) / 2),
+    y: Math.max(60, window.innerHeight - h - 44),
+  });
+}
+
+/** Devuelve la ventana a su tamaño y lugar de antes de simular. */
+export function exitSimulationBar(): void {
+  const s = useUgAnalysisStore.getState();
+  if (!s.compact) return;
+  if (s.savedWindow) useUiStore.getState().updateFloating(UG_WINDOW, s.savedWindow);
+  s.set({ compact: false, savedWindow: null });
+}
+
 function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const t = useT();
   const fmt = useFormat();
@@ -412,6 +439,7 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const startPlay = (withPile: boolean) => {
     const engine = getEngine();
     if (!engine || !times) return;
+    enterSimulationBar();
     if (!s.show3d) s.set({ show3d: true });
     if (withPile && playUndergroundPile()) return;
     // Vista de frente: desde atrás del plano, mirando el avance.
@@ -435,6 +463,7 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const stop = () => {
     getEngine()?.stopSequence();
     useAnalysisStore.getState().set({ sequencePlaying: false, sequenceTime: null });
+    exitSimulationBar();
   };
 
   return (
@@ -605,6 +634,15 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
         <button disabled={seqTime === null} onClick={stop}>
           {t('uga.stop')}
         </button>
+        {s.compact && (
+          <button
+            onClick={() => {
+              exitSimulationBar();
+            }}
+          >
+            {t('uga.showPanel')}
+          </button>
+        )}
         <label className="check">
           <input
             type="checkbox"

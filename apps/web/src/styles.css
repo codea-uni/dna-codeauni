@@ -2868,3 +2868,17 @@ button.link {
 .topo-import-btn[aria-expanded='true'] {
   border-color: var(--accent);
 }
+
+/*
+ * Simulando (Subterránea → Análisis): la ventana baja a una barra con Pausa / Detener / tiempo para
+ * que la animación 3D se vea; el resto sigue montado (los halos se calculan ahí) pero oculto.
+ */
+.panel.ug.ug-compact > .segmented,
+.panel.ug.ug-compact .ug-analysis > :not(:first-child),
+.panel.ug.ug-compact .ug-analysis > :first-child > :not(.ug-sim-controls) {
+  display: none;
+}
+
+.panel.ug.ug-compact .ug-sim-controls {
+  margin-top: 0;
+}

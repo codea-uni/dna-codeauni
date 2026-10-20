@@ -72,6 +72,8 @@ export function UndergroundPanel() {
   const setTab = useUndergroundStore((s) => s.setTab);
   // Pestaña «Análisis» (componente aparte): su estado vive en `useUgAnalysisStore`.
   const analysisOpen = useUgAnalysisStore((s) => s.open);
+  // Simulando: solo la barra de controles (ver `enterSimulationBar`).
+  const compact = useUgAnalysisStore((s) => s.open && s.compact);
   const setAnalysis = useUgAnalysisStore((s) => s.set);
   const project = useProject();
   const placements = useUndergroundStore((s) => s.placements);
@@ -86,7 +88,7 @@ export function UndergroundPanel() {
   const current = methods ? 'methods' : tab;
 
   return (
-    <section className="panel ug">
+    <section className={compact ? 'panel ug ug-compact' : 'panel ug'}>
       <div className="segmented" role="tablist">
         {(['methods', 'face', 'ring'] as const).map((id) => (
           <button
