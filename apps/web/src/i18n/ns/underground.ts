@@ -32,6 +32,9 @@ export const es = {
   'ug.rockConstant': 'Constante de roca c',
   'ug.explosive': 'Explosivo',
   'ug.contourExplosive': 'Explosivo del contorno',
+  'ug.cartridge': 'Diámetro del cartucho (0 = a granel)',
+  'ug.cartridgeHint':
+    'Con cartuchos desacoplados baja la carga lineal: burdens menores y más taladros (método sueco).',
   'ug.smooth': 'Voladura suave en el contorno',
   'ug.delayInterval': 'Tiempo por número de retardo',
   'ug.noExplosive': 'La biblioteca no tiene explosivos: agrégalos en Biblioteca.',
@@ -182,6 +185,9 @@ export const en = {
   'ug.rockConstant': 'Rock constant c',
   'ug.explosive': 'Explosive',
   'ug.contourExplosive': 'Contour explosive',
+  'ug.cartridge': 'Cartridge diameter (0 = bulk)',
+  'ug.cartridgeHint':
+    'Decoupled cartridges lower the linear charge: smaller burdens and more holes (Swedish method).',
   'ug.smooth': 'Smooth blasting on the contour',
   'ug.delayInterval': 'Time per delay number',
   'ug.noExplosive': 'The library has no explosives: add them in Library.',

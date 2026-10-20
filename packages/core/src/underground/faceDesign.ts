@@ -55,6 +55,11 @@ export interface FaceDesignInput {
   explosiveDensity: KgPerM3;
   /** Potencia relativa en peso respecto al ANFO s_ANFO. */
   rws: Ratio;
+  /**
+   * Carga lineal real [kg/m] cuando el explosivo va desacoplado (cartuchos de menor diámetro que
+   * el taladro); por defecto la acoplada ρe·π·d²/4.
+   */
+  linearCharge?: number;
   /** Carga lineal del contorno con voladura suave [kg/m]; por defecto 90·d². */
   contourLinearCharge?: number;
   /** Constante de roca c [kg/m³] (0,4). */
@@ -304,7 +309,7 @@ export function designFaceRound(input: FaceDesignInput): FaceDesignResult {
     warnings.push({ code: 'depthLimited', params: { depthFromRelief, depth } });
   const advance = 0.95 * depth;
   const F = alpha * depth + ePrime;
-  const q = coupledLinearCharge(input.explosiveDensity, d);
+  const q = input.linearCharge ?? coupledLinearCharge(input.explosiveDensity, d);
   const lookOut = depth * Math.tan(gamma);
   const holeLengthLookOut = depth / Math.cos(gamma);
 

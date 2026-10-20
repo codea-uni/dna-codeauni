@@ -42,6 +42,11 @@ export interface FaceForm {
   /** null = el preferido de la biblioteca. */
   explosiveId: string | null;
   contourExplosiveId: string | null;
+  /**
+   * Diámetro del cartucho [m] (explosivo desacoplado, lo usual en frentes); 0 = a granel,
+   * acoplado al taladro. Fija la carga lineal y con ella los burdens del método sueco.
+   */
+  cartridgeDiameter: number;
   rockConstant: number;
   maxDrill: number;
   smooth: boolean;
@@ -58,6 +63,8 @@ export const DEFAULT_FACE: FaceForm = {
   reliefCount: 1,
   explosiveId: null,
   contourExplosiveId: null,
+  // Emulsión encartuchada 1¼″ en taladros de 45 mm.
+  cartridgeDiameter: 0.032,
   rockConstant: 0.4,
   // Viga de 14 pies del jumbo.
   maxDrill: 4.0,
@@ -131,6 +138,28 @@ export function pickExplosive(lib: ProductLibrary, id: string | null): Explosive
   );
 }
 
+/** Explosivo del frente: con cartuchos, prefiere una emulsión encartuchada. */
+export function pickFaceExplosive(
+  lib: ProductLibrary,
+  form: Pick<FaceForm, 'explosiveId' | 'cartridgeDiameter'>,
+): Explosive | null {
+  const chosen = lib.explosives.find((e) => e.id === form.explosiveId);
+  if (chosen || !(form.cartridgeDiameter > 0)) return chosen ?? pickExplosive(lib, null);
+  return (
+    lib.explosives.find((e) => e.family === 'emulsion' && e.form === 'packaged') ??
+    pickExplosive(lib, null)
+  );
+}
+
+/** Carga lineal [kg/m] del cartucho, o undefined si va a granel (acoplado). */
+export function cartridgeLinearCharge(
+  form: Pick<FaceForm, 'cartridgeDiameter' | 'holeDiameter'>,
+  explosive: Explosive,
+): number | undefined {
+  const dc = Math.min(form.cartridgeDiameter, form.holeDiameter);
+  return dc > 0 ? (explosive.density * Math.PI * dc * dc) / 4 : undefined;
+}
+
 /**
  * Perfil del frente. Parámetros derivados: arco-D con hastiales hw = H − W/2; herradura con
  * flecha f = W/4 y hw = H − f; hombros redondeados de radio 0,5 m; circular de diámetro W.
@@ -167,6 +196,7 @@ export interface FaceComputation {
 export function computeFace(form: FaceForm, explosive: Explosive): FaceComputation {
   if (!(form.holeDiameter > 0) || !(form.reliefDiameter > 0)) throw new InputError('d, φ0 > 0');
   const profile = buildFaceProfile(form);
+  const linearCharge = cartridgeLinearCharge(form, explosive);
   const design = designFaceRound({
     profile,
     holeDiameter: form.holeDiameter,
@@ -174,6 +204,7 @@ export function computeFace(form: FaceForm, explosive: Explosive): FaceComputati
     reliefCount: form.reliefCount,
     explosiveDensity: explosive.density,
     rws: explosive.rws,
+    ...(linearCharge !== undefined ? { linearCharge } : {}),
     rockConstant: form.rockConstant,
     maxDrillLength: form.maxDrill,
     smoothBlasting: form.smooth,

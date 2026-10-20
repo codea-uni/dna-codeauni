@@ -183,6 +183,19 @@ describe('método sueco: variantes y avisos', () => {
     expect(r.kpis.powderFactor).toBeLessThan(3);
   });
 
+  it('cartuchos desacoplados: menor carga lineal, burdens menores y más taladros', () => {
+    const coupled = designFaceRound({ ...base, profile: arched(4.5, 1.75) });
+    // Cartucho de 32 mm de emulsión a 1140 kg/m³: q = 1140·π/4·0,032² = 0,91684 kg/m.
+    const q = (1140 * Math.PI * 0.032 ** 2) / 4;
+    expect(q).toBeCloseTo(0.91684, 5);
+    const decoupled = designFaceRound({ ...base, profile: arched(4.5, 1.75), linearCharge: q });
+    expect(decoupled.groupBurden.lifter).toBeLessThan(coupled.groupBurden.lifter);
+    expect(decoupled.holes.length).toBeGreaterThan(coupled.holes.length);
+    for (const h of decoupled.holes)
+      if (h.role === 'cut' && h.square && h.square > 1)
+        expect(h.charge?.bottom.linearCharge).toBe(q);
+  });
+
   it('la viga del jumbo recorta la profundidad y se avisa', () => {
     const r = designFaceRound({ ...base, profile: arched(4, 2), maxDrillLength: 2.4 });
     expect(r.depth).toBe(2.4);

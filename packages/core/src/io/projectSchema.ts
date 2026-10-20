@@ -230,6 +230,15 @@ const blast: z.ZodType<M.Blast> = z.object({
       }),
     )
     .exactOptional(),
+  excavations: z
+    .array(
+      z.object({
+        tag: z.string(),
+        kind: z.enum(['drive', 'round', 'stope']),
+        sections: z.array(z.array(vec3)),
+      }),
+    )
+    .exactOptional(),
   notes: z.string().exactOptional(),
 });
 

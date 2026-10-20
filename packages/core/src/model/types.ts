@@ -168,7 +168,21 @@ export interface Blast {
   calcParams: CalcParams;
   /** Dominios de material o ley en planta: se transportan con la pila (dilución, A7). */
   domains?: BlastDomain[];
+  /**
+   * Excavaciones subterráneas de contexto (galería, avance de la ronda, tajeo) de los diseños
+   * subterráneos enviados: secciones del perfil a lo largo del eje, ya en coordenadas de obra.
+   */
+  excavations?: UndergroundExcavation[];
   notes?: string;
+}
+
+/** Excavación de contexto de un diseño subterráneo (se dibuja en alambre o como superficie). */
+export interface UndergroundExcavation {
+  /** Etiqueta de los taladros del diseño al que pertenece (`ug-face`, `ug-ring`). */
+  tag: string;
+  kind: 'drive' | 'round' | 'stope';
+  /** Secciones del perfil cada ~1 m a lo largo del eje [m]. */
+  sections: Vec3[][];
 }
 
 /**

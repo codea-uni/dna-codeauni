@@ -50,6 +50,7 @@ import { WATER_NEEDS } from './skill/rules';
 import { KNOWLEDGE_READ_ONLY, KNOWLEDGE_TOOLS } from './knowledgeTools';
 import { SCENE_READ_ONLY, SCENE_TOOLS } from './sceneTools';
 import { WORKSPACE_READ_ONLY, WORKSPACE_TOOLS } from './workspaceTools';
+import { UNDERGROUND_READ_ONLY, UNDERGROUND_TOOLS } from './undergroundTools';
 import { recordStep } from './steps';
 import { logTool } from './transcript';
 import { cardFromTool, closeCard, pushCard, type AgentCard } from './cards';
@@ -404,6 +405,15 @@ export function designSummary() {
   const blast = document.project.blasts[0];
   if (!blast) return { blast: null };
   const activeId = useUiStore.getState().activeBoundaryId;
+  const underground = (['ug-face', 'ug-ring'] as const)
+    .map(
+      (tag) =>
+        [
+          tag === 'ug-face' ? 'tunnel_face' : 'stope_rings',
+          blast.holes.filter((h) => h.tags?.includes(tag)).length,
+        ] as const,
+    )
+    .filter(([, count]) => count > 0);
   return {
     project: document.project.name,
     blast: blast.name,
@@ -426,6 +436,8 @@ export function designSummary() {
       spacing: r(p.spacing),
     })),
     holes: blast.holes.length,
+    // Diseños subterráneos en el 3D (frente de túnel y abanicos).
+    ...(underground.length > 0 ? { underground_holes: Object.fromEntries(underground) } : {}),
     charged_holes: blast.holes.filter((h) => h.decks.some((d) => d.kind === 'explosive')).length,
     holes_with_detonator: blast.holes.filter((h) => h.initiators.length > 0).length,
     surface_connections: blast.initiation.connections.length,
@@ -1092,11 +1104,15 @@ function simulateTieUp(
   const charged = preview.holes.filter(
     (h) => inPattern.has(h.id) && h.decks.some((d) => d.kind === 'explosive'),
   );
-  const notFiringHoles = charged.filter((h) => !Number.isFinite(tm.fireTime[idx.get(h.id) ?? -1] ?? NaN));
+  const notFiringHoles = charged.filter(
+    (h) => !Number.isFinite(tm.fireTime[idx.get(h.id) ?? -1] ?? NaN),
+  );
   const coincidentHoles = tm.coincidentGroups.reduce((a, g) => a + g.length, 0);
   return {
     connections: gen.connections.length,
-    firing_span_ms: Number.isFinite(tm.lastTime - tm.firstTime) ? r(sToMs(tm.lastTime - tm.firstTime), 0) : null,
+    firing_span_ms: Number.isFinite(tm.lastTime - tm.firstTime)
+      ? r(sToMs(tm.lastTime - tm.firstTime), 0)
+      : null,
     coincident_holes: coincidentHoles,
     max_holes_per_8ms: tm.maxHolesPerWindow,
     charged_holes_not_firing: notFiringHoles.length,
@@ -1125,7 +1141,12 @@ function proposeTieUp(
     simulateTieUp(blast, pattern.id, startRow, startCol, args.mode, a.id, b.id, det, needIds);
   const mine = sim(ih, ir);
   // Otra combinación de la librería con menos taladros coincidentes (entre filas > entre taladros).
-  let better: { inter_hole_ms: number; inter_row_ms: number; coincident_holes: number; max_holes_per_8ms: number } | null = null;
+  let better: {
+    inter_hole_ms: number;
+    inter_row_ms: number;
+    coincident_holes: number;
+    max_holes_per_8ms: number;
+  } | null = null;
   if (mine.coincident_holes > 0)
     for (const a of lib.surfaceConnectors)
       for (const b of lib.surfaceConnectors) {
@@ -1135,7 +1156,8 @@ function proposeTieUp(
         if (
           x.charged_holes_not_firing <= mine.charged_holes_not_firing &&
           (x.coincident_holes < best.coincident_holes ||
-            (x.coincident_holes === best.coincident_holes && x.max_holes_per_8ms < best.max_holes_per_8ms))
+            (x.coincident_holes === best.coincident_holes &&
+              x.max_holes_per_8ms < best.max_holes_per_8ms))
         )
           better = {
             inter_hole_ms: r(sToMs(a.delay), 0),
@@ -1151,7 +1173,10 @@ function proposeTieUp(
   pendingTieUp = { ...args, inter_hole: ih.name, inter_row: ir.name };
   const notes: AgentCard['notes'] = [];
   if (mine.charged_holes_not_firing > 0)
-    notes.push({ text: `${mine.charged_holes_not_firing} taladros cargados no saldrían`, tone: 'bad' });
+    notes.push({
+      text: `${mine.charged_holes_not_firing} taladros cargados no saldrían`,
+      tone: 'bad',
+    });
   if (mine.coincident_holes > 0)
     notes.push({
       text: `${mine.coincident_holes} taladros salen a menos de 8 ms de otro (máx. ${mine.max_holes_per_8ms} juntos)`,
@@ -1162,7 +1187,8 @@ function proposeTieUp(
       text: `Mejor: ${better.inter_hole_ms} ms entre taladros y ${better.inter_row_ms} ms entre filas (${better.coincident_holes} coincidentes)`,
       tone: 'accent',
     });
-  if (notes.length === 0) notes.push({ text: 'Sin taladros coincidentes y todos salen', tone: 'ok' });
+  if (notes.length === 0)
+    notes.push({ text: 'Sin taladros coincidentes y todos salen', tone: 'ok' });
   const card: AgentCard = {
     id: TIE_UP_CARD,
     title: 'Amarre propuesto',
@@ -1171,14 +1197,19 @@ function proposeTieUp(
       { label: 'Entre taladros', value: `${ihMs} ms`, tone: 'accent' },
       { label: 'Entre filas', value: `${irMs} ms`, tone: 'accent' },
       { label: 'Inicio', value: start?.label ?? '—' },
-      { label: 'Duración', value: mine.firing_span_ms === null ? '—' : `${mine.firing_span_ms} ms` },
+      {
+        label: 'Duración',
+        value: mine.firing_span_ms === null ? '—' : `${mine.firing_span_ms} ms`,
+      },
       { label: 'Detonador fondo', value: needs.length ? (det?.name ?? '—') : 'se mantiene' },
     ],
     bars: [],
     notes,
     choices: [
       { id: 'apply', label: 'Aplicar' },
-      ...(better ? [{ id: 'better', label: `Usar ${better.inter_hole_ms}/${better.inter_row_ms} ms` }] : []),
+      ...(better
+        ? [{ id: 'better', label: `Usar ${better.inter_hole_ms}/${better.inter_row_ms} ms` }]
+        : []),
       { id: 'change', label: 'Cambiar' },
     ],
     t0: performance.now(),
@@ -1224,7 +1255,8 @@ function setTieUp(args: z.infer<typeof tieUpSchema>) {
       h.initiators.some((i) => typeOf(i.detonatorId) === 'electronic'),
   );
   if (needs.length && !det) throw new ToolError('The library has no nonel detonator.');
-  if (!args.confirmed) return proposeTieUp(args, blast, pattern, startRow, startCol, holes, ih, ir, det, needs);
+  if (!args.confirmed)
+    return proposeTieUp(args, blast, pattern, startRow, startCol, holes, ih, ir, det, needs);
   pendingTieUp = null;
   closeCard(TIE_UP_CARD);
   const extra: Op[] =
@@ -1464,6 +1496,7 @@ const TOOLS: Record<string, ToolDef> = {
   ...KNOWLEDGE_TOOLS,
   ...SCENE_TOOLS,
   ...WORKSPACE_TOOLS,
+  ...UNDERGROUND_TOOLS,
   get_design: {
     description:
       'Full design state: bench, perimeters (vertices, edges, free faces), patterns, hole counts, tie-up and the product library. Call it before acting when unsure.',
@@ -1570,6 +1603,7 @@ export const READ_ONLY_TOOLS = new Set([
   ...KNOWLEDGE_READ_ONLY,
   ...SCENE_READ_ONLY,
   ...WORKSPACE_READ_ONLY,
+  ...UNDERGROUND_READ_ONLY,
 ]);
 
 // ------------------------------------------------------------------ Gemini
@@ -1625,6 +1659,8 @@ const PHASE: Record<string, number> = {
   add_protected_point: 4,
   split_zone: 5,
   generate_pattern: 6,
+  design_tunnel_face: 6,
+  design_stope_rings: 6,
   design_presplit: 7,
   design_buffer: 8,
   add_holes: 9,
@@ -1692,8 +1728,7 @@ export async function runTool(
   }
   logTool(name, args, out);
   // Lo aplicado se puede guardar como preset (malla, carga, amarre, condiciones).
-  const proposal =
-    out.ok && (out.result as { applied?: unknown } | null)?.applied === false;
+  const proposal = out.ok && (out.result as { applied?: unknown } | null)?.applied === false;
   if (out.ok && !proposal) recordStep(name, parsed.data);
   // Lo que el agente consulta o aplica aparece como tarjeta de reporte (web y visor).
   if (out.ok) {

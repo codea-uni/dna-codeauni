@@ -1,0 +1,492 @@
+import type { Explosive, FaceWarning, ProductLibrary } from '@cronos/core';
+import { z } from 'zod';
+import { formatNumber, t, type MessageKey } from '../i18n';
+import { session } from '../session';
+import { useUiStore } from '../stores/uiStore';
+import {
+  computeFace,
+  computeRing,
+  InputError,
+  pickExplosive,
+  pickFaceExplosive,
+  PROFILE_CHOICES,
+  type FaceForm,
+  type RingForm,
+} from '../underground/model';
+import {
+  defaultPlacements,
+  FACE_TAG,
+  RING_TAG,
+  sendFace,
+  sendRings,
+  taggedHoles,
+  type Placement,
+} from '../underground/send';
+import { useUndergroundStore, type UndergroundTab } from '../underground/store';
+import { pushCard } from './cards';
+import { blastOrFail, findByName, r, readOnlyGuard, ToolError, type ToolDef } from './tools';
+
+/**
+ * Herramientas del asistente para minería subterránea: ronda de un frente de túnel (método sueco
+ * de Holmberg) y abanicos de tajeo. Usan el mismo formulario y el mismo envío que el panel
+ * «Subterránea» (lo que pide el agente queda en el panel para revisarlo o ajustarlo a mano).
+ */
+
+const { document } = session;
+const DEG = Math.PI / 180;
+
+// ------------------------------------------------------------------ Comunes
+
+const placementFields = {
+  x: z.number().optional().describe('Origin East [m] (center of the drive floor at the face).'),
+  y: z.number().optional().describe('Origin North [m].'),
+  z: z.number().optional().describe('Origin elevation [m].'),
+  azimuth_deg: z
+    .number()
+    .min(0)
+    .max(360)
+    .optional()
+    .describe('Advance direction of the drive, clockwise from North.'),
+  gradient_pct: z.number().min(-30).max(30).optional().describe('Drive gradient [%].'),
+  send: z
+    .boolean()
+    .optional()
+    .describe(
+      'true (default) = put the holes in the 3D design (replaces the previous ones of this kind, undoable); false = only compute and show it in the Subterránea panel.',
+    ),
+};
+
+interface PlacementArgs {
+  x?: number | undefined;
+  y?: number | undefined;
+  z?: number | undefined;
+  azimuth_deg?: number | undefined;
+  gradient_pct?: number | undefined;
+}
+
+function placementFor(tab: UndergroundTab, a: PlacementArgs): Placement {
+  const store = useUndergroundStore.getState();
+  const all = store.placements ?? defaultPlacements(document.project);
+  const p: Placement = {
+    ...all[tab],
+    ...(a.x !== undefined ? { x: a.x } : {}),
+    ...(a.y !== undefined ? { y: a.y } : {}),
+    ...(a.z !== undefined ? { z: a.z } : {}),
+    ...(a.azimuth_deg !== undefined ? { azimuthDeg: a.azimuth_deg % 360 } : {}),
+    ...(a.gradient_pct !== undefined ? { gradientPct: a.gradient_pct } : {}),
+  };
+  store.setPlacements({ ...all, [tab]: p });
+  return p;
+}
+
+function explosiveByName(lib: ProductLibrary, name: string | undefined): string | undefined {
+  if (name === undefined) return undefined;
+  const found = findByName(lib.explosives, name);
+  if (!found)
+    throw new ToolError(
+      `No explosive "${name}" in the project library. Available: ${lib.explosives.map((e) => e.name).join(', ')}.`,
+    );
+  return found.id;
+}
+
+function openPanel(tab: UndergroundTab): void {
+  useUndergroundStore.getState().setTab(tab);
+  // Como `openWorkspacePanel('underground')`, sin importar las ventanas (ciclo de módulos).
+  const ui = useUiStore.getState();
+  const id = 'workspace.underground';
+  if (ui.floating.some((w) => w.id === id)) ui.raiseFloating(id);
+  else ui.floatPanel(id, 980);
+}
+
+const mm = (m: number) => r(m * 1000, 0);
+const n = (v: number, d = 0, unit = '') => `${formatNumber(v, d)}${unit ? ` ${unit}` : ''}`;
+
+function warningText(w: FaceWarning): string {
+  const params = Object.fromEntries(
+    Object.entries(w.params ?? {}).map(([k, v]) => [
+      k,
+      typeof v === 'number' ? formatNumber(v, 2) : String(v),
+    ]),
+  );
+  return t(`ug.warn.${w.code}` as MessageKey, params);
+}
+
+function placementOut(p: Placement) {
+  return {
+    x: r(p.x),
+    y: r(p.y),
+    z: r(p.z),
+    azimuth_deg: r(p.azimuthDeg, 1),
+    gradient_pct: r(p.gradientPct, 1),
+  };
+}
+
+// ------------------------------------------------------------------ Frente de túnel
+
+const faceSchema = z.object({
+  profile: z
+    .enum(PROFILE_CHOICES)
+    .optional()
+    .describe(
+      'Section: arched (D, straight walls + semicircular roof; default), horseshoe, rectangular, roundedShoulders, circular.',
+    ),
+  width_m: z.number().min(1).max(20).optional(),
+  height_m: z.number().min(1).max(20).optional(),
+  hole_diameter_mm: z.number().min(25).max(127).optional().describe('Charged holes (45 typical).'),
+  relief_diameter_mm: z
+    .number()
+    .min(32)
+    .max(400)
+    .optional()
+    .describe('Uncharged relief (reamer) hole(s) of the cut (102 typical).'),
+  relief_holes: z.number().int().min(1).max(6).optional(),
+  max_drill_m: z
+    .number()
+    .min(0.5)
+    .max(8)
+    .optional()
+    .describe('Jumbo feed / drill steel length [m] (14 ft ≈ 4.0; 12 ft ≈ 3.4).'),
+  cartridge_diameter_mm: z
+    .number()
+    .min(0)
+    .max(127)
+    .optional()
+    .describe('Cartridge diameter (decoupled charge, e.g. 32 for 1¼″); 0 = bulk, fully coupled.'),
+  explosive: z.string().optional().describe('Explosive name from the library.'),
+  contour_explosive: z.string().optional().describe('Explosive for the smooth-blasting contour.'),
+  smooth_blasting: z.boolean().optional().describe('Smooth blasting (recorte) on the contour.'),
+  rock_constant: z
+    .number()
+    .min(0.1)
+    .max(2)
+    .optional()
+    .describe('Rock constant c [kg/m³] (0.4 typical; higher = harder to blast).'),
+  delay_ms: z.number().min(1).max(1000).optional().describe('Time per delay number [ms].'),
+  ...placementFields,
+});
+
+function designFace(args: z.infer<typeof faceSchema>) {
+  const lib = document.project.library;
+  const store = useUndergroundStore.getState();
+  const patch: Partial<FaceForm> = {
+    ...(args.profile !== undefined ? { profile: args.profile } : {}),
+    ...(args.width_m !== undefined ? { width: args.width_m } : {}),
+    ...(args.height_m !== undefined ? { height: args.height_m } : {}),
+    ...(args.hole_diameter_mm !== undefined ? { holeDiameter: args.hole_diameter_mm / 1000 } : {}),
+    ...(args.relief_diameter_mm !== undefined
+      ? { reliefDiameter: args.relief_diameter_mm / 1000 }
+      : {}),
+    ...(args.relief_holes !== undefined ? { reliefCount: args.relief_holes } : {}),
+    ...(args.max_drill_m !== undefined ? { maxDrill: args.max_drill_m } : {}),
+    ...(args.cartridge_diameter_mm !== undefined
+      ? { cartridgeDiameter: args.cartridge_diameter_mm / 1000 }
+      : {}),
+    ...(args.smooth_blasting !== undefined ? { smooth: args.smooth_blasting } : {}),
+    ...(args.rock_constant !== undefined ? { rockConstant: args.rock_constant } : {}),
+    ...(args.delay_ms !== undefined ? { delayInterval: args.delay_ms / 1000 } : {}),
+  };
+  const explosiveId = explosiveByName(lib, args.explosive);
+  if (explosiveId) patch.explosiveId = explosiveId;
+  const contourId = explosiveByName(lib, args.contour_explosive);
+  if (contourId) patch.contourExplosiveId = contourId;
+  const form: FaceForm = { ...store.face, ...patch };
+  const explosive = pickFaceExplosive(lib, form);
+  if (!explosive) throw new ToolError('The project library has no explosive.');
+  let face;
+  try {
+    face = computeFace(form, explosive);
+  } catch (e) {
+    if (e instanceof InputError) throw new ToolError(`Invalid section or diameters: ${e.message}`);
+    throw e;
+  }
+  store.patchFace(patch);
+  const placement = placementFor('face', args);
+  openPanel('face');
+  const send = args.send ?? true;
+  let sent = 0;
+  if (send) {
+    readOnlyGuard();
+    blastOrFail();
+    sent = sendFace(form, face, placement);
+  }
+  const d = face.design;
+  const k = d.kpis;
+  const roles: Record<string, number> = {};
+  for (const h of d.holes) roles[h.role] = (roles[h.role] ?? 0) + 1;
+  const warnings = d.warnings.map(warningText);
+  const result = {
+    section: `${form.profile} ${r(form.width)} × ${r(form.height)} m`,
+    area_m2: r(face.profile.area, 1),
+    explosive: explosive.name,
+    charge:
+      form.cartridgeDiameter > 0
+        ? `cartridges Ø ${String(mm(form.cartridgeDiameter))} mm`
+        : 'bulk (coupled)',
+    holes_total: d.holes.length,
+    charged_holes: k.chargedHoles,
+    relief_holes: k.reliefHoles,
+    holes_by_group: roles,
+    cut_sections: d.squares.length,
+    drill_depth_m: r(d.depth),
+    advance_m: r(k.advance),
+    total_charge_kg: r(k.totalCharge, 1),
+    powder_factor_kg_m3: r(k.powderFactor),
+    charge_per_m_advance_kg: r(k.chargePerAdvance, 1),
+    drilled_m_per_m3: r(k.drilledPerVolume),
+    empirical_hole_count: Math.round(k.empiricalHoleCount),
+    warnings,
+    in_3d: send ? sent > 0 : false,
+    placed_holes: sent,
+    placement: placementOut(placement),
+    note: send
+      ? 'Holes are in the 3D design with electronic timing (one delay number per hole group); the drawing and tables are in the Subterránea panel.'
+      : 'Only computed: shown in the Subterránea panel; call again with send true to put it in 3D.',
+  };
+  pushCard({
+    id: 'ug-face',
+    title: t('ug.tab.face'),
+    sub: `${result.section} · ${explosive.name}`,
+    metrics: [
+      { label: t('ug.kpi.holes'), value: n(result.holes_total), tone: 'accent' },
+      { label: t('ug.kpi.advance'), value: n(result.advance_m, 2, 'm') },
+      { label: t('ug.kpi.charge'), value: n(result.total_charge_kg, 1, 'kg') },
+      { label: t('ug.kpi.powderFactor'), value: n(result.powder_factor_kg_m3, 2, 'kg/m³') },
+      { label: t('ug.kpi.empirical'), value: n(result.empirical_hole_count) },
+    ],
+    bars: [],
+    notes: warnings.map((text) => ({ text, tone: 'warn' as const })),
+    t0: performance.now(),
+  });
+  return result;
+}
+
+// ------------------------------------------------------------------ Abanicos de tajeo
+
+const ringSchema = z.object({
+  drive_width_m: z.number().min(1).max(15).optional().describe('Drilling drive width.'),
+  drive_height_m: z.number().min(1).max(15).optional(),
+  stope_width_m: z.number().min(1).max(100).optional().describe('Stope width across the drive.'),
+  stope_bottom_m: z
+    .number()
+    .min(-100)
+    .max(100)
+    .optional()
+    .describe('Stope bottom relative to the drive floor [m] (negative = below).'),
+  stope_top_m: z
+    .number()
+    .min(-100)
+    .max(200)
+    .optional()
+    .describe('Stope top relative to the drive floor [m].'),
+  stope_offset_m: z
+    .number()
+    .min(-100)
+    .max(100)
+    .optional()
+    .describe('Stope center offset to the right of the drive axis [m].'),
+  pivot_height_m: z
+    .number()
+    .min(0)
+    .max(10)
+    .optional()
+    .describe('Drill rig pivot height above the floor.'),
+  mode: z
+    .enum(['toeSpacing', 'angle'])
+    .optional()
+    .describe('Fan by toe spacing (default) or constant angle.'),
+  toe_spacing_m: z.number().min(0.2).max(10).optional(),
+  angle_step_deg: z.number().min(0.5).max(45).optional(),
+  max_length_m: z.number().min(1).max(60).optional(),
+  dead_zone_deg: z
+    .number()
+    .min(0)
+    .max(90)
+    .optional()
+    .describe('Half-width of the no-drilling zone around straight down.'),
+  hole_diameter_mm: z
+    .number()
+    .min(38)
+    .max(165)
+    .optional()
+    .describe('Long-hole diameter (89 typical).'),
+  burden_m: z.number().min(0.5).max(6).optional().describe('Ring burden (distance between rings).'),
+  rings: z.number().int().min(1).max(60).optional().describe('Number of rings to place.'),
+  rock_density_t_m3: z.number().min(1).max(6).optional(),
+  explosive: z.string().optional(),
+  hole_delay_ms: z.number().min(0).max(1000).optional(),
+  ring_delay_ms: z.number().min(0).max(5000).optional(),
+  ...placementFields,
+});
+
+function designRings(args: z.infer<typeof ringSchema>) {
+  const lib = document.project.library;
+  const store = useUndergroundStore.getState();
+  const map: [keyof typeof args, keyof RingForm, number][] = [
+    ['drive_width_m', 'driveWidth', 1],
+    ['drive_height_m', 'driveHeight', 1],
+    ['stope_width_m', 'stopeWidth', 1],
+    ['stope_bottom_m', 'stopeBottom', 1],
+    ['stope_top_m', 'stopeTop', 1],
+    ['stope_offset_m', 'stopeOffset', 1],
+    ['pivot_height_m', 'pivotHeight', 1],
+    ['toe_spacing_m', 'toeSpacing', 1],
+    ['angle_step_deg', 'angleStep', DEG],
+    ['max_length_m', 'maxLength', 1],
+    ['dead_zone_deg', 'deadZone', DEG],
+    ['hole_diameter_mm', 'holeDiameter', 0.001],
+    ['burden_m', 'burden', 1],
+    ['rings', 'rings', 1],
+    ['rock_density_t_m3', 'rockDensity', 1000],
+    ['hole_delay_ms', 'holeInterval', 0.001],
+    ['ring_delay_ms', 'ringInterval', 0.001],
+  ];
+  const patch: Partial<Record<keyof RingForm, unknown>> = {};
+  for (const [arg, key, f] of map) {
+    const v = args[arg];
+    if (typeof v === 'number') patch[key] = v * f;
+  }
+  if (args.mode) patch.mode = args.mode;
+  const explosiveId = explosiveByName(lib, args.explosive);
+  if (explosiveId) patch.explosiveId = explosiveId;
+  const form = { ...store.ring, ...patch } as RingForm;
+  const explosive: Explosive | null = pickExplosive(lib, form.explosiveId);
+  if (!explosive) throw new ToolError('The project library has no explosive.');
+  let ring;
+  try {
+    ring = computeRing(form, explosive);
+  } catch (e) {
+    if (e instanceof InputError) throw new ToolError(`Invalid stope or ring data: ${e.message}`);
+    throw e;
+  }
+  if (ring.ring.holes.length === 0)
+    throw new ToolError(
+      'No hole reaches the stope from the pivot: check the stope limits, the max length and the dead zone.',
+    );
+  store.patchRing(patch as Partial<RingForm>);
+  const placement = placementFor('ring', args);
+  openPanel('ring');
+  const send = args.send ?? true;
+  let sent = 0;
+  if (send) {
+    readOnlyGuard();
+    blastOrFail();
+    sent = sendRings(form, ring, placement);
+  }
+  const k = ring.ring.kpis;
+  const rings = Math.max(1, form.rings);
+  const charged = ring.ring.holes.filter((h) => h.chargedLength > 0).length;
+  const result = {
+    explosive: explosive.name,
+    holes_per_ring: ring.ring.holes.length,
+    charged_holes_per_ring: charged,
+    rings,
+    holes_total: ring.ring.holes.length * rings,
+    drilled_m_per_ring: r(k.drilledMeters, 1),
+    charge_kg_per_ring: r(k.totalCharge, 1),
+    tonnes_per_ring: r(k.tonnes, 0),
+    total_charge_kg: r(k.totalCharge * rings, 0),
+    total_tonnes: r(k.tonnes * rings, 0),
+    powder_factor_kg_t: r(k.chargePerTonne, 3),
+    drilled_m_per_t: r(k.drilledPerTonne, 3),
+    in_3d: send ? sent > 0 : false,
+    placed_holes: sent,
+    placement: placementOut(placement),
+    note: send
+      ? 'Rings are in the 3D design (uncharged collars alternate between holes), with electronic timing hole by hole and ring by ring.'
+      : 'Only computed: shown in the Subterránea panel; call again with send true to put it in 3D.',
+  };
+  pushCard({
+    id: 'ug-ring',
+    title: t('ug.tab.ring'),
+    sub: `${n(form.stopeWidth, 1)} × ${n(form.stopeTop - form.stopeBottom, 1)} m · ${explosive.name}`,
+    metrics: [
+      { label: t('ug.ringHoles'), value: n(result.holes_per_ring), tone: 'accent' },
+      { label: t('ug.rings'), value: n(rings) },
+      { label: t('ug.kpi.charge'), value: n(result.total_charge_kg, 0, 'kg') },
+      { label: t('ug.kpi.tonnes'), value: n(result.total_tonnes, 0, 't') },
+      { label: t('ug.kpi.chargePerTonne'), value: n(result.powder_factor_kg_t, 3, 'kg/t') },
+    ],
+    bars: [],
+    notes: [],
+    t0: performance.now(),
+  });
+  return result;
+}
+
+// ------------------------------------------------------------------ Estado
+
+function undergroundState() {
+  const s = useUndergroundStore.getState();
+  const blast = document.project.blasts[0];
+  const lib = document.project.library;
+  const f = s.face;
+  const g = s.ring;
+  const placements = s.placements ?? defaultPlacements(document.project);
+  return {
+    face: {
+      profile: f.profile,
+      width_m: f.width,
+      height_m: f.height,
+      hole_diameter_mm: mm(f.holeDiameter),
+      relief_diameter_mm: mm(f.reliefDiameter),
+      relief_holes: f.reliefCount,
+      max_drill_m: f.maxDrill,
+      cartridge_diameter_mm: mm(f.cartridgeDiameter),
+      explosive: pickFaceExplosive(lib, f)?.name ?? null,
+      smooth_blasting: f.smooth,
+      rock_constant: f.rockConstant,
+      delay_ms: r(f.delayInterval * 1000, 0),
+      placement: placementOut(placements.face),
+      holes_in_3d: taggedHoles(blast, FACE_TAG).length,
+    },
+    rings: {
+      drive_width_m: g.driveWidth,
+      drive_height_m: g.driveHeight,
+      stope_width_m: g.stopeWidth,
+      stope_bottom_m: g.stopeBottom,
+      stope_top_m: g.stopeTop,
+      stope_offset_m: g.stopeOffset,
+      pivot_height_m: g.pivotHeight,
+      mode: g.mode,
+      toe_spacing_m: g.toeSpacing,
+      angle_step_deg: r(g.angleStep / DEG, 1),
+      max_length_m: g.maxLength,
+      dead_zone_deg: r(g.deadZone / DEG, 0),
+      hole_diameter_mm: mm(g.holeDiameter),
+      burden_m: g.burden,
+      rings: g.rings,
+      rock_density_t_m3: g.rockDensity / 1000,
+      explosive: pickExplosive(lib, g.explosiveId)?.name ?? null,
+      placement: placementOut(placements.ring),
+      holes_in_3d: taggedHoles(blast, RING_TAG).length,
+    },
+    explosives: lib.explosives.map((e) => ({
+      name: e.name,
+      form: e.form,
+      ...(e.cartridge ? { cartridge_mm: mm(e.cartridge.diameter) } : {}),
+    })),
+  };
+}
+
+export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
+  design_tunnel_face: {
+    description:
+      'UNDERGROUND: design the blast round of a drift/tunnel face with the Swedish method (Holmberg): parallel-hole cut with relief hole(s), stoping, walls, roof/contour (smooth blasting) and lifters, charges and electronic delays; opens the Subterránea panel with the face drawing and, unless send is false, puts the holes in 3D inside the excavated drive. Omitted values keep the current form (underground_state). Returns holes, advance, kg, powder factor, empirical hole count and warnings.',
+    schema: faceSchema,
+    run: designFace,
+  },
+  design_stope_rings: {
+    description:
+      'UNDERGROUND: design long-hole fan rings (abanicos) for a stope from a drilling drive: fan from the rig pivot to the stope limits by toe spacing or angle, alternating uncharged collars, N rings at the given burden, electronic timing; opens the panel and, unless send is false, puts them in 3D with the drive and the stope. Omitted values keep the current form. Returns holes per ring, kg, tonnes and kg/t.',
+    schema: ringSchema,
+    run: designRings,
+  },
+  underground_state: {
+    description:
+      'UNDERGROUND: current face and ring parameters, their 3D placement, how many underground holes are in the design and the explosives available (with cartridge sizes).',
+    schema: z.object({}),
+    run: undergroundState,
+  },
+};
+
+export const UNDERGROUND_READ_ONLY = ['underground_state'];

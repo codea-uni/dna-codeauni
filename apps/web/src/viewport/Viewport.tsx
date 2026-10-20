@@ -4,6 +4,7 @@ import { bindVisualization } from '../analysis/visualize';
 import { t, useLocale } from '../i18n';
 import { session, setEngine } from '../session';
 import { applyTopographyToEngine } from '../topography/session';
+import { syncTunnels } from '../underground/send';
 import { useUiStore } from '../stores/uiStore';
 import { AgentCards } from '../ai/AgentCards';
 import { BuildChip, bindBuild } from './BuildChip';
@@ -26,6 +27,7 @@ export function Viewport() {
     const engine = new Engine(canvas, { document: session.document, selection: session.selection });
     setEngine(engine);
     applyTopographyToEngine();
+    syncTunnels(true);
 
     const ui = useUiStore.getState();
     engine.setTool(ui.tool);

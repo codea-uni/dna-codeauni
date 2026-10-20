@@ -9,12 +9,13 @@ import {
   computeFace,
   computeRing,
   pickExplosive,
+  pickFaceExplosive,
   PROFILE_CHOICES,
   type FaceComputation,
   type RingComputation,
 } from '../underground/model';
 import {
-  defaultOrigin,
+  defaultPlacements,
   FACE_TAG,
   RING_TAG,
   sendFace,
@@ -22,7 +23,7 @@ import {
   taggedHoles,
   type Placement,
 } from '../underground/send';
-import { useUndergroundStore } from '../underground/store';
+import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 
 const DEG = Math.PI / 180;
 
@@ -47,13 +48,11 @@ export function UndergroundPanel() {
   const tab = useUndergroundStore((s) => s.tab);
   const setTab = useUndergroundStore((s) => s.setTab);
   const project = useProject();
-  const placement = useUndergroundStore((s) => s.placement);
-  const setPlacement = useUndergroundStore((s) => s.setPlacement);
+  const placements = useUndergroundStore((s) => s.placements);
+  const setPlacements = useUndergroundStore((s) => s.setPlacements);
   useEffect(() => {
-    if (placement) return;
-    const o = defaultOrigin(project);
-    setPlacement({ x: o.x, y: o.y, z: o.z, azimuthDeg: 0, gradientPct: 0 });
-  }, [placement, project, setPlacement]);
+    if (!placements) setPlacements(defaultPlacements(project));
+  }, [placements, project, setPlacements]);
 
   return (
     <section className="panel ug">
@@ -185,8 +184,8 @@ function FaceTab() {
   const blast = useActiveBlast();
   const form = useUndergroundStore((s) => s.face);
   const patch = useUndergroundStore((s) => s.patchFace);
-  const placement = useUndergroundStore((s) => s.placement);
-  const explosive = pickExplosive(library, form.explosiveId);
+  const placement = useUndergroundStore((s) => s.placements?.face ?? null);
+  const explosive = pickFaceExplosive(library, form);
   const result = useMemo<Outcome<FaceComputation> | null>(
     () => (explosive ? attempt(() => computeFace(form, explosive)) : null),
     [form, explosive],
@@ -302,11 +301,22 @@ function FaceTab() {
             <ExplosiveSelect
               label={t('ug.explosive')}
               library={library}
-              value={form.explosiveId}
+              value={form.explosiveId ?? explosive?.id ?? null}
               onChange={(explosiveId) => {
                 patch({ explosiveId });
               }}
             />
+            <NumberField
+              label={t('ug.cartridge')}
+              unit={dia.unit}
+              decimals={dia.unit === 'in' ? 3 : 1}
+              min={0}
+              value={dia.show(form.cartridgeDiameter)}
+              onCommit={(v) => {
+                patch({ cartridgeDiameter: dia.parse(v) });
+              }}
+            />
+            <p className="hint">{t('ug.cartridgeHint')}</p>
             <label className="check">
               <input
                 type="checkbox"
@@ -348,6 +358,7 @@ function FaceTab() {
           onSend={(p) => {
             if (face) sendFace(form, face, p);
           }}
+          which="face"
           placement={placement}
         />
       </div>
@@ -533,11 +544,13 @@ function KvRow({ label, value }: { label: string; value: string }) {
 // ------------------------------------------------------------------ Envío al 3D
 
 function SendBox({
+  which,
   placement,
   previous,
   disabled,
   onSend,
 }: {
+  which: UndergroundTab;
   placement: Placement | null;
   previous: number;
   disabled: boolean;
@@ -549,7 +562,7 @@ function SendBox({
   const setPlacement = useUndergroundStore((s) => s.setPlacement);
   if (!placement) return null;
   const set = (p: Partial<Placement>) => {
-    setPlacement({ ...placement, ...p });
+    setPlacement(which, { ...placement, ...p });
   };
   const coord = (key: 'x' | 'y' | 'z', label: MessageKey) => (
     <NumberField
@@ -594,7 +607,7 @@ function SendBox({
       <div className="row">
         <button
           onClick={() => {
-            const o = defaultOrigin(project);
+            const o = defaultPlacements(project)[which];
             set({ x: o.x, y: o.y, z: o.z });
           }}
         >
@@ -639,7 +652,7 @@ function RingTab() {
   const blast = useActiveBlast();
   const form = useUndergroundStore((s) => s.ring);
   const patch = useUndergroundStore((s) => s.patchRing);
-  const placement = useUndergroundStore((s) => s.placement);
+  const placement = useUndergroundStore((s) => s.placements?.ring ?? null);
   const explosive = pickExplosive(library, form.explosiveId);
   const result = useMemo<Outcome<RingComputation> | null>(
     () => (explosive ? attempt(() => computeRing(form, explosive)) : null),
@@ -791,6 +804,7 @@ function RingTab() {
           onSend={(p) => {
             if (ring) sendRings(form, ring, p);
           }}
+          which="ring"
           placement={placement}
         />
       </div>

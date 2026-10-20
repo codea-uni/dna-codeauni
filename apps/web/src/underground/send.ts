@@ -15,16 +15,17 @@ import {
   type Op,
   type PlaneFrame,
   type Project,
+  type UndergroundExcavation,
   type UndergroundProducts,
   type UV,
   type Vec3,
 } from '@cronos/core';
-import type { TunnelView } from '@cronos/engine';
 import { t } from '../i18n';
 import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import {
   pickExplosive,
+  pickFaceExplosive,
   type FaceComputation,
   type FaceForm,
   type RingComputation,
@@ -70,6 +71,19 @@ export function defaultOrigin(project: Project): Vec3 {
     return { x: s.x / holes.length, y: s.y / holes.length, z: s.z / holes.length };
   }
   return { ...project.coordinateSystem.origin };
+}
+
+/** Separación por defecto entre el frente y los abanicos, perpendicular al avance [m]. */
+const RING_SIDE_OFFSET = 60;
+
+/**
+ * Ubicaciones por defecto: el frente en `defaultOrigin` con avance al norte y los abanicos a
+ * 60 m al este, para que los dos diseños no se encimen.
+ */
+export function defaultPlacements(project: Project): Record<'face' | 'ring', Placement> {
+  const o = defaultOrigin(project);
+  const face = { x: o.x, y: o.y, z: o.z, azimuthDeg: 0, gradientPct: 0 };
+  return { face, ring: { ...face, x: o.x + RING_SIDE_OFFSET } };
 }
 
 /** Taladros ya enviados con la marca `tag`: el envío los reemplaza. */
@@ -157,35 +171,55 @@ function replaceOps(blast: Blast, tag: string, holes: Hole[], electronic: boolea
 
 // ------------------------------------------------------------------ Contexto 3D
 
-const FACE_COLOR = 0x8fa3b8;
-const ROUND_COLOR = 0x5b7aff;
-const STOPE_COLOR = 0xffae00;
+const COLORS: Record<UndergroundExcavation['kind'], number> = {
+  drive: 0x8fa3b8,
+  round: 0x5b7aff,
+  stope: 0xffae00,
+};
 
-interface TunnelContext {
-  holeIds: ReadonlySet<string>;
-  views: TunnelView[];
-}
-const contexts = new Map<string, TunnelContext>();
-let subscribed = false;
+let shown: readonly UndergroundExcavation[] = [];
 
-/** Muestra el contexto de un envío solo mientras sus taladros existan (deshacer lo oculta). */
-function syncTunnels(): void {
+/**
+ * Pasa al motor las excavaciones de la voladura cuyos taladros sigan existiendo (deshacer o borrar
+ * los taladros las oculta). Solo reconstruye si cambió lo que se ve.
+ */
+export function syncTunnels(force = false): void {
   const engine = getEngine();
   if (!engine) return;
-  const present = new Set<string>(document.project.blasts.flatMap((b) => b.holes.map((h) => h.id)));
-  const views: TunnelView[] = [];
-  for (const ctx of contexts.values())
-    if ([...ctx.holeIds].some((id) => present.has(id))) views.push(...ctx.views);
-  engine.setTunnels(views);
+  const visible: UndergroundExcavation[] = [];
+  for (const b of document.project.blasts) {
+    const tags = new Set(b.holes.flatMap((h) => h.tags ?? []));
+    for (const e of b.excavations ?? []) if (tags.has(e.tag)) visible.push(e);
+  }
+  if (!force && visible.length === shown.length && visible.every((e, i) => e === shown[i])) return;
+  shown = visible;
+  engine.setTunnels(
+    visible.map((e, i) => ({
+      id: `${e.tag}-${e.kind}-${String(i)}`,
+      sections: e.sections,
+      color: COLORS[e.kind],
+      surface: e.kind === 'drive',
+      // El frente es la primera sección del avance de la ronda.
+      ...(e.kind === 'round' ? { highlight: 0 } : {}),
+    })),
+  );
 }
 
-function setContext(tag: string, holes: Hole[], views: TunnelView[]): void {
-  contexts.set(tag, { holeIds: new Set(holes.map((h) => h.id)), views });
-  if (!subscribed) {
-    subscribed = true;
-    document.subscribe(syncTunnels);
-  }
-  syncTunnels();
+/** Mantiene el contexto 3D al día con el documento (cargar, deshacer, borrar). */
+export function startTunnelSync(): () => void {
+  syncTunnels(true);
+  return document.subscribe(() => {
+    syncTunnels();
+  });
+}
+
+/** Op que reemplaza las excavaciones de `tag` en la voladura. */
+function excavationOp(blast: Blast, tag: string, items: UndergroundExcavation[]): Op {
+  return {
+    type: 'blast/patch',
+    blastId: blast.id,
+    patch: { excavations: [...(blast.excavations ?? []).filter((e) => e.tag !== tag), ...items] },
+  };
 }
 
 /** Secciones del perfil cada ~1 m entre `from` y `to` a lo largo del eje. */
@@ -218,13 +252,17 @@ function done(n: number, hasDetonator: boolean) {
 
 // ------------------------------------------------------------------ Envíos
 
-export function sendFace(form: FaceForm, face: FaceComputation, placement: Placement): void {
+/** Envía la ronda del frente; devuelve los taladros creados (0 si no se pudo). */
+export function sendFace(form: FaceForm, face: FaceComputation, placement: Placement): number {
   const blast = guard();
-  if (!blast) return;
-  const prod = products(document.project, form.explosiveId, form.contourExplosiveId);
+  if (!blast) return 0;
+  const explosive = pickFaceExplosive(document.project.library, form);
+  const prod = explosive
+    ? products(document.project, explosive.id, form.contourExplosiveId ?? explosive.id)
+    : null;
   if (!prod) {
     useUiStore.getState().notify(t('ug.noExplosive'), 'error');
-    return;
+    return 0;
   }
   const frame = frameOf(placement);
   const holes = faceRoundToHoles({
@@ -234,38 +272,36 @@ export function sendFace(form: FaceForm, face: FaceComputation, placement: Place
     delayInterval: form.delayInterval,
     tag: FACE_TAG,
   });
-  document.dispatch(
-    replaceOps(blast, FACE_TAG, holes, prod.electronic),
-    t('ug.undo.face', { n: holes.length }),
-  );
   const profile: ExcavationProfile = face.profile;
   const behind = 3 * face.design.kpis.advance;
-  setContext(FACE_TAG, holes, [
-    {
-      id: 'face-drive',
-      sections: extrude(frame, profile.points, -behind, 0),
-      color: FACE_COLOR,
-      surface: true,
-      highlight: 0,
-    },
-    {
-      id: 'face-round',
-      sections: extrude(frame, profile.points, 0, face.design.depth),
-      color: ROUND_COLOR,
-    },
-  ]);
+  document.dispatch(
+    [
+      ...replaceOps(blast, FACE_TAG, holes, prod.electronic),
+      excavationOp(blast, FACE_TAG, [
+        { tag: FACE_TAG, kind: 'drive', sections: extrude(frame, profile.points, -behind, 0) },
+        {
+          tag: FACE_TAG,
+          kind: 'round',
+          sections: extrude(frame, profile.points, 0, face.design.depth),
+        },
+      ]),
+    ],
+    t('ug.undo.face', { n: holes.length }),
+  );
   done(holes.length, prod.hasDetonator);
   const size = Math.max(profile.width, profile.height) * 2.6 + behind / 2;
   fly(frame, { u: 0, v: profile.height / 2 }, face.design.depth / 2, size, placement.azimuthDeg);
+  return holes.length;
 }
 
-export function sendRings(form: RingForm, ring: RingComputation, placement: Placement): void {
+/** Envía los anillos; devuelve los taladros creados (0 si no se pudo). */
+export function sendRings(form: RingForm, ring: RingComputation, placement: Placement): number {
   const blast = guard();
-  if (!blast) return;
+  if (!blast) return 0;
   const prod = products(document.project, form.explosiveId);
   if (!prod) {
     useUiStore.getState().notify(t('ug.noExplosive'), 'error');
-    return;
+    return 0;
   }
   const frame = frameOf(placement);
   const placements = replicateRings(form.rings, form.burden, { ringInterval: form.ringInterval });
@@ -276,25 +312,26 @@ export function sendRings(form: RingForm, ring: RingComputation, placement: Plac
     products: prod.products,
     tag: RING_TAG,
   });
-  document.dispatch(
-    replaceOps(blast, RING_TAG, holes, prod.electronic),
-    t('ug.undo.rings', { n: holes.length }),
-  );
   const length = (form.rings - 1) * form.burden;
   const pad = 3;
-  setContext(RING_TAG, holes, [
-    {
-      id: 'ring-drive',
-      sections: extrude(frame, ring.drive.points, -pad, length + pad),
-      color: FACE_COLOR,
-      surface: true,
-    },
-    {
-      id: 'ring-stope',
-      sections: extrude(frame, ring.boundary, -pad / 2, length + pad / 2),
-      color: STOPE_COLOR,
-    },
-  ]);
+  document.dispatch(
+    [
+      ...replaceOps(blast, RING_TAG, holes, prod.electronic),
+      excavationOp(blast, RING_TAG, [
+        {
+          tag: RING_TAG,
+          kind: 'drive',
+          sections: extrude(frame, ring.drive.points, -pad, length + pad),
+        },
+        {
+          tag: RING_TAG,
+          kind: 'stope',
+          sections: extrude(frame, ring.boundary, -pad / 2, length + pad / 2),
+        },
+      ]),
+    ],
+    t('ug.undo.rings', { n: holes.length }),
+  );
   done(holes.length, prod.hasDetonator);
   const height = form.stopeTop - form.stopeBottom;
   const mid = offsetFrame(frame, length / 2);
@@ -305,4 +342,5 @@ export function sendRings(form: RingForm, ring: RingComputation, placement: Plac
     Math.max(form.stopeWidth, height, length) * 1.4,
     placement.azimuthDeg,
   );
+  return holes.length;
 }
