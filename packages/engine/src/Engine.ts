@@ -1324,6 +1324,20 @@ export class Engine {
     this.loop.invalidate();
   }
 
+  /**
+   * Pasa a 3D y encuadra las nubes y modelos de bloques cargados (vienen en UTM, lejos del
+   * diseño). Devuelve false si no hay ninguno visible.
+   */
+  frameModels3d(): boolean {
+    const b = this.models3d.bounds;
+    if (!b) return false;
+    if (this.viewMode !== '3d') this.setViewMode('3d');
+    this.orbit = fitOrbit(b, (this.camera3d.fov * Math.PI) / 180, this.width / this.height);
+    this.applyCamera3d();
+    this.loop.invalidate();
+    return true;
+  }
+
   /** Excavaciones subterráneas de contexto en 3D (coordenadas de proyecto); [] las quita. */
   setTunnels(tunnels: readonly TunnelView[]): void {
     this.tunnelViews = tunnels;

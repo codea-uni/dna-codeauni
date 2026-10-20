@@ -1278,7 +1278,11 @@ function setLayers(args: z.infer<typeof layersSchema>) {
   // Prender una capa vacía no muestra nada: se avisa para no decir que se ve algo que no existe.
   const warnings: string[] = [];
   const shows = (n: LayerName) => args.show?.includes(n) ?? false;
-  if (shows('topography') && !loadedSurveys().some((x) => x.tin))
+  if (loadedSurveys().some((x) => x.survey.assets.cloud ?? x.survey.assets.blocks))
+    warnings.push(
+      'Point clouds / block models are loaded: they are 3D context in UTM (not terrain, not the bench). To show them call set_camera target "models"; do not use use_topography for them.',
+    );
+  else if (shows('topography') && !loadedSurveys().some((x) => x.tin))
     warnings.push(
       'NO TOPOGRAPHY in this project: there is no survey loaded, so there is no relief to show (the flat gray plane is the bench top at a fixed elevation). Tell the user plainly. Topography = the surveyed real terrain; it is NOT the muckpile/material (the simulated broken-rock pile after the blast). To get relief: upload a survey in the Topografía tab, or open a project that has one (e.g. "Demo · Banco sobre topografía", mine Cuajone).',
     );

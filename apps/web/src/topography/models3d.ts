@@ -1,5 +1,5 @@
 import { formatNumber, t } from '../i18n';
-import { getCompute, session } from '../session';
+import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { createSurveyOps } from './session';
 
@@ -52,6 +52,8 @@ export async function importModel3dFiles(files: readonly File[]): Promise<void> 
         );
       for (const w of r.warnings) ui.notify(w);
       if (useUiStore.getState().viewMode !== '3d') useUiStore.getState().setViewMode('3d');
+      // Las nubes y bloques vienen en UTM, lejos del diseño: ir a verlos.
+      requestAnimationFrame(() => getEngine()?.frameModels3d());
     } catch (err) {
       ui.notify(
         t('topo.model3d.failed', {

@@ -153,16 +153,15 @@ export function PointCloudControls() {
         />{' '}
         {size.toFixed(2)} m
       </label>
-      {useUiStore.getState().viewMode !== '3d' && (
-        <button
-          className="small"
-          onClick={() => {
-            useUiStore.getState().setViewMode('3d');
-          }}
-        >
-          {t('topo.model3d.view3d')}
-        </button>
-      )}
+      <button
+        className="small"
+        onClick={() => {
+          useUiStore.getState().setViewMode('3d');
+          requestAnimationFrame(() => getEngine()?.frameModels3d());
+        }}
+      >
+        {t('topo.model3d.view3d')}
+      </button>
     </div>
   );
 }

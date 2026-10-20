@@ -94,9 +94,19 @@ function maybePerimeter(blast: Blast, name?: string): BlastBoundary | null {
 
 const cameraSchema = z.object({
   target: z
-    .enum(['blast', 'perimeter', 'hole', 'point', 'free_face', 'behind', 'overview', 'xy'])
+    .enum([
+      'blast',
+      'perimeter',
+      'hole',
+      'point',
+      'free_face',
+      'behind',
+      'overview',
+      'xy',
+      'models',
+    ])
     .describe(
-      'What to frame: blast (all perimeters), perimeter, hole (label), point (protected point name), free_face (looking at the free face from outside), behind (from behind the blast toward the free face), overview (blast and protected points from high), xy (a position).',
+      'What to frame: models (the imported point clouds and block models, in 3D; use it to show them), blast (all perimeters), perimeter, hole (label), point (protected point name), free_face (looking at the free face from outside), behind (from behind the blast toward the free face), overview (blast and protected points from high), xy (a position).',
     ),
   perimeter: z.string().optional(),
   hole: z.string().optional().describe('Hole label for target hole.'),
@@ -117,6 +127,13 @@ function setCamera(args: z.infer<typeof cameraSchema>) {
   if (!engine) throw new ToolError('No view available.');
   if (engine.xrMode)
     throw new ToolError('The user is in VR: use vr_view (go_to / focus_*) to move them instead.');
+  if (args.target === 'models') {
+    if (!engine.frameModels3d())
+      throw new ToolError(
+        'No point cloud or block model is loaded (Topografía → Nube de puntos o modelo de bloques).',
+      );
+    return { framed: 'models', view: '3d' };
+  }
   const blast = blastOrFail();
   const allPoly = blast.boundaries.flatMap((b) => b.polygon);
   const mode = args.view;
