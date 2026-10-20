@@ -33,13 +33,17 @@ export interface BlockModelView {
 
 /**
  * Nubes de puntos y modelos de bloques en 3D (sin triangular: conservan túneles, voladizos y el
- * color del escaneo). Las coordenadas se pasan a relativas al origen de render en float32.
+ * color del escaneo). Los vértices quedan relativos a un ancla propia de cada objeto (float32 con
+ * precisión milimétrica) y el desplazamiento al origen de render va en la posición del objeto
+ * (float64 en three): una nube en UTM lejos del diseño ya no se dibuja «en escalones» de 0,5–1 m.
  */
 export class Model3dLayer {
   readonly root = new Group();
   private pointSize = 0.15;
   private disposers: (() => void)[] = [];
   bounds: Bounds3 | null = null;
+  /** Caja de cada nube y modelo (render), para encuadrar sin unir sectores lejanos. */
+  items: (Bounds3 & { id: string })[] = [];
 
   constructor() {
     this.root.name = 'models3d';
@@ -70,25 +74,34 @@ export class Model3dLayer {
       b.maxY = Math.max(b.maxY, y);
       b.maxZ = Math.max(b.maxZ, z);
     };
+    const items: (Bounds3 & { id: string })[] = [];
+    const add = (id: string, bb: { min: Vector3; max: Vector3 } | null, at: Vector3): void => {
+      if (!bb || !Number.isFinite(bb.min.x) || !Number.isFinite(bb.max.x)) return;
+      const box = {
+        id,
+        minX: bb.min.x + at.x,
+        minY: bb.min.y + at.y,
+        minZ: bb.min.z + at.z,
+        maxX: bb.max.x + at.x,
+        maxY: bb.max.y + at.y,
+        maxZ: bb.max.z + at.z,
+      };
+      items.push(box);
+      grow(box.minX, box.minY, box.minZ);
+      grow(box.maxX, box.maxY, box.maxZ);
+    };
     for (const c of clouds) {
       const pts = this.cloudPoints(c.cloud, origin);
-      const bb = pts.geometry.boundingBox;
-      if (bb) {
-        grow(bb.min.x, bb.min.y, bb.min.z);
-        grow(bb.max.x, bb.max.y, bb.max.z);
-      }
+      add(c.id, pts.geometry.boundingBox, pts.position);
       this.root.add(pts);
     }
     for (const m of blocks) {
       const mesh = this.blockMesh(m, origin);
       if (!mesh) continue;
-      const bb = mesh.boundingBox;
-      if (bb) {
-        grow(bb.min.x, bb.min.y, bb.min.z);
-        grow(bb.max.x, bb.max.y, bb.max.z);
-      }
+      add(m.id, mesh.boundingBox, mesh.position);
       this.root.add(mesh);
     }
+    this.items = items;
     this.bounds = Number.isFinite(b.minX) ? b : null;
   }
 
@@ -96,15 +109,9 @@ export class Model3dLayer {
     const dx = cloud.origin[0] - origin.x;
     const dy = cloud.origin[1] - origin.y;
     const dz = cloud.origin[2] - origin.z;
-    const src = cloud.positions;
-    const pos = new Float32Array(src.length);
-    for (let i = 0; i < src.length; i += 3) {
-      pos[i] = (src[i] ?? 0) + dx;
-      pos[i + 1] = (src[i + 1] ?? 0) + dy;
-      pos[i + 2] = (src[i + 2] ?? 0) + dz;
-    }
+    // Los puntos ya vienen relativos al origen de la nube: se quedan así y la nube se desplaza.
     const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new Float32BufferAttribute(pos, 3));
+    geometry.setAttribute('position', new Float32BufferAttribute(cloud.positions, 3));
     if (cloud.colors)
       geometry.setAttribute('color', new Uint8BufferAttribute(cloud.colors, 3, true));
     geometry.computeBoundingBox();
@@ -117,6 +124,7 @@ export class Model3dLayer {
     });
     const points = new Points(geometry, material);
     points.name = 'pointCloud';
+    points.position.set(dx, dy, dz);
     this.disposers.push(() => {
       geometry.dispose();
       material.dispose();
@@ -142,15 +150,16 @@ export class Model3dLayer {
     const p = new Vector3();
     const s = new Vector3();
     const color = new Color();
+    const c = m.blocks.centers;
+    // Ancla: el primer bloque (en float64); cada bloque relativo a ella.
+    const ax = c[0] ?? 0;
+    const ay = c[1] ?? 0;
+    const az = c[2] ?? 0;
+    mesh.position.set(ax - origin.x, ay - origin.y, az - origin.z);
     let k = 0;
     for (let i = 0; i < n; i++) {
       if (!m.visible[i]) continue;
-      const c = m.blocks.centers;
-      p.set(
-        (c[i * 3] ?? 0) - origin.x,
-        (c[i * 3 + 1] ?? 0) - origin.y,
-        (c[i * 3 + 2] ?? 0) - origin.z,
-      );
+      p.set((c[i * 3] ?? 0) - ax, (c[i * 3 + 1] ?? 0) - ay, (c[i * 3 + 2] ?? 0) - az);
       // Un poco menores que la celda: se distinguen los bordes de cada bloque.
       const z = m.blocks.sizes;
       s.set((z[i * 3] ?? 1) * 0.96, (z[i * 3 + 1] ?? 1) * 0.96, (z[i * 3 + 2] ?? 1) * 0.96);
@@ -182,6 +191,7 @@ export class Model3dLayer {
     this.disposers = [];
     this.root.clear();
     this.bounds = null;
+    this.items = [];
   }
 
   dispose(): void {

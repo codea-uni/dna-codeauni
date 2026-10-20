@@ -66,7 +66,10 @@ export function hexCss(hex: number): string {
 export interface Scene3DOptions {
   /** Exageración del radio de los taladros (1 = real). */
   radiusScale: number;
-  /** Radio mínimo visible [m]. */
+  /**
+   * Radio mínimo [m] en el modelo. El mínimo que se ve lo pone la cámara (`setViewMinRadius`, en
+   * píxeles): un mínimo fijo en metros engordaba los taladros de 38–45 mm de un frente.
+   */
   minRadius: number;
   /** Opacidad de la topografía (0–1): deja ver los taladros bajo el terreno. */
   surfaceOpacity: number;
@@ -74,7 +77,7 @@ export interface Scene3DOptions {
 
 export const DEFAULT_3D_OPTIONS: Scene3DOptions = {
   radiusScale: 2,
-  minRadius: 0.15,
+  minRadius: 0.005,
   surfaceOpacity: 0.85,
 };
 
@@ -112,7 +115,15 @@ export class Scene3D {
   private surfaceMask: readonly (readonly { x: number; y: number }[])[] | null = null;
   private surfaceOpacity = DEFAULT_3D_OPTIONS.surfaceOpacity;
   bounds: Bounds3 | null = null;
+  /** Extensión del diseño (taladros, perímetros, caras) sin la topografía; null si no hay. */
+  designBounds: Bounds3 | null = null;
   segmentCount = 0;
+  /** Radio mínimo que pide la cámara [m] (≈ 1 píxel a la distancia de la órbita). */
+  private viewMinRadius = 0;
+  /** Radio propio de cada tramo (diámetro × factor) y su proporción (1 o 0,6 si va vacío). */
+  private instBase = new Float32Array(0);
+  private instThin = new Float32Array(0);
+  private shellBase = new Float32Array(0);
   private instanceHole: HoleId[] = [];
   private instancePaint = new Uint8Array(0);
   private baseColors = new Float32Array(0);
@@ -196,16 +207,20 @@ export class Scene3D {
       depth: [number, number];
       length: number;
       charge: boolean;
+      base: number;
+      thin: number;
     }[] = [];
-    const shells: { from: Vec3; to: Vec3; r: number; hole: HoleId }[] = [];
+    const shells: { from: Vec3; to: Vec3; r: number; base: number; hole: HoleId }[] = [];
+    const minView = this.viewMinRadius;
     for (const blast of blasts) {
       for (const h of blast.holes) {
-        const r = Math.max(options.minRadius, (h.diameter / 2) * options.radiusScale);
+        const base = Math.max(options.minRadius, (h.diameter / 2) * options.radiusScale);
+        const r = Math.max(base, minView);
         const collar = h.collar;
         const along = (p: Vec3) => Math.hypot(p.x - collar.x, p.y - collar.y, p.z - collar.z);
         // Perforación completa, delgada y dentro de la carga: se ve mientras la carga se llena.
         if (h.decks.length > 0)
-          shells.push({ from: rel(collar), to: rel(holeToe(h)), r: r * 0.6, hole: h.id });
+          shells.push({ from: rel(collar), to: rel(holeToe(h)), r: r * 0.6, base, hole: h.id });
         for (const s of holeSegments3d(h)) {
           const color =
             s.kind === 'explosive'
@@ -223,6 +238,8 @@ export class Scene3D {
             depth: [along(s.from), along(s.to)],
             length: h.length,
             charge: s.kind !== 'empty',
+            base,
+            thin: s.kind === 'empty' ? 0.6 : 1,
           });
         }
         const c = rel(h.collar);
@@ -264,6 +281,8 @@ export class Scene3D {
     this.instFrom = Float32Array.from(segs.flatMap((x) => [x.from.x, x.from.y, x.from.z]));
     this.instTo = Float32Array.from(segs.flatMap((x) => [x.to.x, x.to.y, x.to.z]));
     this.instRadius = Float32Array.from(segs, (x) => x.r);
+    this.instBase = Float32Array.from(segs, (x) => x.base);
+    this.instThin = Float32Array.from(segs, (x) => x.thin);
     this.instDepth = Float32Array.from(segs.flatMap((x) => x.depth));
     this.instLength = Float32Array.from(segs, (x) => x.length);
     this.instCharge = Uint8Array.from(segs, (x) => (x.charge ? 1 : 0));
@@ -278,6 +297,7 @@ export class Scene3D {
     this.buildShells(shells);
 
     // ---------------------------------------------------------------- Banco, caras y topografía
+    const designGrowth = () => (Number.isFinite(b.minX) ? { ...b } : null);
     const wanted = new Set<TinData>();
     for (const blast of blasts) {
       const id = blast.bench.topographyId;
@@ -360,6 +380,7 @@ export class Scene3D {
     // Si ningún banco usa un levantamiento, se dibujan los cargados como referencia; sin
     // taladros, su extensión decide el encuadre.
     if (wanted.size === 0) for (const tin of tins.values()) wanted.add(tin);
+    this.designBounds = designGrowth();
     this.surfaceOpacity = options.surfaceOpacity;
     this.syncSurfaces(wanted, origin);
     if (!Number.isFinite(b.minX))
@@ -370,6 +391,45 @@ export class Scene3D {
       }
     this.bounds = Number.isFinite(b.minX) ? b : null;
     this.refreshColors();
+  }
+
+  /**
+   * Radio mínimo visible [m] que pide la cámara (≈ 1 px a la distancia de la órbita): de cerca el
+   * taladro se ve con su diámetro real × el factor; de lejos no baja de un píxel. Reescribe las
+   * matrices solo si el cambio se nota (> 10 %). Devuelve si cambió algo.
+   */
+  setViewMinRadius(radius: number): boolean {
+    const next = Number.isFinite(radius) && radius > 0 ? radius : 0;
+    const prev = this.viewMinRadius;
+    if (next === prev || (prev > 0 && Math.abs(next - prev) / prev < 0.1)) return false;
+    this.viewMinRadius = next;
+    for (let i = 0; i < this.shellBase.length; i++)
+      this.shellRadius[i] = Math.max(this.shellBase[i] ?? 0, next) * 0.6;
+    const mesh = this.cylinders;
+    if (!mesh || this.instBase.length === 0) return true;
+    const m = mesh.instanceMatrix.array as Float32Array;
+    const from = { x: 0, y: 0, z: 0 };
+    const to = { x: 0, y: 0, z: 0 };
+    for (let i = 0; i < this.instBase.length; i++) {
+      const r = Math.max(this.instBase[i] ?? 0, next) * (this.instThin[i] ?? 1);
+      this.instRadius[i] = r;
+      // Los recortados por el pintado en vivo se reescriben en su próximo cuadro.
+      if (this.instClipped[i]) continue;
+      from.x = this.instFrom[i * 3] ?? 0;
+      from.y = this.instFrom[i * 3 + 1] ?? 0;
+      from.z = this.instFrom[i * 3 + 2] ?? 0;
+      to.x = this.instTo[i * 3] ?? 0;
+      to.y = this.instTo[i * 3 + 1] ?? 0;
+      to.z = this.instTo[i * 3 + 2] ?? 0;
+      writeSegmentMatrix(m, i * 16, from, to, r);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    return true;
+  }
+
+  /** Radio con el que se dibuja cada tramo [m] (pruebas y diagnóstico). */
+  get segmentRadii(): Float32Array {
+    return this.instRadius;
   }
 
   /**
@@ -422,7 +482,9 @@ export class Scene3D {
     if (changed) mesh.instanceMatrix.needsUpdate = true;
   }
 
-  private buildShells(shells: readonly { from: Vec3; to: Vec3; r: number; hole: HoleId }[]): void {
+  private buildShells(
+    shells: readonly { from: Vec3; to: Vec3; r: number; base: number; hole: HoleId }[],
+  ): void {
     if (shells.length > this.shellCapacity || !this.shells) {
       this.shells?.dispose();
       this.shellCapacity = Math.max(256, Math.ceil(shells.length * 1.5));
@@ -441,6 +503,7 @@ export class Scene3D {
       shells.flatMap((x) => [x.from.x, x.from.y, x.from.z, x.to.x, x.to.y, x.to.z]),
     );
     this.shellRadius = Float32Array.from(shells, (x) => x.r);
+    this.shellBase = Float32Array.from(shells, (x) => x.base);
     this.dynamic.add(this.shells);
   }
 

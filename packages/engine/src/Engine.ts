@@ -14,10 +14,12 @@ import {
   DEFAULT_HOLE_TEMPLATE,
   LineSnapIndex,
   freeFaceQuads,
+  holeToe,
   pointInPolygon,
   snapPoint,
   type Blast,
   type BlastId,
+  type Bounds3,
   type BoundaryId,
   type ChangeSet,
   type ConnectionId,
@@ -38,6 +40,14 @@ import {
   type Vec3,
 } from '@cronos/core';
 import { fitBounds, screenToWorld, type PlanViewState } from './cameras/planView';
+import {
+  clipPlanes,
+  clusterBoxes,
+  farthestCorner,
+  frameBox,
+  minRadiusAt,
+  sceneNear,
+} from './cameras/frame';
 import {
   dollyOrbit,
   fitOrbit,
@@ -688,14 +698,24 @@ export class Engine {
     };
   }
 
-  /** Encuadra todos los taladros y perímetros (o la selección si `selectionOnly`). */
+  /**
+   * Encuadra todos los taladros y perímetros (o la selección si `selectionOnly`); sin diseño, los
+   * levantamientos cargados (sin unir sectores lejanos, ver `cameras/frame.ts`). En 3D encuadra la
+   * vista 3D y deja la planta encuadrada también (al volver a planta no queda en otro lugar).
+   */
   zoomToFit(selectionOnly = false): void {
     if (this.viewMode === '3d') {
       if (this.scene3dDirty) this.rebuild3d();
       this.fit3d();
       this.applyCamera3d();
+      if (!selectionOnly) this.fitPlan(false);
       return;
     }
+    this.fitPlan(selectionOnly);
+  }
+
+  /** Encuadre de la planta (ver `zoomToFit`). */
+  private fitPlan(selectionOnly: boolean): void {
     const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
     const add = (x: number, y: number): void => {
       bounds.minX = Math.min(bounds.minX, x - this.origin.x);
@@ -705,17 +725,25 @@ export class Engine {
     };
     for (const blast of this.document.project.blasts) {
       for (const h of blast.holes) {
-        if (!selectionOnly || this.selection.has(h.id)) add(h.collar.x, h.collar.y);
+        if (selectionOnly && !this.selection.has(h.id)) continue;
+        add(h.collar.x, h.collar.y);
+        // Bajo tierra los taladros van casi horizontales: en planta importa hasta dónde llegan.
+        if (h.tags?.some((tag) => tag.startsWith('ug-'))) {
+          const toe = holeToe(h);
+          add(toe.x, toe.y);
+        }
       }
       if (!selectionOnly)
         for (const b of blast.boundaries) for (const p of b.polygon) add(p.x, p.y);
     }
-    // Sin diseño, se encuadra la topografía.
-    if (!Number.isFinite(bounds.minX) && !selectionOnly)
-      for (const t of this.topographyData) {
-        add(t.bounds.minX, t.bounds.minY);
-        add(t.bounds.maxX, t.bounds.maxY);
+    // Sin diseño, se encuadra la topografía (el primer levantamiento y los cercanos a él).
+    if (!Number.isFinite(bounds.minX) && !selectionOnly) {
+      const t = clusterBoxes(this.topographyData.map((d) => d.bounds));
+      if (t) {
+        add(t.minX, t.minY);
+        add(t.maxX, t.maxY);
       }
+    }
     if (!Number.isFinite(bounds.minX)) {
       if (selectionOnly) return;
       this.setView({ centerX: 0, centerY: 0, metersPerPixel: 0.1 });
@@ -986,7 +1014,7 @@ export class Engine {
       this.xr.focus({ x: at.x - o.x, y: at.y - o.y, z: z - o.z }, size ?? 30);
       return;
     }
-    const b = this.withMuckpileBounds(this.scene3d.bounds);
+    const b = this.frame3dBounds();
     if (!b) return;
     this.xr.focus(
       { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2, z: b.maxZ },
@@ -1220,7 +1248,7 @@ export class Engine {
       return z === null ? null : z - o.z;
     };
     // Extensión de la maqueta: la voladura (y la pila) más el levantamiento del banco, una vez.
-    let b = this.withMuckpileBounds(this.scene3d.bounds);
+    let b = this.frame3dBounds();
     const tinId = project.blasts[0]?.bench.topographyId;
     const tin = tinId ? this.topographyTins.get(tinId) : undefined;
     if (tin && b) {
@@ -1367,23 +1395,15 @@ export class Engine {
   }
 
   /**
-   * Pasa a 3D y encuadra las nubes y modelos de bloques cargados (vienen en UTM, lejos del
-   * diseño). Devuelve false si no hay ninguno visible.
+   * Pasa a 3D y encuadra las nubes, modelos de bloques y labores cargados (vienen en UTM, lejos
+   * del diseño): `surveyId` (si se da) y los de su mismo sector. Devuelve false si no hay ninguno.
    */
-  frameModels3d(): boolean {
-    const m = this.models3d.bounds;
-    const w = this.workings3d.bounds;
-    const b =
-      m && w
-        ? {
-            minX: Math.min(m.minX, w.minX),
-            minY: Math.min(m.minY, w.minY),
-            minZ: Math.min(m.minZ, w.minZ),
-            maxX: Math.max(m.maxX, w.maxX),
-            maxY: Math.max(m.maxY, w.maxY),
-            maxZ: Math.max(m.maxZ, w.maxZ),
-          }
-        : (m ?? w);
+  frameModels3d(surveyId?: string): boolean {
+    // El levantamiento pedido (o las labores) primero; los que están en otro sector (> 5 km) no
+    // entran en el encuadre.
+    const all = [...this.workings3d.items, ...this.models3d.items];
+    const first = surveyId ? all.filter((i) => i.id === surveyId) : [];
+    const b = clusterBoxes([...first, ...all.filter((i) => !first.includes(i))]);
     if (!b) return false;
     if (this.viewMode !== '3d') this.setViewMode('3d');
     this.orbit = fitOrbit(b, (this.camera3d.fov * Math.PI) / 180, this.width / this.height);
@@ -2256,8 +2276,33 @@ export class Engine {
     this.labels3d.mesh.visible = v.labels && n <= 2500;
   }
 
+  /** Levantamientos dibujados en 3D (cajas de render): labores, nubes, modelos y topografía. */
+  private surveyBoxes3d(): Bounds3[] {
+    const o = this.origin;
+    return [
+      ...(this.layerVisible.workings ? this.workings3d.items : []),
+      ...this.models3d.items,
+      ...this.topographyData.map((t) => ({
+        minX: t.bounds.minX - o.x,
+        minY: t.bounds.minY - o.y,
+        minZ: t.bounds.minZ - o.z,
+        maxX: t.bounds.maxX - o.x,
+        maxY: t.bounds.maxY - o.y,
+        maxZ: t.bounds.maxZ - o.z,
+      })),
+    ];
+  }
+
+  /**
+   * Caja que encuadra la cámara 3D (y la maqueta del visor): el diseño (y la pila) si lo hay; si
+   * no, los levantamientos sin unir sectores lejanos. null si no hay nada.
+   */
+  private frame3dBounds(): Bounds3 | null {
+    return this.withMuckpileBounds(frameBox(this.scene3d.designBounds, this.surveyBoxes3d()));
+  }
+
   private fit3d(): void {
-    const b = this.withMuckpileBounds(this.scene3d.bounds) ?? {
+    const b = this.frame3dBounds() ?? {
       minX: -50,
       minY: -50,
       minZ: -10,
@@ -2269,19 +2314,7 @@ export class Engine {
   }
 
   /** Agrega la extensión de la pila (puede salir muy por delante de la voladura) al encuadre 3D. */
-  private withMuckpileBounds(design: typeof this.scene3d.bounds): typeof this.scene3d.bounds {
-    const m = this.models3d.bounds;
-    const b =
-      design && m
-        ? {
-            minX: Math.min(design.minX, m.minX),
-            minY: Math.min(design.minY, m.minY),
-            minZ: Math.min(design.minZ, m.minZ),
-            maxX: Math.max(design.maxX, m.maxX),
-            maxY: Math.max(design.maxY, m.maxY),
-            maxZ: Math.max(design.maxZ, m.maxZ),
-          }
-        : (design ?? m);
+  private withMuckpileBounds(b: Bounds3 | null): Bounds3 | null {
     const layers = this.layerVisible;
     if (!layers.muckpile && !layers.muckpileBlocks && !layers.muckpileVectors) return b;
     const g = this.muckpileData?.surface?.after;
@@ -2307,8 +2340,23 @@ export class Engine {
     this.camera3d.lookAt(this.orbit.targetX, this.orbit.targetY, this.orbit.targetZ);
     // En el visor three toma near/far de esta cámara para la sesión XR (depthNear/depthFar): con
     // los de la órbita, un vuelo del asistente cortaba el terreno lejano y lo cercano a la cabeza.
-    this.camera3d.near = this.xr ? XR_NEAR : Math.max(0.1, this.orbit.distance / 2000);
-    this.camera3d.far = this.xr ? XR_FAR : this.orbit.distance * 50;
+    if (this.xr) {
+      this.camera3d.near = XR_NEAR;
+      this.camera3d.far = XR_FAR;
+    } else {
+      // El plano lejano alcanza lo que se dibuja cerca de lo que se mira (labores y nubes del mismo
+      // sector), no lo de otro sector a cientos de km: sin eso, o se cortaba o se perdía la
+      // precisión de profundidad (z-fighting).
+      const t = { x: this.orbit.targetX, y: this.orbit.targetY, z: this.orbit.targetZ };
+      const at = { minX: t.x, minY: t.y, minZ: t.z, maxX: t.x, maxY: t.y, maxZ: t.z };
+      const near = sceneNear(at, [this.scene3d.designBounds, ...this.surveyBoxes3d()]);
+      const clip = clipPlanes(this.orbit.distance, farthestCorner(p, near));
+      this.camera3d.near = clip.near;
+      this.camera3d.far = clip.far;
+      // Grosor de los taladros: diámetro real × factor, y al menos ~1 px a esta distancia.
+      const fov = (this.camera3d.fov * Math.PI) / 180;
+      this.scene3d.setViewMinRadius(minRadiusAt(this.orbit.distance, fov, this.height, 1));
+    }
     this.camera3d.updateProjectionMatrix();
     this.decorations.update3d(this.orbit.yaw);
     const buffer = this.renderer.getDrawingBufferSize(new Vector2());

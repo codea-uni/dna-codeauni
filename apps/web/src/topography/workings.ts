@@ -76,7 +76,7 @@ export async function importWorkingsFiles(
     // Las labores vienen en coordenadas de la mina, lejos del diseño: ir a verlas cuando se carguen.
     const frame = () => {
       if (!isTopographyLoaded(survey.id)) return false;
-      requestAnimationFrame(() => getEngine()?.frameModels3d());
+      requestAnimationFrame(() => getEngine()?.frameModels3d(survey.id));
       return true;
     };
     if (!frame()) {

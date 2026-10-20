@@ -212,6 +212,11 @@
   border-color: var(--cross-color);
 }
 
+/* Sobre las ventanas flotantes (z 60+): si no, la ventana Subterránea tapaba el diálogo. */
+.modal-backdrop.work-dialog-backdrop {
+  z-index: 200;
+}
+
 .work-dialog p {
   margin: 0.4rem 0 0.8rem;
 }

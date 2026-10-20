@@ -95,7 +95,8 @@ export function Legend3D() {
       </ul>
       <p>
         <kbd>{tr('legend.drag')}</kbd> {tr('legend.orbit')} · <kbd>Shift</kbd> {tr('legend.pan')} ·{' '}
-        <kbd>{tr('legend.wheel')}</kbd> {tr('legend.zoom')} · <kbd>3</kbd> {tr('legend.plan')}
+        <kbd>{tr('legend.wheel')}</kbd> {tr('legend.zoom')} · <kbd>3</kbd> {tr('legend.plan')} ·{' '}
+        <kbd>F</kbd> {tr('legend.fit')}
       </p>
     </div>
   );

@@ -106,7 +106,7 @@ export function WorkHereDialog() {
   };
   return (
     <div
-      className="modal-backdrop"
+      className="modal-backdrop work-dialog-backdrop"
       role="dialog"
       aria-modal="true"
       aria-label={t('product.workDialogTitle')}

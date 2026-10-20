@@ -25,7 +25,7 @@ export async function importModel3dFiles(files: readonly File[]): Promise<void> 
       const epsg = session.document.project.coordinateSystem.epsg;
       // Modelo de bloques: qué columnas son de roca (UCS, RMR, litología…) y si es geotécnico.
       const mapping = r.parts.blocks ? detectMapping(r.parts.blocks) : null;
-      const { ops } = await createSurveyOps(
+      const { ops, survey } = await createSurveyOps(
         {
           name,
           surveyDate: today(),
@@ -66,7 +66,7 @@ export async function importModel3dFiles(files: readonly File[]): Promise<void> 
       for (const w of r.warnings) ui.notify(w);
       if (useUiStore.getState().viewMode !== '3d') useUiStore.getState().setViewMode('3d');
       // Las nubes y bloques vienen en UTM, lejos del diseño: ir a verlos.
-      requestAnimationFrame(() => getEngine()?.frameModels3d());
+      requestAnimationFrame(() => getEngine()?.frameModels3d(survey.id));
     } catch (err) {
       ui.notify(
         t('topo.model3d.failed', {
