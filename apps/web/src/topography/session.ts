@@ -27,10 +27,16 @@ import {
   type BlockColoring,
   type BlockModelData,
   type PointCloudData,
+  type WorkingsData,
   colorBlocks,
   turboRgb,
 } from '@cronos/core';
-import type { BlockModelView, PointCloudView, TopographyViewData } from '@cronos/engine';
+import type {
+  BlockModelView,
+  PointCloudView,
+  TopographyViewData,
+  WorkingsView,
+} from '@cronos/engine';
 import { getAsset, putAsset } from '../persistence/assets';
 import { getCompute, getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
@@ -51,6 +57,8 @@ interface LoadedSurvey {
   cloud?: PointCloudData;
   /** Modelo de bloques. */
   blocks?: BlockModelData;
+  /** Labores subterráneas (sólidos y ejes de túneles). */
+  workings?: WorkingsData;
   view: TopographyViewData;
 }
 
@@ -106,6 +114,9 @@ function coloringOf(id: string, m: BlockModelData): BlockColoring {
   return c;
 }
 
+/** Color de cada levantamiento de labores (cian, verde, magenta, ámbar). */
+const WORKINGS_COLORS = [0x4fc3f7, 0x81c784, 0xf06292, 0xffb74d];
+
 const loaded = new Map<string, LoadedSurvey>();
 /** De dónde bajar un asset que no está en el navegador (el servidor de la mina, D-16). */
 let remoteAssets: ((hash: string) => Promise<Uint8Array>) | null = null;
@@ -159,6 +170,17 @@ export function applyTopographyToEngine(): void {
     }
   }
   engine.setModels3d(clouds, blocks);
+  const workings: WorkingsView[] = [];
+  let k = 0;
+  for (const [id, s] of loaded)
+    if (s.workings)
+      workings.push({
+        id,
+        vertices: s.workings.vertices,
+        triangles: s.workings.triangles,
+        color: WORKINGS_COLORS[k++ % WORKINGS_COLORS.length] ?? 0x4fc3f7,
+      });
+  engine.setWorkings(workings);
   engine.setElevationSource(
     loaded.size > 0
       ? (x, y) => topographyElevation(x, y, session.document.project.blasts[0]?.bench.topographyId)
@@ -285,13 +307,16 @@ async function load(survey: TopographySurvey): Promise<boolean> {
   if (loaded.has(survey.id) || loading.has(survey.id)) return false;
   loading.add(survey.id);
   try {
-    const [tinAsset, linesAsset, imageAsset, cloudAsset, blocksAsset] = await Promise.all([
-      decode(survey.assets.tin),
-      decode(survey.assets.lines),
-      decode(survey.assets.image),
-      decode(survey.assets.cloud),
-      decode(survey.assets.blocks),
-    ]);
+    const [tinAsset, linesAsset, imageAsset, cloudAsset, blocksAsset, workingsAsset] =
+      await Promise.all([
+        decode(survey.assets.tin),
+        decode(survey.assets.lines),
+        decode(survey.assets.image),
+        decode(survey.assets.cloud),
+        decode(survey.assets.blocks),
+        decode(survey.assets.workings),
+      ]);
+    const workings = workingsAsset?.kind === 'workings' ? workingsAsset.workings : undefined;
     const cloud = cloudAsset?.kind === 'cloud' ? cloudAsset.cloud : undefined;
     const blocks = blocksAsset?.kind === 'blocks' ? blocksAsset.blocks : undefined;
     const image = imageAsset?.kind === 'image' ? await imageView(imageAsset.image) : null;
@@ -315,6 +340,7 @@ async function load(survey: TopographySurvey): Promise<boolean> {
       ...(lineInfo ? { lineSummaries: lineInfo.summaries } : {}),
       ...(cloud ? { cloud } : {}),
       ...(blocks ? { blocks } : {}),
+      ...(workings ? { workings } : {}),
       view: {
         id: survey.id,
         bounds: survey.bounds,
@@ -540,6 +566,14 @@ export function designSurvey(): (LoadedSurvey & { tin: TinData }) | undefined {
     all.find((s) => s.survey.id === preferred) ??
     all.sort((a, b) => b.survey.surveyDate.localeCompare(a.survey.surveyDate))[0]
   );
+}
+
+/** Labores subterráneas cargadas, por levantamiento (para ubicar frentes y abanicos). */
+export function loadedWorkings(): readonly { survey: TopographySurvey; workings: WorkingsData }[] {
+  const out: { survey: TopographySurvey; workings: WorkingsData }[] = [];
+  for (const s of loaded.values())
+    if (s.workings) out.push({ survey: s.survey, workings: s.workings });
+  return out;
 }
 
 /** ¿Están en este navegador los datos del levantamiento? */

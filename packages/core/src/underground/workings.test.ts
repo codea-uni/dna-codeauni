@@ -9,6 +9,7 @@ import {
   nearestStation,
   parseWorkingsDxf,
   parseWorkingsSurpac,
+  readWorkingsFiles,
   sectionWorkings,
   stationOnAxis,
   tunnelMesh,
@@ -109,6 +110,73 @@ describe('DXF de labores: 3DFACE', () => {
       profile: { kind: 'arched', width: 4, height: 4 },
     });
     expect(w.axes.map((a) => a.name)).toEqual(['LAB 1', 'LAB 2']);
+  });
+});
+
+describe('DXF de labores: POLYLINE polyface', () => {
+  // Caja de 5 × 4 m (ancho × alto) y 30 m al Este, piso en z = 2000: 8 vértices y 4 caras
+  // (piso, techo y hastiales); la última cara con un índice negativo (arista invisible).
+  const V = [
+    [0, -2.5, 2000],
+    [30, -2.5, 2000],
+    [30, 2.5, 2000],
+    [0, 2.5, 2000],
+    [0, -2.5, 2004],
+    [30, -2.5, 2004],
+    [30, 2.5, 2004],
+    [0, 2.5, 2004],
+  ];
+  const F = [
+    [1, 2, 3, 4],
+    [5, 6, 7, 8],
+    [1, 2, 6, 5],
+    [4, 3, 7, -8],
+  ];
+  const text = dxf(
+    g(0, 'POLYLINE', 8, 'RAMPA', 66, 1, 70, 64, 71, 8, 72, 4),
+    ...V.map((v) =>
+      g(0, 'VERTEX', 8, 'RAMPA', 10, v[0] ?? 0, 20, v[1] ?? 0, 30, v[2] ?? 0, 70, 192),
+    ),
+    ...F.map((f) =>
+      g(
+        0,
+        'VERTEX',
+        8,
+        'RAMPA',
+        10,
+        0,
+        20,
+        0,
+        30,
+        0,
+        70,
+        128,
+        71,
+        f[0] ?? 0,
+        72,
+        f[1] ?? 0,
+        73,
+        f[2] ?? 0,
+        74,
+        f[3] ?? 0,
+      ),
+    ),
+    g(0, 'SEQEND', 8, 'RAMPA'),
+  );
+
+  it('vértices y caras del polyface → sólido; su eje va al Este por el piso', () => {
+    const src = parseWorkingsDxf(text);
+    expect(src.axes).toHaveLength(0);
+    expect(src.solids[0]?.triangles.length).toBe(4 * 2 * 3);
+    const w = buildWorkings(src, { profile: { kind: 'arched', width: 4, height: 4 } });
+    const pts = workingAxisPoints(w, 0);
+    expect(axisLength(pts)).toBeCloseTo(30, 6);
+    expect(w.axes[0]?.profile).toMatchObject({ width: 5, height: 4 });
+    const at = stationOnAxis(pts, 10);
+    expect(at.point.y).toBeCloseTo(0, 6);
+    expect(at.point.z).toBeCloseTo(2000, 6);
+    // Dirección del eje: Este u Oeste según el signo de la componente principal.
+    expect(Math.abs(Math.sin(at.azimuth))).toBeCloseTo(1, 9);
   });
 });
 
@@ -241,6 +309,13 @@ describe('Surpac: cadenas como ejes', () => {
     const src = parseWorkingsSurpac(str);
     expect(src.axes.map((a) => a.name)).toEqual(['1', '2']);
     expect(src.axes[0]?.points[1]).toEqual({ x: 1000, y: 2050, z: 500 });
+    const enc = new TextEncoder();
+    const read = readWorkingsFiles([
+      { name: 'Ejes_NV480.str', bytes: enc.encode(str) },
+      { name: 'otro.pdf', bytes: new Uint8Array() },
+    ]);
+    expect(read.axes.map((a) => a.name)).toEqual(['Ejes_NV480 1', 'Ejes_NV480 2']);
+    expect(read.warnings.map((w) => w.code)).toEqual(['workings.unknownFile']);
   });
 });
 
@@ -298,7 +373,8 @@ describe('sección de la labor en el plano del frente', () => {
     const mesh = tunnelMesh(axis, profile.points);
     const at = stationOnAxis(axis, 15);
     const frame = planeFrame({ origin: at.point, azimuth: at.azimuth, gradient: at.gradient });
-    const segs = sectionWorkings(mesh.vertices, mesh.triangles, frame, 10);
+    // Radio chico frente al tramo: los triángulos largos (0 → 40 m) cruzan el plano igual.
+    const segs = sectionWorkings(mesh.vertices, mesh.triangles, frame, 5);
     expect(segs.length).toBeGreaterThan(10);
     const us = segs.flatMap((s) => [s.a.u, s.b.u]);
     const vs = segs.flatMap((s) => [s.a.v, s.b.v]);

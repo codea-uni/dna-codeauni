@@ -1,10 +1,5 @@
-import type {
-  I3DfaceEntity,
-  IEntity,
-  ILineEntity,
-  ILwpolylineEntity,
-  IPolylineEntity,
-} from 'dxf-parser';
+import type { I3DfaceEntity, ILineEntity, ILwpolylineEntity, IPolylineEntity } from 'dxf-parser';
+import { decodeText } from '../io/csv';
 import { entityPoints, parseDxfEntities } from '../io/dxf';
 import type { Meters, Radians, Vec3 } from '../model/types';
 import type { WorkingAxisMeta, WorkingProfileSpec, WorkingsData } from '../topography/asset';
@@ -129,12 +124,14 @@ export function parseWorkingsDxf(text: string): WorkingsSource {
   let polygonMesh = 0;
   let flat = 0;
   const addAxis = (name: string, pts: Vec3[]) => {
-    const clean = dedupe(pts.map((p) => ({ x: p.x, y: p.y, z: p.z ?? 0 })));
+    const clean = dedupe(pts);
     if (clean.length < 2) return;
     if (clean.every((p) => p.z === 0)) flat++;
     out.axes.push({ name, points: clean });
   };
-  for (const e of parseDxfEntities(text) as IEntity[]) {
+  // Algunos exportadores omiten la cota (código 30): llega sin `z` aunque el tipo diga otra cosa.
+  const zOf = (p: { z?: number | undefined }) => p.z ?? 0;
+  for (const e of parseDxfEntities(text)) {
     if (e.type === '3DFACE') {
       quad(e.layer, (e as I3DfaceEntity).vertices);
       continue;
@@ -162,7 +159,11 @@ export function parseWorkingsDxf(text: string): WorkingsSource {
       const lw = e as ILwpolylineEntity;
       addAxis(
         e.layer,
-        lw.vertices.map((v) => ({ x: v.x, y: v.y, z: lw.elevation ?? 0 })),
+        lw.vertices.map((v) => ({
+          x: v.x,
+          y: v.y,
+          z: zOf({ z: lw.elevation }),
+        })),
       );
       continue;
     }
@@ -172,8 +173,8 @@ export function parseWorkingsDxf(text: string): WorkingsSource {
       if (!a || !b) continue;
       const list = lines.get(e.layer) ?? [];
       list.push([
-        { x: a.x, y: a.y, z: a.z ?? 0 },
-        { x: b.x, y: b.y, z: b.z ?? 0 },
+        { x: a.x, y: a.y, z: zOf(a) },
+        { x: b.x, y: b.y, z: zOf(b) },
       ]);
       lines.set(e.layer, list);
     }
@@ -211,7 +212,7 @@ export function parseWorkingsSurpac(strText: string, dtmText?: string): Workings
     for (let i = 0; i + 2 < s.coords.length; i += 3)
       pts.push({ x: s.coords[i] ?? 0, y: s.coords[i + 1] ?? 0, z: s.coords[i + 2] ?? 0 });
     const clean = dedupe(pts);
-    if (clean.length >= 2) out.axes.push({ name: `${String(s.id)}`, points: clean });
+    if (clean.length >= 2) out.axes.push({ name: String(s.id), points: clean });
   }
   if (out.axes.length === 0) out.warnings.push({ code: 'workings.empty' });
   return out;
@@ -261,6 +262,38 @@ function chainSegments(segs: readonly Vec3[][]): Vec3[][] {
   return chains;
 }
 
+/** Extensiones que lee el importador de labores. */
+export const WORKINGS_ACCEPT = '.dxf,.str,.dtm';
+
+/**
+ * Lee varios archivos de labores (DXF; `.str` de Surpac con su `.dtm` del mismo nombre, si lo hay)
+ * y los junta en un solo contenido.
+ */
+export function readWorkingsFiles(
+  files: readonly { name: string; bytes: Uint8Array }[],
+): WorkingsSource {
+  const out: WorkingsSource = { solids: [], axes: [], warnings: [] };
+  const base = (n: string) => n.replace(/\.[^.]+$/, '').toLowerCase();
+  const ext = (n: string) => n.toLowerCase().split('.').pop() ?? '';
+  const text = (f: { bytes: Uint8Array }) => decodeText(f.bytes).text;
+  for (const f of files) {
+    let src: WorkingsSource | null = null;
+    if (ext(f.name) === 'dxf') src = parseWorkingsDxf(text(f));
+    else if (ext(f.name) === 'str') {
+      const dtm = files.find((d) => ext(d.name) === 'dtm' && base(d.name) === base(f.name));
+      src = parseWorkingsSurpac(text(f), dtm ? text(dtm) : undefined);
+      // Sin .dtm, las cadenas se nombran con el archivo.
+      for (const a of src.axes) a.name = `${f.name.replace(/\.[^.]+$/, '')} ${a.name}`;
+    } else if (ext(f.name) !== 'dtm')
+      out.warnings.push({ code: 'workings.unknownFile', params: { name: f.name } });
+    if (!src) continue;
+    out.solids.push(...src.solids);
+    out.axes.push(...src.axes);
+    out.warnings.push(...src.warnings);
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ Armado
 
 export interface BuildWorkingsOptions {
@@ -291,11 +324,13 @@ export function buildWorkings(src: WorkingsSource, options: BuildWorkingsOptions
   };
   const profile = workingProfile(options.profile);
   const drop = options.axisAt === 'center' ? profile.height / 2 : 0;
-  src.axes.forEach((a, i) => {
+  src.axes.forEach((a) => {
     const pts = a.points.map((p) => ({ x: p.x, y: p.y, z: p.z - drop }));
     const mesh = tunnelMesh(pts, profile.points);
     addMesh(mesh.vertices, mesh.triangles);
-    const name = src.axes.length > 1 ? `${a.name} ${String(i + 1)}` : a.name;
+    // Varias líneas con el mismo nombre (capa) se numeran.
+    const same = src.axes.filter((b) => b.name === a.name);
+    const name = same.length > 1 ? `${a.name} ${String(same.indexOf(a) + 1)}` : a.name;
     addAxis({ name, source: 'axis', profile: { ...options.profile } }, pts);
   });
   let n = 0;
@@ -671,9 +706,10 @@ export function sectionWorkings(
   const r2 = radius * radius;
   for (let t = 0; t + 2 < triangles.length; t += 3) {
     const ps = [P(triangles[t] ?? 0), P(triangles[t + 1] ?? 0), P(triangles[t + 2] ?? 0)];
-    // Descarte rápido: el triángulo lejos del origen.
-    if (ps.every((p) => (p.x - o.x) ** 2 + (p.y - o.y) ** 2 + (p.z - o.z) ** 2 > 4 * r2)) continue;
+    // Descarte rápido: el triángulo no cruza el plano (sus vértices pueden estar lejos del
+    // origen aunque lo crucen cerca: un tramo recto largo es un solo triángulo).
     const ds = ps.map(dist);
+    if (ds.every((d) => d > 0) || ds.every((d) => d < 0)) continue;
     const hits: UV[] = [];
     for (let k = 0; k < 3; k++) {
       const a = ps[k] as Vec3;

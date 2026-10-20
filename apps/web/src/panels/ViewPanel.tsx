@@ -304,6 +304,7 @@ function TopographyView() {
             ['topoLines', 'topo.layer.lines'],
             ['pointClouds', 'topo.model3d.layerClouds'],
             ['blockModels', 'topo.model3d.layerBlocks'],
+            ['workings', 'topo.workings.layer'],
           ] as const
         ).map(([layer, label]) => (
           <label key={layer} className="check">

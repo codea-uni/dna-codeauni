@@ -1,10 +1,16 @@
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
 import type { ProductLibrary } from '@cronos/core';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useUnits } from '../hooks/useUnits';
 import { useFormat, useT, type MessageKey } from '../i18n';
-import { FaceDrawing, RingDrawing, ROLE_COLORS, ROLE_ORDER } from '../underground/drawings';
+import {
+  FaceDrawing,
+  RingDrawing,
+  ROLE_COLORS,
+  ROLE_ORDER,
+  SECTION_COLOR,
+} from '../underground/drawings';
 import {
   computeFace,
   computeRing,
@@ -24,6 +30,17 @@ import {
   taggedHoles,
   type Placement,
 } from '../underground/send';
+import {
+  applyLocation,
+  cancelPickLocation,
+  pickLocation,
+  sectionOf,
+  showSection,
+  viewFront,
+  workingTargets,
+  type WorkingTarget,
+} from '../underground/location';
+import { onTopographyChange } from '../topography/session';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
 
@@ -158,6 +175,7 @@ function FaceTab() {
   const k = design?.kpis;
   const previous = taggedHoles(blast, FACE_TAG).length;
   const roles = new Set(design?.holes.map((h) => h.role));
+  const section = useWorkingSection('face', placement, Math.max(form.width, form.height));
 
   return (
     <div className="ug-layout">
@@ -290,6 +308,16 @@ function FaceTab() {
               />
               {t('ug.smooth')}
             </label>
+            <label className="check" title={t('ug.alternateHint')}>
+              <input
+                type="checkbox"
+                checked={form.alternateContour}
+                onChange={(e) => {
+                  patch({ alternateContour: e.target.checked });
+                }}
+              />
+              {t('ug.alternate')}
+            </label>
             {form.smooth && (
               <ExplosiveSelect
                 label={t('ug.contourExplosive')}
@@ -333,9 +361,21 @@ function FaceTab() {
         {face && design && k && (
           <>
             <div className="ug-drawing">
-              <FaceDrawing face={face} />
+              <FaceDrawing face={face} contour={section?.uv ?? null} />
             </div>
             <div className="ug-legend" aria-label={t('ug.legend')}>
+              {section && section.uv.length > 0 && (
+                <span>
+                  <i className="ug-swatch square" style={{ borderColor: SECTION_COLOR }} />
+                  {t('ug.loc.contour')}
+                </span>
+              )}
+              {k.guideHoles > 0 && (
+                <span>
+                  <i className="ug-swatch hollow" style={{ borderColor: ROLE_COLORS.contour }} />
+                  {t('ug.role.guide')}
+                </span>
+              )}
               {ROLE_ORDER.filter((r) => roles.has(r)).map((r) => (
                 <span key={r}>
                   <i
@@ -357,8 +397,16 @@ function FaceTab() {
             <div className="kpis ug-kpis">
               <Kpi
                 label={t('ug.kpi.holes')}
-                value={fmt(k.chargedHoles + k.reliefHoles)}
-                unit={t('ug.kpi.holesDetail', { charged: k.chargedHoles, relief: k.reliefHoles })}
+                value={fmt(design.holes.length)}
+                unit={
+                  k.guideHoles > 0
+                    ? t('ug.kpi.holesDetailGuides', {
+                        charged: k.chargedHoles,
+                        relief: k.reliefHoles,
+                        guides: k.guideHoles,
+                      })
+                    : t('ug.kpi.holesDetail', { charged: k.chargedHoles, relief: k.reliefHoles })
+                }
               />
               <Kpi
                 label={t('ug.kpi.depth')}
@@ -487,6 +535,7 @@ function FaceTab() {
                         <td>
                           <i className="ug-swatch" style={{ background: ROLE_COLORS[h.role] }} />{' '}
                           {t(`ug.role.${h.role}`)}
+                          {h.guide && ` · ${t('ug.role.guide')}`}
                         </td>
                         <td className="num">{h.delay ?? '—'}</td>
                         <td className="num">{fmt(len.show(h.length), 2)}</td>
@@ -550,6 +599,7 @@ function SendBox({
   return (
     <div className="ug-send">
       <h3>{t('ug.section.send')}</h3>
+      <LocationBox which={which} placement={placement} />
       <p className="hint">{t('ug.originHint')}</p>
       {coord('x', 'ug.originX')}
       {coord('y', 'ug.originY')}
@@ -635,6 +685,7 @@ function RingTab() {
   const n = Math.max(1, form.rings);
   const previous = taggedHoles(blast, RING_TAG).length;
   const truncated = ring?.ring.holes.filter((h) => h.truncated).length ?? 0;
+  useWorkingSection('ring', placement, Math.max(form.driveWidth, form.driveHeight));
   const ms = (s: number) => fmt(s * 1000, 0);
   const lenField = (key: RingLengthKey, label: MessageKey, min?: number) => (
     <NumberField
@@ -896,3 +947,180 @@ function RingRow({
 }
 
 export default UndergroundPanel;
+
+// ------------------------------------------------------------------ Ubicación sobre una labor
+
+/** Labores elegibles; se recalculan cuando termina de cargarse una topografía. */
+function useWorkingTargets(): WorkingTarget[] {
+  const project = useProject();
+  const [version, refresh] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => onTopographyChange(refresh), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` cambia al cargar labores
+  return useMemo(() => workingTargets(project), [project, version]);
+}
+
+/**
+ * Contorno real de la labor elegida en el plano del frente: se marca en el visor mientras el panel
+ * está abierto y se devuelve en (u, v) para el dibujo.
+ */
+function useWorkingSection(which: UndergroundTab, placement: Placement | null, size: number) {
+  const targets = useWorkingTargets();
+  const loc = useUndergroundStore((s) => s.locations[which]);
+  const target = loc ? targets.find((x) => x.id === loc.targetId) : undefined;
+  const section = useMemo(
+    () => (target && placement ? sectionOf(target, placement, Math.max(3, size * 1.5)) : null),
+    [target, placement, size],
+  );
+  useEffect(() => {
+    showSection(section?.world ?? null);
+  }, [section]);
+  useEffect(
+    () => () => {
+      showSection(null);
+      cancelPickLocation();
+    },
+    [],
+  );
+  return section;
+}
+
+function LocationBox({ which, placement }: { which: UndergroundTab; placement: Placement }) {
+  const t = useT();
+  const fmt = useFormat();
+  const { len } = useUnits();
+  const targets = useWorkingTargets();
+  const loc = useUndergroundStore((s) => s.locations[which]);
+  const setLocation = useUndergroundStore((s) => s.setLocation);
+  const face = useUndergroundStore((s) => s.face);
+  const ring = useUndergroundStore((s) => s.ring);
+  const [picking, setPicking] = useState(false);
+  const target = loc ? targets.find((x) => x.id === loc.targetId) : undefined;
+  const groups = [...new Set(targets.map((x) => x.group))];
+  const dims =
+    which === 'face'
+      ? { w: face.width, h: face.profile === 'circular' ? face.width : face.height }
+      : { w: ring.driveWidth, h: ring.driveHeight };
+  const move = (patch: Partial<{ station: number; reverse: boolean }>) => {
+    if (!target || !loc) return;
+    applyLocation(which, target, { ...loc, ...patch }, false);
+  };
+  return (
+    <div className="ug-location">
+      <label className="field">
+        <span className="field-label">{t('ug.loc.title')}</span>
+        <select
+          value={target ? target.id : ''}
+          onChange={(e) => {
+            const next = targets.find((x) => x.id === e.target.value);
+            if (!next) {
+              setLocation(which, null);
+              return;
+            }
+            // Por defecto el frente está al final del eje (lo último excavado) y avanza.
+            applyLocation(
+              which,
+              next,
+              { targetId: next.id, station: which === 'face' ? next.length : 0, reverse: false },
+              true,
+            );
+          }}
+        >
+          <option value="">{t('ug.loc.manual')}</option>
+          {groups.map((g) => (
+            <optgroup key={g} label={g}>
+              {targets
+                .filter((x) => x.group === g)
+                .map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {`${x.name} · ${fmt(x.length, 0)} m`}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
+      {targets.length === 0 && <p className="hint">{t('ug.loc.none')}</p>}
+      {target && loc && (
+        <>
+          <label className="field ug-station">
+            <span className="field-label">{t('ug.loc.station')}</span>
+            <input
+              type="range"
+              min={0}
+              max={Math.max(0.1, target.length)}
+              step={0.1}
+              value={loc.station}
+              onChange={(e) => {
+                move({ station: Number(e.target.value) });
+              }}
+            />
+          </label>
+          <NumberField
+            label={t('ug.loc.stationValue')}
+            unit={len.unit}
+            decimals={1}
+            min={0}
+            max={len.show(target.length)}
+            value={len.show(loc.station)}
+            onCommit={(v) => {
+              move({ station: len.parse(v) });
+            }}
+          />
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={loc.reverse}
+              onChange={(e) => {
+                move({ reverse: e.target.checked });
+              }}
+            />
+            {t('ug.loc.reverse')}
+          </label>
+          <p className="hint">
+            {t('ug.loc.info', {
+              station: fmt(len.show(loc.station), 1),
+              length: fmt(len.show(target.length), 1),
+              unit: len.unit,
+              azimuth: fmt(placement.azimuthDeg, 1),
+              gradient: fmt(placement.gradientPct, 1),
+            })}
+            {target.profile &&
+              ` · ${t(target.estimated ? 'ug.loc.measured' : 'ug.loc.profile', {
+                width: fmt(target.profile.width, 2),
+                height: fmt(target.profile.height, 2),
+              })}`}
+          </p>
+        </>
+      )}
+      <div className="row">
+        {targets.length > 0 && (
+          <button
+            className={picking ? 'active' : undefined}
+            title={t('ug.loc.pickTitle')}
+            onClick={() => {
+              if (picking) {
+                cancelPickLocation();
+                setPicking(false);
+                return;
+              }
+              setPicking(true);
+              pickLocation(which, () => {
+                setPicking(false);
+              });
+            }}
+          >
+            {picking ? t('ug.loc.picking') : t('ug.loc.pick')}
+          </button>
+        )}
+        <button
+          title={t('ug.loc.viewFrontTitle')}
+          onClick={() => {
+            viewFront(placement, dims.w, dims.h);
+          }}
+        >
+          {t('ug.loc.viewFront')}
+        </button>
+      </div>
+    </div>
+  );
+}

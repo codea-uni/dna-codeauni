@@ -3,6 +3,7 @@ import {
   Group,
   OrthographicCamera,
   PerspectiveCamera,
+  Raycaster,
   Scene,
   Vector2,
   WebGLRenderer,
@@ -48,6 +49,7 @@ import { InputRouter } from './input/InputRouter';
 import { BoundaryLayer } from './layers/BoundaryLayer';
 import { Model3dLayer, type BlockModelView, type PointCloudView } from './layers/Model3dLayer';
 import { TunnelLayer, type TunnelView } from './layers/TunnelLayer';
+import { WorkingsLayer, type WorkingsView } from './layers/WorkingsLayer';
 import { COLORS } from './layers/colors';
 import { GridLayer } from './layers/GridLayer';
 import { turbo } from './layers/colormap';
@@ -164,7 +166,8 @@ export type EngineLayer =
   | 'faces'
   | 'benchPlanes'
   | 'pointClouds'
-  | 'blockModels';
+  | 'blockModels'
+  | 'workings';
 
 /**
  * Pila de material (A7) lista para dibujar: superficie (3D y raster en planta), techo in situ,
@@ -323,6 +326,7 @@ export class Engine {
     benchPlanes: true,
     pointClouds: true,
     blockModels: true,
+    workings: true,
   };
   /** Nubes de puntos y modelos de bloques (levantamientos que no se triangulan). */
   private readonly models3d = new Model3dLayer();
@@ -331,6 +335,10 @@ export class Engine {
   /** Excavaciones subterráneas de contexto (galería y tajeo del diseño subterráneo). */
   private readonly tunnels3d = new TunnelLayer();
   private tunnelViews: readonly TunnelView[] = [];
+  /** Labores subterráneas importadas (levantamientos) y el contorno de la sección del frente. */
+  private readonly workings3d = new WorkingsLayer();
+  private workingsViews: readonly WorkingsView[] = [];
+  private workingsSection: readonly Vec3[] | null = null;
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
   private tieConnectorId: SurfaceConnectorId | undefined;
@@ -458,6 +466,7 @@ export class Engine {
       this.muckpileBlocksRoot,
       this.models3d.root,
       this.tunnels3d.root,
+      this.workings3d.root,
       this.avatars3d.root,
       this.buildFx3d.root,
     );
@@ -1304,6 +1313,7 @@ export class Engine {
   setLayerVisible(layer: EngineLayer, visible: boolean): void {
     this.layerVisible = { ...this.layerVisible, [layer]: visible };
     if (layer === 'pointClouds' || layer === 'blockModels') this.applyModels3d();
+    if (layer === 'workings') this.workings3d.root.visible = visible;
     this.applyView();
   }
 
@@ -1329,7 +1339,19 @@ export class Engine {
    * diseño). Devuelve false si no hay ninguno visible.
    */
   frameModels3d(): boolean {
-    const b = this.models3d.bounds;
+    const m = this.models3d.bounds;
+    const w = this.workings3d.bounds;
+    const b =
+      m && w
+        ? {
+            minX: Math.min(m.minX, w.minX),
+            minY: Math.min(m.minY, w.minY),
+            minZ: Math.min(m.minZ, w.minZ),
+            maxX: Math.max(m.maxX, w.maxX),
+            maxY: Math.max(m.maxY, w.maxY),
+            maxZ: Math.max(m.maxZ, w.maxZ),
+          }
+        : (m ?? w);
     if (!b) return false;
     if (this.viewMode !== '3d') this.setViewMode('3d');
     this.orbit = fitOrbit(b, (this.camera3d.fov * Math.PI) / 180, this.width / this.height);
@@ -1343,6 +1365,63 @@ export class Engine {
     this.tunnelViews = tunnels;
     this.tunnels3d.set(tunnels, this.origin);
     this.loop.invalidate();
+  }
+
+  /** Labores subterráneas importadas (sólidos y túneles de sus ejes) en 3D; [] las quita. */
+  setWorkings(views: readonly WorkingsView[]): void {
+    this.workingsViews = views;
+    this.workings3d.set(views, this.origin);
+    this.loop.invalidate();
+  }
+
+  /** Contorno de la sección del frente elegido (pares de puntos de proyecto); null lo quita. */
+  setWorkingsSection(segments: readonly Vec3[] | null): void {
+    this.workingsSection = segments;
+    this.workings3d.setSection(segments, this.origin);
+    this.loop.invalidate();
+  }
+
+  /**
+   * Espera un clic (sin arrastre) en el visor y devuelve dónde cayó: en 3D, el punto de las labores
+   * que toca el rayo (null si no toca ninguna); en planta, el punto del plano (sin cota). Devuelve
+   * la función para cancelar la espera.
+   */
+  pickOnce(callback: (p: { x: number; y: number; z?: number } | null) => void): () => void {
+    const canvas = this.canvas;
+    let down: { x: number; y: number } | null = null;
+    const onDown = (e: PointerEvent) => {
+      down = { x: e.clientX, y: e.clientY };
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+      cancel();
+      const rect = canvas.getBoundingClientRect();
+      const sx = e.clientX - rect.left;
+      const sy = e.clientY - rect.top;
+      if (this.viewMode === '3d') {
+        const ndc = new Vector2((sx / rect.width) * 2 - 1, -(sy / rect.height) * 2 + 1);
+        const ray = new Raycaster();
+        ray.setFromCamera(ndc, this.camera3d);
+        const hit = this.workings3d.raycast(ray);
+        callback(
+          hit
+            ? { x: hit.x + this.origin.x, y: hit.y + this.origin.y, z: hit.z + this.origin.z }
+            : null,
+        );
+      } else {
+        const w = screenToWorld(this.view, sx, sy, rect.width, rect.height);
+        callback({ x: w.x + this.origin.x, y: w.y + this.origin.y });
+      }
+    };
+    const cancel = () => {
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.style.cursor = this.viewMode === '3d' ? 'grab' : this.tool.cursor;
+    };
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.style.cursor = 'crosshair';
+    return cancel;
   }
 
   /** Tamaño de los puntos de las nubes [m]. */
@@ -1712,6 +1791,7 @@ export class Engine {
     this.grid.dispose();
     this.holes.dispose();
     this.tunnels3d.dispose();
+    this.workings3d.dispose();
     this.labels.dispose();
     this.boundaries.dispose();
     this.boundaryLabels.dispose();
@@ -2500,6 +2580,8 @@ export class Engine {
     // El origen de render pudo cambiar (recentrado o proyecto nuevo).
     this.applyModels3d();
     this.tunnels3d.set(this.tunnelViews, this.origin);
+    this.workings3d.set(this.workingsViews, this.origin);
+    this.workings3d.setSection(this.workingsSection, this.origin);
     this.holes.clear();
     this.labels.clear();
     this.hover = null;

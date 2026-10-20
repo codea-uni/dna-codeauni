@@ -23,6 +23,12 @@ import {
   taggedHoles,
   type Placement,
 } from '../underground/send';
+import {
+  applyLocation,
+  profilePatch,
+  workingTargets,
+  type WorkingTarget,
+} from '../underground/location';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
 import { pushCard } from './cards';
@@ -50,6 +56,23 @@ const placementFields = {
     .optional()
     .describe('Advance direction of the drive, clockwise from North.'),
   gradient_pct: z.number().min(-30).max(30).optional().describe('Drive gradient [%].'),
+  working: z
+    .string()
+    .optional()
+    .describe(
+      'Name of a loaded underground working (list_workings) to place the design on: origin, azimuth and gradient come from its axis at station_m (x/y/z/azimuth/gradient are then ignored) and, unless given, the section (width/height, or drive size for rings) from its profile.',
+    ),
+  station_m: z
+    .number()
+    .min(0)
+    .optional()
+    .describe(
+      'Chainage along the working axis from its start [m]. Default: the end of the axis for a face (last excavated point), the start for rings.',
+    ),
+  reverse: z
+    .boolean()
+    .optional()
+    .describe('true = the face advances towards the start of the axis.'),
   send: z
     .boolean()
     .optional()
@@ -59,6 +82,9 @@ const placementFields = {
 };
 
 interface PlacementArgs {
+  working?: string | undefined;
+  station_m?: number | undefined;
+  reverse?: boolean | undefined;
   x?: number | undefined;
   y?: number | undefined;
   z?: number | undefined;
@@ -66,8 +92,70 @@ interface PlacementArgs {
   gradient_pct?: number | undefined;
 }
 
+/** Labor por nombre («GAL 420», «Rampa 2», o «levantamiento nombre»). */
+function workingByName(name: string): WorkingTarget {
+  const targets = workingTargets();
+  const named = targets.map((x) => ({ id: x.id, name: x.name, x }));
+  const found =
+    findByName(named, name)?.x ??
+    findByName(
+      targets.map((x) => ({ id: x.id, name: `${x.group} ${x.name}`, x })),
+      name,
+    )?.x;
+  if (!found)
+    throw new ToolError(
+      targets.length === 0
+        ? 'No underground workings are loaded: import them in Topografía («Labores subterráneas (DXF/Surpac)»).'
+        : `No working "${name}". Loaded: ${targets.map((x) => x.name).join(', ')}.`,
+    );
+  return found;
+}
+
+/**
+ * Si se nombró una labor: la ubica (origen, azimut, pendiente) y devuelve la sección de la labor
+ * para el formulario (sin pisar lo que el usuario dio explícitamente).
+ */
+function locate(
+  tab: UndergroundTab,
+  a: PlacementArgs,
+): { target: WorkingTarget; profile: Record<string, unknown> } | null {
+  if (a.working === undefined) return null;
+  const target = workingByName(a.working);
+  const prev = useUndergroundStore.getState().locations[tab];
+  const same = prev?.targetId === target.id;
+  applyLocation(
+    tab,
+    target,
+    {
+      targetId: target.id,
+      station: a.station_m ?? (same ? prev.station : tab === 'face' ? target.length : 0),
+      reverse: a.reverse ?? (same ? prev.reverse : false),
+    },
+    false,
+  );
+  return { target, profile: { ...(profilePatch(target, tab) ?? {}) } };
+}
+
+function locationOut(tab: UndergroundTab) {
+  const loc = useUndergroundStore.getState().locations[tab];
+  const target = loc ? workingTargets().find((x) => x.id === loc.targetId) : undefined;
+  return target && loc
+    ? {
+        working: target.name,
+        station_m: r(loc.station, 1),
+        working_length_m: r(target.length, 1),
+        reverse: loc.reverse,
+      }
+    : null;
+}
+
 function placementFor(tab: UndergroundTab, a: PlacementArgs): Placement {
   const store = useUndergroundStore.getState();
+  // Ubicado sobre una labor: el origen ya quedó en el store.
+  if (a.working !== undefined && store.placements) return store.placements[tab];
+  // Coordenadas a mano: el diseño deja de seguir la labor.
+  if ([a.x, a.y, a.z, a.azimuth_deg, a.gradient_pct].some((v) => v !== undefined))
+    store.setLocation(tab, null);
   const all = store.placements ?? defaultPlacements(document.project);
   const p: Placement = {
     ...all[tab],
@@ -147,6 +235,12 @@ const faceSchema = z.object({
   explosive: z.string().optional().describe('Explosive name from the library.'),
   contour_explosive: z.string().optional().describe('Explosive for the smooth-blasting contour.'),
   smooth_blasting: z.boolean().optional().describe('Smooth blasting (recorte) on the contour.'),
+  alternate_contour: z
+    .boolean()
+    .optional()
+    .describe(
+      'Pre-split / contour "uno sí, uno no": charge every other hole of the crown and walls, the others stay empty as guide holes.',
+    ),
   rock_constant: z
     .number()
     .min(0.1)
@@ -159,8 +253,11 @@ const faceSchema = z.object({
 
 function designFace(args: z.infer<typeof faceSchema>) {
   const lib = document.project.library;
+  const located = locate('face', args);
   const store = useUndergroundStore.getState();
   const patch: Partial<FaceForm> = {
+    // La sección de la labor, salvo lo que se pidió explícitamente.
+    ...(located ? located.profile : {}),
     ...(args.profile !== undefined ? { profile: args.profile } : {}),
     ...(args.width_m !== undefined ? { width: args.width_m } : {}),
     ...(args.height_m !== undefined ? { height: args.height_m } : {}),
@@ -174,6 +271,7 @@ function designFace(args: z.infer<typeof faceSchema>) {
       ? { cartridgeDiameter: args.cartridge_diameter_mm / 1000 }
       : {}),
     ...(args.smooth_blasting !== undefined ? { smooth: args.smooth_blasting } : {}),
+    ...(args.alternate_contour !== undefined ? { alternateContour: args.alternate_contour } : {}),
     ...(args.rock_constant !== undefined ? { rockConstant: args.rock_constant } : {}),
     ...(args.delay_ms !== undefined ? { delayInterval: args.delay_ms / 1000 } : {}),
   };
@@ -234,6 +332,7 @@ function designFace(args: z.infer<typeof faceSchema>) {
     holes_total: d.holes.length,
     charged_holes: k.chargedHoles,
     relief_holes: k.reliefHoles,
+    ...(k.guideHoles > 0 ? { empty_guide_holes: k.guideHoles } : {}),
     holes_by_group: roles,
     cut_sections: d.squares.length,
     drill_depth_m: r(d.depth),
@@ -247,6 +346,7 @@ function designFace(args: z.infer<typeof faceSchema>) {
     in_3d: send ? sent > 0 : false,
     placed_holes: sent,
     placement: placementOut(placement),
+    location: locationOut('face'),
     note: send
       ? 'Holes are in the 3D design with electronic timing (one delay number per hole group); the drawing and tables are in the Subterránea panel.'
       : 'Only computed: shown in the Subterránea panel; call again with send true to put it in 3D.',
@@ -329,6 +429,7 @@ const ringSchema = z.object({
 
 function designRings(args: z.infer<typeof ringSchema>) {
   const lib = document.project.library;
+  const located = locate('ring', args);
   const store = useUndergroundStore.getState();
   const map: [keyof typeof args, keyof RingForm, number][] = [
     ['drive_width_m', 'driveWidth', 1],
@@ -349,7 +450,7 @@ function designRings(args: z.infer<typeof ringSchema>) {
     ['hole_delay_ms', 'holeInterval', 0.001],
     ['ring_delay_ms', 'ringInterval', 0.001],
   ];
-  const patch: Partial<Record<keyof RingForm, unknown>> = {};
+  const patch: Partial<Record<keyof RingForm, unknown>> = { ...(located?.profile ?? {}) };
   for (const [arg, key, f] of map) {
     const v = args[arg];
     if (typeof v === 'number') patch[key] = v * f;
@@ -400,6 +501,7 @@ function designRings(args: z.infer<typeof ringSchema>) {
     in_3d: send ? sent > 0 : false,
     placed_holes: sent,
     placement: placementOut(placement),
+    location: locationOut('ring'),
     note: send
       ? 'Rings are in the 3D design (uncharged collars alternate between holes), with electronic timing hole by hole and ring by ring.'
       : 'Only computed: shown in the Subterránea panel; call again with send true to put it in 3D.',
@@ -443,9 +545,11 @@ function undergroundState() {
       cartridge_diameter_mm: mm(f.cartridgeDiameter),
       explosive: pickFaceExplosive(lib, f)?.name ?? null,
       smooth_blasting: f.smooth,
+      alternate_contour: f.alternateContour,
       rock_constant: f.rockConstant,
       delay_ms: r(f.delayInterval * 1000, 0),
       placement: placementOut(placements.face),
+      location: locationOut('face'),
       holes_in_3d: taggedHoles(blast, FACE_TAG).length,
     },
     rings: {
@@ -467,8 +571,10 @@ function undergroundState() {
       rock_density_t_m3: g.rockDensity / 1000,
       explosive: pickExplosive(lib, g.explosiveId)?.name ?? null,
       placement: placementOut(placements.ring),
+      location: locationOut('ring'),
       holes_in_3d: taggedHoles(blast, RING_TAG).length,
     },
+    workings_loaded: workingTargets().length,
     explosives: lib.explosives.map((e) => ({
       name: e.name,
       form: e.form,
@@ -477,7 +583,42 @@ function undergroundState() {
   };
 }
 
+// ------------------------------------------------------------------ Labores
+
+function listWorkings() {
+  const workings = workingTargets().map((x) => {
+    const a = x.points[0];
+    const b = x.points[x.points.length - 1];
+    const xyz = (p: typeof a) => (p ? { x: r(p.x), y: r(p.y), z: r(p.z) } : null);
+    return {
+      name: x.name,
+      source: x.group,
+      length_m: r(x.length, 1),
+      ...(x.profile
+        ? {
+            section: `${x.estimated ? 'measured' : x.profile.kind} ${r(x.profile.width)} × ${r(x.profile.height)} m`,
+          }
+        : {}),
+      start: xyz(a),
+      end: xyz(b),
+    };
+  });
+  return {
+    workings,
+    note:
+      workings.length === 0
+        ? 'No underground workings loaded: the user can import them in Topografía («Labores subterráneas (DXF/Surpac)»).'
+        : 'Use design_tunnel_face / design_stope_rings with working (name) and station_m (chainage from the axis start) to place the design on a working.',
+  };
+}
+
 export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
+  list_workings: {
+    description:
+      'UNDERGROUND: list the real underground workings loaded from topography (tunnels, drives, ramps imported as DXF/Surpac solids or axes) and the drives of sent designs: name, length, section and start/end coordinates. Use their names with design_tunnel_face / design_stope_rings (working + station_m).',
+    schema: z.object({}),
+    run: listWorkings,
+  },
   design_tunnel_face: {
     description:
       'UNDERGROUND: design the blast round of a drift/tunnel face with the Swedish method (Holmberg): parallel-hole cut with relief hole(s), stoping, walls, roof/contour (smooth blasting) and lifters, charges and electronic delays; opens the Subterránea panel with the face drawing and, unless send is false, puts the holes in 3D inside the excavated drive. Omitted values keep the current form (underground_state). Returns holes, advance, kg, powder factor, empirical hole count and warnings.',
@@ -498,4 +639,4 @@ export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
   },
 };
 
-export const UNDERGROUND_READ_ONLY = ['underground_state'];
+export const UNDERGROUND_READ_ONLY = ['underground_state', 'list_workings'];
