@@ -91,6 +91,12 @@ export interface UgMuckpileParams {
   maxSpeed: number;
   /** Factor de confinamiento de tajeos sobre la misma ley (0,35: 2–8 m/s típico). */
   stopeFactor: number;
+  /**
+   * Sublevel caving: el anillo rompe contra el material ya hundido, no hacia un hueco abierto; la
+   * roca casi no vuela (desplazamiento medido 0,4–1,6 m, Petropoulos 2024 en Kiruna). Factor sobre
+   * la misma ley, en lugar de `stopeFactor` (0,1).
+   */
+  cavingFactor: number;
   /** Factor de calibración del alcance (multiplica la velocidad; 1 = sin calibrar). */
   throwFactor: number;
   /** Largo de galería que se modela detrás del frente [m] (60). */
@@ -115,6 +121,7 @@ export const DEFAULT_UG_MUCKPILE_PARAMS: UgMuckpileParams = {
   minSpeed: 3,
   maxSpeed: 25,
   stopeFactor: 0.35,
+  cavingFactor: 0.1,
   throwFactor: 1,
   maxRunout: 60,
   maxSlide: 8,
@@ -1003,7 +1010,8 @@ function simulateChamber(
     B = Math.max(0.2, B);
     let v = params.velocityK * Math.pow(Math.sqrt(m) / B, params.velocityN);
     v = Math.min(params.maxSpeed, Math.max(params.minSpeed, v));
-    if (stopeLike) v *= params.stopeFactor;
+    // SLC (marca `ug-slc`): confinado por el hundido, casi sin vuelo (UG-P2b).
+    if (stopeLike) v *= c.tag === 'ug-slc' ? params.cavingFactor : params.stopeFactor;
     v *= params.throwFactor;
     const vLocal = toLocal(f, g.a).v;
     const role =

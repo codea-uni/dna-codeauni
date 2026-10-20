@@ -243,3 +243,20 @@ describe('Open Pit no cambia', () => {
     expect(r?.blocks.path).toBeUndefined();
   });
 });
+
+describe('pila subterránea: sublevel caving (confinado contra el hundido)', () => {
+  const frame = planeFrame({ origin: { x: 1000, y: 2000, z: 500 }, azimuth: 0.6 });
+  const r = run('slc', frame);
+
+  it('la roca casi no vuela: desplazamiento mediano de pocos metros (0,4–1,6 m medido)', () => {
+    const d: number[] = [];
+    for (let k = 0; k < r.blocks.count; k++) {
+      const dx = (r.blocks.destination[3 * k] ?? 0) - (r.blocks.origin[3 * k] ?? 0);
+      const dy = (r.blocks.destination[3 * k + 1] ?? 0) - (r.blocks.origin[3 * k + 1] ?? 0);
+      d.push(Math.hypot(dx, dy));
+    }
+    d.sort((a, b) => a - b);
+    expect(r.blocks.count).toBeGreaterThan(0);
+    expect(d[Math.floor(0.5 * (d.length - 1))] ?? 0).toBeLessThan(3);
+  });
+});
