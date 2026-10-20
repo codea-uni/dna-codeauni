@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   computeEnergyGrid,
   couplingGroups,
@@ -26,23 +26,27 @@ import {
   type HoleId,
   type Project,
   type UgFragmentationZone,
+  type UgMuckpileWarning,
+  type UgPileDesign,
   type UndergroundVolume,
   type Vec3,
   MINING_METHODS,
   GUIDE_TAG,
   RELIEF_TAG,
 } from '@cronos/core';
-import { sequenceTimes } from '../analysis/visualize';
+import { requestMuckpile } from '../analysis/muckpileActions';
+import { isUndergroundPile, sequenceTimes } from '../analysis/visualize';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useFormat, useT, type MessageKey } from '../i18n';
-import { getEngine } from '../session';
+import { getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUgAnalysisStore } from './analysisStore';
 import { computeFace, computeRing, pickExplosive, pickFaceExplosive } from './model';
 import { FACE_TAG, RING_TAG } from './send';
+import { currentUgPile, playUndergroundPile } from './pileView';
 import { useUndergroundStore } from './store';
 
 const SizeCurve = lazy(() => import('../charts/SizeCurve'));
@@ -301,6 +305,11 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const seqTime = useAnalysisStore((a) => a.sequenceTime);
   const playing = useAnalysisStore((a) => a.sequencePlaying);
   const speed = useAnalysisStore((a) => a.sequenceSpeed);
+  const muckpile = useAnalysisStore((a) => a.muckpile);
+  const pileComputing = useAnalysisStore((a) => a.muckpileComputing);
+  const blastEffects = useAnalysisStore((a) => a.blastEffects);
+  // «Simular voladura» pidió la pila: arranca cuando llega (o sin ella si no se pudo calcular).
+  const pendingPlay = useRef(false);
   // Diseños subterráneos presentes (frente, abanicos y plantillas por método), por su marca.
   const designs = useMemo(() => designTags(blast), [blast]);
   const designTag =
@@ -363,6 +372,21 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
     };
   }, [s.show3d]);
 
+  useEffect(() => {
+    if (!pendingPlay.current || pileComputing) return;
+    pendingPlay.current = false;
+    if (playUndergroundPile()) return;
+    // Sin pila (no se pudo calcular): la secuencia sola, con los halos.
+    const a = useAnalysisStore.getState();
+    if (!a.analysis) return;
+    getEngine()?.playSequence(
+      sequenceTimes(a.analysis),
+      a.sequenceSpeed,
+      a.analysis.timing.firstTime - 0.02,
+    );
+    a.set({ sequencePlaying: true });
+  }, [muckpile, pileComputing]);
+
   if (!view) return <p className="hint">{t('uga.noHoles')}</p>;
   const marks = holeMarks(view, effTarget);
   const b = view.plane.bounds ?? { minU: 0, minV: 0, maxU: 1, maxV: 1 };
@@ -372,8 +396,24 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const ms = (x: number) => fmt((x - first) * 1000, 0);
 
   const play = () => {
+    if (!s.show3d) s.set({ show3d: true });
+    if (s.showPile) {
+      // Con la roca volando: la pila subterránea de esta versión del diseño (se calcula si falta).
+      if (currentUgPile()) {
+        startPlay(true);
+        return;
+      }
+      pendingPlay.current = true;
+      requestMuckpile('underground');
+      return;
+    }
+    startPlay(false);
+  };
+  const startPlay = (withPile: boolean) => {
     const engine = getEngine();
     if (!engine || !times) return;
+    if (!s.show3d) s.set({ show3d: true });
+    if (withPile && playUndergroundPile()) return;
     // Vista de frente: desde atrás del plano, mirando el avance.
     const f = view.plane.forward;
     const yaw = (Math.atan2(f.x, f.y) * 180) / Math.PI;
@@ -385,7 +425,6 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
       pitchDeg: effTarget === 'face' ? 6 : 12,
       mode: '3d',
     });
-    if (!s.show3d) s.set({ show3d: true });
     engine.playSequence(times, speed, first - 0.02);
     useAnalysisStore.getState().set({ sequencePlaying: true });
   };
@@ -552,7 +591,10 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
           </span>
         )}
       </div>
-      <div className="row" style={{ flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+      <div
+        className="row ug-sim-controls"
+        style={{ flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}
+      >
         {!playing ? (
           <button className="primary" disabled={!times || times.size === 0} onClick={play}>
             {t('uga.simulate')}
@@ -563,6 +605,31 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
         <button disabled={seqTime === null} onClick={stop}>
           {t('uga.stop')}
         </button>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={s.showPile}
+            onChange={(e) => {
+              s.set({ showPile: e.target.checked });
+              // Sin la pila: se quita la subterránea de la vista (la de banco no se toca).
+              const a = useAnalysisStore.getState();
+              if (!e.target.checked && a.muckpile && isUndergroundPile(a.muckpile))
+                a.set({ muckpile: null });
+            }}
+          />
+          {t('uga.showPile')}
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={blastEffects}
+            onChange={(e) => {
+              useAnalysisStore.getState().set({ blastEffects: e.target.checked });
+            }}
+          />
+          {t('view.blastEffects')}
+        </label>
+        {pileComputing && s.showPile && <span className="muted">{t('uga.pileComputing')}</span>}
         <label className="check">
           <input
             type="checkbox"
@@ -625,6 +692,166 @@ function ContourPaths({ grid, critical }: { grid: EnergyResult; critical: number
         fill="none"
         vectorEffect="non-scaling-stroke"
       />
+    </>
+  );
+}
+
+// ------------------------------------------------------------------ Pila de material
+
+/** Aviso de la pila subterránea en texto. */
+function pileWarning(w: UgMuckpileWarning, t: ReturnType<typeof useT>): string {
+  const name = (tag: string) => designLabel(tag, t);
+  switch (w.id) {
+    case 'ugPile.blockage':
+      return t('uga.pile.w.blockage', { pct: w.params.pct, d: w.params.distance });
+    case 'ugPile.roof':
+      return t(w.params.mode === 'face' ? 'uga.pile.w.roofFace' : 'uga.pile.w.roofStope', {
+        name: name(w.params.tag),
+      });
+    case 'ugPile.noExcavation':
+      return t('uga.pile.w.noExcavation', { name: name(w.params.tag) });
+    case 'ugPile.noTiming':
+      return t('uga.pile.w.noTiming', { name: name(w.params.tag), n: w.params.holes });
+    case 'ugPile.clipped':
+      return t('uga.pile.w.clipped', { n: w.params.blocks });
+  }
+}
+
+/**
+ * Pila de material subterránea: indicadores por diseño (volúmenes, alcance, alturas, sección
+ * tapada) y parámetros calibrables. La misma pila se anima con «Simular voladura».
+ */
+function PileSection() {
+  const t = useT();
+  const fmt = useFormat();
+  const s = useUgAnalysisStore();
+  const r = useAnalysisStore((a) => a.muckpile);
+  const version = useAnalysisStore((a) => a.muckpileVersion);
+  const computing = useAnalysisStore((a) => a.muckpileComputing);
+  const pile = r && isUndergroundPile(r) ? r : null;
+  const stale = pile !== null && version !== session.document.version;
+  const designs = pile?.underground.designs ?? [];
+  const row = (label: MessageKey, unit: string, f: (d: UgPileDesign) => string) => (
+    <tr>
+      <td className="muted">
+        {t(label)} {unit && <span className="muted">[{unit}]</span>}
+      </td>
+      {designs.map((d) => (
+        <td key={d.tag} className="num">
+          {f(d)}
+        </td>
+      ))}
+    </tr>
+  );
+  return (
+    <>
+      <div className="row" style={{ flexWrap: 'wrap', gap: '0.4rem', alignItems: 'flex-end' }}>
+        <NumberField
+          label={t('uga.pile.swell')}
+          decimals={2}
+          min={1.1}
+          max={2}
+          value={s.pileSwell}
+          onCommit={(v) => {
+            s.set({ pileSwell: v });
+          }}
+        />
+        <NumberField
+          label={t('uga.pile.repose')}
+          unit="°"
+          decimals={0}
+          min={25}
+          max={45}
+          value={s.pileRepose}
+          onCommit={(v) => {
+            s.set({ pileRepose: v });
+          }}
+        />
+        <NumberField
+          label={t('uga.pile.throwFactor')}
+          decimals={2}
+          min={0.3}
+          max={3}
+          value={s.pileThrowFactor}
+          onCommit={(v) => {
+            s.set({ pileThrowFactor: v });
+          }}
+        />
+        <button
+          disabled={computing}
+          onClick={() => {
+            requestMuckpile('underground');
+          }}
+        >
+          {computing ? t('uga.pileComputing') : t('uga.pile.compute')}
+        </button>
+      </div>
+      {!pile && <p className="hint">{t('uga.pile.none')}</p>}
+      {stale && <p className="hint warn">{t('uga.pile.stale')}</p>}
+      {pile && designs.length > 0 && (
+        <table className="grid-table compact">
+          <thead>
+            <tr>
+              <th />
+              {designs.map((d) => (
+                <th key={d.tag} className="num">
+                  {designLabel(d.tag, t)}
+                  <div className="muted">{t(`uga.pile.mode.${d.mode}`)}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {row('uga.pile.inSitu', 'm³', (d) => fmt(d.inSituVolume, 1))}
+            {row('uga.pile.volume', 'm³', (d) => fmt(d.pileVolume, 1))}
+            {row('uga.pile.throw', 'm', (d) => fmt(d.throw, 1))}
+            {row('uga.pile.maxHeight', 'm', (d) => fmt(d.maxHeight, 2))}
+            {row('uga.pile.faceHeight', 'm', (d) =>
+              d.mode === 'face' ? fmt(d.heightAtFace, 2) : '—',
+            )}
+            {row('uga.pile.meanDisp', 'm', (d) => fmt(d.meanDisplacement, 1))}
+            {row('uga.pile.blockage', '%', (d) =>
+              d.maxBlockage
+                ? t('uga.pile.blockageAt', {
+                    pct: fmt(d.maxBlockage.fraction * 100, 0),
+                    d: fmt(d.maxBlockage.distance, 0),
+                  })
+                : '—',
+            )}
+            {row('uga.pile.blocks', '', (d) => String(d.blocks))}
+          </tbody>
+        </table>
+      )}
+      {designs
+        .filter((d) => d.mode === 'face' && d.blockage.length > 0)
+        .map((d) => (
+          <p key={d.tag} className="hint">
+            {t('uga.pile.profile', {
+              name: designLabel(d.tag, t),
+              list: d.blockage
+                .map((b) => `${fmt(b.distance, 0)} m: ${fmt(b.fraction * 100, 0)} %`)
+                .join(' · '),
+            })}
+          </p>
+        ))}
+      {pile && pile.underground.warnings.length > 0 && (
+        <ul className="ug-warnings">
+          {pile.underground.warnings.map((w, i) => (
+            <li key={i} className="warn">
+              {pileWarning(w, t)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {pile && (
+        <p className="hint">
+          {t('uga.pile.elapsed', {
+            ms: fmt(pile.elapsedMs, 0),
+            b: fmt(pile.underground.blockSize, 2),
+          })}
+        </p>
+      )}
+      <p className="hint">{t('uga.pile.hint')}</p>
     </>
   );
 }
@@ -921,6 +1148,9 @@ export function UndergroundAnalysis() {
         <>
           <Section title={t('uga.section.halos')}>
             <HaloSection blast={blast} project={project} />
+          </Section>
+          <Section title={t('uga.section.pile')}>
+            <PileSection />
           </Section>
           <Section title={t('uga.section.sequence')}>
             <SequenceSection blast={blast} project={project} />

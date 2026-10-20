@@ -110,6 +110,9 @@ import {
   type Project,
   type SerializeOptions,
   computeMuckpile,
+  computeUndergroundMuckpile,
+  type UndergroundMuckpileResult,
+  type UgMuckpileParams,
   muckpileInput,
   measureFace,
   type FaceMeasurement,
@@ -279,6 +282,23 @@ export const computeApi = {
   ): MuckpileResult | null {
     const r = computeMuckpile(project, blastId, tin ? SurfaceIndex.build(tin) : null, options);
     return r ? transfer(r, muckpileBuffers(r)) : null;
+  },
+
+  /**
+   * Pila de material subterránea: roca volada de los taladros `ug-*` cargados, confinada por la
+   * galería o el tajeo (`blast.excavations`). Mismo formato que la de banco, con trayectorias.
+   */
+  computeUndergroundMuckpile(
+    project: Project,
+    blastId: BlastId,
+    params: Partial<UgMuckpileParams> = {},
+  ): UndergroundMuckpileResult | null {
+    const r = computeUndergroundMuckpile(project, blastId, params);
+    if (!r) return null;
+    const buffers = muckpileBuffers(r);
+    const path = r.blocks.path?.buffer;
+    if (path instanceof ArrayBuffer && !buffers.includes(path)) buffers.push(path);
+    return transfer(r, buffers);
   },
 
   /** Perfil de la pila en la sección a–b (antes, después y terreno). */

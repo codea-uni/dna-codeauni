@@ -82,6 +82,13 @@ interface AnalysisState {
   muckpileComputing: boolean;
   /** Pedido de cálculo (contador): el runner lo atiende. */
   muckpileRequest: number;
+  /** Efectos de explosión (fogonazo, luz, gases y polvo) al reproducir la secuencia en 3D. */
+  blastEffects: boolean;
+  /**
+   * Qué pila se pide: la de banco (panel Pila, taladros de superficie) o la subterránea (pestaña
+   * Análisis de Subterránea, taladros `ug-*` confinados por la galería o el tajeo).
+   */
+  muckpileTarget: 'bench' | 'underground';
   muckpileColorBy: MuckpileColorBy;
   muckpileOpacity: number;
   /** Animación: interpolar trayectorias (rápido) o reproducir la simulación física (Rapier). */
@@ -171,6 +178,8 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   muckpileVersion: -1,
   muckpileComputing: false,
   muckpileRequest: 0,
+  muckpileTarget: 'bench',
+  blastEffects: true,
   muckpileColorBy: 'fragment',
   muckpileOpacity: 0.85,
   muckpileMode: 'fast',

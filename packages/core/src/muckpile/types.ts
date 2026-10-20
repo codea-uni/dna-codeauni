@@ -39,6 +39,13 @@ export interface MuckpileBlocks {
   fragmentSize: Float32Array;
   /** Índice del dominio en `blast.domains` (−1 = sin dominio). */
   domain: Int16Array;
+  /**
+   * Trayectoria muestreada (solo la pila subterránea, que choca con techo y paredes): por bloque,
+   * `pathPoints` muestras [dx, dy, dz, t] relativas al origen in situ y a la salida, de la salida
+   * al reposo. Sin ella (banco) el engine interpola el tiro parabólico como siempre.
+   */
+  path?: Float32Array;
+  pathPoints?: number;
 }
 
 /** Grillas de la pila (misma retícula): cotas [m] y atributos por celda. */

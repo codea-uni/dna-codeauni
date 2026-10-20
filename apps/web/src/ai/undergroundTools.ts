@@ -59,6 +59,8 @@ import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
 import { pushCard } from './cards';
 import { useUgAnalysisStore } from '../underground/analysisStore';
+import { currentUgPile, ugPileSummary } from '../underground/pileView';
+import { useAnalysisStore } from '../stores/analysisStore';
 import {
   blastOrFail,
   currentAnalysis,
@@ -943,6 +945,16 @@ function undergroundAnalysis() {
   return { sequence, volumes, fragmentation_kuz_ram_swebrec: frag };
 }
 
+/** Pila subterránea vigente (o cómo pedirla). */
+function ugPileState() {
+  const pile = currentUgPile();
+  if (pile) return ugPileSummary(pile);
+  const a = useAnalysisStore.getState();
+  return a.muckpileComputing
+    ? 'Computing the underground muckpile…'
+    : 'Not computed for this version of the design: show_results "sequence" («simula la voladura») computes it and animates the rock flying out and piling up in the drive.';
+}
+
 function undergroundState() {
   const s = useUndergroundStore.getState();
   const blast = document.project.blasts[0];
@@ -993,6 +1005,7 @@ function undergroundState() {
       holes_in_3d: taggedHoles(blast, RING_TAG).length,
     },
     analysis: undergroundAnalysis(),
+    muckpile: ugPileState(),
     workings_loaded: workingTargets().length,
     mining_method_templates_in_3d: Object.fromEntries(
       MINING_METHODS.map((m): [string, number] => [m.id, methodHolesInBlast(m.tag)]).filter(
@@ -1069,7 +1082,7 @@ export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
   },
   underground_state: {
     description:
-      'UNDERGROUND: current face and ring parameters, their 3D placement, how many underground holes are in the design, the explosives available (with cartridge sizes) and the analysis of what is in 3D: coupled holes (fire within the 8 ms window), wave cut-off pairs (second hole fires after the first one’s wave reaches it), underground volume/tonnes/powder factor (section × advance, ring area × burden) and P50/P80 (Kuz-Ram + Swebrec by zone).',
+      'UNDERGROUND: current face and ring parameters, the simulated muckpile (in-situ and muckpile volume, throw from the face, max height, % of the section blocked vs distance; to simulate/animate the blast use show_results "sequence"), their 3D placement, how many underground holes are in the design, the explosives available (with cartridge sizes) and the analysis of what is in 3D: coupled holes (fire within the 8 ms window), wave cut-off pairs (second hole fires after the first one’s wave reaches it), underground volume/tonnes/powder factor (section × advance, ring area × burden) and P50/P80 (Kuz-Ram + Swebrec by zone).',
     schema: z.object({}),
     run: undergroundState,
   },

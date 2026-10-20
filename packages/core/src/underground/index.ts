@@ -10,3 +10,4 @@ export * from './fragmentation';
 export * from './workings';
 export * from './methods';
 export * from './methodToHoles';
+export * from './muckpile';

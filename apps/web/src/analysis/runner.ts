@@ -4,12 +4,16 @@ import {
   DEFAULT_ENERGY_OPTIONS,
   DEFAULT_NEAR_FIELD,
   DEFAULT_VIBRATION_OPTIONS,
+  isUndergroundHole,
+  type BlastId,
   type EnergyOptions,
+  type Project,
 } from '@cronos/core';
 import { getCompute, session } from '../session';
 import { onRockModelsChange, onTopographyChange, topographyTin } from '../topography/session';
 import { minePointsForCalc, useMineVibration } from '../vibration/mineStore';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { ugPileParams } from '../underground/pileView';
 
 const DEBOUNCE_MS = 120;
 
@@ -276,8 +280,25 @@ export function startVibrationRunner(): () => void {
 }
 
 /**
+ * Proyecto para la pila de banco: si la voladura mezcla taladros de superficie y subterráneos
+ * (`ug-*`), los subterráneos se quitan (tienen su propia pila, confinada por la galería). Sin
+ * taladros subterráneos devuelve el mismo proyecto (Open Pit no cambia).
+ */
+function benchOnly(project: Project, blastId: BlastId): Project {
+  const blast = project.blasts.find((b) => b.id === blastId);
+  if (!blast?.holes.some(isUndergroundHole)) return project;
+  return {
+    ...project,
+    blasts: project.blasts.map((b) =>
+      b.id === blastId ? { ...b, holes: b.holes.filter((h) => !isUndergroundHole(h)) } : b,
+    ),
+  };
+}
+
+/**
  * Pila de material (A7): se calcula en el worker cuando se pide (botón «Calcular»), con la
- * topografía del banco si la voladura la usa. El perfil se rehace al trazar otra sección.
+ * topografía del banco si la voladura la usa. El perfil se rehace al trazar otra sección. En
+ * subterránea (`muckpileTarget`) se calcula la pila confinada por la galería o el tajeo.
  */
 export function startMuckpileRunner(): () => void {
   let token = 0;
@@ -287,13 +308,14 @@ export function startMuckpileRunner(): () => void {
     const version = session.document.version;
     const tin = blast.bench.topographyId ? (topographyTin(blast.bench.topographyId) ?? null) : null;
     const mine = ++token;
+    const target = useAnalysisStore.getState().muckpileTarget;
     useAnalysisStore.getState().set({ muckpileComputing: true });
     try {
-      const muckpile = await getCompute().api.computeMuckpile(
-        session.document.project,
-        blast.id,
-        tin,
-      );
+      const project = session.document.project;
+      const muckpile =
+        target === 'underground'
+          ? await getCompute().api.computeUndergroundMuckpile(project, blast.id, ugPileParams())
+          : await getCompute().api.computeMuckpile(benchOnly(project, blast.id), blast.id, tin);
       if (mine !== token) return;
       if (session.document.version !== version) {
         useAnalysisStore.getState().set({ muckpileComputing: false });

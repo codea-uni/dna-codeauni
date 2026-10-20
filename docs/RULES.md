@@ -264,3 +264,32 @@ los productos de la librería inicial (se anotan aquí porque se apartan del inf
   (informe 2,4) y UG-14 con 0,2/0,1: con 0,6·S_toe el factor de carga queda bajo el objetivo.
 - UG-10 con B = 1,3 m (rango 1,0–1,5), UG-11 con malla 2,8 × 2,8, d_o = 1,5 m y rebanada 3 m, UG-15
   con B = 0,9 m (rango 0,8–1,2).
+
+## 9. Pila de material subterránea (UG-P, `packages/core/src/underground/muckpile.ts`)
+
+Simulación de la roca volada en frentes, chimeneas y tajeos: bloques que salen con el tiempo de su
+taladro, vuelan confinados por la galería o el tajeo (`blast.excavations`) y forman la pila. Es un
+**modelo cinemático empírico**: todas las constantes son **parámetros calibrables**
+(`UgMuckpileParams`; esponjamiento, reposo y factor de alcance editables en la pestaña Análisis) y
+no reemplaza un modelo de elementos discretos. Nivel de confianza como §2.1: **[CG]** conocimiento
+general de la literatura estándar, **[P]** propuesta de ingeniería.
+
+| ID     | Regla                                                                                                                                                                                                                                | Valor por defecto (rango)         | Confianza                                                           | Código                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------- |
+| UG-P1  | Velocidad de salida por taladro v = k·(√m/B)^n, m = carga lineal [kg/m], B = distancia al hueco ya abierto (alivio o taladro que salió antes); acotada a 3–25 m/s en frentes (10–25 m/s típico)                                      | k = 13,5 m/s, n = 1,3             | Ley: Richards & Moore 2004 (FC-45) [CG]; uso en frentes y cotas [P] | `simulateChamber` (`velocityK`, `velocityN`, `maxSpeed`) |
+| UG-P2  | Tajeos (anillos, filas, VCR, SLC): la misma ley × factor de confinamiento; la roca sale hacia la cara libre (slot o anillo anterior) y cae por gravedad                                                                              | ×0,35 (2–8 m/s)                   | [P]                                                                 | `stopeFactor`                                            |
+| UG-P3  | Por bloque: v·exp(−0,5·r/B) (r = distancia a la carga) por una dispersión determinista 0,25–1,3 (hash del índice, sesgada hacia abajo); dirección: afuera del frente con una componente hacia el cuele que se apaga con la secuencia | —                                 | [P] (calibrar con la pila medida)                                   | `simulateChamber`                                        |
+| UG-P4  | Choque con techo y paredes: la componente normal se invierte × restitución, la tangencial pierde 20 %                                                                                                                                | e = 0,25 (0,2–0,3)                | [CG] restitución de roca sobre roca                                 | `restitution`                                            |
+| UG-P5  | Al tocar el piso o la pila conserva una fracción de la velocidad horizontal y desliza d = v²/(2·μ·g), sin subir más que el reposo                                                                                                    | 0,4; μ = 0,6 (0,5–0,7); tope 15 m | [P]                                                                 | `impactRetention`, `friction`, `maxSlide`                |
+| UG-P6  | Esponjamiento: la pila tiene V_in situ × S (el volumen se conserva exactamente)                                                                                                                                                      | S = 1,5 (1,4–1,6)                 | [CG] López Jimeno et al. 1995                                       | `swell` (test de conservación)                           |
+| UG-P7  | Ángulo de reposo de la roca volada (avalancha de la grilla, la misma del banco FC-42); la pila no pasa el techo (el exceso se corre a la celda vecina más baja)                                                                      | 37° (35–40°)                      | [CG]                                                                | `reposeAngle`, `capRoof`                                 |
+| UG-P8  | Alcance (throw) de frentes: del frente nuevo al pie de la pila (espesor ≥ 0,1 m); típico 10–40 m con el grueso a menos de 15 m. Se calibra con `throwFactor` (multiplica la velocidad)                                               | factor 1                          | Rango: Persson, Holmberg & Lee 1994 [CG]                            | `throw`, `throwFactor`                                   |
+| UG-P9  | Indicador de sección tapada: área de la pila en la sección / área de la sección a 1, 5, 10, 15, 20, 30 y 40 m del frente nuevo (y el máximo cada medio bloque); aviso desde el 80 % (ventilación y paso del equipo)                  | 80 %                              | [P]                                                                 | `blockage`, `BLOCKAGE_WARNING`                           |
+| UG-P10 | Volumen volado: frente = sección de la ronda × avance (η = 0,9, como FC-UG4); tajeo = sección del tajeo menos la galería × largo de las cargas (+ un burden del lado de la cara libre), en la franja de alturas de las cargas        | η = 0,9                           | [CG] (FC-UG4)                                                       | `buildChamber`, `discretize`                             |
+
+Supuestos de geometría [P]: la galería sigue con la misma sección detrás de lo dibujado (60 m
+modelados; se dibuja hasta el pie de la pila) y el tajeo tiene un hueco del lado de la cara libre de
+1,5 veces el largo volado (tope 40 m) para el esponjamiento. Las chimeneas (eje vertical) vuelcan
+la roca al nivel de abajo, que se modela plano y abierto. La grilla de la pila es en planta: en
+rampas (hasta ~15 %) el piso inclinado se resuelve bien; para ejes más inclinados la grilla es
+aproximada y la animación de los bloques es la referencia.
