@@ -60,7 +60,12 @@ export default function LawFitChart({ fit }: { fit: VibrationFit }) {
         },
         xAxis: {
           type: 'log',
-          name: fit.scaling === 'square-root' ? 'R/√W' : 'R/∛W',
+          name:
+            fit.scaling === 'square-root'
+              ? 'R/√W'
+              : fit.scaling === 'cube-root'
+                ? 'R/∛W'
+                : 'R^¾/√W',
           nameLocation: 'middle',
           nameGap: 22,
           min: lo,

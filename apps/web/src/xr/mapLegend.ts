@@ -51,7 +51,13 @@ export function vibrationLegend(v: VibrationResult): XrLine[] {
       label: t('xr.legend.law', {
         k: formatNumber(v.law.k * 1000, 0),
         beta: formatNumber(v.law.beta, 2),
-        scaling: t(v.law.scaling === 'cube-root' ? 'xr.legend.cubeRoot' : 'xr.legend.squareRoot'),
+        scaling: t(
+          v.law.scaling === 'cube-root'
+            ? 'xr.legend.cubeRoot'
+            : v.law.scaling === 'langefors'
+              ? 'xr.legend.langefors'
+              : 'xr.legend.squareRoot',
+        ),
       }),
     });
   lines.push({ label: t('xr.legend.mic', { kg: formatNumber(v.mic, 1) }) });

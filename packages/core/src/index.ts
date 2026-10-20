@@ -40,6 +40,7 @@ export * from './vibration/vibration';
 export * from './vibration/monitoring';
 export * from './vibration/calibration';
 export * from './diagnostics/designChecks';
+export * from './methods/catalog';
 export * from './examples/examples';
 export type { ExampleBuild } from './examples/topographyExamples';
 

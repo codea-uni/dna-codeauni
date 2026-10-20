@@ -7,6 +7,7 @@ import {
   DEFAULT_ENERGY_OPTIONS,
   DEFAULT_NEAR_FIELD,
   DEFAULT_UG_TIMING,
+  DEFAULT_UG_MUCKPILE_PARAMS,
   faceFragmentationZones,
   facePlane,
   holeAxis,
@@ -33,11 +34,14 @@ import {
   MINING_METHODS,
   GUIDE_TAG,
   RELIEF_TAG,
+  choiceModel,
+  METHOD_CHOICES,
 } from '@cronos/core';
 import { requestMuckpile } from '../analysis/muckpileActions';
 import { isUndergroundPile, sequenceTimes } from '../analysis/visualize';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { NumberField } from '../components/NumberField';
+import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useFormat, useT, type MessageKey } from '../i18n';
 import { getEngine, session } from '../session';
@@ -598,6 +602,19 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
           })}
         </svg>
       </div>
+      {isPpv ? (
+        <MethodDetail
+          id="energy.holmbergPersson"
+          values={{
+            k: (project.siteModels.nearField ?? DEFAULT_NEAR_FIELD).k * 1000,
+            alpha: (project.siteModels.nearField ?? DEFAULT_NEAR_FIELD).alpha,
+            beta: (project.siteModels.nearField ?? DEFAULT_NEAR_FIELD).beta,
+            ppv: grid && grid.nx > 0 ? grid.max * 1000 : undefined,
+          }}
+        />
+      ) : (
+        <MethodDetail id="energy.chargeDensity" />
+      )}
       <div className="ug-legend">
         <span>
           {isPpv
@@ -700,6 +717,7 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
         </span>
       </div>
       <p className="hint">{t('uga.halosHint')}</p>
+      <MethodDetail id="simulation.visual" />
     </>
   );
 }
@@ -825,6 +843,16 @@ function PileSection() {
           {computing ? t('uga.pileComputing') : t('uga.pile.compute')}
         </button>
       </div>
+      <MethodDetail
+        id="ugMuckpile.chamber"
+        values={{
+          k: DEFAULT_UG_MUCKPILE_PARAMS.velocityK,
+          n: DEFAULT_UG_MUCKPILE_PARAMS.velocityN,
+          swell: s.pileSwell,
+          repose: s.pileRepose,
+          throw: s.pileThrowFactor,
+        }}
+      />
       {!pile && <p className="hint">{t('uga.pile.none')}</p>}
       {stale && <p className="hint warn">{t('uga.pile.stale')}</p>}
       {pile && designs.length > 0 && (
@@ -963,6 +991,14 @@ function SequenceSection({ blast, project }: { blast: Blast; project: Project })
           </label>
         )}
       </div>
+      <MethodDetail
+        id="sequence.coupling"
+        values={{ w: window * 1000, vp: vp.value, groups: result.groups.length }}
+      />
+      <MethodDetail
+        id="sequence.waveCutoff"
+        values={{ dc: s.shockDistance, vp: vp.value, risks: result.cut.length }}
+      />
       <p className="hint">
         {t('uga.seqParams', {
           window: ms(window),
@@ -1082,23 +1118,80 @@ function FragmentationSection({ blast, project }: { blast: Blast | undefined; pr
   }, [rock, lib, faceForm, ringForm, s, blast]);
   if (!rock) return <p className="hint">{t('uga.noRock')}</p>;
   const cm = (m: number) => fmt(m * 100, 1);
+  const first = results[0];
+  const firstZone = first?.r.zones[0];
   return (
     <>
+      <MethodDetail
+        id="ugFragmentation.zones"
+        values={
+          first
+            ? {
+                a: first.r.rockFactor,
+                c: s.calibration,
+                p50: first.r.p50[s.curve] * 100,
+                p80: first.r.p80[s.curve] * 100,
+              }
+            : undefined
+        }
+      />
+      <MethodDetail
+        id={choiceModel('fragmentationModel', s.variant)}
+        choice={{
+          label: t('uga.frag.variant'),
+          value: s.variant,
+          options: METHOD_CHOICES.fragmentationModel,
+          onChange: (value) => {
+            const o = METHOD_CHOICES.fragmentationModel.find((x) => x.value === value);
+            if (o) s.set({ variant: o.value });
+          },
+        }}
+        values={
+          firstZone
+            ? {
+                a: first.r.rockFactor,
+                k: firstZone.loadingFactor,
+                q: firstZone.chargePerHole,
+                b: firstZone.burden,
+                s: firstZone.spacing,
+                d: firstZone.diameter * 1000,
+                c: s.calibration,
+                x50: firstZone.x50 * 100,
+                n: firstZone.n,
+              }
+            : undefined
+        }
+        note={
+          firstZone
+            ? t('uga.frag.detailZone', { zone: t(`uga.zone.${firstZone.zone}` as MessageKey) })
+            : undefined
+        }
+      />
+      <MethodDetail
+        id={choiceModel('fragmentationCurve', s.curve)}
+        choice={{
+          label: t('md.curve'),
+          value: s.curve,
+          options: METHOD_CHOICES.fragmentationCurve,
+          onChange: (value) => {
+            const o = METHOD_CHOICES.fragmentationCurve.find((x) => x.value === value);
+            if (o) s.set({ curve: o.value });
+          },
+        }}
+        values={
+          firstZone
+            ? {
+                x50: firstZone.x50 * 100,
+                xmax: firstZone.xmax * 100,
+                b: firstZone.b,
+                xc: (firstZone.x50 / Math.pow(Math.LN2, 1 / firstZone.n)) * 100,
+                n: firstZone.n,
+                p80: first.r.p80[s.curve] * 100,
+              }
+            : undefined
+        }
+      />
       <div className="row" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
-        <label className="field">
-          <span className="field-label">{t('uga.frag.variant')}</span>
-          <select
-            value={s.variant}
-            onChange={(e) => {
-              s.set({
-                variant: e.target.value === 'cunningham1987' ? 'cunningham1987' : 'cunningham2005',
-              });
-            }}
-          >
-            <option value="cunningham2005">Cunningham 2005</option>
-            <option value="cunningham1987">Cunningham 1987</option>
-          </select>
-        </label>
         <NumberField
           label={t('uga.frag.calibration')}
           decimals={2}
@@ -1123,8 +1216,8 @@ function FragmentationSection({ blast, project }: { blast: Blast | undefined; pr
       {results.map(({ key, r }) => (
         <div key={key}>
           <h4>
-            {t(key === 'face' ? 'uga.frag.face' : 'uga.frag.ring')} · P50 {cm(r.p50.swebrec)} cm ·
-            P80 {cm(r.p80.swebrec)} cm
+            {t(key === 'face' ? 'uga.frag.face' : 'uga.frag.ring')} · P50 {cm(r.p50[s.curve])} cm ·
+            P80 {cm(r.p80[s.curve])} cm
           </h4>
           <table className="grid-table compact">
             <thead>
@@ -1154,8 +1247,9 @@ function FragmentationSection({ blast, project }: { blast: Blast | undefined; pr
           </table>
           <p className="hint">
             {t('uga.frag.rr', {
-              p50: cm(r.p50.rosinRammler),
-              p80: cm(r.p80.rosinRammler),
+              curve: s.curve === 'swebrec' ? 'Rosin-Rammler' : 'Swebrec',
+              p50: cm(s.curve === 'swebrec' ? r.p50.rosinRammler : r.p50.swebrec),
+              p80: cm(s.curve === 'swebrec' ? r.p80.rosinRammler : r.p80.swebrec),
               a: fmt(r.rockFactor, 1),
             })}
           </p>
@@ -1219,6 +1313,19 @@ export function UndergroundAnalysis() {
                 }}
               />
             </div>
+            <MethodDetail
+              id="volume.underground"
+              values={
+                volumes[0]
+                  ? {
+                      area: volumes[0].area,
+                      eff: s.advanceEfficiency * 100,
+                      ob: s.overbreak * 100,
+                      volume: volumes[0].volume,
+                    }
+                  : undefined
+              }
+            />
             <UgVolumeTable volumes={volumes} />
             <p className="hint">{t('uga.volHint')}</p>
           </Section>

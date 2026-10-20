@@ -17,6 +17,7 @@ import { Floatable } from '../components/Floatable';
 import { useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
 import { session } from '../session';
+import { MethodDetail } from '../methods/MethodDetail';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
 import {
@@ -174,7 +175,13 @@ function Calibration() {
   const keyOf = (f: ZoneFit) => `${f.context}|${f.zone}`;
   const current = fits.find((f) => keyOf(f) === selected) ?? fits[0];
   const fitOf = (f: ZoneFit | undefined): VibrationFit | null =>
-    f ? (scaling === 'square-root' ? f.squareRoot : f.cubeRoot) : null;
+    f
+      ? scaling === 'square-root'
+        ? f.squareRoot
+        : scaling === 'cube-root'
+          ? f.cubeRoot
+          : f.langefors
+      : null;
   const shown = fitOf(current);
 
   const save = (records: SeismographRecord[]) => {
@@ -227,6 +234,7 @@ function Calibration() {
           [
             ['square-root', t('vib.squareRoot')],
             ['cube-root', t('vib.cubeRoot')],
+            ['langefors', t('vib.langefors')],
           ] as [LawScaling, string][]
         ).map(([m, label]) => (
           <button
@@ -249,11 +257,15 @@ function Calibration() {
           <thead>
             <tr>
               <th>{t('mv.zone')}</th>
-              <th>n</th>
-              <th title={t('mv.k50Title')}>K50</th>
-              <th>β</th>
-              <th>R²</th>
-              <th title={t('mv.k95Title')}>K95</th>
+              <th className="num">n</th>
+              <th className="num" title={t('mv.k50Title')}>
+                K50
+              </th>
+              <th className="num">β</th>
+              <th className="num">R²</th>
+              <th className="num" title={t('mv.k95Title')}>
+                K95
+              </th>
               <th />
             </tr>
           </thead>
@@ -318,6 +330,12 @@ function Calibration() {
         </Suspense>
       )}
       {current && !shown && <p className="hint">{t('mv.fewRecords')}</p>}
+      <MethodDetail
+        id="vibration.calibration"
+        values={
+          shown ? { n: shown.n, r2: shown.r2, k: shown.k * 1000, beta: shown.beta } : undefined
+        }
+      />
       <Floatable id="mv.records" title={t('mv.records', { n: mine.records.length })} width={760}>
         <p className="hint">{t('mv.csvHint')}</p>
         {mine.canEdit && (

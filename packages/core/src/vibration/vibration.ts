@@ -18,6 +18,7 @@ import type {
   VibrationLaw,
 } from '../model/types';
 import { computeTiming } from '../timing/timing';
+import { chargeFromScaled, distanceFromScaled, scaledDistance } from './calibration';
 import {
   DEFAULT_KIND_PPV_LIMITS,
   defaultVibrationLaw,
@@ -30,14 +31,17 @@ import {
 /** Presión de referencia para dB (20 µPa). */
 const P_REF = 20e-6;
 
-/** PPV [m/s] por distancia escalada: v = k · (R / W^(1/2 ó 1/3))^(−β). R [m], W [kg por retardo]. */
+/**
+ * PPV [m/s] por distancia escalada: v = k · SD^(−β), con SD = R / W^(1/2), R / W^(1/3) o
+ * R^(3/4) / W^(1/2) según la ley (`scaledDistance`). R [m], W [kg por retardo].
+ */
 export function ppvAt(
   law: Pick<VibrationLaw, 'k' | 'beta' | 'scaling'>,
   distance: number,
   chargePerDelay: number,
 ): number {
   if (!(chargePerDelay > 0)) return 0;
-  const sd = distance / Math.pow(chargePerDelay, law.scaling === 'square-root' ? 1 / 2 : 1 / 3);
+  const sd = scaledDistance(distance, chargePerDelay, law.scaling);
   return law.k * Math.pow(Math.max(sd, 1e-6), -law.beta);
 }
 
@@ -47,10 +51,7 @@ export function distanceForPpv(
   ppv: number,
   chargePerDelay: number,
 ): number {
-  return (
-    Math.pow(chargePerDelay, law.scaling === 'square-root' ? 1 / 2 : 1 / 3) *
-    Math.pow(law.k / ppv, 1 / law.beta)
-  );
+  return distanceFromScaled(Math.pow(law.k / ppv, 1 / law.beta), chargePerDelay, law.scaling);
 }
 
 /**
@@ -63,7 +64,7 @@ export function admissibleCharge(
   ppv: number,
 ): number {
   const sd = Math.pow(ppv / law.k, -1 / law.beta);
-  return Math.pow(distance / sd, law.scaling === 'square-root' ? 2 : 3);
+  return chargeFromScaled(sd, distance, law.scaling);
 }
 
 /**

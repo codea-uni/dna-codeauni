@@ -32,8 +32,8 @@ export const chapters: Chapter[] = [
     title: t('Unidades y convenciones', 'Units and conventions'),
     panels: ['blast', 'library'],
     intro: t(
-      'Kronos calcula en el Sistema Internacional. Las unidades visibles se convierten al presentar o editar un valor; el redondeo de pantalla no cambia el cálculo.',
-      'Kronos calculates in SI units. Display units are converted when presenting or editing a value; display rounding does not change the calculation.',
+      'Cronos calcula en el Sistema Internacional. Las unidades visibles se convierten al presentar o editar un valor; el redondeo de pantalla no cambia el cálculo.',
+      'Cronos calculates in SI units. Display units are converted when presenting or editing a value; display rounding does not change the calculation.',
     ),
     equations: [
       eq(
@@ -192,8 +192,8 @@ export const chapters: Chapter[] = [
     title: t('Cubicación, factores y costos', 'Volumes, factors and costs'),
     panels: ['blast', 'pattern', 'charge'],
     intro: t(
-      'Kronos distingue los factores reales, obtenidos del área cubicada, de los factores nominales de diseño, obtenidos de la malla.',
-      'Kronos distinguishes actual factors based on the measured influence area from nominal design factors based on the pattern.',
+      'Cronos distingue los factores reales, obtenidos del área cubicada, de los factores nominales de diseño, obtenidos de la malla.',
+      'Cronos distinguishes actual factors based on the measured influence area from nominal design factors based on the pattern.',
     ),
     equations: [
       eq(
@@ -220,7 +220,7 @@ export const chapters: Chapter[] = [
       eq(
         'Costos',
         'Costs',
-        math`C_{\mathrm{total}}=C_{\mathrm{productos}}+c_{\mathrm{perforación}}\sum_iL_i`,
+        math`C_{\mathrm{total}}=C_{\mathrm{productos}}+c_{\mathrm{perforacion}}\sum_iL_i`,
         'Productos: explosivo por kg, taco por m³, tapones, primas y detonadores por unidad. Los precios no definidos aportan cero al costo calculado.',
         'Products: explosive per kg, stemming per m³, plugs, primers and detonators per unit. Undefined prices contribute zero to calculated cost.',
       ),
@@ -421,16 +421,16 @@ export const chapters: Chapter[] = [
       eq(
         'Distancia escalada y PPV',
         'Scaled distance and PPV',
-        math`SD=\frac{R}{Q^a},\qquad v=k\,SD^{-\beta},\qquad a\in\left\{\frac12,\frac13\right\}`,
-        'R: distancia (m); Q: carga por retardo (kg); v: m/s, mostrada en mm/s. a=1/2 para raíz cuadrada y 1/3 para raíz cúbica. El mapa evalúa taladros y toma la respuesta máxima.',
-        'R: distance (m); Q: charge per delay (kg); v: m/s, displayed in mm/s. a=1/2 for square-root and 1/3 for cube-root scaling. The map evaluates holes and takes the maximum response.',
+        math`SD=\frac{R}{Q^a},\qquad v=k\,SD^{-\beta},\qquad a\in\left\{\frac12,\frac13\right\}\qquad\left(\text{L-K: }SD=\frac{R^{3/4}}{\sqrt{Q}}\right)`,
+        'R: distancia (m); Q: carga por retardo (kg); v: m/s, mostrada en mm/s. a=1/2 para raíz cuadrada (USBM) y 1/3 para raíz cúbica (Ambraseys-Hendron); Langefors-Kihlström usa SD = R^(3/4)/√Q. La ley se elige en Vibración › Constantes del sitio. El mapa evalúa taladros y toma la respuesta máxima.',
+        'R: distance (m); Q: charge per delay (kg); v: m/s, displayed in mm/s. a=1/2 for square-root (USBM) and 1/3 for cube-root (Ambraseys-Hendron) scaling; Langefors-Kihlström uses SD = R^(3/4)/√Q. The law is chosen in Vibration › Site constants. The map evaluates holes and takes the maximum response.',
       ),
       eq(
         'Distancia y carga admisible',
         'Distance and allowable charge',
         math`R_{\mathrm{lim}}=Q^a\left(\frac{k}{v_{\mathrm{lim}}}\right)^{1/\beta},\qquad Q_{\mathrm{adm}}=\left[\frac{R}{(v_{\mathrm{lim}}/k)^{-1/\beta}}\right]^{1/a}`,
-        'vlim: límite de PPV (m/s). El límite explícito del punto prevalece; en su ausencia se toma el menor límite aplicable por estructura y distancia. Sin límite no se emite una evaluación de cumplimiento.',
-        'vlim: PPV limit (m/s). An explicit monitoring-point limit takes priority; otherwise the lowest applicable structure/distance limit is used. Without a limit, no compliance assessment is made.',
+        'vlim: límite de PPV (m/s). Con Langefors-Kihlström se invierte la misma ley con su distancia escalada. El límite explícito del punto prevalece; en su ausencia se toma el menor límite aplicable por estructura y distancia. Sin límite no se emite una evaluación de cumplimiento.',
+        'vlim: PPV limit (m/s). With Langefors-Kihlström the same law is inverted with its scaled distance. An explicit monitoring-point limit takes priority; otherwise the lowest applicable structure/distance limit is used. Without a limit, no compliance assessment is made.',
       ),
       eq(
         'Sobrepresión y nivel sonoro',

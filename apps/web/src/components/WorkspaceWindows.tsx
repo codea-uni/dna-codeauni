@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type ComponentType } from 'react';
+import { Suspense, useEffect, type ComponentType } from 'react';
 import { BookOpen, Bot, Layers, LayoutGrid, Mountain, Pickaxe, Shapes } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { tabAvailable, useWorkflow, type TabRequirement } from '../hooks/useWorkflow';
@@ -14,9 +14,12 @@ import { fitsKind, useProjectKind } from '../product/product';
 import { ErrorBoundary } from './ErrorBoundary';
 import { FloatingWindow } from './Floatable';
 
-const DocumentationPanel = lazy(() => import('../documentation/DocumentationPanel'));
-const AiPanel = lazy(() => import('../ai/AiPanel'));
-const UndergroundPanel = lazy(() => import('../panels/UndergroundPanel'));
+import { lazyWithRetry } from './lazyRetry';
+
+// Con reintento: un trozo que no baja (red o versión nueva publicada) dejaba la ventana sin cargar.
+const DocumentationPanel = lazyWithRetry(() => import('../documentation/DocumentationPanel'));
+const AiPanel = lazyWithRetry(() => import('../ai/AiPanel'));
+const UndergroundPanel = lazyWithRetry(() => import('../panels/UndergroundPanel'));
 
 type Section = 'home' | 'tools' | 'charge' | 'timing' | 'analysis' | 'library' | 'ai' | 'reference';
 interface WorkspacePanel {

@@ -1,6 +1,7 @@
 import { geotechSummary } from '@cronos/core';
 import type { HoleRocks } from '@cronos/workers';
 import { useEffect, useState } from 'react';
+import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
 import { getCompute, session } from '../session';
@@ -65,6 +66,7 @@ export function GeotechRockSection() {
   return (
     <div className="geotech-rock">
       <h3>{t('topo.geotech.rock.title')}</h3>
+      <MethodDetail id="geotech.correlations" />
       <label>
         <input
           type="checkbox"

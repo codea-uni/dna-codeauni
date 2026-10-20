@@ -7,6 +7,7 @@ import * as auth from './ns/auth';
 import * as core from './ns/core';
 import * as history from './ns/history';
 import * as knowledge from './ns/knowledge';
+import * as methods from './ns/methods';
 import * as muckpile from './ns/muckpile';
 import * as panelsA from './ns/panelsA';
 import * as panelsB from './ns/panelsB';
@@ -29,6 +30,7 @@ export const en = {
   ...core.en,
   ...history.en,
   ...knowledge.en,
+  ...methods.en,
   ...muckpile.en,
   ...panelsA.en,
   ...panelsB.en,
@@ -44,7 +46,7 @@ export const en = {
   ...workspace.en,
   ...xr.en,
   'toolbar.documentation': 'Documentation',
-  'workspace.loading': 'Loading documentation…',
+  'workspace.loading': 'Loading…',
   'toolbar.newProject': 'New project',
   'toolbar.analysis': 'Analysis',
   'workspace.closeWindow': 'Close window',

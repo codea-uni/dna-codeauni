@@ -180,6 +180,12 @@ const blast: z.ZodType<M.Blast> = z.object({
     detonationGamma: pos,
     reliefRate: nonNeg,
     drillDeviation: nonNeg,
+    fragmentation: z
+      .object({
+        model: z.enum(['cunningham1987', 'cunningham2005']),
+        curve: z.enum(['swebrec', 'rosinRammler']),
+      })
+      .exactOptional(),
     sdobBands: z.array(nonNeg),
     drillingCostPerMeter: nonNeg,
     displacement: z.object({ cB: pos, theta: pos, rowFactor: pos }),
@@ -330,7 +336,7 @@ const siteModels: z.ZodType<M.SiteModels> = z.object({
     z.object({
       id: id<'VibrationLaw'>(),
       name: z.string(),
-      scaling: z.enum(['square-root', 'cube-root']),
+      scaling: z.enum(['square-root', 'cube-root', 'langefors']),
       k: pos,
       beta: pos,
       confidence: num.exactOptional(),
