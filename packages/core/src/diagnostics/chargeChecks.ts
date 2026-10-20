@@ -1,6 +1,7 @@
 import { deckIntervals, explosiveDeckMass, indexLibrary } from '../charging/charge';
 import { scaledDepthOfBurial } from '../charging/sdob';
 import type { Blast, Explosive, HoleId, HoleWater, ProductLibrary } from '../model/types';
+import { isUndergroundHole } from '../underground/toHoles';
 import type { DesignCheck, DesignCheckOptions } from './designChecks';
 
 const TOL = 1e-3;
@@ -104,7 +105,8 @@ export function chargeChecks(
     if (boosterMissing) noBooster.push(h.id);
     if (waterBad) water.push(h.id);
     if (belowCritical) critical.push(h.id);
-    const sd = scaledDepthOfBurial(h, lib);
+    // La SDOB mide el cráter hacia la superficie libre del banco: no aplica a frentes ni abanicos.
+    const sd = isUndergroundHole(h) ? null : scaledDepthOfBurial(h, lib);
     if (sd && sd.sdob < options.sdob.severe) sdobSevere.push(h.id);
     else if (sd && sd.sdob < options.sdob.safe) sdobLow.push(h.id);
   }

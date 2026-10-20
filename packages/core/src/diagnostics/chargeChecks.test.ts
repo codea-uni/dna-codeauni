@@ -117,6 +117,13 @@ describe('revisión de la carga (G4)', () => {
     expect(r.sdobLow).toEqual([low.id]);
   });
 
+  it('SDOB no aplica a taladros subterráneos (frente o abanico)', () => {
+    const face = hole([exp(anfo, 16.1), stem(0.4)], [16], { tags: ['ug-face'] });
+    const r = check([face]);
+    expect(r.sdobSevere).toBeUndefined();
+    expect(r.sdobLow).toBeUndefined();
+  });
+
   it('doble cebado (R1 F19): 1000 ms al 0,005 % pasa; 20 000 ms no (columna 7,8 m, VOD 5400 → 1,45 ms)', () => {
     const e = { ...emulsion, vod: 5400 };
     const check2 = (nominal: number) => {
