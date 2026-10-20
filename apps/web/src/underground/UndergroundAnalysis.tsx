@@ -423,6 +423,8 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const ms = (x: number) => fmt((x - first) * 1000, 0);
 
   const play = () => {
+    // Desde el clic: la ventana baja a una barra para que se vea el 3D (también si la pila se calcula).
+    enterSimulationBar();
     if (!s.show3d) s.set({ show3d: true });
     if (s.showPile) {
       // Con la roca volando: la pila subterránea de esta versión del diseño (se calcula si falta).
@@ -439,7 +441,6 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const startPlay = (withPile: boolean) => {
     const engine = getEngine();
     if (!engine || !times) return;
-    enterSimulationBar();
     if (!s.show3d) s.set({ show3d: true });
     if (withPile && playUndergroundPile()) return;
     // Vista de frente: desde atrás del plano, mirando el avance.
