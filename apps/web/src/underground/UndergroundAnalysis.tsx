@@ -18,6 +18,7 @@ import {
   undergroundFragmentation,
   undergroundVolumes,
   waveCutoffRisks,
+  CUT_TAG,
   type Blast,
   type EnergyPlane,
   type EnergyResult,
@@ -606,6 +607,8 @@ function SequenceSection({ blast, project }: { blast: Blast; project: Project })
   }, [analysis, blast, project.library, window, s.shockDistance, receiver, vp.value]);
   if (!result) return <p className="hint">{t('uga.noTiming')}</p>;
   const label = new Map<HoleId, string>(blast.holes.map((h) => [h.id, h.label]));
+  // Pares dentro del arranque: cercanos por diseño (cuele), se muestran como consejo, no como error.
+  const cutHoles = new Set(blast.holes.filter((h) => h.tags?.includes(CUT_TAG)).map((h) => h.id));
   const names = (ids: readonly HoleId[]) => ids.map((id) => label.get(id) ?? '?').join(', ');
   const ms = (x: number, d = 0) => fmt(x * 1000, d);
   const ok = result.groups.length === 0 && result.cut.length === 0;
@@ -673,7 +676,10 @@ function SequenceSection({ blast, project }: { blast: Blast; project: Project })
           <h4>{t('uga.cutoff', { n: result.cut.length })}</h4>
           <ul className="ug-warnings">
             {result.cut.slice(0, 30).map((c, i) => (
-              <li key={i} className="warn">
+              <li
+                key={i}
+                className={cutHoles.has(c.firstId) && cutHoles.has(c.secondId) ? 'hint' : 'warn'}
+              >
                 {t('uga.cutoffItem', {
                   first: label.get(c.firstId) ?? '?',
                   second: label.get(c.secondId) ?? '?',

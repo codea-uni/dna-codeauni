@@ -101,6 +101,9 @@ export const es = {
   'check.ugCoupling.title': 'Taladros acoplados',
   'check.ugCoupling.detail':
     '{groups} grupo(s) de taladros cargados detonan dentro de {window} ms: salen como una sola carga, sin alivio entre ellos (más vibración y daño).',
+  'check.ugCutProximity.title': 'Cuele con cargas muy cercanas',
+  'check.ugCutProximity.detail':
+    '{pairs} par(es) de taladros del arranque a menos de {distance} m (propio del cuele de alivio): use números de retardo crecientes en el cuele y un explosivo resistente a la presión dinámica para evitar el dead pressing.',
   'check.ugWaveCutoff.title': 'Riesgo de corte por la onda del vecino',
   'check.ugWaveCutoff.detail':
     '{pairs} par(es) de cargas a menos de {distance} m: la onda del primero (d/Vp, Vp = {vp} m/s) llega antes de que detone el segundo y puede cortarlo o desensibilizarlo.',
@@ -204,6 +207,9 @@ export const en = {
   'check.ugCoupling.title': 'Coupled holes',
   'check.ugCoupling.detail':
     '{groups} group(s) of charged holes fire within {window} ms: they act as one charge, with no relief between them (more vibration and damage).',
+  'check.ugCutProximity.title': 'Burn cut with very close charges',
+  'check.ugCutProximity.detail':
+    '{pairs} pair(s) of cut holes closer than {distance} m (inherent to a burn cut): use increasing delay numbers in the cut and an explosive resistant to dynamic pressure to avoid dead pressing.',
   'check.ugWaveCutoff.title': 'Cut-off risk from a neighbour’s wave',
   'check.ugWaveCutoff.detail':
     '{pairs} pair(s) of charges closer than {distance} m: the first one’s wave (d/Vp, Vp = {vp} m/s) arrives before the second fires and may cut or desensitise it.',

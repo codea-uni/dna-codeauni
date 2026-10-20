@@ -61,7 +61,11 @@ describe('ronda de frente → taladros', () => {
     expect(must(holes[0]).label).toBe('F-1');
     design.holes.forEach((d, i) => {
       expect(must(holes[i]).tags).toEqual(
-        d.role === 'relief' ? ['ug-face', 'ug-relief'] : ['ug-face'],
+        d.role === 'relief'
+          ? ['ug-face', 'ug-relief']
+          : d.role === 'cut'
+            ? ['ug-face', 'ug-cut']
+            : ['ug-face'],
       );
     });
     for (const h of holes) expect(isUndergroundHole(h)).toBe(true);

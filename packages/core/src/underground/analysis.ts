@@ -14,7 +14,7 @@ import type {
   Seconds,
   Vec3,
 } from '../model/types';
-import { isUndergroundHole, RELIEF_TAG } from './toHoles';
+import { isUndergroundHole, CUT_TAG, RELIEF_TAG } from './toHoles';
 
 /**
  * Análisis de una voladura subterránea ya llevada al 3D (taladros `ug-*`): planos de evaluación de
@@ -402,7 +402,12 @@ export function undergroundTimingChecks(
   if (!blast.holes.some(isUndergroundHole)) return [];
   const groups = couplingGroups(blast.holes, fireTime, library, options.window);
   const vp = rockVp(rock).value;
-  const cut = waveCutoffRisks(blast.holes, fireTime, vp, options);
+  const risks = waveCutoffRisks(blast.holes, fireTime, vp, options);
+  // En el arranque los taladros van a pocos centímetros del alivio por diseño (método sueco): no
+  // es un error de diseño sino un riesgo conocido del cuele, que se informa aparte como consejo.
+  const isCut = new Set(blast.holes.filter((h) => h.tags?.includes(CUT_TAG)).map((h) => h.id));
+  const inCut = risks.filter((c) => isCut.has(c.firstId) && isCut.has(c.secondId));
+  const cut = risks.filter((c) => !(isCut.has(c.firstId) && isCut.has(c.secondId)));
   const ms = (s: number) => (s * 1000).toFixed(0);
   const checks: DesignCheck[] = [
     {
@@ -420,6 +425,14 @@ export function undergroundTimingChecks(
       detail: `${String(cut.length)} par(es) de cargas a menos de ${options.shockDistance.toFixed(2)} m: la onda del primero (d/Vp, Vp = ${vp.toFixed(0)} m/s) llega antes de que detone el segundo y puede cortarlo o desensibilizarlo.`,
       params: { pairs: cut.length, distance: options.shockDistance.toFixed(2), vp: vp.toFixed(0) },
       holes: [...new Set(cut.map((c) => c.secondId))],
+    },
+    {
+      id: 'ugCutProximity',
+      severity: 'info',
+      title: 'Cuele con cargas muy cercanas',
+      detail: `${String(inCut.length)} par(es) de taladros del arranque a menos de ${options.shockDistance.toFixed(2)} m (propio del cuele de alivio): use números de retardo crecientes en el cuele y un explosivo resistente a la presión dinámica para evitar el dead pressing.`,
+      params: { pairs: inCut.length, distance: options.shockDistance.toFixed(2) },
+      holes: [...new Set(inCut.map((c) => c.secondId))],
     },
   ];
   return checks.filter((c) => c.holes.length > 0);
