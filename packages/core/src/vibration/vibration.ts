@@ -18,6 +18,14 @@ import type {
   VibrationLaw,
 } from '../model/types';
 import { computeTiming } from '../timing/timing';
+import {
+  DEFAULT_KIND_PPV_LIMITS,
+  defaultVibrationLaw,
+  distanceToSegment3,
+  isSurfaceReceiver,
+  isUndergroundBlast,
+  isUndergroundPoint,
+} from './monitoring';
 
 /** Presión de referencia para dB (20 µPa). */
 const P_REF = 20e-6;
@@ -60,21 +68,27 @@ export function admissibleCharge(
 
 /**
  * Límite de PPV de un punto (RM-21, P-12): el propio del punto o, si no tiene, el menor de las
- * filas de la tabla que aplican a su tipo de estructura y a la distancia. null si no hay límite.
+ * filas de la tabla que aplican a su tipo de estructura y a la distancia. Las filas con `kind`
+ * valen solo para ese tipo de punto; las que no lo tienen, solo para puntos de superficie (las del
+ * EIA no gobiernan taludes ni labores). Sin fila, el límite por defecto del tipo
+ * (`DEFAULT_KIND_PPV_LIMITS`). null si no hay límite.
  */
 export function ppvLimitFor(
-  point: Pick<MonitoringPoint, 'ppvLimit' | 'structure'>,
+  point: Pick<MonitoringPoint, 'ppvLimit' | 'structure' | 'kind'>,
   distance: number,
   limits: readonly PpvLimit[],
 ): { ppvMax: number; source: string } | null {
   if (point.ppvLimit !== undefined) return { ppvMax: point.ppvLimit, source: 'Límite del punto' };
+  const surface = isSurfaceReceiver(point);
   let best: PpvLimit | null = null;
   for (const l of limits) {
+    if (l.kind !== undefined ? l.kind !== point.kind : !surface) continue;
     if (l.structure !== undefined && l.structure !== point.structure) continue;
     if (distance < l.from || (l.to !== undefined && distance >= l.to)) continue;
     if (!best || l.ppvMax < best.ppvMax) best = l;
   }
-  return best ? { ppvMax: best.ppvMax, source: best.source } : null;
+  if (best) return { ppvMax: best.ppvMax, source: best.source };
+  return point.kind ? DEFAULT_KIND_PPV_LIMITS[point.kind] : null;
 }
 
 /** Sobrepresión [Pa] (raíz cúbica): P = k · (R / W^(1/3))^(−β). */
@@ -232,6 +246,11 @@ export interface VibrationOptions {
   maxCells: number;
   /** Solo puntos de control y flyrock (sin mapa). */
   skipGrid?: boolean;
+  /**
+   * Puntos de control de la mina (compartidos entre proyectos) que se evalúan además de los del
+   * proyecto; si uno tiene el id de un punto del proyecto, gana el del proyecto.
+   */
+  extraPoints?: readonly MonitoringPoint[];
 }
 
 export const DEFAULT_VIBRATION_OPTIONS: VibrationOptions = {
@@ -249,6 +268,15 @@ export interface ReceiverResult {
   id: string;
   name: string;
   position: Vec3;
+  /** Tipo de punto (estructura, comunidad, talud, labor…). */
+  kind?: MonitoringPoint['kind'];
+  /** Punto de la mina (compartido), no del proyecto. */
+  shared: boolean;
+  /**
+   * Voladura y punto en lados distintos: voladura subterránea medida en superficie (talud,
+   * comunidad, estructura) o voladura superficial medida en una labor.
+   */
+  crossing: boolean;
   /** Distancia a la carga que gobierna el PPV [m]. */
   distance: number;
   ppv: number;
@@ -291,6 +319,8 @@ export interface VibrationResult extends ScalarGrid {
   /** Distancia a la que se alcanza cada nivel con la MIC [m] (mismo orden que `levels`). */
   distanceForLevel: number[];
   receivers: ReceiverResult[];
+  /** La voladura es subterránea (taladros `ug-*`). */
+  underground: boolean;
   /** Alcance de Lundborg [m], tamaño del fragmento asociado [m] y zona de exclusión. */
   flyrock: { range: number; fragmentSize: number; zone: Vec2[] };
   elapsedMs: number;
@@ -305,6 +335,11 @@ interface Source {
   w: number;
   /** Carga propia del taladro [kg]. */
   w0: number;
+  /** Extremos de la columna explosiva (de la primera a la última carga) a lo largo del eje. */
+  a: Vec3;
+  b: Vec3;
+  /** Taladro subterráneo: la distancia a los receptores se mide al segmento de carga. */
+  segment: boolean;
 }
 
 /** Vibración, sobrepresión y flyrock de una voladura. */
@@ -321,7 +356,8 @@ export function computeVibration(
   const t0 = performance.now();
   const site = project.siteModels;
   const law =
-    site.vibrationLaws.find((l) => l.id === options.lawId) ?? site.vibrationLaws[0] ?? null;
+    site.vibrationLaws.find((l) => l.id === options.lawId) ?? defaultVibrationLaw(project, blast);
+  const underground = isUndergroundBlast(blast);
   const rock = project.rockMasses.find((r) => r.id === blast.rockMassId);
   const charge = computeCharges(blast, project.library, rock?.density ?? 2650);
   const timing = computeTiming(
@@ -342,22 +378,37 @@ export function computeVibration(
     maxDiameter = Math.max(maxDiameter, h.diameter);
     let s = 0;
     let len = 0;
+    let top = Infinity;
+    let bottom = -Infinity;
     for (const d of deckIntervals(h)) {
       if (d.deck.kind !== 'explosive') continue;
       const l = d.bottom - Math.max(0, d.top);
       s += ((Math.max(0, d.top) + d.bottom) / 2) * l;
       len += l;
+      top = Math.min(top, Math.max(0, d.top));
+      bottom = Math.max(bottom, d.bottom);
     }
     const depth = len > 0 ? s / len : h.length;
     const toe = holeToe(h);
-    const f = h.length > 0 ? depth / h.length : 0;
+    const at = (depthAlong: number): Vec3 => {
+      const f = h.length > 0 ? depthAlong / h.length : 0;
+      return {
+        x: h.collar.x + (toe.x - h.collar.x) * f,
+        y: h.collar.y + (toe.y - h.collar.y) * f,
+        z: h.collar.z + (toe.z - h.collar.z) * f,
+      };
+    };
+    const c = at(depth);
     sources.push({
       id: h.id,
-      x: h.collar.x + (toe.x - h.collar.x) * f,
-      y: h.collar.y + (toe.y - h.collar.y) * f,
-      z: h.collar.z + (toe.z - h.collar.z) * f,
+      x: c.x,
+      y: c.y,
+      z: c.z,
       w: w[i] ?? kg,
       w0: kg,
+      a: len > 0 ? at(top) : c,
+      b: len > 0 ? at(bottom) : c,
+      segment: h.tags?.some((t) => t.startsWith('ug-')) ?? false,
     });
   });
   let mic = 0;
@@ -411,12 +462,23 @@ export function computeVibration(
 
   const indexOf = new Map(blast.holes.map((h, i) => [h.id, i]));
   const window = blast.calcParams.micWindow;
-  const receivers: ReceiverResult[] = (project.monitoringPoints ?? []).map((p) => {
+  const own = project.monitoringPoints ?? [];
+  const ownIds = new Set(own.map((p) => p.id));
+  const shared = (options.extraPoints ?? []).filter((p) => !ownIds.has(p.id));
+  const sharedIds = new Set(shared.map((p) => p.id));
+  const receivers: ReceiverResult[] = [...own, ...shared].map((p) => {
     // K y β propios del punto (H-602) sobre la ley del sitio.
     const pointLaw = law ? { ...law, k: p.k ?? law.k, beta: p.beta ?? law.beta } : null;
+    // Bajo tierra (taladro `ug-*` o punto en una labor) la carga no es puntual frente a la
+    // distancia: se mide al punto más cercano de la columna explosiva (conservador). En superficie,
+    // al centroide de la carga, como siempre.
+    const toSegment = isUndergroundPoint(p);
     let best = { ppv: 0, air: 0, distance: Infinity, hole: null as HoleId | null, w: 0 };
     for (const s of sources) {
-      const r = Math.hypot(p.position.x - s.x, p.position.y - s.y, p.position.z - s.z);
+      const r =
+        s.segment || toSegment
+          ? distanceToSegment3(p.position, s.a, s.b)
+          : Math.hypot(p.position.x - s.x, p.position.y - s.y, p.position.z - s.z);
       const v = pointLaw ? ppvAt(pointLaw, r, s.w) : 0;
       const a = airblastAt(site.airblast, r, s.w);
       if (v > best.ppv) best = { ...best, ppv: v, distance: r, hole: s.id, w: s.w };
@@ -442,6 +504,10 @@ export function computeVibration(
       id: p.id,
       name: p.name,
       position: p.position,
+      ...(p.kind ? { kind: p.kind } : {}),
+      shared: sharedIds.has(p.id),
+      crossing:
+        sources.length > 0 && (underground ? !isUndergroundPoint(p) : isUndergroundPoint(p)),
       distance,
       ppv: best.ppv,
       airblastPa: best.air,
@@ -510,6 +576,7 @@ export function computeVibration(
     notInitiated: timing.notInitiated,
     distanceForLevel,
     receivers,
+    underground,
     flyrock: {
       range: flyrockRange,
       fragmentSize: maxDiameter > 0 ? lundborgFragmentSize(maxDiameter) : 0,

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type * as M from '../model/types';
+import type { SeismographRecord } from '../vibration/calibration';
 
 /**
  * Esquemas de validación del JSON de proyecto. Cada esquema se anota con su tipo del modelo
@@ -332,6 +333,8 @@ const siteModels: z.ZodType<M.SiteModels> = z.object({
       k: pos,
       beta: pos,
       confidence: num.exactOptional(),
+      context: z.enum(['surface', 'underground']).exactOptional(),
+      fit: z.object({ zone: z.string(), n: z.int().nonnegative(), r2: num }).exactOptional(),
     }),
   ),
   nearField: z.object({ k: pos, alpha: pos, beta: pos }).exactOptional(),
@@ -340,6 +343,42 @@ const siteModels: z.ZodType<M.SiteModels> = z.object({
 });
 
 const hash = z.string().regex(/^[0-9a-f]{64}$/);
+
+const monitoringPointKind = z.enum([
+  'surface-structure',
+  'community',
+  'slope',
+  'underground-working',
+  'other',
+]);
+
+/** Medición de sismógrafo de la mina (calibración de la ley de vibración). */
+export const seismographRecordSchema: z.ZodType<SeismographRecord> = z.object({
+  id: z.string().min(1).max(64),
+  date: z.string().max(32),
+  zone: z.string().max(200),
+  context: z.enum(['surface', 'underground']),
+  charge: pos,
+  distance: pos.exactOptional(),
+  blastPosition: vec3.exactOptional(),
+  sensorPosition: vec3.exactOptional(),
+  ppv: pos,
+  frequency: pos.exactOptional(),
+  note: z.string().max(500).exactOptional(),
+});
+
+/** Punto de control (también los compartidos con la mina). */
+export const monitoringPointSchema: z.ZodType<M.MonitoringPoint> = z.object({
+  id: id<'MonitoringPoint'>(),
+  name: z.string(),
+  position: vec3,
+  ppvLimit: pos.exactOptional(),
+  k: pos.exactOptional(),
+  beta: pos.exactOptional(),
+  structure: z.string().exactOptional(),
+  kind: monitoringPointKind.exactOptional(),
+  working: z.string().exactOptional(),
+});
 
 export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
   id: id<'TopographySurvey'>(),
@@ -419,24 +458,13 @@ export const projectSchema: z.ZodType<M.Project> = z.object({
   siteModels,
   topography: z.array(topographySurveySchema),
   blasts: z.array(blast),
-  monitoringPoints: z
-    .array(
-      z.object({
-        id: id<'MonitoringPoint'>(),
-        name: z.string(),
-        position: vec3,
-        ppvLimit: pos.exactOptional(),
-        k: pos.exactOptional(),
-        beta: pos.exactOptional(),
-        structure: z.string().exactOptional(),
-      }),
-    )
-    .exactOptional(),
+  monitoringPoints: z.array(monitoringPointSchema).exactOptional(),
   scenarios: z.array(scenario).exactOptional(),
   ppvLimits: z
     .array(
       z.object({
         structure: z.string().exactOptional(),
+        kind: monitoringPointKind.exactOptional(),
         from: nonNeg,
         to: pos.exactOptional(),
         ppvMax: pos,
