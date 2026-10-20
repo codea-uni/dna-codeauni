@@ -8,6 +8,7 @@ import {
 import { turboCss } from '@cronos/engine';
 import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
+import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
 import { session } from '../session';
@@ -150,6 +151,15 @@ export function EnergyPanel() {
           <>
             <h3>{t('energy.siteConstants')}</h3>
             <p className="hint">{t('energy.formulaHint')}</p>
+            <MethodDetail
+              id="energy.holmbergPersson"
+              values={{
+                k: nf.k * 1000,
+                alpha: nf.alpha,
+                beta: nf.beta,
+                ppv: e && e.nx > 0 ? e.max * 1000 : undefined,
+              }}
+            />
             <NumberField
               label="K"
               unit="mm/s"
@@ -180,6 +190,15 @@ export function EnergyPanel() {
             />
             <p className="hint">{t('energy.validityHint')}</p>
             <h3>{t('energy.damage.title')}</h3>
+            <MethodDetail
+              id="energy.criticalPpv"
+              values={{
+                st: rock?.tensileStrength !== undefined ? rock.tensileStrength / 1e6 : undefined,
+                vp: rock?.vp,
+                e: rock ? rock.youngModulus / 1e9 : undefined,
+                vppc: vppc ? vppc.value * 1000 : undefined,
+              }}
+            />
             {rock && (
               <>
                 <NumberField
@@ -228,17 +247,20 @@ export function EnergyPanel() {
             </label>
           </>
         ) : (
-          <NumberField
-            label={t('energy.sigma')}
-            unit={len.unit}
-            decimals={2}
-            min={0.1}
-            value={len.show(s.energySigma)}
-            onCommit={(raw) => {
-              const v = len.parse(raw);
-              s.set({ energySigma: v });
-            }}
-          />
+          <>
+            <MethodDetail id="energy.chargeDensity" values={{ sigma: s.energySigma }} />
+            <NumberField
+              label={t('energy.sigma')}
+              unit={len.unit}
+              decimals={2}
+              min={0.1}
+              value={len.show(s.energySigma)}
+              onCommit={(raw) => {
+                const v = len.parse(raw);
+                s.set({ energySigma: v });
+              }}
+            />
+          </>
         )}
         <label className="field">
           <span className="field-label">{t('energy.contours', { unit })}</span>

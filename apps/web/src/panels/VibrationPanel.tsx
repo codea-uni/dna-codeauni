@@ -10,10 +10,13 @@ import {
   type MonitoringPointKind,
   type PpvLimit,
   type VibrationMetric,
+  choiceModel,
+  METHOD_CHOICES,
 } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { MapPin, Share2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { MethodDetail } from '../methods/MethodDetail';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { NumberField } from '../components/NumberField';
 import { useProject } from '../hooks/useDocument';
@@ -59,6 +62,12 @@ export function VibrationPanel() {
   };
   const isPpv = s.vibMetric === 'ppv';
   const v = s.vibration;
+  // Ejemplo del «Detalle»: el punto con mayor PPV (el que gobierna el diseño).
+  const governing = v?.receivers.reduce<(typeof v.receivers)[number] | null>(
+    (best, r) => (r.law && (!best || r.ppv > best.ppv) ? r : best),
+    null,
+  );
+  const maxDiameter = Math.max(0, ...(project.blasts[0]?.holes.map((h) => h.diameter) ?? []));
   const [levelsText, setLevelsText] = useState(s.vibLevels.join('; '));
   const unit = isPpv ? 'mm/s' : 'dB';
   const toUi = (x: number) => (isPpv ? x * 1000 : dB(x));
@@ -322,6 +331,27 @@ export function VibrationPanel() {
         <h2>{t('vib.siteConstants')}</h2>
         {law && (
           <>
+            <MethodDetail
+              id={choiceModel('vibrationLaw', law.scaling)}
+              choice={{
+                label: t('md.law'),
+                value: law.scaling,
+                options: METHOD_CHOICES.vibrationLaw,
+                disabled: session.document.readOnly,
+                onChange: (value) => {
+                  const next = METHOD_CHOICES.vibrationLaw.find((o) => o.value === value);
+                  if (next) setLaw({ scaling: next.value });
+                },
+              }}
+              values={{
+                k: law.k * 1000,
+                beta: law.beta,
+                q: v?.mic,
+                r: governing?.distance,
+                ppv: governing ? governing.ppv * 1000 : undefined,
+              }}
+              note={governing ? t('vib.detailExample', { name: governing.name }) : undefined}
+            />
             {isUncalibratedLaw(law) ? (
               <p className="warn" title={t('mv.uncalibratedTitle')}>
                 {t('mv.uncalibrated', { name: law.name })}
@@ -354,7 +384,6 @@ export function VibrationPanel() {
                 </select>
               </label>
             )}
-            <p className="hint">PPV = K · (R / W^{law.scaling === 'square-root' ? '½' : '⅓'})^−β</p>
             <NumberField
               label="K"
               unit="mm/s"
@@ -374,22 +403,14 @@ export function VibrationPanel() {
                 setLaw({ beta: x });
               }}
             />
-            <label className="field">
-              <span className="field-label">{t('vib.scaled')}</span>
-              <select
-                value={law.scaling}
-                onChange={(e) => {
-                  setLaw({ scaling: e.target.value as typeof law.scaling });
-                }}
-              >
-                <option value="square-root">{t('vib.squareRoot')}</option>
-                <option value="cube-root">{t('vib.cubeRoot')}</option>
-              </select>
-            </label>
           </>
         )}
         <h3>{t('vib.airblast')} · P = K · (R / W^⅓)^−β</h3>
         <p className="hint">{t('vib.airblastSource')}</p>
+        <MethodDetail
+          id="flyrock.airblast"
+          values={{ k: site.airblast.k / 1000, beta: site.airblast.beta }}
+        />
         <NumberField
           label="K"
           unit="kPa"
@@ -410,6 +431,14 @@ export function VibrationPanel() {
           }}
         />
         <h3>{t('vib.flyrockTitle')}</h3>
+        <MethodDetail
+          id="flyrock.lundborg"
+          values={{
+            d: maxDiameter > 0 ? maxDiameter * 1000 : undefined,
+            sf: site.flyrock.safetyFactor,
+            range: v?.flyrock.range,
+          }}
+        />
         <NumberField
           label={t('vib.safetyFactor')}
           decimals={2}
@@ -578,6 +607,12 @@ function PpvLimitsTable() {
   const t = useT();
   const project = useProject();
   const limits = project.ppvLimits ?? [];
+  const vibration = useAnalysisStore((st) => st.vibration);
+  const worst = vibration?.receivers.reduce<(typeof vibration.receivers)[number] | null>(
+    (best, r) =>
+      r.limit && (!best?.limit || r.ppv / r.limit.ppvMax > best.ppv / best.limit.ppvMax) ? r : best,
+    null,
+  );
   const set = (next: PpvLimit[], label: string) => {
     session.document.dispatch({ type: 'project/patch', patch: { ppvLimits: next } }, label);
   };
@@ -591,6 +626,14 @@ function PpvLimitsTable() {
     <section className="panel">
       <Floatable id="vib.limits" title={t('vib.limits')} width={640}>
         <p className="hint">{t('vib.limitsHint')}</p>
+        <MethodDetail
+          id="vibration.damage"
+          values={{
+            limit: worst?.limit ? worst.limit.ppvMax * 1000 : undefined,
+            ppv: worst ? worst.ppv * 1000 : undefined,
+          }}
+          note={worst ? t('vib.detailExample', { name: worst.name }) : undefined}
+        />
         <table className="grid-table compact">
           <thead>
             <tr>

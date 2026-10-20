@@ -1,4 +1,11 @@
-import type { KuzRamInputs } from '@cronos/core';
+import {
+  choiceModel,
+  fragmentationHeadline,
+  METHOD_CHOICES,
+  type CalcParams,
+  type KuzRamInputs,
+} from '@cronos/core';
+import { MethodDetail } from '../methods/MethodDetail';
 import { RefreshCw } from 'lucide-react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { lazy, Suspense } from 'react';
@@ -59,34 +66,111 @@ export function FragmentationPanel() {
     s.set({ fragAuto: false, fragInputs: { ...inputs, ...patch } });
   };
   const nRange = blast?.calcParams.checks.uniformityRange;
+  // Metodología elegida (guardada en la voladura): variante de Kuz-Ram y curva informada.
+  const method: NonNullable<CalcParams['fragmentation']> = blast?.calcParams.fragmentation ?? {
+    model: 'cunningham1987',
+    curve: 'swebrec',
+  };
+  const setMethod = (patch: Partial<typeof method>) => {
+    if (!blast) return;
+    const next = { ...method, ...patch };
+    session.document.dispatch(
+      {
+        type: 'blast/patch',
+        blastId: blast.id,
+        patch: { calcParams: { ...blast.calcParams, fragmentation: next } },
+      },
+      t('md.methodology'),
+    );
+    // Recalcula ya (también con las entradas editadas a mano).
+    if (inputs && patch.model) s.set({ fragInputs: { ...inputs, variant: patch.model } });
+  };
+  const h = r ? fragmentationHeadline(r, method.curve) : null;
+  const kr = choiceModel('fragmentationModel', method.model);
+  const curveModel = choiceModel('fragmentationCurve', method.curve);
 
   return (
     <>
       <section className="panel">
         <Floatable id="frag" title={t('frag.title')} width={760}>
-          {!r ? (
+          <MethodDetail
+            id={kr}
+            choice={{
+              label: t('md.methodology'),
+              value: method.model,
+              options: METHOD_CHOICES.fragmentationModel,
+              disabled: !blast || session.document.readOnly,
+              onChange: (value) => {
+                const o = METHOD_CHOICES.fragmentationModel.find((x) => x.value === value);
+                if (o) setMethod({ model: o.value });
+              },
+            }}
+            values={
+              inputs
+                ? {
+                    a: inputs.rockFactor,
+                    k: inputs.loadingFactor,
+                    q: inputs.chargePerHole,
+                    rws: inputs.rws * 100,
+                    b: inputs.burden,
+                    s: inputs.spacing,
+                    d: inputs.diameter * 1000,
+                    w: inputs.drillDeviation,
+                    c: 1,
+                    x50: r ? r.x50 * 100 : undefined,
+                    n: r?.n,
+                  }
+                : undefined
+            }
+          />
+          <MethodDetail
+            id={curveModel}
+            choice={{
+              label: t('md.curve'),
+              value: method.curve,
+              options: METHOD_CHOICES.fragmentationCurve,
+              disabled: !blast || session.document.readOnly,
+              onChange: (value) => {
+                const o = METHOD_CHOICES.fragmentationCurve.find((x) => x.value === value);
+                if (o) setMethod({ curve: o.value });
+              },
+            }}
+            values={
+              r
+                ? {
+                    x50: r.x50 * 100,
+                    xmax: r.xmax * 100,
+                    b: r.b,
+                    xc: r.xc * 100,
+                    n: r.n,
+                    p80: (h?.p80 ?? 0) * 100,
+                  }
+                : undefined
+            }
+          />
+          {!r || !h ? (
             <p className="hint">{t('frag.needCharge')}</p>
           ) : (
             <>
               <div className="kpis">
                 <div className="kpi">
                   <span>P50</span>
-                  <strong>{cm(r.p50.swebrec)}</strong>
+                  <strong>{cm(h.p50)}</strong>
                   <small>cm</small>
                 </div>
                 <div className="kpi">
                   <span>P80</span>
-                  <strong>{cm(r.p80.swebrec)}</strong>
+                  <strong>{cm(h.p80)}</strong>
                   <small>cm</small>
                 </div>
                 <div className="kpi" title={t('frag.oversizeTitle', { size: cm(r.oversize.size) })}>
                   <span>&gt; {cm(r.oversize.size)} cm</span>
-                  <strong>{fmt(r.oversize.swebrec * 100)}</strong>
+                  <strong>{fmt(h.oversize * 100)}</strong>
                   <small>%</small>
                 </div>
                 <div className="kpi" title={t('frag.finesTitle', { size: cm(r.fines.size) })}>
                   <span>&lt; {cm(r.fines.size)} cm</span>
-                  <strong>{fmt(r.fines.swebrec * 100)}</strong>
+                  <strong>{fmt(h.fines * 100)}</strong>
                   <small>%</small>
                 </div>
               </div>
@@ -99,19 +183,19 @@ export function FragmentationPanel() {
                 <thead>
                   <tr>
                     <th>cm</th>
-                    <th>P20</th>
-                    <th>P50</th>
-                    <th>P80</th>
+                    <th className="num">P20</th>
+                    <th className="num">P50</th>
+                    <th className="num">P80</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
+                  <tr className={method.curve === 'swebrec' ? 'selected' : undefined}>
                     <td>Swebrec</td>
                     <td className="num">{cm(r.p20.swebrec)}</td>
                     <td className="num">{cm(r.p50.swebrec)}</td>
                     <td className="num">{cm(r.p80.swebrec)}</td>
                   </tr>
-                  <tr>
+                  <tr className={method.curve === 'rosinRammler' ? 'selected' : undefined}>
                     <td>Rosin-Rammler</td>
                     <td className="num">{cm(r.p20.rosinRammler)}</td>
                     <td className="num">{cm(r.p50.rosinRammler)}</td>

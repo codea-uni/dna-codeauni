@@ -4,6 +4,7 @@ import {
   DEFAULT_UG_TIMING,
   DEFAULT_UG_MUCKPILE_PARAMS,
   type EnergyMetric,
+  type FragmentationCurve,
   type KuzRamVariant,
 } from '@cronos/core';
 
@@ -45,6 +46,8 @@ export interface UgAnalysisState {
   advanceEfficiency: number;
   overbreak: number;
   variant: KuzRamVariant;
+  /** Curva con la que se informan P50/P80 (Swebrec o Rosin-Rammler). */
+  curve: FragmentationCurve;
   calibration: number;
   /** Bloque in situ [m] para xmax de Swebrec; 0 = sin dato (xmax = S). */
   inSituBlock: number;
@@ -70,6 +73,7 @@ export const useUgAnalysisStore = create<UgAnalysisState>((set) => ({
   advanceEfficiency: DEFAULT_ADVANCE_EFFICIENCY,
   overbreak: 0,
   variant: 'cunningham2005',
+  curve: 'swebrec',
   calibration: 1,
   inSituBlock: 0,
   set: (patch) => {

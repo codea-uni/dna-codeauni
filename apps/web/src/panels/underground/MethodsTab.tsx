@@ -12,6 +12,7 @@ import { useMemo } from 'react';
 import { NumberField } from '../../components/NumberField';
 import { useActiveBlast, useProject } from '../../hooks/useDocument';
 import { useUnits } from '../../hooks/useUnits';
+import { MethodDetail } from '../../methods/MethodDetail';
 import { useFormat, useT, type MessageKey } from '../../i18n';
 import {
   defaultMethodPlacement,
@@ -423,6 +424,26 @@ function MethodEditor({ id }: { id: MiningMethodId }) {
                 unit: pfUnit,
               })}
             </p>
+            <MethodDetail
+              id="methods.templates"
+              values={{
+                pf: `${fmt(pf, 2)} ${pfUnit}`,
+                min: `${fmt(m.powderFactor.min, 2)} ${pfUnit}`,
+                max: `${fmt(m.powderFactor.max, 2)} ${pfUnit}`,
+              }}
+            />
+            {design.rules && (
+              <MethodDetail
+                id="rings.langefors"
+                values={{
+                  d: params.holeDiameter * 1000,
+                  bmax: design.rules.langeforsMax,
+                  burden: design.rules.langeforsPractical,
+                  emin: design.rules.empiricalMin,
+                  emax: design.rules.empiricalMax,
+                }}
+              />
+            )}
             {(design.warnings.length > 0 || design.faceWarnings.length > 0) && (
               <ul className="ug-warnings">
                 {design.warnings.map((w, i) => (

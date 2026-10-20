@@ -4,6 +4,7 @@ import * as actions from '../actions';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { lazy, Suspense, useMemo } from 'react';
 import { useActiveBlast } from '../hooks/useDocument';
+import { MethodDetail } from '../methods/MethodDetail';
 import { useFormat, useT } from '../i18n';
 import { checkText } from '../i18n/coreText';
 import { session } from '../session';
@@ -134,9 +135,27 @@ export function ResultsPanel() {
             )}
           </tbody>
         </table>
+        {!allUg && (
+          <MethodDetail
+            id="volume.bench"
+            values={{
+              v: c.volume,
+              rho: c.volume > 0 ? c.tonnage / c.volume : undefined,
+              q: c.totalExplosive,
+              lf: c.loadingFactor,
+              pf: c.powderFactor * 1000,
+            }}
+          />
+        )}
         {ugVolumes.length > 0 && (
           <>
             <h3>{t('uga.results.title')}</h3>
+            <MethodDetail
+              id="volume.underground"
+              values={
+                ugVolumes[0] ? { area: ugVolumes[0].area, volume: ugVolumes[0].volume } : undefined
+              }
+            />
             {allUg && <p className="hint">{t('uga.results.hint')}</p>}
             <UgVolumeTable volumes={ugVolumes} />
           </>

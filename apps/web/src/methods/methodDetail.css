@@ -1,0 +1,250 @@
+/* «Detalle» de un modelo: barra (modelo o selector + botón) y panel desplegable en el flujo de la
+   ventana (no flota: no tapa campos ni se sale de la ventana). */
+.method-detail {
+  margin: 0.45rem 0;
+  min-width: 0;
+}
+
+.method-detail-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  min-width: 0;
+}
+
+.method-detail-name,
+.method-detail-choice {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.method-detail-name {
+  overflow-wrap: anywhere;
+}
+
+.method-detail-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.method-detail-choice select {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.method-detail-label {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+button.method-detail-btn,
+.row button.method-detail-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 12px;
+}
+
+.method-detail-panel {
+  position: relative;
+  margin-top: 0.4rem;
+  padding: 0.6rem 0.7rem 0.7rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--panel-2);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+}
+
+button.method-detail-close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  display: inline-flex;
+  padding: 0.15rem;
+}
+
+.method-detail-body {
+  min-width: 0;
+}
+
+.method-detail-title {
+  margin: 0 1.8rem 0.4rem 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.method-detail-body h5 {
+  margin: 0.7rem 0 0.3rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.method-detail-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.3rem 0.8rem;
+  margin: 0 0 0.4rem;
+}
+
+.method-detail-meta div {
+  min-width: 0;
+}
+
+.method-detail-meta dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.method-detail-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.method-detail-badge {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: help;
+}
+
+.method-detail-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.method-detail-rules code {
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  background: var(--bg);
+  font-size: 11px;
+}
+
+.method-detail-formulas {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.4rem 0;
+}
+
+.method-detail-formula {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  background: var(--bg);
+  max-width: 100%;
+}
+
+.method-detail-formula .katex-display {
+  margin: 0.2rem 0;
+}
+
+.method-detail-symbol {
+  display: inline-block;
+}
+
+.formula-fallback {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.method-detail-table-wrap {
+  overflow-x: auto;
+}
+
+.method-detail-vars {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.method-detail-vars th {
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: left;
+  padding: 0.1rem 0.3rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.method-detail-vars th.num,
+.method-detail-vars td.num {
+  text-align: right;
+}
+
+.method-detail-vars td {
+  padding: 0.15rem 0.3rem;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.method-detail-vars td:first-child {
+  white-space: nowrap;
+}
+
+.method-detail-vars td.num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.method-detail-vars tr.output td {
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.method-detail-arrow {
+  color: var(--accent);
+}
+
+.method-detail-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.method-detail-list li {
+  margin: 0.15rem 0;
+}
+
+button.method-detail-docs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.method-detail-note {
+  margin: 0.4rem 0 0;
+}
+.grid-table tr.selected td {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Ventanas angostas (teléfono): fórmulas algo más chicas para que quepan sin desplazar. */
+.method-detail-panel {
+  container-type: inline-size;
+}
+
+@container (max-width: 420px) {
+  .method-detail-formula .katex-display > .katex {
+    font-size: 0.92em;
+  }
+}

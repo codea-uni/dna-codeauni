@@ -125,7 +125,8 @@ export const es = {
   'uga.frag.face': 'Frente',
   'uga.frag.ring': 'Abanico',
   'uga.frag.zone': 'Zona',
-  'uga.frag.rr': 'Rosin-Rammler: P50 {p50} cm, P80 {p80} cm · factor de roca A = {a}',
+  'uga.frag.rr': '{curve}: P50 {p50} cm, P80 {p80} cm · factor de roca A = {a}',
+  'uga.frag.detailZone': 'Valores de la primera zona: {zone}.',
   'uga.frag.hint':
     'Frente: una curva por zona del método sueco (K de su volumen tributario) mezclada por la roca de cada zona. Abanico: burden entre anillos, espaciamiento de fondos y K del anillo; en roca dura tiende a subestimar X50: calibra C con fotos de la pila.',
   'uga.zone.cut': 'Arranque',
@@ -269,7 +270,8 @@ export const en = {
   'uga.frag.face': 'Face',
   'uga.frag.ring': 'Ring',
   'uga.frag.zone': 'Zone',
-  'uga.frag.rr': 'Rosin-Rammler: P50 {p50} cm, P80 {p80} cm · rock factor A = {a}',
+  'uga.frag.rr': '{curve}: P50 {p50} cm, P80 {p80} cm · rock factor A = {a}',
+  'uga.frag.detailZone': 'Values from the first zone: {zone}.',
   'uga.frag.hint':
     'Face: one curve per Swedish-method zone (K of its tributary volume) mixed by the rock of each zone. Ring: ring burden, toe spacing and ring K; in hard rock it tends to underestimate X50: calibrate C with muckpile photos.',
   'uga.zone.cut': 'Cut',

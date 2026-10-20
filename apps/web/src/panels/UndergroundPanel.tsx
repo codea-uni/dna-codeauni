@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
-import type { ProductLibrary } from '@cronos/core';
+import { EMPIRICAL_HOLE_COUNT, type ProductLibrary } from '@cronos/core';
 import { NumberField } from '../components/NumberField';
+import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useUnits } from '../hooks/useUnits';
 import { useFormat, useT, type MessageKey } from '../i18n';
@@ -487,6 +488,30 @@ function FaceTab() {
               />
               <Kpi label={t('ug.kpi.area')} value={fmt(face.profile.area, 1)} unit="m²" />
             </div>
+            <MethodDetail
+              id="face.holmberg"
+              values={{
+                phi: design.equivalentReliefDiameter * 1000,
+                d: form.holeDiameter * 1000,
+                c: form.rockConstant,
+                l: design.linearCharge,
+                f: design.drillingError,
+                h: design.depthFromRelief,
+                advance: k.advance,
+                pf: k.powderFactor,
+              }}
+            />
+            <MethodDetail
+              id="face.exsa"
+              values={{
+                p: face.profile.perimeter,
+                e: EMPIRICAL_HOLE_COUNT.perimeterSpacing,
+                k: EMPIRICAL_HOLE_COUNT.areaFactor,
+                s: face.profile.area,
+                n: k.empiricalHoleCount,
+                design: k.chargedHoles,
+              }}
+            />
             {(design.warnings.length > 0 || tooLarge) && (
               <ul className="ug-warnings">
                 {tooLarge && explosive.cartridge && (
@@ -930,6 +955,14 @@ function RingTab() {
                 <RingRow label={t('ug.kpi.area')} unit="m²" one={k.area} d={1} />
               </tbody>
             </table>
+            <MethodDetail
+              id="rings.layout"
+              values={{
+                burden: form.burden,
+                toe: form.toeSpacing > 0 ? form.toeSpacing : undefined,
+                pf: k.powderFactor,
+              }}
+            />
             <Fold title={t('ug.table', { n: ring.ring.holes.length })}>
               <div className="table-scroll">
                 <table className="grid-table compact">

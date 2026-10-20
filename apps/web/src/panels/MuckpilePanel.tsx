@@ -8,6 +8,8 @@ import {
   type MuckpileResult,
   type MuckpileWarning,
   type TopographySurveyId,
+  choiceModel,
+  METHOD_CHOICES,
 } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { lazy, Suspense, useState, useSyncExternalStore } from 'react';
@@ -21,6 +23,7 @@ import {
 import { errorScale, FRAGMENT_CLASS_COLORS, muckpileRange } from '../analysis/muckpileColors';
 import { muckpileEnd, sequenceTimes } from '../analysis/visualize';
 import { NumberField } from '../components/NumberField';
+import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useUnits } from '../hooks/useUnits';
 import { useFormat, useT, type MessageKey } from '../i18n';
@@ -121,26 +124,38 @@ function MuckpileParamsForm({ blast }: { blast: Blast }) {
   );
   return (
     <>
-      <label className="field">
-        <span className="field-label">{t('muckpile.velocityModel')}</span>
-        <select
-          value={p.velocityModel}
-          onChange={(e) => {
-            const model = e.target.value as MuckpileParams['velocityModel'];
+      <MethodDetail
+        id={choiceModel('muckpileVelocity', p.velocityModel)}
+        choice={{
+          label: t('muckpile.velocityModel'),
+          value: p.velocityModel,
+          options: METHOD_CHOICES.muckpileVelocity,
+          disabled: session.document.readOnly,
+          onChange: (value) => {
+            const model = METHOD_CHOICES.muckpileVelocity.find((o) => o.value === value)?.value;
+            if (!model) return;
             set(
               model === 'zhang'
                 ? { velocityModel: model }
                 : { velocityModel: model, ...POWER_LAW_DEFAULTS[model] },
               t('muckpile.velocityModel'),
             );
-          }}
-        >
-          <option value="zhang">{t('muckpile.model.zhang')}</option>
-          <option value="scaledBurden">{t('muckpile.model.scaledBurden')}</option>
-          <option value="richardsMoore">{t('muckpile.model.richardsMoore')}</option>
-        </select>
-      </label>
+          },
+        }}
+        values={
+          p.velocityModel === 'zhang'
+            ? {
+                cb: blast.calcParams.displacement.cB,
+                theta: radToDeg(blast.calcParams.displacement.theta),
+              }
+            : { k: p.k, n: p.n }
+        }
+      />
       <p className="hint">{t(`muckpile.model.${p.velocityModel}.hint`)}</p>
+      <MethodDetail
+        id="muckpile.kinematic"
+        values={{ swell: p.swell, repose: radToDeg(p.reposeAngle) }}
+      />
       {p.velocityModel !== 'zhang' && (
         <>
           <NumberField
