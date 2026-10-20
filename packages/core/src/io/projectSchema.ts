@@ -338,7 +338,18 @@ export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
   surveyDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   epsg: z.int().positive().exactOptional(),
   source: z.object({
-    format: z.enum(['dxf', 'surpac', 'points', 'landxml', 'geotiff', 'image', 'las', 'legacy']),
+    format: z.enum([
+      'dxf',
+      'surpac',
+      'points',
+      'landxml',
+      'geotiff',
+      'image',
+      'las',
+      'legacy',
+      'cloud',
+      'blockmodel',
+    ]),
     files: z.array(z.string()),
     sourceEpsg: z.int().positive().exactOptional(),
     transform: z.string().exactOptional(),
@@ -353,6 +364,8 @@ export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
     tin: hash.exactOptional(),
     lines: hash.exactOptional(),
     image: hash.exactOptional(),
+    cloud: hash.exactOptional(),
+    blocks: hash.exactOptional(),
   }),
 });
 

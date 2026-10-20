@@ -369,7 +369,18 @@ export interface FreeFace {
 
 /** Formato de origen de un levantamiento topográfico. */
 export type TopographyFormat =
-  'dxf' | 'surpac' | 'points' | 'landxml' | 'geotiff' | 'image' | 'las' | 'legacy';
+  | 'dxf'
+  | 'surpac'
+  | 'points'
+  | 'landxml'
+  | 'geotiff'
+  | 'image'
+  | 'las'
+  | 'legacy'
+  /** Nube de puntos para ver, sin triangular (texto XYZ RGB, `.ibpc`). */
+  | 'cloud'
+  /** Modelo de bloques (CSV de Datamine/Vulcan/Surpac). */
+  | 'blockmodel';
 
 /** Caja envolvente 3D [m]. */
 export interface Bounds3 {
@@ -404,7 +415,7 @@ export interface TopographySurvey {
   bounds: Bounds3;
   stats: { points: number; triangles: number; lines: number };
   /** Hash SHA-256 de cada asset `CRTS`. */
-  assets: { tin?: string; lines?: string; image?: string };
+  assets: { tin?: string; lines?: string; image?: string; cloud?: string; blocks?: string };
 }
 
 // ===================== Malla / patrón =====================

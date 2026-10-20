@@ -5,7 +5,7 @@ import {
   type TopographyFormat,
   type TopographySurvey,
 } from '@cronos/core';
-import { Mountain, Trash2 } from 'lucide-react';
+import { Boxes, Mountain, Trash2 } from 'lucide-react';
 import { useEffect, useReducer, useRef } from 'react';
 import * as actions from '../actions';
 import { IconButton } from '../components/IconButton';
@@ -19,6 +19,8 @@ import {
   topographyTin,
 } from '../topography/session';
 import { useUiStore } from '../stores/uiStore';
+import { importModel3dFiles, MODEL3D_ACCEPT } from '../topography/models3d';
+import { BlockModelControls, PointCloudControls } from './Model3dControls';
 import { TopographyDesignTools } from './TopographyDesignTools';
 
 const FORMAT_KEY = {
@@ -30,6 +32,8 @@ const FORMAT_KEY = {
   image: 'topo.format.image',
   las: 'topo.format.las',
   legacy: 'topo.format.legacy',
+  cloud: 'topo.format.cloud',
+  blockmodel: 'topo.format.blockmodel',
 } as const satisfies Record<TopographyFormat, string>;
 
 /**
@@ -42,6 +46,7 @@ export function TopographyPanel() {
   const project = useProject();
   const blast = project.blasts[0];
   const input = useRef<HTMLInputElement>(null);
+  const modelInput = useRef<HTMLInputElement>(null);
   // Se vuelve a dibujar cuando termina de cargarse un levantamiento en el navegador.
   const [, refresh] = useReducer((x: number) => x + 1, 0);
   useEffect(() => onTopographyChange(refresh), []);
@@ -138,10 +143,14 @@ export function TopographyPanel() {
                     {t('topo.panel.reprojected', { transform: s.source.transform })}
                   </div>
                 )}
-                {!isTopographyLoaded(s.id) && s.assets.tin && (
-                  <div className="warn small">{t('topo.panel.missing')}</div>
-                )}
+                {!isTopographyLoaded(s.id) &&
+                  (s.assets.tin ?? s.assets.cloud ?? s.assets.blocks) && (
+                    <div className="warn small">{t('topo.panel.missing')}</div>
+                  )}
+                {s.assets.blocks && isTopographyLoaded(s.id) && <BlockModelControls survey={s} />}
+                {s.assets.cloud && isTopographyLoaded(s.id) && <PointCloudControls />}
                 {blast &&
+                  s.assets.tin &&
                   (inUse ? (
                     <span className="survey-badge">{t('topo.panel.inUse')}</span>
                   ) : (
@@ -167,6 +176,21 @@ export function TopographyPanel() {
       >
         <Mountain size={14} aria-hidden /> {t('topo.panel.import')}
       </button>
+      <button title={t('topo.model3d.importHint')} onClick={() => modelInput.current?.click()}>
+        <Boxes size={14} aria-hidden /> {t('topo.model3d.import')}
+      </button>
+      <input
+        ref={modelInput}
+        type="file"
+        accept={MODEL3D_ACCEPT}
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = [...(e.target.files ?? [])];
+          if (files.length > 0) void importModel3dFiles(files);
+          e.target.value = '';
+        }}
+      />
       <input
         ref={input}
         type="file"

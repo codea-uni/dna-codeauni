@@ -17,6 +17,7 @@ export type { BlocksData, BlockFrames } from './layers/BlocksLayer';
 export type { MuckpileSurfaceData } from './layers/MuckpileLayer';
 export type { VectorsData } from './layers/VectorsLayer';
 export { TOPO_LINE_COLORS, type TopographyViewData } from './layers/TopographyLayer';
+export type { BlockModelView, PointCloudView } from './layers/Model3dLayer';
 export { fitBounds, panBy, screenToWorld, zoomAt, type PlanViewState } from './cameras/planView';
 export type { ToolName } from './tools/types';
 export type { FrameStats } from './loop/RenderLoop';

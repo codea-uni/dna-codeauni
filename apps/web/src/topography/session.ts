@@ -8,6 +8,7 @@ import {
   holesOffBench,
   newId,
   SurfaceIndex,
+  surveyAssetHashes,
   type Bench,
   type Blast,
   type BlastId,
@@ -23,8 +24,13 @@ import {
   type TinData,
   type Ground,
   type TopographySurvey,
+  type BlockColoring,
+  type BlockModelData,
+  type PointCloudData,
+  colorBlocks,
+  turboRgb,
 } from '@cronos/core';
-import type { TopographyViewData } from '@cronos/engine';
+import type { BlockModelView, PointCloudView, TopographyViewData } from '@cronos/engine';
 import { getAsset, putAsset } from '../persistence/assets';
 import { getCompute, getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
@@ -41,7 +47,63 @@ interface LoadedSurvey {
   /** Resumen de cada línea (rol, largo, cota), para elegirlas como perímetro. */
   lineSummaries?: LineSummary[];
   index?: SurfaceIndex;
+  /** Nube de puntos para ver (sin triangular). */
+  cloud?: PointCloudData;
+  /** Modelo de bloques. */
+  blocks?: BlockModelData;
   view: TopographyViewData;
+}
+
+/** Cómo se colorea cada modelo de bloques (por levantamiento). */
+export interface BlockStyle {
+  attribute: string;
+  /** Filtro por valor (atributo numérico): fuera del rango no se dibuja. */
+  min?: number;
+  max?: number;
+  opacity: number;
+}
+const blockStyles = new Map<string, BlockStyle>();
+const blockColorings = new Map<string, BlockColoring>();
+
+/** Atributo con el que se colorea al cargar: litología o material, si no densidad. */
+function defaultBlockStyle(m: BlockModelData): BlockStyle {
+  const cat =
+    m.categorical.find((a) => /^(lito|litologia|litología|lith|rock|roca)/i.test(a.name)) ??
+    m.categorical.find((a) => /material|tipo/i.test(a.name)) ??
+    m.categorical.find((a) => a.categories.length > 1);
+  return { attribute: cat?.name ?? m.densityAttribute ?? m.numeric[0]?.name ?? '', opacity: 1 };
+}
+
+export function blockStyle(surveyId: string): BlockStyle | undefined {
+  return blockStyles.get(surveyId);
+}
+
+/** Leyenda y totales del color actual de un modelo de bloques. */
+export function blockColoring(surveyId: string): BlockColoring | undefined {
+  return blockColorings.get(surveyId);
+}
+
+export function blockModelOf(surveyId: string): BlockModelData | undefined {
+  return loaded.get(surveyId)?.blocks;
+}
+
+export function setBlockStyle(surveyId: string, style: BlockStyle): void {
+  blockStyles.set(surveyId, style);
+  blockColorings.delete(surveyId);
+  notify();
+}
+
+function coloringOf(id: string, m: BlockModelData): BlockColoring {
+  let c = blockColorings.get(id);
+  if (c) return c;
+  const style = blockStyles.get(id) ?? defaultBlockStyle(m);
+  blockStyles.set(id, style);
+  c = colorBlocks(m, style.attribute, turboRgb, {
+    ...(style.min !== undefined ? { min: style.min } : {}),
+    ...(style.max !== undefined ? { max: style.max } : {}),
+  });
+  blockColorings.set(id, c);
+  return c;
 }
 
 const loaded = new Map<string, LoadedSurvey>();
@@ -81,6 +143,22 @@ export function applyTopographyToEngine(): void {
     if (index) grounds.set(id, (x, y) => index.elevationAt(x, y));
   }
   engine.setTopographyTins(tins, grounds);
+  const clouds: PointCloudView[] = [];
+  const blocks: BlockModelView[] = [];
+  for (const [id, s] of loaded) {
+    if (s.cloud) clouds.push({ id, cloud: s.cloud });
+    if (s.blocks) {
+      const c = coloringOf(id, s.blocks);
+      blocks.push({
+        id,
+        blocks: s.blocks,
+        colors: c.colors,
+        visible: c.visible,
+        opacity: blockStyles.get(id)?.opacity ?? 1,
+      });
+    }
+  }
+  engine.setModels3d(clouds, blocks);
   engine.setElevationSource(
     loaded.size > 0
       ? (x, y) => topographyElevation(x, y, session.document.project.blasts[0]?.bench.topographyId)
@@ -207,11 +285,15 @@ async function load(survey: TopographySurvey): Promise<boolean> {
   if (loaded.has(survey.id) || loading.has(survey.id)) return false;
   loading.add(survey.id);
   try {
-    const [tinAsset, linesAsset, imageAsset] = await Promise.all([
+    const [tinAsset, linesAsset, imageAsset, cloudAsset, blocksAsset] = await Promise.all([
       decode(survey.assets.tin),
       decode(survey.assets.lines),
       decode(survey.assets.image),
+      decode(survey.assets.cloud),
+      decode(survey.assets.blocks),
     ]);
+    const cloud = cloudAsset?.kind === 'cloud' ? cloudAsset.cloud : undefined;
+    const blocks = blocksAsset?.kind === 'blocks' ? blocksAsset.blocks : undefined;
     const image = imageAsset?.kind === 'image' ? await imageView(imageAsset.image) : null;
     const tin = tinAsset?.kind === 'tin' ? tinAsset.tin : undefined;
     const lines = linesAsset?.kind === 'lines' ? linesAsset.lines : undefined;
@@ -231,6 +313,8 @@ async function load(survey: TopographySurvey): Promise<boolean> {
       ...(tin ? { tin, index: SurfaceIndex.fromData(tin, indexData) } : {}),
       ...(lines ? { lines } : {}),
       ...(lineInfo ? { lineSummaries: lineInfo.summaries } : {}),
+      ...(cloud ? { cloud } : {}),
+      ...(blocks ? { blocks } : {}),
       view: {
         id: survey.id,
         bounds: survey.bounds,
@@ -465,9 +549,7 @@ export function isTopographyLoaded(surveyId: string): boolean {
 
 /** Binarios de los assets que usa el proyecto (para exportar un `.cronos.json` autocontenido). */
 export async function collectAssets(project: Project): Promise<Record<string, Uint8Array>> {
-  const hashes = new Set(
-    project.topography.flatMap((s) => [s.assets.tin, s.assets.lines, s.assets.image]),
-  );
+  const hashes = new Set(project.topography.flatMap(surveyAssetHashes));
   const out: Record<string, Uint8Array> = {};
   for (const hash of hashes) {
     if (!hash) continue;

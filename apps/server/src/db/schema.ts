@@ -108,7 +108,7 @@ export interface ProjectVersionTable {
 export interface TopographyAssetTable {
   organizationId: string;
   hash: string;
-  kind: 'tin' | 'lines' | 'image';
+  kind: 'tin' | 'lines' | 'image' | 'cloud' | 'blocks';
   sizeBytes: number;
   content: Buffer;
   createdBy: string | null;

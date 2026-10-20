@@ -51,12 +51,54 @@ export interface OrthoImageData {
   bytes: Uint8Array;
 }
 
+/**
+ * Nube de puntos para ver (no se triangula: conserva túneles, voladizos y color). Coordenadas en
+ * float32 relativas a `origin` (UTM no cabe en float32); `colors` es RGB intercalado, 0–255.
+ */
+export interface PointCloudData {
+  origin: [number, number, number];
+  positions: Float32Array;
+  colors?: Uint8Array;
+  /** Puntos del archivo original (antes de reducir). */
+  sourcePoints: number;
+}
+
+/** Atributo numérico de un modelo de bloques (un valor por bloque; NaN = sin dato). */
+export interface BlockNumericAttribute {
+  name: string;
+  values: Float32Array;
+}
+
+/** Atributo de texto (litología, tipo de material…): código por bloque en `categories`. */
+export interface BlockCategoryAttribute {
+  name: string;
+  categories: string[];
+  codes: Uint32Array;
+}
+
+/**
+ * Modelo de bloques (Datamine, Vulcan, Surpac exportados a CSV): centro y tamaño de cada bloque y
+ * sus atributos. Los bloques comparten el giro del modelo, en radianes antihorario alrededor de Z
+ * (0 = ejes del bloque alineados al Este y al Norte).
+ */
+export interface BlockModelData {
+  centers: Float64Array;
+  sizes: Float32Array;
+  rotation: number;
+  numeric: BlockNumericAttribute[];
+  categorical: BlockCategoryAttribute[];
+  /** Nombre del atributo de densidad [t/m³], si se reconoció. */
+  densityAttribute?: string;
+}
+
 export type TopographyAsset =
   | { kind: 'tin'; tin: TinData }
   | { kind: 'lines'; lines: LineSetData }
-  | { kind: 'image'; image: OrthoImageData };
+  | { kind: 'image'; image: OrthoImageData }
+  | { kind: 'cloud'; cloud: PointCloudData }
+  | { kind: 'blocks'; blocks: BlockModelData };
 
-type SectionType = 'f64' | 'u32' | 'u8';
+type SectionType = 'f64' | 'f32' | 'u32' | 'u8';
 interface Section {
   name: string;
   type: SectionType;
@@ -70,10 +112,10 @@ interface Header {
 
 const MAGIC = 0x53545243; // 'CRTS' en little-endian
 const VERSION = 1;
-const BYTES: Record<SectionType, number> = { f64: 8, u32: 4, u8: 1 };
+const BYTES: Record<SectionType, number> = { f64: 8, f32: 4, u32: 4, u8: 1 };
 const align8 = (n: number) => Math.ceil(n / 8) * 8;
 
-type Arr = Float64Array | Uint32Array | Uint8Array;
+type Arr = Float64Array | Float32Array | Uint32Array | Uint8Array;
 
 function sectionsOf(asset: TopographyAsset): { header: Header; arrays: Arr[] } {
   switch (asset.kind) {
@@ -110,6 +152,53 @@ function sectionsOf(asset: TopographyAsset): { header: Header; arrays: Arr[] } {
           meta: { ...meta },
         },
         arrays: [bytes],
+      };
+    }
+    case 'cloud': {
+      const { positions, colors, ...meta } = asset.cloud;
+      return {
+        header: {
+          kind: 'cloud',
+          sections: [
+            { name: 'positions', type: 'f32', length: positions.length },
+            ...(colors ? [{ name: 'colors', type: 'u8' as const, length: colors.length }] : []),
+          ],
+          meta: { ...meta },
+        },
+        arrays: colors ? [positions, colors] : [positions],
+      };
+    }
+    case 'blocks': {
+      const b = asset.blocks;
+      return {
+        header: {
+          kind: 'blocks',
+          sections: [
+            { name: 'centers', type: 'f64', length: b.centers.length },
+            { name: 'sizes', type: 'f32', length: b.sizes.length },
+            ...b.numeric.map((a) => ({
+              name: `num:${a.name}`,
+              type: 'f32' as const,
+              length: a.values.length,
+            })),
+            ...b.categorical.map((a) => ({
+              name: `cat:${a.name}`,
+              type: 'u32' as const,
+              length: a.codes.length,
+            })),
+          ],
+          meta: {
+            rotation: b.rotation,
+            categories: b.categorical.map((a) => ({ name: a.name, categories: a.categories })),
+            ...(b.densityAttribute ? { densityAttribute: b.densityAttribute } : {}),
+          },
+        },
+        arrays: [
+          b.centers,
+          b.sizes,
+          ...b.numeric.map((a) => a.values),
+          ...b.categorical.map((a) => a.codes),
+        ],
       };
     }
   }
@@ -155,9 +244,11 @@ export function decodeAsset(bytes: Uint8Array): TopographyAsset {
     out[s.name] =
       s.type === 'f64'
         ? new Float64Array(data.buffer, start, s.length)
-        : s.type === 'u32'
-          ? new Uint32Array(data.buffer, start, s.length)
-          : new Uint8Array(data.buffer, start, s.length);
+        : s.type === 'f32'
+          ? new Float32Array(data.buffer, start, s.length)
+          : s.type === 'u32'
+            ? new Uint32Array(data.buffer, start, s.length)
+            : new Uint8Array(data.buffer, start, s.length);
     offset = align8(offset + byteLength);
   }
   const get = (name: string): Arr => {
@@ -184,6 +275,44 @@ export function decodeAsset(bytes: Uint8Array): TopographyAsset {
     case 'image': {
       const meta = header.meta as Omit<OrthoImageData, 'bytes'>;
       return { kind: 'image', image: { ...meta, bytes: u8('bytes') } };
+    }
+    case 'cloud': {
+      const meta = header.meta as Omit<PointCloudData, 'positions' | 'colors'>;
+      const colors = out.colors as Uint8Array | undefined;
+      return {
+        kind: 'cloud',
+        cloud: {
+          ...meta,
+          positions: get('positions') as Float32Array,
+          ...(colors ? { colors } : {}),
+        },
+      };
+    }
+    case 'blocks': {
+      const meta = header.meta as {
+        rotation: number;
+        categories: { name: string; categories: string[] }[];
+        densityAttribute?: string;
+      };
+      const numeric: BlockNumericAttribute[] = header.sections
+        .filter((s) => s.name.startsWith('num:'))
+        .map((s) => ({ name: s.name.slice(4), values: get(s.name) as Float32Array }));
+      const categorical: BlockCategoryAttribute[] = meta.categories.map((c) => ({
+        name: c.name,
+        categories: c.categories,
+        codes: u32(`cat:${c.name}`),
+      }));
+      return {
+        kind: 'blocks',
+        blocks: {
+          centers: f64('centers'),
+          sizes: get('sizes') as Float32Array,
+          rotation: meta.rotation,
+          numeric,
+          categorical,
+          ...(meta.densityAttribute ? { densityAttribute: meta.densityAttribute } : {}),
+        },
+      };
     }
     default:
       throw new Error('Tipo de asset desconocido');

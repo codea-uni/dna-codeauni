@@ -1,5 +1,5 @@
 import { ApiError } from '@cronos/api';
-import type { Project } from '@cronos/core';
+import { surveyAssetHashes, type Project } from '@cronos/core';
 import { getAsset } from '../persistence/assets';
 import { api } from './api';
 
@@ -8,9 +8,7 @@ import { api } from './api';
  * no tiene. Solo viajan los que faltan; el servidor verifica el hash de cada uno.
  */
 export async function uploadMissingAssets(mineId: string, project: Project): Promise<void> {
-  const hashes = project.topography.flatMap((s) =>
-    [s.assets.tin, s.assets.lines, s.assets.image].filter((h): h is string => h !== undefined),
-  );
+  const hashes = project.topography.flatMap(surveyAssetHashes);
   const missing = await api.missingAssets(mineId, hashes);
   for (const hash of missing) {
     const bytes = await getAsset(hash);

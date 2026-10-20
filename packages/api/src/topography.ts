@@ -9,7 +9,7 @@ import { z } from 'zod';
 /** Hash SHA-256 en hexadecimal (identificador de contenido de un asset). */
 export const assetHashSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
-/** Tamaño máximo de un asset [bytes] (TIN, líneas u ortofoto). */
+/** Tamaño máximo de un asset [bytes] (TIN, líneas, ortofoto, nube o modelo de bloques). */
 export const MAX_ASSET_BYTES = 200 * 1024 * 1024;
 
 /** `POST /mines/:id/assets/missing`: cuáles de estos hashes aún no tiene el servidor. */
@@ -19,7 +19,7 @@ export const missingAssetsResultSchema = z.object({ missing: z.array(assetHashSc
 
 export const assetInfoSchema = z.object({
   hash: assetHashSchema,
-  kind: z.enum(['tin', 'lines', 'image']),
+  kind: z.enum(['tin', 'lines', 'image', 'cloud', 'blocks']),
   sizeBytes: z.int().nonnegative(),
 });
 export type AssetInfo = z.infer<typeof assetInfoSchema>;

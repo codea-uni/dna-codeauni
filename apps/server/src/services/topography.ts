@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { AssetInfo } from '@cronos/api';
-import { base64ToBytes, decodeAsset, type ProjectFile, type TopographySurvey } from '@cronos/core';
+import {
+  base64ToBytes,
+  decodeAsset,
+  surveyAssetHashes,
+  type ProjectFile,
+  type TopographySurvey,
+} from '@cronos/core';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/schema';
 import { HttpError } from '../http/errors';
@@ -58,8 +64,7 @@ export async function storeAsset(
   return { hash: a.hash, kind, sizeBytes: a.bytes.byteLength };
 }
 
-const surveyHashes = (s: TopographySurvey) =>
-  [s.assets.tin, s.assets.lines, s.assets.image].filter((h): h is string => h !== undefined);
+const surveyHashes = (s: TopographySurvey) => surveyAssetHashes(s);
 
 /**
  * Topografía de un proyecto que se guarda en el servidor (al crearlo o publicar una versión):

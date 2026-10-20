@@ -2,7 +2,9 @@ import type { Bounds3, TopographyFormat, TopographySurvey } from '../model/types
 import {
   assetHash,
   encodeAsset,
+  type BlockModelData,
   type LineSetData,
+  type PointCloudData,
   type OrthoImageData,
   type TinData,
   type TopographyAsset,
@@ -23,6 +25,14 @@ export interface SurveyParts {
   tin?: TinData;
   lines?: LineSetData;
   image?: OrthoImageData;
+  cloud?: PointCloudData;
+  blocks?: BlockModelData;
+}
+
+/** Hashes de todos los assets de un levantamiento (para subirlos, exportarlos o verificarlos). */
+export function surveyAssetHashes(s: Pick<TopographySurvey, 'assets'>): string[] {
+  const a = s.assets;
+  return [a.tin, a.lines, a.image, a.cloud, a.blocks].filter((h): h is string => h !== undefined);
 }
 
 export interface BuiltSurvey {
@@ -63,7 +73,7 @@ export function boundsOf(xyz: ArrayLike<number>, into?: Bounds3): Bounds3 {
 export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey {
   const assets: BuiltSurvey['assets'] = [];
   const hashes: TopographySurvey['assets'] = {};
-  const add = (key: 'tin' | 'lines' | 'image', asset: TopographyAsset) => {
+  const add = (key: keyof TopographySurvey['assets'], asset: TopographyAsset) => {
     const bytes = encodeAsset(asset);
     const hash = assetHash(bytes);
     assets.push({ hash, bytes });
@@ -86,6 +96,19 @@ export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey
     const z = bounds ? bounds.minZ : 0;
     bounds = boundsOf([g.originX, g.originY, z, x2, y2, bounds ? bounds.maxZ : 0], bounds);
   }
+  if (parts.cloud) {
+    add('cloud', { kind: 'cloud', cloud: parts.cloud });
+    const [ox, oy, oz] = parts.cloud.origin;
+    const b = boundsOf(parts.cloud.positions);
+    bounds = boundsOf(
+      [b.minX + ox, b.minY + oy, b.minZ + oz, b.maxX + ox, b.maxY + oy, b.maxZ + oz],
+      bounds,
+    );
+  }
+  if (parts.blocks) {
+    add('blocks', { kind: 'blocks', blocks: parts.blocks });
+    bounds = blockModelBounds(parts.blocks, bounds);
+  }
   const finite = bounds && Number.isFinite(bounds.minX);
   return {
     survey: {
@@ -100,7 +123,13 @@ export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey
       },
       bounds: finite && bounds ? bounds : { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 },
       stats: {
-        points: parts.tin ? parts.tin.vertices.length / 3 : 0,
+        points: parts.tin
+          ? parts.tin.vertices.length / 3
+          : parts.cloud
+            ? parts.cloud.positions.length / 3
+            : parts.blocks
+              ? parts.blocks.centers.length / 3
+              : 0,
         triangles: parts.tin ? parts.tin.triangles.length / 3 : 0,
         lines: parts.lines ? Math.max(0, parts.lines.offsets.length - 1) : 0,
       },
@@ -108,4 +137,23 @@ export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey
     },
     assets,
   };
+}
+
+/** Caja envolvente de un modelo de bloques, con el tamaño y el giro de cada bloque. */
+export function blockModelBounds(b: BlockModelData, into?: Bounds3): Bounds3 {
+  const cos = Math.abs(Math.cos(b.rotation));
+  const sin = Math.abs(Math.sin(b.rotation));
+  const corners: number[] = [];
+  for (let i = 0; i < b.centers.length / 3; i++) {
+    const sx = b.sizes[i * 3] ?? 0;
+    const sy = b.sizes[i * 3 + 1] ?? 0;
+    const sz = b.sizes[i * 3 + 2] ?? 0;
+    const hx = (sx * cos + sy * sin) / 2;
+    const hy = (sx * sin + sy * cos) / 2;
+    const x = b.centers[i * 3] ?? 0;
+    const y = b.centers[i * 3 + 1] ?? 0;
+    const z = b.centers[i * 3 + 2] ?? 0;
+    corners.push(x - hx, y - hy, z - sz / 2, x + hx, y + hy, z + sz / 2);
+  }
+  return boundsOf(corners, into);
 }

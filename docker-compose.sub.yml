@@ -1,0 +1,78 @@
+# Copia de prueba de la rama subterranea (nubes de puntos, modelos de bloques y módulo subterráneo),
+# aparte de la v1.0 (voladura.codeauni.com): contenedores, base y dominio propios. Uso:
+#   docker compose -p dna-sub -f docker-compose.sub.yml --env-file .env.sub up -d --build
+# El nginx apunta a la API por el nombre del contenedor (en la red `proxy` hay otro alias «api»).
+services:
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        VITE_API_URL: /api
+    container_name: dna-sub
+    restart: unless-stopped
+    volumes:
+      - ./deploy/nginx.sub.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - proxy
+      - backend
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=proxy'
+      - 'traefik.http.routers.dna-sub.rule=Host(`${DOMAIN}`)'
+      - 'traefik.http.routers.dna-sub.entrypoints=websecure'
+      - 'traefik.http.routers.dna-sub.tls.certresolver=mytlschallenge'
+      - 'traefik.http.services.dna-sub.loadbalancer.server.port=80'
+
+  api:
+    build:
+      context: .
+      target: server
+    container_name: dna-sub-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://cronos:${POSTGRES_PASSWORD}@dna-sub-postgres:5432/cronos
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: https://${DOMAIN}
+      CRONOS_SUPERADMIN_EMAIL: ${CRONOS_SUPERADMIN_EMAIL:-}
+      CRONOS_SUPERADMIN_PASSWORD: ${CRONOS_SUPERADMIN_PASSWORD:-}
+      CRONOS_DEMO_DATA: ${CRONOS_DEMO_DATA:-true}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      GEMINI_TTS_MODEL: ${GEMINI_TTS_MODEL:-gemini-3.8-flash-lite-tts}
+      GEMINI_LIVE_MODEL: ${GEMINI_LIVE_MODEL:-gemini-3.1-flash-live-preview}
+      GEMINI_LIVE_VOICE: ${GEMINI_LIVE_VOICE:-Sulafat}
+      # Conversaciones con el asistente (JSONL por día), para revisar las sesiones de prueba.
+      AI_LOG_DIR: /var/log/cronos-ai
+    volumes:
+      - ./deploy/ai-logs:/var/log/cronos-ai
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: dna-sub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cronos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: cronos
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cronos']
+      interval: 5s
+      retries: 10
+    networks:
+      - backend
+
+networks:
+  proxy:
+    external: true
+  backend:
+
+volumes:
+  pgdata:

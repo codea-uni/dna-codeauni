@@ -29,6 +29,10 @@ import {
   generatePatternHoles,
   parseProjectFile,
   buildSurvey,
+  parseBlockModelCsv,
+  parseCloudText,
+  readIbpc,
+  DEFAULT_CLOUD_MAX_POINTS,
   bytesToBase64,
   base64ToBytes,
   type BuiltSurvey,
@@ -430,6 +434,76 @@ export const computeApi = {
     );
   },
 
+  /**
+   * Nube de puntos o modelo de bloques para ver (no se triangulan). El archivo llega como `Blob`
+   * (sin copiarlo): el `.ibpc` se lee por partes, así que uno de 500 MB no entra entero en memoria.
+   */
+  async importModel3d(
+    file: Blob,
+    fileName: string,
+    options: { maxPoints?: number } = {},
+  ): Promise<Model3dImport> {
+    const ext = fileName.toLowerCase().split('.').pop() ?? '';
+    const maxPoints = options.maxPoints ?? DEFAULT_CLOUD_MAX_POINTS;
+    const out: Model3dImport =
+      ext === 'ibpc'
+        ? {
+            kind: 'cloud',
+            parts: {
+              cloud: await readIbpc(
+                async (offset, length) =>
+                  new Uint8Array(await file.slice(offset, offset + length).arrayBuffer()),
+                file.size,
+                maxPoints,
+              ),
+            },
+            warnings: [],
+          }
+        : await (async (): Promise<Model3dImport> => {
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const head = new TextDecoder().decode(bytes.subarray(0, 4096));
+            if (/(^|[,;\t])"?_?XC"?([,;\t]|$)/im.test(head.split(/\r?\n/)[0] ?? '')) {
+              const parsed = parseBlockModelCsv(bytes);
+              return {
+                kind: 'blocks',
+                parts: {
+                  blocks: {
+                    centers: parsed.centers,
+                    sizes: parsed.sizes,
+                    rotation: parsed.rotation,
+                    numeric: parsed.numeric,
+                    categorical: parsed.categorical,
+                    ...(parsed.densityAttribute
+                      ? { densityAttribute: parsed.densityAttribute }
+                      : {}),
+                  },
+                },
+                warnings: parsed.warnings,
+              };
+            }
+            const parsed = parseCloudText(bytes, maxPoints);
+            const cloud = {
+              origin: parsed.origin,
+              positions: parsed.positions,
+              ...(parsed.colors ? { colors: parsed.colors } : {}),
+              sourcePoints: parsed.sourcePoints,
+            };
+            return { kind: 'cloud', parts: { cloud }, warnings: [] };
+          })();
+    const { cloud, blocks } = out.parts;
+    return transfer(
+      out,
+      uniqueBuffers([
+        cloud?.positions,
+        cloud?.colors,
+        blocks?.centers,
+        blocks?.sizes,
+        ...(blocks?.numeric.map((a) => a.values) ?? []),
+        ...(blocks?.categorical.map((a) => a.codes) ?? []),
+      ]),
+    );
+  },
+
   /** Qué hay en los archivos de topografía elegidos (formato, capas, columnas, EPSG). */
   async topographyInspect(files: TopoFile[]): Promise<TopoInspection> {
     return inspectRaster(files, inspectTopography(files));
@@ -597,4 +671,11 @@ function uniqueBuffers(arrays: readonly (ArrayBufferView | undefined)[]): ArrayB
   const set = new Set<ArrayBuffer>();
   for (const a of arrays) if (a && a.buffer instanceof ArrayBuffer) set.add(a.buffer);
   return [...set];
+}
+
+/** Resultado de `importModel3d`: las partes del levantamiento y avisos para el usuario. */
+export interface Model3dImport {
+  kind: 'cloud' | 'blocks';
+  parts: SurveyParts;
+  warnings: string[];
 }

@@ -46,6 +46,7 @@ import { DEFAULT_3D_OPTIONS, Scene3D, type Scene3DOptions } from './scene3d/Scen
 import { Emitter } from './events';
 import { InputRouter } from './input/InputRouter';
 import { BoundaryLayer } from './layers/BoundaryLayer';
+import { Model3dLayer, type BlockModelView, type PointCloudView } from './layers/Model3dLayer';
 import { COLORS } from './layers/colors';
 import { GridLayer } from './layers/GridLayer';
 import { turbo } from './layers/colormap';
@@ -160,7 +161,9 @@ export type EngineLayer =
   | 'muckpileBlocks'
   | 'domains'
   | 'faces'
-  | 'benchPlanes';
+  | 'benchPlanes'
+  | 'pointClouds'
+  | 'blockModels';
 
 /**
  * Pila de material (A7) lista para dibujar: superficie (3D y raster en planta), techo in situ,
@@ -317,7 +320,13 @@ export class Engine {
     domains: true,
     faces: true,
     benchPlanes: true,
+    pointClouds: true,
+    blockModels: true,
   };
+  /** Nubes de puntos y modelos de bloques (levantamientos que no se triangulan). */
+  private readonly models3d = new Model3dLayer();
+  private cloudViews: readonly PointCloudView[] = [];
+  private blockViews: readonly BlockModelView[] = [];
   private scalars: HoleScalars | null = null;
   private labelOverride: ReadonlyMap<HoleId, string> | null = null;
   private tieConnectorId: SurfaceConnectorId | undefined;
@@ -443,6 +452,7 @@ export class Engine {
       this.muckpileBefore3d.root,
       this.muckpileVectors3d.root,
       this.muckpileBlocksRoot,
+      this.models3d.root,
       this.avatars3d.root,
       this.buildFx3d.root,
     );
@@ -930,7 +940,7 @@ export class Engine {
       this.xr.focus({ x: at.x - o.x, y: at.y - o.y, z: z - o.z }, size ?? 30);
       return;
     }
-    const b = this.scene3d.bounds;
+    const b = this.withMuckpileBounds(this.scene3d.bounds);
     if (!b) return;
     this.xr.focus(
       { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2, z: b.maxZ },
@@ -1288,7 +1298,40 @@ export class Engine {
 
   setLayerVisible(layer: EngineLayer, visible: boolean): void {
     this.layerVisible = { ...this.layerVisible, [layer]: visible };
+    if (layer === 'pointClouds' || layer === 'blockModels') this.applyModels3d();
     this.applyView();
+  }
+
+  /**
+   * Nubes de puntos y modelos de bloques en 3D (y en el visor). Si el proyecto aún no tiene
+   * diseño, la cámara los encuadra al llegar.
+   */
+  setModels3d(clouds: readonly PointCloudView[], blocks: readonly BlockModelView[]): void {
+    const first =
+      this.cloudViews.length + this.blockViews.length === 0 && clouds.length + blocks.length > 0;
+    this.cloudViews = clouds;
+    this.blockViews = blocks;
+    this.applyModels3d();
+    if (first && this.designEmpty() && this.viewMode === '3d') {
+      this.fit3d();
+      this.applyCamera3d();
+    }
+    this.loop.invalidate();
+  }
+
+  /** Tamaño de los puntos de las nubes [m]. */
+  setPointSize(size: number): void {
+    this.models3d.setPointSize(size);
+    this.loop.invalidate();
+  }
+
+  private applyModels3d(): void {
+    const v = this.layerVisible;
+    this.models3d.set(
+      v.pointClouds ? this.cloudViews : [],
+      v.blockModels ? this.blockViews : [],
+      this.origin,
+    );
   }
 
   /** Conector con el que la herramienta Amarre crea conexiones. */
@@ -1902,7 +1945,19 @@ export class Engine {
   }
 
   /** Agrega la extensión de la pila (puede salir muy por delante de la voladura) al encuadre 3D. */
-  private withMuckpileBounds(b: typeof this.scene3d.bounds): typeof this.scene3d.bounds {
+  private withMuckpileBounds(design: typeof this.scene3d.bounds): typeof this.scene3d.bounds {
+    const m = this.models3d.bounds;
+    const b =
+      design && m
+        ? {
+            minX: Math.min(design.minX, m.minX),
+            minY: Math.min(design.minY, m.minY),
+            minZ: Math.min(design.minZ, m.minZ),
+            maxX: Math.max(design.maxX, m.maxX),
+            maxY: Math.max(design.maxY, m.maxY),
+            maxZ: Math.max(design.maxZ, m.maxZ),
+          }
+        : (design ?? m);
     const layers = this.layerVisible;
     if (!layers.muckpile && !layers.muckpileBlocks && !layers.muckpileVectors) return b;
     const g = this.muckpileData?.surface?.after;
@@ -2415,6 +2470,8 @@ export class Engine {
   }
 
   private rebuildAll(checkRebase = true): void {
+    // El origen de render pudo cambiar (recentrado o proyecto nuevo).
+    this.applyModels3d();
     this.holes.clear();
     this.labels.clear();
     this.hover = null;
