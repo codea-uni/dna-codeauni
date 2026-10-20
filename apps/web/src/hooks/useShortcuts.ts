@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import * as actions from '../actions';
 import { TOOL_KEYS } from '../components/Toolbar';
+import { projectKind } from '@cronos/core';
+import { fitsKind } from '../product/product';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 
@@ -37,7 +39,13 @@ export function useShortcuts(): void {
         else session.selection.clear();
       } else if (!mod && !e.altKey && key === 'f') {
         actions.zoomToFit();
-      } else if (!mod && !e.altKey && TOOL_KEYS[key]) {
+      } else if (
+        !mod &&
+        !e.altKey &&
+        TOOL_KEYS[key] &&
+        // En Underground no se activan por teclado las herramientas solo de banco (cara libre).
+        fitsKind(TOOL_KEYS[key], projectKind(session.document.project))
+      ) {
         // Las herramientas editan en planta: si se está en 3D, se vuelve a planta.
         useUiStore.getState().setViewMode('plan');
         useUiStore.getState().setTool(TOOL_KEYS[key]);
