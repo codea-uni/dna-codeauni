@@ -162,7 +162,9 @@ export function TopographyPanel() {
                     <div className="warn small">{t('topo.panel.missing')}</div>
                   )}
                 {s.assets.blocks && isTopographyLoaded(s.id) && <BlockModelControls survey={s} />}
-                {s.assets.cloud && isTopographyLoaded(s.id) && <PointCloudControls />}
+                {s.assets.cloud && isTopographyLoaded(s.id) && (
+                  <PointCloudControls surveyId={s.id} />
+                )}
                 {blast &&
                   s.assets.tin &&
                   (inUse ? (

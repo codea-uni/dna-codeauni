@@ -353,7 +353,7 @@ function ColumnMapping({
 }
 
 /** Tamaño de los puntos de las nubes (a escala real). */
-export function PointCloudControls() {
+export function PointCloudControls({ surveyId }: { surveyId: string }) {
   const t = useT();
   const [size, setSize] = useState(0.15);
   return (
@@ -378,7 +378,7 @@ export function PointCloudControls() {
         className="small"
         onClick={() => {
           useUiStore.getState().setViewMode('3d');
-          requestAnimationFrame(() => getEngine()?.frameModels3d());
+          requestAnimationFrame(() => getEngine()?.frameModels3d(surveyId));
         }}
       >
         {t('topo.model3d.view3d')}

@@ -125,7 +125,7 @@ export const es = {
   'status.selected': '{n} seleccionados',
   'status.hole': 'Taladro {label}',
   'status.view3d':
-    'Vista 3D: arrastre orbita · Shift o botón derecho desplaza · rueda acerca · 3 vuelve a planta',
+    'Vista 3D: arrastre orbita · Shift o botón derecho desplaza · rueda acerca · F encuadra · 3 vuelve a planta',
   'status.frameTitle': 'Medido durante la última interacción (el render es a demanda)',
 
   'csv.aria': 'Importar CSV',
@@ -232,6 +232,7 @@ export const es = {
   'legend.wheel': 'rueda',
   'legend.zoom': 'acercar',
   'legend.plan': 'planta',
+  'legend.fit': 'encuadrar',
 };
 
 export const en = {
@@ -356,7 +357,7 @@ export const en = {
   'status.selected': '{n} selected',
   'status.hole': 'Hole {label}',
   'status.view3d':
-    '3D view: drag orbits · Shift or right button pans · wheel zooms · 3 returns to plan',
+    '3D view: drag orbits · Shift or right button pans · wheel zooms · F fits · 3 returns to plan',
   'status.frameTitle': 'Measured during the last interaction (rendering is on demand)',
 
   'csv.aria': 'Import CSV',
@@ -463,4 +464,5 @@ export const en = {
   'legend.wheel': 'wheel',
   'legend.zoom': 'zoom',
   'legend.plan': 'plan',
+  'legend.fit': 'fit',
 } satisfies Record<keyof typeof es, string>;
