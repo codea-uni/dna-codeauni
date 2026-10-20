@@ -18,7 +18,7 @@ import type { RingDesignResult } from './ringDesign';
  *   el primer factor es 2,2 − 14·B/d). En subterránea no hay banco: H = largo del taladro.
  * - Swebrec con xmax = min(S, bloque in situ) y b = 2·ln2·ln(xmax/X50)·n (Ouchterlony 2005).
  * - Frente: una curva por zona del método sueco (arranque, ayudas, contorno, zapateras) con su K
- *   (kg/m³ de su volumen tributario), Q, B y S, mezcladas por masa: P(x) = Σ (m_z/M)·P_z(x) [P].
+ *   (kg/m³ de su volumen tributario), Q, B y S, mezcladas por la masa de ROCA de cada zona: P(x) = Σ (V_z/V)·P_z(x), V_z = kg_z/K_z [P].
  * - Abanicos: equivalencias de diseño B_eq = burden entre anillos, S_eq = espaciamiento de fondos y
  *   K = carga del anillo / (B·A_anillo) (Oñederra & Chitombo 2007) [CG]; tiende a subestimar X50
  *   en roca dura: calibrar con C.
@@ -29,7 +29,7 @@ export type KuzRamVariant = 'cunningham2005' | 'cunningham1987';
 export interface UgFragmentationZone {
   /** Nombre de la zona (`cut`, `stoping`, `contour`, `lifter`, `ring`). */
   zone: string;
-  /** Masa de explosivo de la zona [kg] (peso de su curva en la mezcla). */
+  /** Masa de explosivo de la zona [kg]; con K da la roca de la zona (peso de su curva). */
   mass: Kilograms;
   /** Factor de carga de la zona K [kg/m³]. */
   loadingFactor: number;
@@ -109,7 +109,7 @@ export function undergroundKuzRam(
   return { x50: x50cm / 100, n };
 }
 
-/** Kuz-Ram + Swebrec por zona y mezcla por masa; P50 y P80 por bisección sobre la mezcla. */
+/** Kuz-Ram + Swebrec por zona y mezcla por masa de roca; P50 y P80 por bisección sobre la mezcla. */
 export function undergroundFragmentation(
   zones: readonly UgFragmentationZone[],
   rock: Pick<RockMass, 'density' | 'ucs' | 'youngModulus' | 'blastability' | 'rockFactor'>,
@@ -118,18 +118,20 @@ export function undergroundFragmentation(
   const used = zones.filter((z) => z.mass > 0 && z.loadingFactor > 0 && z.chargePerHole > 0);
   if (used.length === 0) return null;
   const a = options.rockFactor ?? rockFactor(rock);
-  const total = used.reduce((s, z) => s + z.mass, 0);
+  // Peso de cada curva: la roca que rompe la zona (volumen tributario = masa / K), no su explosivo.
+  const rockOf = (z: UgFragmentationZone) => z.mass / z.loadingFactor;
+  const total = used.reduce((s, z) => s + rockOf(z), 0);
   const res: UgZoneResult[] = used.map((z) => {
     const kr = undergroundKuzRam(z, a, options);
     const xmax = Math.max(Math.min(z.spacing, options.inSituBlock ?? Infinity), kr.x50 * 1.05);
     return { ...z, ...kr, xmax, b: swebrecB(kr.x50, xmax, kr.n) };
   });
   const sw = (x: number) =>
-    res.reduce((s, z) => s + (z.mass / total) * swebrecPassing(x, z.x50, z.xmax, z.b), 0);
+    res.reduce((s, z) => s + (rockOf(z) / total) * swebrecPassing(x, z.x50, z.xmax, z.b), 0);
   const rr = (x: number) =>
     res.reduce(
       (s, z) =>
-        s + (z.mass / total) * rosinRammlerPassing(x, z.x50 / Math.pow(Math.LN2, 1 / z.n), z.n),
+        s + (rockOf(z) / total) * rosinRammlerPassing(x, z.x50 / Math.pow(Math.LN2, 1 / z.n), z.n),
       0,
     );
   const hi = Math.max(...res.map((z) => Math.max(z.xmax, z.x50 * 20)));
@@ -169,6 +171,10 @@ const ZONE_OF: Record<FaceHoleRole, string | null> = {
   lifter: 'lifter',
 };
 
+/** x si es un número positivo; si no, el respaldo. */
+const positive = (x: number | undefined, fallback: number) =>
+  x !== undefined && x > 0 ? x : fallback;
+
 const mean = (xs: readonly number[]) =>
   xs.length > 0 ? xs.reduce((s, x) => s + x, 0) / xs.length : 0;
 
@@ -202,7 +208,7 @@ export function faceFragmentationZones(
     if (z !== 'cut')
       raw.set(
         z,
-        hs.reduce((s, h) => s + Math.max(h.burden, 0.05) * (spacingOf[z] || h.burden), 0),
+        hs.reduce((s, h) => s + Math.max(h.burden, 0.05) * positive(spacingOf[z], h.burden), 0),
       );
   const rawTotal = [...raw.values()].reduce((s, x) => s + x, 0);
   const scale = rawTotal > 0 ? Math.max(0, profileArea - cutArea) / rawTotal : 0;
@@ -217,7 +223,7 @@ export function faceFragmentationZones(
       loadingFactor: vol > 0 ? mass / vol : 0,
       chargePerHole: mass / hs.length,
       burden: mean(hs.map((h) => h.burden)),
-      spacing: spacingOf[z] || mean(hs.map((h) => h.burden)),
+      spacing: positive(spacingOf[z], mean(hs.map((h) => h.burden))),
       diameter: mean(hs.map((h) => h.diameter)),
       chargeLength: mean(
         hs.map((h) => (h.charge?.bottom.length ?? 0) + (h.charge?.column.length ?? 0)),
@@ -256,7 +262,7 @@ export function ringFragmentationZone(
     loadingFactor: vol > 0 ? mass / vol : 0,
     chargePerHole: mass / charged.length,
     burden,
-    spacing: mean(toes) || burden,
+    spacing: positive(mean(toes), burden),
     diameter: mean(charged.map((h) => h.diameter)),
     chargeLength: L,
     holeLength: mean(charged.map((h) => h.length)),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultRockMass } from '../model/factories';
 import { createDefaultLibrary } from '../model/library';
+import { swebrecPassing } from '../fragmentation/fragmentation';
 import { designFaceRound } from './faceDesign';
 import {
   faceFragmentationZones,
@@ -79,7 +80,28 @@ describe('Kuz-Ram subterráneo', () => {
     expect(must(c.zones[0]).x50).toBeCloseTo(z.x50 * 1.2, 9);
   });
 
-  it('la mezcla por masa queda entre las curvas de las zonas', () => {
+  it('las curvas se pesan por la roca de cada zona (kg/K), no por su explosivo', () => {
+    const fine = { ...zone, zone: 'cut', loadingFactor: 6, mass: 5 };
+    const r = must(
+      undergroundFragmentation([zone, fine], rock, {
+        rws: 0.8,
+        drillDeviation: 0.05,
+        rockFactor: 7,
+      }),
+    );
+    const [a, b] = r.zones;
+    const va = 10 / 1.2;
+    const vb = 5 / 6;
+    // P50 de la mezcla: donde la curva pesada por roca vale 0,5.
+    const p = r.p50.swebrec;
+    const at = (q: number) =>
+      (va * swebrecPassing(q, must(a).x50, must(a).xmax, must(a).b) +
+        vb * swebrecPassing(q, must(b).x50, must(b).xmax, must(b).b)) /
+      (va + vb);
+    expect(at(p)).toBeCloseTo(0.5, 6);
+  });
+
+  it('la mezcla queda entre las curvas de las zonas', () => {
     const fine = { ...zone, zone: 'cut', loadingFactor: 6, mass: 5 };
     const r = must(
       undergroundFragmentation([zone, fine], rock, {

@@ -1,4 +1,4 @@
-import type { BlastAnalysis, DesignCheck } from '@cronos/core';
+import { isUndergroundHole, type BlastAnalysis, type DesignCheck } from '@cronos/core';
 import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react';
 import * as actions from '../actions';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -9,6 +9,7 @@ import { checkText } from '../i18n/coreText';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUnits } from '../hooks/useUnits';
+import { UgVolumeTable, useUndergroundVolumes } from '../underground/UndergroundAnalysis';
 
 const Histogram = lazy(() => import('../charts/Histogram'));
 
@@ -47,7 +48,13 @@ export function ResultsPanel() {
   const { len, area, volume } = useUnits();
   const analysis = useAnalysisStore((s) => s.analysis);
   const computing = useAnalysisStore((s) => s.computing);
-  const windowMs = (useActiveBlast()?.calcParams.micWindow ?? 0.008) * 1000;
+  const blast = useActiveBlast();
+  const windowMs = (blast?.calcParams.micWindow ?? 0.008) * 1000;
+  // Subterránea: cubicación por sección × avance o área del anillo × burden (no la de banco).
+  const ugVolumes = useUndergroundVolumes();
+  const charged = blast?.holes.filter((h) => h.decks.some((d) => d.kind === 'explosive')) ?? [];
+  const allUg = charged.length > 0 && charged.every(isUndergroundHole) && ugVolumes.length > 0;
+  const ugTonnage = ugVolumes.reduce((s, v) => s + v.tonnage, 0);
   const hist = useMemo(
     () => (analysis && analysis.timing.initiated > 0 ? histogram(analysis, windowMs) : null),
     [analysis, windowMs],
@@ -90,17 +97,24 @@ export function ResultsPanel() {
               label={t('results.drilled')}
               value={`${fmt(len.show(c.drilledLength), 1)} ${len.unit}`}
             />
-            <Row label={t('results.area')} value={`${fmt(area.show(c.area))} ${area.unit}`} />
-            <Row
-              label={t('results.volume')}
-              value={`${fmt(volume.show(c.volume))} ${volume.unit}`}
-            />
-            <Row label={t('results.tonnage')} value={`${fmt(c.tonnage / 1000)} t`} />
-            <Row label={t('results.loadingFactor')} value={`${fmt(c.loadingFactor, 3)} kg/m³`} />
-            <Row
-              label={t('results.powderFactor')}
-              value={`${fmt(c.powderFactor * 1000, 3)} kg/t`}
-            />
+            {!allUg && (
+              <>
+                <Row label={t('results.area')} value={`${fmt(area.show(c.area))} ${area.unit}`} />
+                <Row
+                  label={t('results.volume')}
+                  value={`${fmt(volume.show(c.volume))} ${volume.unit}`}
+                />
+                <Row label={t('results.tonnage')} value={`${fmt(c.tonnage / 1000)} t`} />
+                <Row
+                  label={t('results.loadingFactor')}
+                  value={`${fmt(c.loadingFactor, 3)} kg/m³`}
+                />
+                <Row
+                  label={t('results.powderFactor')}
+                  value={`${fmt(c.powderFactor * 1000, 3)} kg/t`}
+                />
+              </>
+            )}
             <Row label={t('results.energy')} value={`${fmt(c.totalEnergy / 1e6)} MJ`} />
             <Row
               label={t('results.cost')}
@@ -114,12 +128,19 @@ export function ResultsPanel() {
                 />
                 <Row
                   label={t('results.costPerTonne')}
-                  value={`${fmt(((c.cost + c.drillingCost) / c.tonnage) * 1000, 3)} ${session.document.project.currency}/t`}
+                  value={`${fmt(((c.cost + c.drillingCost) / (allUg ? ugTonnage : c.tonnage)) * 1000, 3)} ${session.document.project.currency}/t`}
                 />
               </>
             )}
           </tbody>
         </table>
+        {ugVolumes.length > 0 && (
+          <>
+            <h3>{t('uga.results.title')}</h3>
+            {allUg && <p className="hint">{t('uga.results.hint')}</p>}
+            <UgVolumeTable volumes={ugVolumes} />
+          </>
+        )}
         {c.nominal.volume > 0 && <DesignFactors charge={c} />}
         {c.byGroup.some((g) => g.groupId !== null) && <GroupTable charge={c} />}
       </section>

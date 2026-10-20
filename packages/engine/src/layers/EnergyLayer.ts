@@ -10,11 +10,13 @@ import {
   LinearFilter,
   LineBasicMaterial,
   LineSegments,
+  Matrix4,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
   RGBAFormat,
   SRGBColorSpace,
+  Vector3,
 } from 'three';
 import { turboRgb, type Ground, type TinData, type Vec3 } from '@cronos/core';
 
@@ -37,6 +39,11 @@ export interface EnergyData {
    * en 3D el mapa se apoya en el relieve. `false` = corte horizontal a `elevation`.
    */
   onTerrain?: boolean;
+  /**
+   * Plano arbitrario (subterráneo: frente o abanico): la grilla está en coordenadas (u, v) del
+   * plano P = origin + x·u + y·v. Solo se dibuja en 3D; en planta no tiene sentido.
+   */
+  plane?: { origin: Vec3; u: Vec3; v: Vec3 };
 }
 
 /** Vértices por lado de la malla apoyada en el terreno (el color va en la textura completa). */
@@ -107,15 +114,33 @@ export class EnergyLayer {
    * relleno se pinta sobre la misma malla del levantamiento (las rocas no lo atraviesan).
    */
   set(
-    data: EnergyData | null,
-    origin: Vec3,
+    input: EnergyData | null,
+    projectOrigin: Vec3,
     use3d = false,
     ground: Ground | null = null,
     tin: TinData | null = null,
   ): void {
-    const draped = use3d && !!ground && data?.onTerrain === true;
-    this.root.position.z =
-      use3d && !draped && data?.elevation !== undefined ? data.elevation - origin.z + 0.5 : 0;
+    const plane = use3d ? input?.plane : undefined;
+    const data = input?.plane && !use3d ? null : input;
+    let origin = projectOrigin;
+    const draped = use3d && !!ground && data?.onTerrain === true && !plane;
+    this.root.position.set(0, 0, 0);
+    this.root.quaternion.identity();
+    if (plane) {
+      // Ejes del plano: la grilla se arma en (u, v) locales y el grupo la lleva a su lugar.
+      const u = new Vector3(plane.u.x, plane.u.y, plane.u.z);
+      const v = new Vector3(plane.v.x, plane.v.y, plane.v.z);
+      const m = new Matrix4().makeBasis(u, v, new Vector3().crossVectors(u, v));
+      this.root.quaternion.setFromRotationMatrix(m);
+      this.root.position.set(
+        plane.origin.x - origin.x,
+        plane.origin.y - origin.y,
+        plane.origin.z - origin.z,
+      );
+      origin = { x: 0, y: 0, z: 0 };
+    } else
+      this.root.position.z =
+        use3d && !draped && data?.elevation !== undefined ? data.elevation - origin.z + 0.5 : 0;
     this.drape.visible = false;
     this.plane.material.side = use3d ? DoubleSide : FrontSide;
     // En 3D el mapa se intersecta con los taladros; en planta queda siempre debajo.
@@ -139,7 +164,11 @@ export class EnergyLayer {
     const w = data.nx * data.cellSize;
     const h = data.ny * data.cellSize;
     this.plane.scale.set(w, h, 1);
-    this.plane.position.set(data.originX + w / 2 - origin.x, data.originY + h / 2 - origin.y, -0.5);
+    this.plane.position.set(
+      data.originX + w / 2 - origin.x,
+      data.originY + h / 2 - origin.y,
+      plane ? 0 : -0.5,
+    );
     this.plane.visible = !draped;
     if (draped) this.buildDrape(data, origin, ground, tex, tin);
 

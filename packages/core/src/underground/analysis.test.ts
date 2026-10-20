@@ -174,7 +174,10 @@ describe('secuencia continua del frente', () => {
     let prev = -Infinity;
     design.holes.forEach((h, k) => {
       const tk = t[k];
-      if (h.delay === null) return expect(tk).toBeNull();
+      if (h.delay === null) {
+        expect(tk).toBeNull();
+        return;
+      }
       expect(tk).toBeGreaterThanOrEqual(h.delay * 0.1 - 1e-12);
       expect(must(tk)).toBeGreaterThanOrEqual(prev + 0.025 - 1e-12);
       prev = must(tk);

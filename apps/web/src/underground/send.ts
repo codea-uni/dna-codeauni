@@ -270,6 +270,7 @@ export function sendFace(form: FaceForm, face: FaceComputation, placement: Place
     frame,
     products: prod.products,
     delayInterval: form.delayInterval,
+    holeInterval: form.holeInterval,
     tag: FACE_TAG,
   });
   const profile: ExcavationProfile = face.profile;
@@ -327,6 +328,7 @@ export function sendRings(form: RingForm, ring: RingComputation, placement: Plac
           tag: RING_TAG,
           kind: 'stope',
           sections: extrude(frame, ring.boundary, -pad / 2, length + pad / 2),
+          burden: form.burden,
         },
       ]),
     ],

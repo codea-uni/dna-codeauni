@@ -21,7 +21,7 @@ echarts.use([
 ]);
 
 /** Curva granulométrica: % pasante vs tamaño [cm], eje log. Rosin-Rammler y Swebrec. */
-export default function SizeCurve({ result }: { result: FragmentationResult }) {
+export default function SizeCurve({ result }: { result: Pick<FragmentationResult, 'curve'> }) {
   const ref = useRef<HTMLDivElement>(null);
   const chart = useRef<echarts.ECharts | null>(null);
   const locale = useLocale((s) => s.locale);
