@@ -28,6 +28,9 @@ import {
   type UgFragmentationZone,
   type UndergroundVolume,
   type Vec3,
+  MINING_METHODS,
+  GUIDE_TAG,
+  RELIEF_TAG,
 } from '@cronos/core';
 import { sequenceTimes } from '../analysis/visualize';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -147,11 +150,35 @@ interface PlaneView {
   cutoff: number;
 }
 
+/** Marcas de los diseños de abanico (planos de anillo); el resto se analiza en el plano del frente. */
+const RING_LIKE_TAGS = new Set<string>([
+  RING_TAG,
+  ...MINING_METHODS.filter((m) => m.generator === 'ring').map((m) => m.tag),
+]);
+const AUX_TAGS = new Set<string>([RELIEF_TAG, CUT_TAG, GUIDE_TAG]);
+
+/** Marcas `ug-*` de los diseños con taladros cargados en la voladura, en orden de aparición. */
+function designTags(blast: Blast): string[] {
+  const out: string[] = [];
+  for (const h of blast.holes)
+    for (const tag of h.tags ?? [])
+      if (tag.startsWith('ug-') && !AUX_TAGS.has(tag) && !out.includes(tag)) out.push(tag);
+  return out;
+}
+
+function designLabel(tag: string, t: ReturnType<typeof useT>): string {
+  if (tag === FACE_TAG) return t('ug.tab.face');
+  if (tag === RING_TAG) return t('ug.tab.ring');
+  const m = MINING_METHODS.find((x) => x.tag === tag);
+  return m ? `${m.code} · ${t(`ugm.m.${m.id}.name` as MessageKey)}` : tag;
+}
+
 function planeView(
   blast: Blast,
   target: 'face' | 'ring',
   ringIndex: number,
   depthFraction: number,
+  designTag: string,
 ): PlaneView | null {
   const tagged = (tag: string) => blast.holes.filter((h) => h.tags?.includes(tag));
   const sections = (tag: string, kind: 'drive' | 'round' | 'stope') =>
@@ -160,19 +187,19 @@ function planeView(
   let holes: Hole[];
   let outlinesWorld: Vec3[][] = [];
   if (target === 'face') {
-    holes = tagged(FACE_TAG);
+    holes = tagged(designTag);
     const p = facePlane(holes, depthFraction);
     if (!p) return null;
     plane = p;
-    const round = sections(FACE_TAG, 'round');
+    const round = sections(designTag, 'round');
     if (round) outlinesWorld = [round];
   } else {
-    holes = tagged(RING_TAG);
+    holes = tagged(designTag);
     const planes = ringPlanes(holes);
     const p = planes[Math.min(ringIndex, planes.length - 1)];
     if (!p) return null;
     plane = { ...p, forward: p.normal };
-    outlinesWorld = [sections(RING_TAG, 'stope'), sections(RING_TAG, 'drive')].filter(
+    outlinesWorld = [sections(designTag, 'stope'), sections(designTag, 'drive')].filter(
       (s): s is Vec3[] => s !== null,
     );
   }
@@ -202,12 +229,15 @@ function planeView(
     minV: Math.min(...pts.map((p) => p.v)) - pad,
     maxV: Math.max(...pts.map((p) => p.v)) + pad,
   };
+  // Celda según el tamaño de la sección (frentes de pocos metros o tajeos de decenas): ~200 celdas.
+  const span = Math.max(bounds.maxU - bounds.minU, bounds.maxV - bounds.minV);
+  const base = target === 'face' ? 0.05 : 0.2;
   return {
     plane: { ...plane, bounds },
     holes,
     outlines,
-    cellSize: target === 'face' ? 0.05 : 0.2,
-    cutoff: target === 'face' ? 2.5 : 6,
+    cellSize: Math.max(base, span / 200),
+    cutoff: target === 'face' ? Math.max(2.5, span / 8) : 6,
   };
 }
 
@@ -271,16 +301,21 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const seqTime = useAnalysisStore((a) => a.sequenceTime);
   const playing = useAnalysisStore((a) => a.sequencePlaying);
   const speed = useAnalysisStore((a) => a.sequenceSpeed);
-  const hasFace = blast.holes.some((h) => h.tags?.includes(FACE_TAG));
+  // Diseños subterráneos presentes (frente, abanicos y plantillas por método), por su marca.
+  const designs = useMemo(() => designTags(blast), [blast]);
+  const designTag =
+    s.designTag && designs.includes(s.designTag) ? s.designTag : (designs[0] ?? FACE_TAG);
+  const isRing = RING_LIKE_TAGS.has(designTag);
+  const hasFace = !isRing && blast.holes.some((h) => h.tags?.includes(designTag));
   const ringCount = useMemo(
-    () => ringPlanes(blast.holes.filter((h) => h.tags?.includes(RING_TAG))).length,
-    [blast],
+    () => (isRing ? ringPlanes(blast.holes.filter((h) => h.tags?.includes(designTag))).length : 0),
+    [blast, designTag, isRing],
   );
-  const target = s.target === 'face' && !hasFace && ringCount > 0 ? 'ring' : s.target;
+  const target = isRing ? 'ring' : 'face';
   const effTarget = target === 'ring' && ringCount === 0 ? 'face' : target;
   const view = useMemo(
-    () => planeView(blast, effTarget, s.ringIndex, s.depthFraction),
-    [blast, effTarget, s.ringIndex, s.depthFraction],
+    () => planeView(blast, effTarget, s.ringIndex, s.depthFraction, designTag),
+    [blast, effTarget, s.ringIndex, s.depthFraction, designTag],
   );
   const times = useMemo(() => (analysis ? sequenceTimes(analysis) : null), [analysis]);
   // Taladros que ya detonaron en el instante de la simulación (todos si no hay simulación).
@@ -366,6 +401,23 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   return (
     <>
       <div className="row" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
+        {designs.length > 1 && (
+          <label className="field">
+            <span className="field-label">{t('uga.design')}</span>
+            <select
+              value={designTag}
+              onChange={(e) => {
+                s.set({ designTag: e.target.value, ringIndex: 0 });
+              }}
+            >
+              {designs.map((tag) => (
+                <option key={tag} value={tag}>
+                  {designLabel(tag, t)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="field">
           <span className="field-label">{t('uga.plane')}</span>
           <select

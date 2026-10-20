@@ -38,6 +38,9 @@ import { useUndergroundStore } from './store';
 
 const { document } = session;
 
+/** Separación mínima entre taladros de una plantilla con electrónicos [s]. */
+export const METHOD_HOLE_SEPARATION = 0.025;
+
 /** Explosivo elegido para la plantilla o el sugerido por familia que entra en el taladro. */
 export function methodExplosive(
   lib: ProductLibrary,
@@ -130,6 +133,8 @@ export function sendMethod(
     products: prod.products,
     tag: m.tag,
     labelPrefix: `${m.code.replace('-', '')}-`,
+    // Electrónicos: secuencia continua (25 ms) para que ningún taladro salga acoplado con otro.
+    holeSeparation: prod.electronic ? METHOD_HOLE_SEPARATION : 0,
   });
   const name = t(`ugm.m.${id}.name`);
   document.dispatch(

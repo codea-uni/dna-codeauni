@@ -5,6 +5,7 @@
  */
 export const es = {
   'uga.tab': 'Análisis',
+  'uga.design': 'Diseño',
   'uga.sendFirst':
     'Lleva el frente o los abanicos al diseño 3D («Llevar al diseño 3D») para simular la voladura, ver los halos de energía y revisar la secuencia. La fragmentación de abajo usa el diseño de las pestañas.',
   'uga.noHoles': 'No hay taladros cargados de este diseño en la voladura.',
@@ -111,6 +112,7 @@ export const es = {
 
 export const en = {
   'uga.tab': 'Analysis',
+  'uga.design': 'Design',
   'uga.sendFirst':
     'Send the face or the rings to the 3D design («Send to 3D design») to simulate the blast, see the energy halos and check the sequence. The fragmentation below uses the design in the tabs.',
   'uga.noHoles': 'There are no charged holes of this design in the blast.',

@@ -1,7 +1,7 @@
 import { newId } from '../model/ids';
-import type { Deck, Explosive, Hole, InHoleInitiator, Vec3 } from '../model/types';
+import type { Deck, Explosive, Hole, InHoleInitiator, Seconds, Vec3 } from '../model/types';
 import type { MethodContext, MethodDesign, MethodHole, P3 } from './methods';
-import { effectiveChargeDiameter, RELIEF_TAG, type UndergroundProducts } from './toHoles';
+import { CUT_TAG, effectiveChargeDiameter, RELIEF_TAG, type UndergroundProducts } from './toHoles';
 import { directionToHoleAngles, localToWorld, type PlaneFrame } from './transform';
 
 /**
@@ -88,13 +88,43 @@ export interface MethodToHolesInput {
   /** Marca de la plantilla (`ug-…`). */
   tag: string;
   labelPrefix?: string;
+  /**
+   * Separación mínima entre taladros [s] (electrónicos): > 0 = secuencia continua, ningún taladro
+   * sale junto con otro (sin acoplamiento); cada uno sale en max(tiempo nominal, anterior +
+   * separación), en orden de tiempo nominal. 0 (por defecto) = los del mismo tiempo salen juntos.
+   */
+  holeSeparation?: Seconds;
+}
+
+/** Tiempos de disparo con secuencia continua (ver `MethodToHolesInput.holeSeparation`). */
+export function continuousDelays(
+  delays: readonly (Seconds | null)[],
+  separation: Seconds,
+): (Seconds | null)[] {
+  if (!(separation > 0)) return [...delays];
+  const order = delays
+    .map((d, i) => ({ d, i }))
+    .filter((x): x is { d: Seconds; i: number } => x.d !== null)
+    .sort((a, b) => a.d - b.d || a.i - b.i);
+  const out: (Seconds | null)[] = [...delays];
+  let prev = -Infinity;
+  for (const { d, i } of order) {
+    const t = Math.max(d, prev + separation);
+    out[i] = t;
+    prev = t;
+  }
+  return out;
 }
 
 /** Taladros del diseño por método en coordenadas de proyecto. Los alivios quedan vacíos. */
 export function methodDesignToHoles(input: MethodToHolesInput): Hole[] {
   const prefix = input.labelPrefix ?? 'M';
+  const times = continuousDelays(
+    input.design.holes.map((h) => h.delay),
+    input.holeSeparation ?? 0,
+  );
   const fallback = frameAzimuth(input.frame);
-  return input.design.holes.map((h) => {
+  return input.design.holes.map((h, k) => {
     const collar = methodPointToWorld(input.frame, h.collar);
     const toe = methodPointToWorld(input.frame, h.toe);
     const a = directionToHoleAngles(toe.x - collar.x, toe.y - collar.y, toe.z - collar.z, fallback);
@@ -105,7 +135,7 @@ export function methodDesignToHoles(input: MethodToHolesInput): Hole[] {
         id: newId<'InHoleInitiator'>(),
         detonatorId: input.products.detonatorId,
         depth: Math.max(0, primerDepth(h)),
-        delay: h.delay,
+        delay: times[k] ?? h.delay,
       };
       if (input.products.primerId && primed.needsBooster) init.primerId = input.products.primerId;
       initiators.push(init);
@@ -122,7 +152,12 @@ export function methodDesignToHoles(input: MethodToHolesInput): Hole[] {
       decks,
       initiators,
       status: 'designed',
-      tags: h.role === 'relief' ? [input.tag, RELIEF_TAG] : [input.tag],
+      tags:
+        h.role === 'relief'
+          ? [input.tag, RELIEF_TAG]
+          : h.role === 'cut'
+            ? [input.tag, CUT_TAG]
+            : [input.tag],
     } satisfies Hole;
   });
 }

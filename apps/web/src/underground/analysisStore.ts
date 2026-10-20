@@ -17,6 +17,8 @@ export interface UgAnalysisState {
   open: boolean;
   /** Plano evaluado: el frente o el anillo `ringIndex` de los abanicos. */
   target: 'face' | 'ring';
+  /** Diseño analizado: marca `ug-*` del frente, los abanicos o una plantilla (null = el primero). */
+  designTag: string | null;
   ringIndex: number;
   /** Profundidad del plano del frente como fracción del largo perforado (0 = bocas, 1 = fondos). */
   depthFraction: number;
@@ -39,6 +41,7 @@ export interface UgAnalysisState {
 export const useUgAnalysisStore = create<UgAnalysisState>((set) => ({
   open: false,
   target: 'face',
+  designTag: null,
   ringIndex: 0,
   depthFraction: 0.5,
   metric: 'nearFieldPpv',

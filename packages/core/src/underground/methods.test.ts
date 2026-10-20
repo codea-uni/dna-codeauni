@@ -15,7 +15,7 @@ import {
   type MiningMethodId,
   type P3,
 } from './methods';
-import { methodDesignToHoles } from './methodToHoles';
+import { continuousDelays, methodDesignToHoles } from './methodToHoles';
 import { isUndergroundHole, RELIEF_TAG } from './toHoles';
 import { planeFrame } from './transform';
 import { pointInProfile } from './profiles';
@@ -406,5 +406,18 @@ describe('geometría esperada por método', () => {
   it('datos imposibles dan un error claro', () => {
     expect(() => designByMethod('driftMechanized', { width: 4, height: 1.5 })).toThrow(/H > W\/2/);
     expect(() => designByMethod('dropRaise', { width: 0.4 })).toThrow();
+  });
+});
+
+describe('secuencia continua de las plantillas', () => {
+  it('con separación ningún taladro comparte tiempo y se respeta el orden nominal', () => {
+    const t = continuousDelays([0, 0, 0.1, null, 0.1, 0.025], 0.025);
+    const want = [0, 0.025, 0.1, null, 0.125, 0.05];
+    t.forEach((x, i) => {
+      const w = want[i];
+      if (w === null || w === undefined) expect(x).toBeNull();
+      else expect(x).toBeCloseTo(w, 9);
+    });
+    expect(continuousDelays([0, 0], 0)).toEqual([0, 0]);
   });
 });
