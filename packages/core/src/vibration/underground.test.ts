@@ -189,3 +189,15 @@ describe('vibración bajo tierra (puntos 3D y taladros ug-*)', () => {
     expect(distanceToSegment3({ x: 0, y: 0, z: 2 }, a, a)).toBeCloseTo(2, 12);
   });
 });
+
+describe('criterios de daño en roca', () => {
+  it('Bauer y Calder y ley no calibrada', async () => {
+    const { rockDamageClass, isUncalibratedLaw } = await import('./monitoring');
+    expect(rockDamageClass(0.1)).toBe('none');
+    expect(rockDamageClass(0.3)).toBe('minor-slabbing');
+    expect(rockDamageClass(1)).toBe('strong-cracking');
+    expect(rockDamageClass(3)).toBe('breakup');
+    expect(isUncalibratedLaw({})).toBe(true);
+    expect(isUncalibratedLaw({ fit: { zone: '', n: 5, r2: 0.9 } })).toBe(false);
+  });
+});

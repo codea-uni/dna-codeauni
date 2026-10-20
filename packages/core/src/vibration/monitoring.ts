@@ -141,3 +141,24 @@ export function excavationCenter(sections: readonly (readonly Vec3[])[]): Vec3 |
     }
   return n > 0 ? { x: x / n, y: y / n, z: z / n } : null;
 }
+
+/** Clase de daño en roca por PPV (Bauer y Calder 1978; `docs/RULES.md` RM-21b). */
+export type RockDamageClass = 'none' | 'minor-slabbing' | 'strong-cracking' | 'breakup';
+
+/** Umbrales de Bauer y Calder [m/s]: 254, 635 y 2 540 mm/s. */
+export const BAUER_CALDER_THRESHOLDS = [0.254, 0.635, 2.54] as const;
+
+/**
+ * Daño esperable en roca (labor, pilar, talud) por el PPV: < 254 mm/s sin fracturar la roca
+ * intacta; 254–635 descostre menor; 635–2 540 agrietamiento fuerte; > 2 540 rotura. Es un semáforo,
+ * no un límite exacto (faltan datos de daño en labores; Fleetwood et al. 2009).
+ */
+export function rockDamageClass(ppv: number): RockDamageClass {
+  const [a, b, c] = BAUER_CALDER_THRESHOLDS;
+  return ppv < a ? 'none' : ppv < b ? 'minor-slabbing' : ppv < c ? 'strong-cracking' : 'breakup';
+}
+
+/** La ley no viene de mediciones del sitio (sin ajuste): se avisa «ley no calibrada». */
+export function isUncalibratedLaw(law: Pick<VibrationLaw, 'fit'> | null | undefined): boolean {
+  return !law?.fit;
+}
