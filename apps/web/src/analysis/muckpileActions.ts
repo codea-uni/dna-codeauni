@@ -19,10 +19,13 @@ const fileBase = () =>
     '_',
   ) || 'pila';
 
-/** Pide el cálculo de la pila al runner. */
-export function requestMuckpile(): void {
+/**
+ * Pide el cálculo de la pila al runner: la de banco (por defecto) o la subterránea (taladros
+ * `ug-*`, pestaña Análisis de Subterránea).
+ */
+export function requestMuckpile(target: 'bench' | 'underground' = 'bench'): void {
   const s = useAnalysisStore.getState();
-  s.set({ muckpileRequest: s.muckpileRequest + 1 });
+  s.set({ muckpileRequest: s.muckpileRequest + 1, muckpileTarget: target });
 }
 
 /** Exporta la superficie de la pila (XYZ, OBJ, STL) o los vectores por bloque (CSV). */

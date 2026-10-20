@@ -53,6 +53,12 @@ export interface BlocksData {
   colors: Uint8Array;
   /** Con cuadros de física se dibujan sus cuerpos; sin ellos, el modo rápido interpola. */
   frames?: BlockFrames | null;
+  /**
+   * Trayectoria muestreada por bloque (pila subterránea: choca con techo y paredes): `pathPoints`
+   * muestras [dx, dy, dz, t] relativas al origen y a la salida. Sin ella, tiro parabólico.
+   */
+  path?: Float32Array | null;
+  pathPoints?: number;
 }
 
 /**
@@ -185,6 +191,34 @@ export class BlocksLayer {
         const dy = d.destination[3 * k + 1] ?? 0;
         const dz = d.destination[3 * k + 2] ?? 0;
         const tau = t - launch;
+        const P = d.pathPoints ?? 0;
+        if (d.path && P >= 2) {
+          // Trayectoria muestreada: se recorre y luego se asienta en su lugar de la pila.
+          const base = k * P * 4;
+          const total = d.path[base + (P - 1) * 4 + 3] ?? 0;
+          if (tau < total) {
+            const u = total > 0 ? (tau / total) * (P - 1) : 0;
+            const a = Math.min(P - 2, Math.floor(u));
+            const w = u - a;
+            const pa = base + a * 4;
+            const pb = pa + 4;
+            x = ox + lerp(d.path[pa] ?? 0, d.path[pb] ?? 0, w);
+            y = oy + lerp(d.path[pa + 1] ?? 0, d.path[pb + 1] ?? 0, w);
+            z = oz + lerp(d.path[pa + 2] ?? 0, d.path[pb + 2] ?? 0, w);
+          } else {
+            const pl = base + (P - 1) * 4;
+            const s = Math.min(1, (tau - total) / SETTLE);
+            const w = s * s * (3 - 2 * s);
+            x = lerp(ox + (d.path[pl] ?? 0), dx, w);
+            y = lerp(oy + (d.path[pl + 1] ?? 0), dy, w);
+            z = lerp(oz + (d.path[pl + 2] ?? 0), dz, w);
+          }
+          this.p.set(x - o.x, y - o.y, z - o.z);
+          this.s.set(d.size * GAP, d.size * GAP, (d.height[k] ?? d.size) * GAP);
+          this.m.compose(this.p, this.q, this.s);
+          this.m.toArray(arr, k * 16);
+          continue;
+        }
         const disc = vz * vz + 2 * G * (oz - dz);
         const tLand = disc >= 0 ? (vz + Math.sqrt(disc)) / G : NaN;
         if (Number.isFinite(tLand) && tLand > 0) {

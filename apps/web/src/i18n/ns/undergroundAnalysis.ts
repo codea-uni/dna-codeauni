@@ -5,6 +5,42 @@
  */
 export const es = {
   'uga.tab': 'Análisis',
+  'uga.showPile': 'Mostrar la roca volando y la pila',
+  'uga.pileComputing': 'Calculando la pila…',
+  'uga.section.pile': 'Pila de material',
+  'uga.pile.compute': 'Calcular la pila',
+  'uga.pile.none':
+    'Sin pila calculada: pulse «Simular voladura» (con «Mostrar la roca volando y la pila») o «Calcular la pila».',
+  'uga.pile.stale': 'La pila es de una versión anterior del diseño: vuelva a calcularla.',
+  'uga.pile.swell': 'Esponjamiento',
+  'uga.pile.repose': 'Ángulo de reposo',
+  'uga.pile.throwFactor': 'Factor de alcance',
+  'uga.pile.mode.face': 'Frente',
+  'uga.pile.mode.stope': 'Tajeo',
+  'uga.pile.mode.shaft': 'Chimenea',
+  'uga.pile.inSitu': 'Volumen in situ',
+  'uga.pile.volume': 'Volumen de la pila',
+  'uga.pile.throw': 'Alcance (frente: desde el frente nuevo)',
+  'uga.pile.maxHeight': 'Altura máxima',
+  'uga.pile.faceHeight': 'Altura junto al frente',
+  'uga.pile.meanDisp': 'Desplazamiento medio',
+  'uga.pile.blockage': 'Sección tapada (máx.)',
+  'uga.pile.blockageAt': '{pct} % a {d} m',
+  'uga.pile.blocks': 'Bloques',
+  'uga.pile.profile': '{name} · sección tapada por la pila según la distancia al frente: {list}.',
+  'uga.pile.w.blockage':
+    'La pila tapa el {pct} % de la sección a {d} m del frente: revise la ventilación y el acceso del equipo de carguío.',
+  'uga.pile.w.roofFace':
+    '{name}: la pila llega al techo de la galería; el material que no cabe se corre hacia atrás.',
+  'uga.pile.w.roofStope':
+    '{name}: el material esponjado llena el tajeo hasta el techo (poco espacio para el esponjamiento): extraiga antes de la siguiente voladura.',
+  'uga.pile.w.noExcavation':
+    '{name}: no tiene la excavación guardada (galería, ronda o tajeo); vuelva a llevarlo al diseño 3D para simular su pila.',
+  'uga.pile.w.noTiming': '{name}: {n} taladros sin tiempo de salida; su roca queda en su lugar.',
+  'uga.pile.w.clipped': '{n} bloques llegaron al borde del tramo modelado.',
+  'uga.pile.elapsed': 'Calculada en {ms} ms · bloques de {b} m de lado.',
+  'uga.pile.hint':
+    'Modelo cinemático empírico y calibrable: velocidad por taladro v = k·(√m/B)^1,3 (Richards & Moore) con B al hueco ya abierto, vuelo confinado por la galería o el tajeo (rebote en techo y paredes, restitución 0,25), deslizamiento con fricción, esponjamiento y ángulo de reposo. Ajuste el factor de alcance con la pila medida en la mina; no reemplaza un modelo de elementos discretos.',
   'uga.design': 'Diseño',
   'uga.sendFirst':
     'Lleva el frente o los abanicos al diseño 3D («Llevar al diseño 3D») para simular la voladura, ver los halos de energía y revisar la secuencia. La fragmentación de abajo usa el diseño de las pestañas.',
@@ -112,6 +148,42 @@ export const es = {
 
 export const en = {
   'uga.tab': 'Analysis',
+  'uga.showPile': 'Show the flying rock and the muckpile',
+  'uga.pileComputing': 'Computing the muckpile…',
+  'uga.section.pile': 'Muckpile',
+  'uga.pile.compute': 'Compute muckpile',
+  'uga.pile.none':
+    'No muckpile yet: press «Simulate blast» (with «Show the flying rock and the muckpile») or «Compute muckpile».',
+  'uga.pile.stale': 'The muckpile is from an earlier version of the design: compute it again.',
+  'uga.pile.swell': 'Swell factor',
+  'uga.pile.repose': 'Angle of repose',
+  'uga.pile.throwFactor': 'Throw factor',
+  'uga.pile.mode.face': 'Face',
+  'uga.pile.mode.stope': 'Stope',
+  'uga.pile.mode.shaft': 'Raise',
+  'uga.pile.inSitu': 'In-situ volume',
+  'uga.pile.volume': 'Muckpile volume',
+  'uga.pile.throw': 'Throw (face: from the new face)',
+  'uga.pile.maxHeight': 'Maximum height',
+  'uga.pile.faceHeight': 'Height at the face',
+  'uga.pile.meanDisp': 'Mean displacement',
+  'uga.pile.blockage': 'Blocked section (max.)',
+  'uga.pile.blockageAt': '{pct} % at {d} m',
+  'uga.pile.blocks': 'Blocks',
+  'uga.pile.profile': '{name} · section blocked by the muckpile vs distance from the face: {list}.',
+  'uga.pile.w.blockage':
+    'The muckpile blocks {pct} % of the section {d} m from the face: check ventilation and access for the loader.',
+  'uga.pile.w.roofFace':
+    '{name}: the muckpile reaches the drive roof; the material that does not fit spills back.',
+  'uga.pile.w.roofStope':
+    '{name}: the swollen rock fills the stope up to the roof (little room for swell): muck out before the next blast.',
+  'uga.pile.w.noExcavation':
+    '{name}: no excavation saved (drive, round or stope); send it to the 3D design again to simulate its muckpile.',
+  'uga.pile.w.noTiming': '{name}: {n} holes without firing time; their rock stays in place.',
+  'uga.pile.w.clipped': '{n} blocks reached the edge of the modelled length.',
+  'uga.pile.elapsed': 'Computed in {ms} ms · blocks of {b} m.',
+  'uga.pile.hint':
+    'Empirical, calibratable kinematic model: hole velocity v = k·(√m/B)^1.3 (Richards & Moore) with B to the opening already blasted, flight confined by the drive or stope (bounces on roof and walls, restitution 0.25), sliding with friction, swell and angle of repose. Tune the throw factor with the muckpile measured at the mine; it does not replace a discrete-element model.',
   'uga.design': 'Design',
   'uga.sendFirst':
     'Send the face or the rings to the 3D design («Send to 3D design») to simulate the blast, see the energy halos and check the sequence. The fragmentation below uses the design in the tabs.',

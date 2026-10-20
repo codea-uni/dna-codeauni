@@ -5,6 +5,7 @@ import { getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
 import { topographyTin } from '../topography/session';
+import { autoPileTarget, pileMatches } from '../underground/pileView';
 
 const view = () => useAnalysisStore.getState();
 
@@ -49,11 +50,18 @@ export async function pileReady(signal: AbortSignal): Promise<void> {
     () => {
       const state = view();
       const version = session.document.version;
-      if (state.muckpile && state.muckpileVersion === version && !state.muckpileComputing)
+      // Subterránea: la pila confinada por la galería (Open Pit sigue con la de banco).
+      const target = autoPileTarget();
+      if (
+        state.muckpile &&
+        state.muckpileVersion === version &&
+        !state.muckpileComputing &&
+        pileMatches(state.muckpile, target)
+      )
         return true;
       if (!state.muckpileComputing && requestedVersion !== version) {
         requestedVersion = version;
-        requestMuckpile();
+        requestMuckpile(target);
       }
       return false;
     },

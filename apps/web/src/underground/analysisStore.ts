@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   DEFAULT_ADVANCE_EFFICIENCY,
   DEFAULT_UG_TIMING,
+  DEFAULT_UG_MUCKPILE_PARAMS,
   type EnergyMetric,
   type KuzRamVariant,
 } from '@cronos/core';
@@ -25,6 +26,12 @@ export interface UgAnalysisState {
   metric: EnergyMetric;
   /** Dibujar los halos también en la vista 3D. */
   show3d: boolean;
+  /** «Simular voladura» muestra también la roca volando y la pila (cálculo en el worker). */
+  showPile: boolean;
+  /** Pila subterránea: esponjamiento, ángulo de reposo [°] y factor de alcance (calibración). */
+  pileSwell: number;
+  pileRepose: number;
+  pileThrowFactor: number;
   /** Distancia de corte por onda en seco [m]. */
   shockDistance: number;
   /** Punto de control para la ventana de llegada (null = solo los 8 ms). */
@@ -46,6 +53,10 @@ export const useUgAnalysisStore = create<UgAnalysisState>((set) => ({
   depthFraction: 0.5,
   metric: 'nearFieldPpv',
   show3d: false,
+  showPile: true,
+  pileSwell: DEFAULT_UG_MUCKPILE_PARAMS.swell,
+  pileRepose: Math.round((DEFAULT_UG_MUCKPILE_PARAMS.reposeAngle * 180) / Math.PI),
+  pileThrowFactor: DEFAULT_UG_MUCKPILE_PARAMS.throwFactor,
   shockDistance: DEFAULT_UG_TIMING.shockDistance,
   receiverId: null,
   advanceEfficiency: DEFAULT_ADVANCE_EFFICIENCY,

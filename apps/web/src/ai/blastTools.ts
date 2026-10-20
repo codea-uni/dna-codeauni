@@ -38,6 +38,12 @@ import {
 } from '@cronos/core';
 import { z } from 'zod';
 import { analysisReady, pileReady, playDemoSequence } from '../demo/runtime';
+import {
+  autoPileTarget,
+  currentUgPile,
+  playUndergroundPile,
+  ugPileSummary,
+} from '../underground/pileView';
 import { getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
@@ -1111,7 +1117,7 @@ const showSchema = z.object({
       'clear',
     ])
     .describe(
-      'sequence = animate the firing (with muckpile flight); vibration/energy maps; displacement arrows; muckpile; flyrock zone; timing = color holes by firing time; clear = hide maps.',
+      'sequence = animate the firing (with muckpile flight; underground: the rock flying out of the face/stope and piling up in the drive, «simula la voladura»); vibration/energy maps; displacement arrows; muckpile; flyrock zone; timing = color holes by firing time; clear = hide maps.',
     ),
   view: z.enum(['plan', '3d']).optional(),
 });
@@ -1175,6 +1181,30 @@ async function showResults(args: z.infer<typeof showSchema>) {
           'No firing times: the holes have no detonator or are not tied up, so the firing cannot be animated. Tie up with set_tie_up (nonel) or set_electronic_timing, then try again.',
         );
       useUiStore.getState().setViewMode(inXr ? '3d' : (args.view ?? '3d'));
+      // Subterránea (en pantalla): la roca sale del frente y se amontona en la galería, con la
+      // cámara de costado al túnel (la misma de «Simular voladura» de la pestaña Análisis).
+      if (!xr && autoPileTarget() === 'underground') {
+        let withPile = true;
+        try {
+          await pileReady(AbortSignal.timeout(20_000));
+        } catch {
+          withPile = false;
+        }
+        if (withPile && playUndergroundPile()) {
+          const pile = currentUgPile();
+          return {
+            shown: 'sequence',
+            underground_muckpile: pile ? ugPileSummary(pile) : null,
+            ...(blast.holes.length > fired
+              ? {
+                  warnings: [
+                    `${blast.holes.length - fired} holes have no firing time and do not fire in the animation.`,
+                  ],
+                }
+              : {}),
+          };
+        }
+      }
       let moved: ReturnType<typeof xrSequenceSpot> = null;
       if (xr) {
         // En el visor se ven las dos cosas: el disparo y el vuelo de la pila (al entrar al visor
