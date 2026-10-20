@@ -24,7 +24,8 @@ export function tellAgent(text: string): void {
     liveVoice.greet(text);
     return;
   }
-  if (useAiStore.getState().entries.length > 0 && !useAiStore.getState().busy) void sendToAssistant(text);
+  if (useAiStore.getState().entries.length > 0 && !useAiStore.getState().busy)
+    void sendToAssistant(text);
 }
 
 async function applySurvey(surveyId: string): Promise<void> {
@@ -39,11 +40,15 @@ async function applySurvey(surveyId: string): Promise<void> {
 function handleChoice(card: AgentCard, choice: CardChoice): void {
   if (card.id === TIE_UP_CARD) {
     if (choice.id === 'change') {
-      tellAgent('[ui] El usuario quiere cambiar el amarre propuesto (no se aplicó). Pregúntale qué cambiar: tipo (V, fila por fila, echelon), retardos de la librería o taladro de inicio.');
+      tellAgent(
+        '[ui] El usuario quiere cambiar el amarre propuesto (no se aplicó). Pregúntale qué cambiar: tipo (V, fila por fila, echelon), retardos de la librería o taladro de inicio.',
+      );
       return;
     }
     const better = choice.id === 'better' ? /(\d+)\/(\d+)/.exec(choice.label) : null;
-    void applyPendingTieUp(better ? { inter_hole: better[1] ?? '', inter_row: better[2] ?? '' } : undefined).then((out) => {
+    void applyPendingTieUp(
+      better ? { inter_hole: better[1] ?? '', inter_row: better[2] ?? '' } : undefined,
+    ).then((out) => {
       tellAgent(
         out.ok
           ? `[ui] El usuario tocó «${choice.label}» y el amarre ya está aplicado: ${JSON.stringify(out.result)}. Confírmalo en una frase (no lo vuelvas a aplicar).`
@@ -54,7 +59,10 @@ function handleChoice(card: AgentCard, choice: CardChoice): void {
   }
   if (card.id === 'presets') {
     void applyPresetById(choice.id).then((name) => {
-      if (name) tellAgent(`[ui] El usuario eligió y apliqué el preset «${name}» en el polígono activo. Revisa el resultado (predict_results) y coméntalo en una o dos frases.`);
+      if (name)
+        tellAgent(
+          `[ui] El usuario eligió y apliqué el preset «${name}» en el polígono activo. Revisa el resultado (predict_results) y coméntalo en una o dos frases.`,
+        );
     });
     return;
   }
@@ -67,7 +75,9 @@ function handleChoice(card: AgentCard, choice: CardChoice): void {
     const surveyId = card.id.slice('topo:'.length);
     if (choice.id === 'use') {
       void applySurvey(surveyId).then(() => {
-        tellAgent(`[ui] El usuario eligió usar la topografía nueva para esta voladura (ya está aplicada al banco). Confírmalo brevemente y sigue.`);
+        tellAgent(
+          `[ui] El usuario eligió usar la topografía nueva para esta voladura (ya está aplicada al banco). Confírmalo brevemente y sigue.`,
+        );
       });
     } else tellAgent('[ui] El usuario dejó la topografía nueva solo como referencia.');
     return;
@@ -75,7 +85,9 @@ function handleChoice(card: AgentCard, choice: CardChoice): void {
   if (card.id.startsWith('perim:')) {
     if (choice.id === 'use') {
       useUiStore.getState().setActiveBoundary(card.id.slice('perim:'.length) as never);
-      tellAgent(`[ui] El usuario quiere diseñar en el polígono nuevo «${card.sub}» (ya es el activo). Pregunta lo que falte o propón la malla.`);
+      tellAgent(
+        `[ui] El usuario quiere diseñar en el polígono nuevo «${card.sub}» (ya es el activo). Pregunta lo que falte o propón la malla.`,
+      );
     } else tellAgent(`[ui] El polígono «${card.sub}» queda solo como referencia.`);
     return;
   }
@@ -93,18 +105,24 @@ function handleWorkspaceChoice(kind: string, choice: CardChoice): void {
     useUiStore.getState().notify(err instanceof Error ? err.message : String(err), 'error');
   };
   if (kind === 'project') {
-    tellAgent(`[ui] El usuario eligió abrir el proyecto «${choice.label}». Ábrelo con open_project.`);
+    tellAgent(
+      `[ui] El usuario eligió abrir el proyecto «${choice.label}». Ábrelo con open_project.`,
+    );
     return;
   }
   if (kind === 'mine') {
-    tellAgent(`[ui] El usuario eligió la mina «${choice.label}». Lista sus proyectos (workspace show projects, mine).`);
+    tellAgent(
+      `[ui] El usuario eligió la mina «${choice.label}». Lista sus proyectos (workspace show projects, mine).`,
+    );
     return;
   }
   if (kind === 'topo') {
     useUiStore.getState().notify(`Trayendo ${choice.label}…`);
     applyTopographyById(choice.id)
       .then((r) => {
-        tellAgent(`[ui] El usuario eligió la topografía «${choice.label}» y ya está aplicada al banco: ${JSON.stringify(r)}. Coméntalo en una frase y sigue.`);
+        tellAgent(
+          `[ui] El usuario eligió la topografía «${choice.label}» y ya está aplicada al banco: ${JSON.stringify(r)}. Coméntalo en una frase y sigue.`,
+        );
       })
       .catch(fail);
     return;
@@ -113,13 +131,17 @@ function handleWorkspaceChoice(kind: string, choice: CardChoice): void {
     if (choice.id.startsWith('here:')) {
       const id = choice.id.slice(5);
       useUiStore.getState().setActiveBoundary(id as never);
-      tellAgent(`[ui] El usuario eligió trabajar en el polígono «${choice.label}» (ya es el activo). Pregunta lo que falte o propón la malla.`);
+      tellAgent(
+        `[ui] El usuario eligió trabajar en el polígono «${choice.label}» (ya es el activo). Pregunta lo que falte o propón la malla.`,
+      );
       return;
     }
     const [, projectId = '', boundaryId = ''] = choice.id.split(':');
     copyPerimeter(projectId, boundaryId)
       .then((r) => {
-        tellAgent(`[ui] El usuario trajo el polígono «${choice.label}» a esta voladura (ya es el activo): ${JSON.stringify(r)}. Coméntalo en una frase y sigue.`);
+        tellAgent(
+          `[ui] El usuario trajo el polígono «${choice.label}» a esta voladura (ya es el activo): ${JSON.stringify(r)}. Coméntalo en una frase y sigue.`,
+        );
       })
       .catch(fail);
   }
@@ -129,7 +151,9 @@ function handleWorkspaceChoice(kind: string, choice: CardChoice): void {
 export function startDesignWatch(): () => void {
   onCardChoice(handleChoice);
   let surveys = new Set(session.document.project.topography.map((s) => s.id));
-  let boundaries = new Set(session.document.project.blasts.flatMap((b) => b.boundaries.map((x) => x.id)));
+  let boundaries = new Set(
+    session.document.project.blasts.flatMap((b) => b.boundaries.map((x) => x.id)),
+  );
   let projectId = session.document.project.id;
   const off = session.document.subscribe(() => {
     const project = session.document.project;
@@ -145,6 +169,8 @@ export function startDesignWatch(): () => void {
       if (surveys.has(s.id)) continue;
       surveys.add(s.id);
       if (blast?.bench.topographyId === s.id) continue;
+      // Nubes y modelos de bloques se ven en 3D; no sirven de terreno del banco.
+      if (!s.assets.tin) continue;
       if (useAiStore.getState().busy || useLiveStore.getState().tool || liveActive()) continue;
       pushCard({
         id: `topo:${s.id}`,
@@ -159,7 +185,9 @@ export function startDesignWatch(): () => void {
         ],
         t0: performance.now(),
       });
-      tellAgent(`[ui] Se cargó la topografía «${s.name}» (${s.surveyDate}). Pregúntale al usuario en una frase si la usamos para esta voladura (hay una tarjeta para elegir).`);
+      tellAgent(
+        `[ui] Se cargó la topografía «${s.name}» (${s.surveyDate}). Pregúntale al usuario en una frase si la usamos para esta voladura (hay una tarjeta para elegir).`,
+      );
     }
     for (const b of blast?.boundaries ?? []) {
       if (boundaries.has(b.id)) continue;
@@ -180,7 +208,9 @@ export function startDesignWatch(): () => void {
         ],
         t0: performance.now(),
       });
-      tellAgent(`[ui] El usuario agregó el polígono «${b.name}». Pregúntale en una frase si diseñamos en él (hay una tarjeta para elegir).`);
+      tellAgent(
+        `[ui] El usuario agregó el polígono «${b.name}». Pregúntale en una frase si diseñamos en él (hay una tarjeta para elegir).`,
+      );
     }
   });
   return () => {

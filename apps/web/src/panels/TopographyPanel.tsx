@@ -125,11 +125,18 @@ export function TopographyPanel() {
                 </div>
                 <div className="muted small">
                   {t(FORMAT_KEY[s.source.format])} ·{' '}
-                  {t('topo.panel.stats', {
-                    points: fmt(s.stats.points),
-                    triangles: fmt(s.stats.triangles),
-                    lines: fmt(s.stats.lines),
-                  })}
+                  {s.source.format === 'blockmodel'
+                    ? t('topo.model3d.statsBlocks', { n: fmt(s.stats.points) })
+                    : s.source.format === 'cloud'
+                      ? t('topo.model3d.statsCloud', {
+                          points: fmt(s.stats.points),
+                          source: fmt(s.stats.sourcePoints ?? s.stats.points),
+                        })
+                      : t('topo.panel.stats', {
+                          points: fmt(s.stats.points),
+                          triangles: fmt(s.stats.triangles),
+                          lines: fmt(s.stats.lines),
+                        })}
                 </div>
                 <div className="muted small">
                   {t('topo.panel.relief', {

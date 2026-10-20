@@ -413,7 +413,13 @@ export interface TopographySurvey {
     transform?: string;
   };
   bounds: Bounds3;
-  stats: { points: number; triangles: number; lines: number };
+  stats: {
+    points: number;
+    triangles: number;
+    lines: number;
+    /** Puntos del archivo original, si la nube se redujo al importarla. */
+    sourcePoints?: number;
+  };
   /** Hash SHA-256 de cada asset `CRTS`. */
   assets: { tin?: string; lines?: string; image?: string; cloud?: string; blocks?: string };
 }

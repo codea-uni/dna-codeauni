@@ -359,6 +359,7 @@ export const topographySurveySchema: z.ZodType<M.TopographySurvey> = z.object({
     points: z.int().nonnegative(),
     triangles: z.int().nonnegative(),
     lines: z.int().nonnegative(),
+    sourcePoints: z.int().nonnegative().exactOptional(),
   }),
   assets: z.object({
     tin: hash.exactOptional(),

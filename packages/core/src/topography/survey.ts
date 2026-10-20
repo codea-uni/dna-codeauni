@@ -132,6 +132,7 @@ export function buildSurvey(input: SurveyInput, parts: SurveyParts): BuiltSurvey
               : 0,
         triangles: parts.tin ? parts.tin.triangles.length / 3 : 0,
         lines: parts.lines ? Math.max(0, parts.lines.offsets.length - 1) : 0,
+        ...(parts.cloud ? { sourcePoints: parts.cloud.sourcePoints } : {}),
       },
       assets: hashes,
     },

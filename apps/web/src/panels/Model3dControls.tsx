@@ -63,7 +63,7 @@ export function BlockModelControls({ survey }: { survey: TopographySurvey }) {
         </select>
       </label>
       {legend?.kind === 'category' && (
-        <ul className="legend">
+        <ul className="model3d-legend">
           {legend.items.map((it) => (
             <li key={it.name}>
               <span className="swatch" style={{ background: rgb(it.color) }} /> {it.name}{' '}
@@ -73,7 +73,7 @@ export function BlockModelControls({ survey }: { survey: TopographySurvey }) {
         </ul>
       )}
       {legend?.kind === 'numeric' && (
-        <div className="legend-scale">
+        <div className="model3d-scale">
           <span>{fmt(legend.min, 3)}</span>
           <span className="turbo-bar" />
           <span>{fmt(legend.max, 3)}</span>
