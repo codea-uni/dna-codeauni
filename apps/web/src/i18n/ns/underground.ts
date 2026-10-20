@@ -104,6 +104,8 @@ export const es = {
   'ug.warn.cutOutsideProfile': 'El arranque no cabe en la sección: revisa el ancho y el alto.',
   'ug.warn.contourChargeExceedsExplosive':
     'El contorno pide {required} kg/m y el explosivo acoplado da {available} kg/m.',
+  'ug.warn.cartridgeTooLarge':
+    'El cartucho de {name} (Ø {cartridge} mm) no entra en un taladro de {hole} mm: elige un cartucho menor.',
   'ug.warn.singleCutSquare':
     'El arranque tiene una sola sección: la abertura queda chica para la galería.',
 
@@ -257,6 +259,8 @@ export const en = {
   'ug.warn.cutOutsideProfile': 'The cut does not fit in the section: check width and height.',
   'ug.warn.contourChargeExceedsExplosive':
     'The contour needs {required} kg/m and the coupled explosive gives {available} kg/m.',
+  'ug.warn.cartridgeTooLarge':
+    'The {name} cartridge (Ø {cartridge} mm) does not fit a {hole} mm hole: pick a smaller cartridge.',
   'ug.warn.singleCutSquare': 'The cut has a single square: the opening is small for the drive.',
 
   'ug.stopeWidth': 'Stope width',

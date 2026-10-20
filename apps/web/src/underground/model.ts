@@ -145,10 +145,21 @@ export function pickFaceExplosive(
 ): Explosive | null {
   const chosen = lib.explosives.find((e) => e.id === form.explosiveId);
   if (chosen || !(form.cartridgeDiameter > 0)) return chosen ?? pickExplosive(lib, null);
+  // Un cartucho de catálogo más grueso que el pedido no entra en el taladro (2½″ en 45 mm).
+  const fits = (e: Explosive) =>
+    !e.cartridge || e.cartridge.diameter <= form.cartridgeDiameter + 0.002;
   return (
-    lib.explosives.find((e) => e.family === 'emulsion' && e.form === 'packaged') ??
+    lib.explosives.find((e) => e.family === 'emulsion' && e.form === 'packaged' && fits(e)) ??
     pickExplosive(lib, null)
   );
+}
+
+/** Aviso si el cartucho de catálogo del explosivo no entra en el taladro. */
+export function cartridgeTooLarge(
+  form: Pick<FaceForm, 'holeDiameter'>,
+  explosive: Explosive,
+): boolean {
+  return !!explosive.cartridge && explosive.cartridge.diameter >= form.holeDiameter;
 }
 
 /** Carga lineal [kg/m] del cartucho, o undefined si va a granel (acoplado). */

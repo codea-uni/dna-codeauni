@@ -1,9 +1,10 @@
-import type { Explosive, FaceWarning, ProductLibrary } from '@cronos/core';
+import type { Explosive, ProductLibrary } from '@cronos/core';
 import { z } from 'zod';
-import { formatNumber, t, type MessageKey } from '../i18n';
+import { formatNumber, t } from '../i18n';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import {
+  cartridgeTooLarge,
   computeFace,
   computeRing,
   InputError,
@@ -23,6 +24,7 @@ import {
   type Placement,
 } from '../underground/send';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
+import { faceWarningText } from '../underground/warnings';
 import { pushCard } from './cards';
 import { blastOrFail, findByName, r, readOnlyGuard, ToolError, type ToolDef } from './tools';
 
@@ -101,16 +103,6 @@ function openPanel(tab: UndergroundTab): void {
 const mm = (m: number) => r(m * 1000, 0);
 const n = (v: number, d = 0, unit = '') => `${formatNumber(v, d)}${unit ? ` ${unit}` : ''}`;
 
-function warningText(w: FaceWarning): string {
-  const params = Object.fromEntries(
-    Object.entries(w.params ?? {}).map(([k, v]) => [
-      k,
-      typeof v === 'number' ? formatNumber(v, 2) : String(v),
-    ]),
-  );
-  return t(`ug.warn.${w.code}` as MessageKey, params);
-}
-
 function placementOut(p: Placement) {
   return {
     x: r(p.x),
@@ -186,7 +178,16 @@ function designFace(args: z.infer<typeof faceSchema>) {
     ...(args.delay_ms !== undefined ? { delayInterval: args.delay_ms / 1000 } : {}),
   };
   const explosiveId = explosiveByName(lib, args.explosive);
-  if (explosiveId) patch.explosiveId = explosiveId;
+  if (explosiveId) {
+    patch.explosiveId = explosiveId;
+    // Un cartucho de catálogo que entra en el taladro fija el diámetro si no se dijo otro.
+    const cartridge = lib.explosives.find((e) => e.id === explosiveId)?.cartridge;
+    const hole = patch.holeDiameter ?? store.face.holeDiameter;
+    if (cartridge && cartridge.diameter < hole && args.cartridge_diameter_mm === undefined)
+      patch.cartridgeDiameter = cartridge.diameter;
+  } else if (args.cartridge_diameter_mm !== undefined && args.explosive === undefined)
+    // Cambió el cartucho sin nombrar explosivo: se vuelve a elegir uno que entre.
+    patch.explosiveId = null;
   const contourId = explosiveByName(lib, args.contour_explosive);
   if (contourId) patch.contourExplosiveId = contourId;
   const form: FaceForm = { ...store.face, ...patch };
@@ -213,7 +214,15 @@ function designFace(args: z.infer<typeof faceSchema>) {
   const k = d.kpis;
   const roles: Record<string, number> = {};
   for (const h of d.holes) roles[h.role] = (roles[h.role] ?? 0) + 1;
-  const warnings = d.warnings.map(warningText);
+  const warnings = d.warnings.map((w) => faceWarningText(w, t, formatNumber));
+  if (cartridgeTooLarge(form, explosive) && explosive.cartridge)
+    warnings.push(
+      t('ug.warn.cartridgeTooLarge', {
+        name: explosive.name,
+        cartridge: mm(explosive.cartridge.diameter),
+        hole: mm(form.holeDiameter),
+      }),
+    );
   const result = {
     section: `${form.profile} ${r(form.width)} × ${r(form.height)} m`,
     area_m2: r(face.profile.area, 1),

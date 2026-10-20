@@ -1,5 +1,5 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
-import type { FaceWarning, ProductLibrary } from '@cronos/core';
+import type { ProductLibrary } from '@cronos/core';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useUnits } from '../hooks/useUnits';
@@ -10,6 +10,7 @@ import {
   computeRing,
   pickExplosive,
   pickFaceExplosive,
+  cartridgeTooLarge,
   PROFILE_CHOICES,
   type FaceComputation,
   type RingComputation,
@@ -24,6 +25,7 @@ import {
   type Placement,
 } from '../underground/send';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
+import { faceWarningText } from '../underground/warnings';
 
 const DEG = Math.PI / 180;
 
@@ -128,46 +130,6 @@ function Fold({ title, children }: { title: string; children: ReactNode }) {
 
 // ------------------------------------------------------------------ Frente
 
-function warningText(
-  w: FaceWarning,
-  t: ReturnType<typeof useT>,
-  fmt: (v: number, d?: number) => string,
-): string {
-  const p = w.params ?? {};
-  const v = (k: string, d = 2) => fmt(p[k] ?? NaN, d);
-  switch (w.code) {
-    case 'reliefNotLarger':
-      return t('ug.warn.reliefNotLarger', {
-        relief: fmt((p.reliefDiameter ?? NaN) * 1000, 0),
-        hole: fmt((p.holeDiameter ?? NaN) * 1000, 0),
-      });
-    case 'firstBurdenNonPositive':
-      return t('ug.warn.firstBurdenNonPositive', { f: v('drillingError') });
-    case 'cutChargeBelowRequired':
-      return t('ug.warn.cutChargeBelowRequired', {
-        required: v('required', 3),
-        available: v('available', 3),
-      });
-    case 'cutBurdenLimited':
-      return t('ug.warn.cutBurdenLimited', { square: v('square', 0) });
-    case 'depthLimited':
-      return t('ug.warn.depthLimited', { relief: v('depthFromRelief'), depth: v('depth') });
-    case 'lifterBurdenOver06L':
-      return t('ug.warn.lifterBurdenOver06L', { burden: v('burden'), limit: v('limit') });
-    case 'holesOutsideProfile':
-      return t('ug.warn.holesOutsideProfile', { count: v('count', 0) });
-    case 'cutOutsideProfile':
-      return t('ug.warn.cutOutsideProfile');
-    case 'contourChargeExceedsExplosive':
-      return t('ug.warn.contourChargeExceedsExplosive', {
-        required: v('required', 3),
-        available: v('available', 3),
-      });
-    case 'singleCutSquare':
-      return t('ug.warn.singleCutSquare');
-  }
-}
-
 const GROUP_LABELS = [
   ['lifter', 'ug.role.lifter'],
   ['wall', 'ug.role.wall'],
@@ -186,6 +148,7 @@ function FaceTab() {
   const patch = useUndergroundStore((s) => s.patchFace);
   const placement = useUndergroundStore((s) => s.placements?.face ?? null);
   const explosive = pickFaceExplosive(library, form);
+  const tooLarge = !!explosive && cartridgeTooLarge(form, explosive);
   const result = useMemo<Outcome<FaceComputation> | null>(
     () => (explosive ? attempt(() => computeFace(form, explosive)) : null),
     [form, explosive],
@@ -431,11 +394,20 @@ function FaceTab() {
               />
               <Kpi label={t('ug.kpi.area')} value={fmt(face.profile.area, 1)} unit="m²" />
             </div>
-            {design.warnings.length > 0 && (
+            {(design.warnings.length > 0 || tooLarge) && (
               <ul className="ug-warnings">
+                {tooLarge && explosive.cartridge && (
+                  <li className="warn">
+                    {t('ug.warn.cartridgeTooLarge', {
+                      name: explosive.name,
+                      cartridge: fmt(explosive.cartridge.diameter * 1000, 0),
+                      hole: fmt(form.holeDiameter * 1000, 0),
+                    })}
+                  </li>
+                )}
                 {design.warnings.map((w, i) => (
                   <li key={`${w.code}${String(i)}`} className="warn">
-                    {warningText(w, t, fmt)}
+                    {faceWarningText(w, t, fmt)}
                   </li>
                 ))}
               </ul>
