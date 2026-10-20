@@ -38,6 +38,7 @@ async function toSummary(
     id: row.id,
     mineId: row.mineId,
     name: row.name,
+    kind: row.kind,
     versionCount: row.versionCount,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

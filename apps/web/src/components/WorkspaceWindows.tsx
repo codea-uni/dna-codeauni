@@ -10,6 +10,7 @@ import { PatternPanel } from '../panels/PatternPanel';
 import { GroupsPanel } from '../panels/GroupsPanel';
 import { FirstSteps } from '../panels/FirstSteps';
 import { useUiStore } from '../stores/uiStore';
+import { fitsKind, useProjectKind } from '../product/product';
 import { ErrorBoundary } from './ErrorBoundary';
 import { FloatingWindow } from './Floatable';
 
@@ -125,6 +126,7 @@ export function WorkspaceWindows() {
   const demoOn = useUiStore((s) => s.demoStep !== null && s.demoTour !== 'trailer');
   const tab = useUiStore((s) => s.leftTab);
   const workflow = useWorkflow();
+  const kind = useProjectKind();
   useEffect(() => {
     if (!demoOn) return;
     const ui = useUiStore.getState();
@@ -135,7 +137,8 @@ export function WorkspaceWindows() {
   }, [demoOn, tab]);
   return floating.map((win) => {
     const panel = WORKSPACE_PANELS.find((item) => win.id === `workspace.${item.id}`);
-    if (!panel) return null;
+    // Un panel de la otra herramienta (p. ej. Subterránea en un proyecto superficial) no se muestra.
+    if (!panel || !fitsKind(panel.id, kind)) return null;
     const Content = panel.Content;
     return (
       <FloatingWindow

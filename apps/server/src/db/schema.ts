@@ -1,5 +1,6 @@
 import type { KnowledgeCategory, KnowledgeLayer, Role } from '@cronos/api';
 import type { ColumnType, Generated, JSONColumnType } from 'kysely';
+import type { ProjectKind } from '@cronos/core';
 
 /**
  * Tablas de la base de datos para Kysely, una por migración de `migrations/`. Las de Better Auth
@@ -80,6 +81,8 @@ export interface ProjectTable {
   id: string;
   mineId: string;
   name: string;
+  /** Herramienta: `surface` (Cronos Open Pit) o `underground` (Cronos Underground). */
+  kind: ColumnType<ProjectKind, ProjectKind | undefined, ProjectKind>;
   versionCount: Generated<number>;
   createdBy: string | null;
   createdAt: CreatedAt;

@@ -35,6 +35,7 @@ import {
   type StemmingMaterialId,
 } from '@cronos/core';
 import { z } from 'zod';
+import { isCrossView, useProjectSession } from '../server/projectSession';
 import { showHoleDetail } from './holeDetail';
 import { perimeterArg, targetSchema } from './targetSchema';
 import {
@@ -81,7 +82,16 @@ export function blastOrFail(): Blast {
 }
 
 export function readOnlyGuard(): void {
-  if (document.readOnly) throw new ToolError('The project is read-only for this user.');
+  if (!document.readOnly) return;
+  const cur = useProjectSession.getState().current;
+  // Proyecto de la otra herramienta abierto solo para verlo: se trabaja en su herramienta.
+  if (cur && isCrossView(cur)) {
+    const name = (k: string) => (k === 'underground' ? 'Cronos Underground' : 'Cronos Open Pit');
+    throw new ToolError(
+      `View only: this project belongs to ${name(cur.kind)} and is open from ${name(cur.tool)}. Changes are made in ${name(cur.kind)}: offer to open it there (open_project with tool "${cur.kind}") or to create a new ${cur.kind} project in this mine.`,
+    );
+  }
+  throw new ToolError('The project is read-only for this user.');
 }
 
 // ------------------------------------------------------------------ Perímetros

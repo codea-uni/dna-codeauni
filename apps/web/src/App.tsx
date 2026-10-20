@@ -25,10 +25,13 @@ import { startTopographySync } from './topography/session';
 import { startTunnelSync } from './underground/send';
 import { openTopography, requireCrs, restoreLatestAutosave } from './actions';
 import { getCompute } from './session';
+import { useT } from './i18n';
+import { PRODUCT_NAME, useEditorTool, useProductChrome, useProjectKind } from './product/product';
+import { useProjectSession } from './server/projectSession';
 import { useUiStore } from './stores/uiStore';
 import { LEFT_TABS } from './panels/registry';
 import { Viewport } from './viewport/Viewport';
-import { WorkspaceWindows } from './components/WorkspaceWindows';
+import { openWorkspacePanel, WorkspaceWindows } from './components/WorkspaceWindows';
 
 /**
  * Editor. `restoreLocalDraft`: al abrir, recupera el último autoguardado del navegador (modo
@@ -58,6 +61,16 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
   const topoImport = useUiStore((s) => s.topoImport);
   const setTopoImport = useUiStore((s) => s.setTopoImport);
   const setShortcutsOpen = useUiStore((s) => s.setShortcutsOpen);
+  // Herramienta en uso (Cronos Open Pit / Underground): acento de color y título de la pestaña.
+  const tr = useT();
+  const tool = useEditorTool();
+  const kind = useProjectKind();
+  useProductChrome(tool, tr(PRODUCT_NAME[tool]));
+  // En un proyecto subterráneo el panel Subterránea se abre al entrar (una vez por proyecto).
+  const openedId = useProjectSession((s) => s.current?.projectId) ?? 'local';
+  useEffect(() => {
+    if (kind === 'underground' && !demoOn) openWorkspacePanel('underground');
+  }, [kind, openedId, demoOn]);
   useEffect(() => {
     if (!currentAvailable) setTab('design');
   }, [currentAvailable, setTab]);

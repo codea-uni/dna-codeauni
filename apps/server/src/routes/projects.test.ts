@@ -185,4 +185,23 @@ describe.runIf(await databaseAvailable())('proyectos de una mina (D-14, NF-08)',
     );
     await expect(sql`delete from "project_version"`.execute(t.db)).rejects.toThrow(/immutable/);
   });
+
+  it('el tipo del proyecto (Open Pit / Underground) se guarda y se lista; sin tipo es superficial', async () => {
+    const ug = createEmptyProject('Galería 3400', new Date(), 'underground');
+    const created = projectSummarySchema.parse(
+      (await call(designer, 'POST', `/mines/${mineId}/projects`, { file: fileOf(ug) })).json(),
+    );
+    expect(created.kind).toBe('underground');
+    const legacy = createEmptyProject('Banco antiguo');
+    delete legacy.kind;
+    const old = projectSummarySchema.parse(
+      (await call(designer, 'POST', `/mines/${mineId}/projects`, { file: fileOf(legacy) })).json(),
+    );
+    expect(old.kind).toBe('surface');
+    const list = projectListSchema.parse(
+      (await call(reviewer, 'GET', `/mines/${mineId}/projects`)).json(),
+    );
+    expect(list.projects.find((p) => p.id === created.id)?.kind).toBe('underground');
+    expect(list.projects.find((p) => p.id === old.id)?.kind).toBe('surface');
+  });
 });

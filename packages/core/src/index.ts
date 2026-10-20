@@ -3,6 +3,7 @@ export * from './model/types';
 export { SCHEMA_VERSION } from './model/schema';
 export { newId, uuidv7 } from './model/ids';
 export * from './model/factories';
+export * from './model/projectKind';
 
 // Unidades y geometría
 export * from './units/units';

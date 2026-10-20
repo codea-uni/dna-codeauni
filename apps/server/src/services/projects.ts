@@ -1,4 +1,4 @@
-import { newId, uuidv7, type ProjectFile, type ProjectId } from '@cronos/core';
+import { newId, projectKind, uuidv7, type ProjectFile, type ProjectId } from '@cronos/core';
 import type { Selectable } from 'kysely';
 import type { Db } from '../db/db';
 import type { ProjectTable } from '../db/schema';
@@ -30,6 +30,7 @@ export async function createProject(
         id: projectId,
         mineId: mine.id,
         name: file.project.name,
+        kind: projectKind(file.project),
         versionCount: 1,
         createdBy: userId,
       })

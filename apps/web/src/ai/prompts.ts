@@ -3,6 +3,7 @@ import BLAST_SKILL from './skill/voladura.md?raw';
 import { designSummary } from './tools';
 import { knowledgeSummary } from './knowledge';
 import { siteSummary } from './site';
+import { productContext } from './productContext';
 
 /**
  * Instrucciones del asistente de diseño (texto y voz en vivo). El criterio de voladura (qué
@@ -77,6 +78,7 @@ Presets, scenarios and choices:
 Projects, topographies and perimeters (everything can be done by voice, on the web and in VR):
 - "¿Qué proyectos / topografías / perímetros tengo?" → workspace with show projects/topographies/perimeters (a card to pick appears on screen and in VR); say the names briefly (the most recent first). For "¿qué hay en la mina?" use show all and summarize in two sentences.
 - "Abre el proyecto X", "vamos a la mina Y" → open_project. "Crea un proyecto nuevo (llamado X)", "empecemos uno nuevo", "un proyecto desde cero" → open_project create (if no name was given, ask for one in one short question or propose one). A created project is EMPTY (no topography, no polígono, no holes): it never brings anything from the project you were in, and you must not copy anything into it on your own. The user stays in VR and in the voice session while it opens.
+- Cronos has two connected tools sharing the mine topography: Cronos Open Pit (surface projects) and Cronos Underground (underground projects). When creating, use open_project type (default: the tool in use; "un proyecto subterráneo" → underground). A project of the other type opens view-only from the tool in use; to work on it, open it with tool = its own type (ask first if unclear).
 - Right after creating a project (or when the user says "empecemos con la topografía", "primero la topografía"), the first step is the topography: call workspace show topographies (mine topographies included) and ask which one to use (the most recent first); then use_topography. Only after that ask for the polígono (use_perimeter from another project, or create it from data). If the mine has no topography, say it must be uploaded from the web (panel Topografía, importar levantamiento) and offer to continue on flat ground meanwhile. If it fails for unpublished changes, ask whether to publish (save_version) or leave them as a draft. The user's other devices (PC, headset) follow to the same project automatically and see everything live.
 - "Trabajemos sobre la topografía de septiembre / la última topografía" → use_topography (it brings it from the mine if needed and seats the bench on it). Prefer the most recent survey when they say "la última".
 - "Usa el polígono P-3", "trabajemos en el polígono que hicimos en el proyecto X" → use_perimeter (from_project for another project). Do not create a new perimeter when one already exists; offer the existing ones (workspace show perimeters, other_projects true) if unsure.
@@ -113,6 +115,7 @@ export function textSystemInstruction(): string {
   return `${BASE_PROMPT}
 
 Interface language: ${locale === 'en' ? 'English' : 'Spanish'}.
+${productContext()}
 Current design summary (call get_design for details): ${JSON.stringify(designSummary())}
 Site conditions saved: ${JSON.stringify(siteSummary())}
 Knowledge layers: ${JSON.stringify(knowledgeSummary())}`;
@@ -125,6 +128,7 @@ export function liveSystemInstruction(surfaceStyle: string): string {
 ${VOICE_STYLE}
 ${surfaceStyle}
 
+${productContext()}
 At the start of the session the design was: ${JSON.stringify(designSummary())}
 Site conditions saved: ${JSON.stringify(siteSummary())}
 Knowledge layers: ${JSON.stringify(knowledgeSummary())}
@@ -133,5 +137,5 @@ Each user turn may start with a [context] note: the CURRENT design summary and w
 
 /** Nota de contexto al empezar cada intervención en vivo (no pide respuesta). */
 export function liveContextNote(extra: string): string {
-  return `[context] design: ${JSON.stringify(designSummary())}; site: ${JSON.stringify(siteSummary())}${extra ? `; ${extra}` : ''}`;
+  return `[context] ${productContext()} design: ${JSON.stringify(designSummary())}; site: ${JSON.stringify(siteSummary())}${extra ? `; ${extra}` : ''}`;
 }
