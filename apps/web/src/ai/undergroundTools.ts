@@ -1,4 +1,16 @@
-import type { Explosive, ProductLibrary } from '@cronos/core';
+import {
+  couplingGroups,
+  DEFAULT_UG_TIMING,
+  faceFragmentationZones,
+  isUndergroundHole,
+  ringFragmentationZone,
+  rockVp,
+  undergroundFragmentation,
+  undergroundVolumes,
+  waveCutoffRisks,
+  type Explosive,
+  type ProductLibrary,
+} from '@cronos/core';
 import { z } from 'zod';
 import { formatNumber, t } from '../i18n';
 import { session } from '../session';
@@ -26,7 +38,16 @@ import {
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
 import { pushCard } from './cards';
-import { blastOrFail, findByName, r, readOnlyGuard, ToolError, type ToolDef } from './tools';
+import { useUgAnalysisStore } from '../underground/analysisStore';
+import {
+  blastOrFail,
+  currentAnalysis,
+  findByName,
+  r,
+  readOnlyGuard,
+  ToolError,
+  type ToolDef,
+} from './tools';
 
 /**
  * Herramientas del asistente para minería subterránea: ronda de un frente de túnel (método sueco
@@ -154,6 +175,14 @@ const faceSchema = z.object({
     .optional()
     .describe('Rock constant c [kg/m³] (0.4 typical; higher = harder to blast).'),
   delay_ms: z.number().min(1).max(1000).optional().describe('Time per delay number [ms].'),
+  hole_interval_ms: z
+    .number()
+    .min(0)
+    .max(500)
+    .optional()
+    .describe(
+      'Minimum time between consecutive holes [ms] (electronic): continuous sequence with no two holes firing together (no coupling). 0 = all holes of the same delay number fire together. Default 25.',
+    ),
   ...placementFields,
 });
 
@@ -176,6 +205,7 @@ function designFace(args: z.infer<typeof faceSchema>) {
     ...(args.smooth_blasting !== undefined ? { smooth: args.smooth_blasting } : {}),
     ...(args.rock_constant !== undefined ? { rockConstant: args.rock_constant } : {}),
     ...(args.delay_ms !== undefined ? { delayInterval: args.delay_ms / 1000 } : {}),
+    ...(args.hole_interval_ms !== undefined ? { holeInterval: args.hole_interval_ms / 1000 } : {}),
   };
   const explosiveId = explosiveByName(lib, args.explosive);
   if (explosiveId) {
@@ -424,6 +454,117 @@ function designRings(args: z.infer<typeof ringSchema>) {
 
 // ------------------------------------------------------------------ Estado
 
+/**
+ * Análisis de lo que está en 3D (pestaña «Análisis»): acoplamiento y corte por onda con los tiempos
+ * del análisis vigente, cubicación subterránea y P50/P80 del diseño de las pestañas.
+ */
+function undergroundAnalysis() {
+  const blast = document.project.blasts[0];
+  const project = document.project;
+  const lib = project.library;
+  const ua = useUgAnalysisStore.getState();
+  const rock = project.rockMasses.find((m) => m.id === blast?.rockMassId) ?? project.rockMasses[0];
+  const label = new Map(blast?.holes.map((h) => [h.id, h.label]) ?? []);
+  const a = currentAnalysis();
+  let sequence: unknown = 'No underground holes in 3D or the analysis is not ready.';
+  if (blast && a && blast.holes.some(isUndergroundHole)) {
+    const idx = new Map(a.charge.holeIds.map((id, i) => [id, i]));
+    const fire = Float64Array.from(
+      blast.holes,
+      (h) => a.timing.fireTime[idx.get(h.id) ?? -1] ?? NaN,
+    );
+    const window = blast.calcParams.micWindow;
+    const vp = rockVp(rock);
+    const groups = couplingGroups(blast.holes, fire, lib, window);
+    const cut = waveCutoffRisks(blast.holes, fire, vp.value, {
+      ...DEFAULT_UG_TIMING,
+      window,
+      shockDistance: ua.shockDistance,
+    });
+    sequence = {
+      coupling_window_ms: r(window * 1000, 0),
+      vp_m_s: r(vp.value, 0),
+      vp_source: vp.source,
+      coupled_groups: groups.slice(0, 10).map((g) => ({
+        holes: g.holeIds.map((id) => label.get(id) ?? id),
+        time_ms: r((g.time - a.timing.firstTime) * 1000, 0),
+        kg: r(g.kg, 1),
+      })),
+      coupled_group_count: groups.length,
+      wave_cutoff_pairs: cut.slice(0, 10).map((c) => ({
+        first: label.get(c.firstId) ?? c.firstId,
+        second: label.get(c.secondId) ?? c.secondId,
+        distance_m: r(c.distance, 2),
+        wave_arrival_ms: r(c.arrival * 1000, 2),
+        delay_ms: r(c.delay * 1000, 0),
+      })),
+      wave_cutoff_count: cut.length,
+      note: 'Coupling = 2+ charged holes within the window (act as one charge). Wave cut-off = the second hole fires after the first one’s wave (distance/Vp) reaches its charge, with charges closer than the cut-off distance (doubled if wet).',
+    };
+  }
+  const volumes = blast
+    ? undergroundVolumes(blast, lib, rock?.density ?? 2650, {
+        advanceEfficiency: ua.advanceEfficiency,
+        overbreak: ua.overbreak,
+      }).map((v) => ({
+        kind: v.kind,
+        area_m2: r(v.area, 2),
+        advance_or_length_m: r(v.length, 2),
+        volume_m3: r(v.volume, 1),
+        tonnes: r(v.tonnage / 1000, 1),
+        explosive_kg: r(v.explosive, 1),
+        powder_factor_kg_m3: r(v.loadingFactor, 2),
+        powder_factor_kg_t: r(v.powderFactor * 1000, 3),
+      }))
+    : [];
+  const frag: Record<string, unknown> = {};
+  const s = useUndergroundStore.getState();
+  if (rock) {
+    const fe = pickFaceExplosive(lib, s.face);
+    if (fe)
+      try {
+        const f = computeFace(s.face, fe);
+        const res = undergroundFragmentation(
+          faceFragmentationZones(
+            f.design,
+            f.profile.area * (1 + ua.overbreak),
+            f.design.depth * ua.advanceEfficiency,
+          ),
+          rock,
+          {
+            rws: fe.rws,
+            drillDeviation: f.design.drillingError,
+            variant: ua.variant,
+            calibration: ua.calibration,
+          },
+        );
+        if (res)
+          frag.face = { p50_cm: r(res.p50.swebrec * 100, 1), p80_cm: r(res.p80.swebrec * 100, 1) };
+      } catch {
+        // Formulario fuera de rango.
+      }
+    const re = pickExplosive(lib, s.ring.explosiveId);
+    if (re)
+      try {
+        const g = computeRing(s.ring, re);
+        const z = ringFragmentationZone(g.ring, s.ring.burden);
+        const res = z
+          ? undergroundFragmentation([z], rock, {
+              rws: re.rws,
+              drillDeviation: blast?.calcParams.drillDeviation ?? 0.1,
+              variant: ua.variant,
+              calibration: ua.calibration,
+            })
+          : null;
+        if (res)
+          frag.rings = { p50_cm: r(res.p50.swebrec * 100, 1), p80_cm: r(res.p80.swebrec * 100, 1) };
+      } catch {
+        // Ídem.
+      }
+  }
+  return { sequence, volumes, fragmentation_kuz_ram_swebrec: frag };
+}
+
 function undergroundState() {
   const s = useUndergroundStore.getState();
   const blast = document.project.blasts[0];
@@ -445,6 +586,7 @@ function undergroundState() {
       smooth_blasting: f.smooth,
       rock_constant: f.rockConstant,
       delay_ms: r(f.delayInterval * 1000, 0),
+      hole_interval_ms: r(f.holeInterval * 1000, 0),
       placement: placementOut(placements.face),
       holes_in_3d: taggedHoles(blast, FACE_TAG).length,
     },
@@ -469,6 +611,7 @@ function undergroundState() {
       placement: placementOut(placements.ring),
       holes_in_3d: taggedHoles(blast, RING_TAG).length,
     },
+    analysis: undergroundAnalysis(),
     explosives: lib.explosives.map((e) => ({
       name: e.name,
       form: e.form,
@@ -492,7 +635,7 @@ export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
   },
   underground_state: {
     description:
-      'UNDERGROUND: current face and ring parameters, their 3D placement, how many underground holes are in the design and the explosives available (with cartridge sizes).',
+      'UNDERGROUND: current face and ring parameters, their 3D placement, how many underground holes are in the design, the explosives available (with cartridge sizes) and the analysis of what is in 3D: coupled holes (fire within the 8 ms window), wave cut-off pairs (second hole fires after the first one’s wave reaches it), underground volume/tonnes/powder factor (section × advance, ring area × burden) and P50/P80 (Kuz-Ram + Swebrec by zone).',
     schema: z.object({}),
     run: undergroundState,
   },

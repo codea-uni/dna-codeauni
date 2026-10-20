@@ -10,6 +10,7 @@ import { effectiveBurden, type EffectiveBurden } from '../timing/effectiveBurden
 import { computeTiming, type TimingResult } from '../timing/timing';
 import { timingChecks } from '../timing/timingChecks';
 import { presplitChecks } from '../design/presplit';
+import { DEFAULT_UG_TIMING, undergroundTimingChecks } from '../underground/analysis';
 
 /** Opciones de presentación del análisis; los parámetros de cálculo están en `blast.calcParams`. */
 export interface AnalysisOptions {
@@ -85,6 +86,10 @@ export function analyzeBlast(
       ...chargeChecks(blast, project.library, checkOptions),
       ...timingChecks(blast, timing.fireTime, eb, checkOptions, blast.calcParams.delayGuide),
       ...presplitChecks(blast, project.library, rock, timing.fireTime, checkOptions),
+      ...undergroundTimingChecks(blast, timing.fireTime, project.library, rock, {
+        ...DEFAULT_UG_TIMING,
+        window: blast.calcParams.micWindow,
+      }),
     ],
     elapsedMs: performance.now() - t0,
   };

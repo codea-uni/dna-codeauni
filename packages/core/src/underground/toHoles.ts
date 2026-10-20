@@ -113,15 +113,42 @@ export interface FaceToHolesInput {
   products: UndergroundProducts;
   /** Tiempo por número de retardo [s] (secuencia tipo período largo). */
   delayInterval: Seconds;
+  /**
+   * Separación mínima entre taladros consecutivos [s] (electrónicos). 0 (por defecto) = todos los
+   * taladros del mismo número salen juntos; > 0 = secuencia continua sin acoplamiento: cada taladro
+   * sale en max(número × intervalo, anterior + separación), en el orden del diseño.
+   */
+  holeInterval?: Seconds;
   labelPrefix?: string;
   tag?: string;
+}
+
+/**
+ * Tiempos de disparo de la ronda [s] (null en los alivios), en el orden de `design.holes`. Con
+ * `holeInterval` > 0 la secuencia es continua: nadie comparte tiempo y el orden se respeta.
+ */
+export function faceFiringTimes(
+  design: Pick<FaceDesignResult, 'holes'>,
+  delayInterval: Seconds,
+  holeInterval: Seconds = 0,
+): (Seconds | null)[] {
+  let prev = -Infinity;
+  return design.holes.map((h) => {
+    if (h.delay === null) return null;
+    const nominal = h.delay * delayInterval;
+    if (!(holeInterval > 0)) return nominal;
+    const t = Math.max(nominal, prev + holeInterval);
+    prev = t;
+    return t;
+  });
 }
 
 /** Taladros de la ronda del frente en coordenadas de proyecto. Los alivios quedan vacíos. */
 export function faceRoundToHoles(input: FaceToHolesInput): Hole[] {
   const prefix = input.labelPrefix ?? 'F-';
   const tag = input.tag ?? 'ug-face';
-  return input.design.holes.map((h) => {
+  const times = faceFiringTimes(input.design, input.delayInterval, input.holeInterval ?? 0);
+  return input.design.holes.map((h, k) => {
     const w = faceHoleToWorld(input.frame, h);
     const { decks, primed } = faceDecks(h, input.products);
     // Cebo cerca del fondo, dentro de la carga de fondo (o de la columna en el contorno).
@@ -136,10 +163,7 @@ export function faceRoundToHoles(input: FaceToHolesInput): Hole[] {
       azimuth: w.azimuth,
       subdrill: 0,
       decks,
-      initiators:
-        h.delay === null
-          ? []
-          : initiators(input.products, primed, depth, h.delay * input.delayInterval),
+      initiators: h.delay === null ? [] : initiators(input.products, primed, depth, times[k] ?? 0),
       status: 'designed',
       tags: h.role === 'relief' ? [tag, RELIEF_TAG] : [tag],
     } satisfies Hole;

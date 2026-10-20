@@ -52,6 +52,11 @@ export interface FaceForm {
   smooth: boolean;
   /** Tiempo por número de retardo [s]. */
   delayInterval: number;
+  /**
+   * Separación mínima entre taladros [s] (electrónicos): secuencia continua, sin taladros que
+   * salgan juntos (acoplados). 0 = todos los del mismo número salen a la vez.
+   */
+  holeInterval: number;
 }
 
 export const DEFAULT_FACE: FaceForm = {
@@ -70,6 +75,7 @@ export const DEFAULT_FACE: FaceForm = {
   maxDrill: 4.0,
   smooth: true,
   delayInterval: 0.1,
+  holeInterval: 0.025,
 };
 
 export interface RingForm {

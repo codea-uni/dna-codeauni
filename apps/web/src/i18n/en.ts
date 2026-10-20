@@ -15,6 +15,7 @@ import * as product from './ns/product';
 import * as projects from './ns/projects';
 import * as topography from './ns/topography';
 import * as underground from './ns/underground';
+import * as undergroundAnalysis from './ns/undergroundAnalysis';
 import * as workspace from './ns/workspace';
 import * as xr from './ns/xr';
 
@@ -33,6 +34,7 @@ export const en = {
   ...projects.en,
   ...topography.en,
   ...underground.en,
+  ...undergroundAnalysis.en,
   ...workspace.en,
   ...xr.en,
   'toolbar.documentation': 'Documentation',

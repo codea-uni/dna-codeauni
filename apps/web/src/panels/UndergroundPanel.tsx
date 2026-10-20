@@ -26,6 +26,8 @@ import {
 } from '../underground/send';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
+import { useUgAnalysisStore } from '../underground/analysisStore';
+import { UndergroundAnalysis } from '../underground/UndergroundAnalysis';
 
 const DEG = Math.PI / 180;
 
@@ -49,6 +51,9 @@ export function UndergroundPanel() {
   const t = useT();
   const tab = useUndergroundStore((s) => s.tab);
   const setTab = useUndergroundStore((s) => s.setTab);
+  // Pestaña «Análisis» (componente aparte): su estado vive en `useUgAnalysisStore`.
+  const analysisOpen = useUgAnalysisStore((s) => s.open);
+  const setAnalysis = useUgAnalysisStore((s) => s.set);
   const project = useProject();
   const placements = useUndergroundStore((s) => s.placements);
   const setPlacements = useUndergroundStore((s) => s.setPlacements);
@@ -63,17 +68,28 @@ export function UndergroundPanel() {
           <button
             key={id}
             role="tab"
-            aria-selected={tab === id}
-            className={tab === id ? 'active' : ''}
+            aria-selected={!analysisOpen && tab === id}
+            className={!analysisOpen && tab === id ? 'active' : ''}
             onClick={() => {
               setTab(id);
+              setAnalysis({ open: false });
             }}
           >
             {t(id === 'face' ? 'ug.tab.face' : 'ug.tab.ring')}
           </button>
         ))}
+        <button
+          role="tab"
+          aria-selected={analysisOpen}
+          className={analysisOpen ? 'active' : ''}
+          onClick={() => {
+            setAnalysis({ open: true });
+          }}
+        >
+          {t('uga.tab')}
+        </button>
       </div>
-      {tab === 'face' ? <FaceTab /> : <RingTab />}
+      {analysisOpen ? <UndergroundAnalysis /> : tab === 'face' ? <FaceTab /> : <RingTab />}
     </section>
   );
 }
@@ -314,6 +330,17 @@ function FaceTab() {
             patch({ delayInterval: v / 1000 });
           }}
         />
+        <NumberField
+          label={t('uga.holeInterval')}
+          unit="ms"
+          decimals={0}
+          min={0}
+          value={form.holeInterval * 1000}
+          onCommit={(v) => {
+            patch({ holeInterval: v / 1000 });
+          }}
+        />
+        <p className="hint">{t('uga.holeIntervalHint')}</p>
 
         <SendBox
           previous={previous}

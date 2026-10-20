@@ -1,5 +1,6 @@
 import type { DesignCheck, DesignCheckOptions } from '../diagnostics/designChecks';
 import type { Blast, CalcParams, HoleId, NodeRef } from '../model/types';
+import { isUndergroundHole } from '../underground/toHoles';
 import { frontMargin, holeIndex, type EffectiveBurden } from './effectiveBurden';
 
 const key = (r: NodeRef) => (r.kind === 'hole' ? `h:${r.holeId}` : `n:${r.nodeId}`);
@@ -56,6 +57,9 @@ export function timingChecks(
   const spacingOf = new Map(blast.patterns.map((p) => [p.id, p.spacing]));
   const index = holeIndex(holes);
   holes.forEach((h, i) => {
+    // Cara libre y filas son de banco: los taladros subterráneos se revisan aparte
+    // (`undergroundTimingChecks`: acoplamiento y corte por onda).
+    if (isUndergroundHole(h)) return;
     const e = eb.effective[i] ?? NaN;
     const b = eb.nominal[i] ?? NaN;
     if (!Number.isFinite(e) || !Number.isFinite(b)) return;
