@@ -117,6 +117,22 @@ export const es = {
   'topo.geotech.soft': 'Blanda',
   'topo.geotech.useForRock': 'Usar como roca de cálculo',
   'topo.geotech.undo': 'Mapeo del modelo {name}',
+  'topo.geotech.rock.title': 'Roca desde modelo geotécnico',
+  'topo.geotech.rock.none':
+    'Sin modelo geotécnico: importa un modelo de bloques con UCS, RMR o litología (Topografía) para que la roca cambie por bloque.',
+  'topo.geotech.rock.on': 'Activado: cada taladro usa la roca de su bloque',
+  'topo.geotech.rock.off': 'Desactivado: se usa la roca de arriba',
+  'topo.geotech.rock.lithologies': 'Litologías',
+  'topo.geotech.rock.holes': '{n} de {total} taladros dentro del modelo',
+  'topo.geotech.rock.holesUnit': 'taladros',
+  'topo.geotech.rock.outside': 'Fuera del modelo',
+  'topo.geotech.rock.factor': 'Factor de roca A ponderado por carga: {a} · VPPc {ppvc} mm/s',
+  'topo.geotech.rock.paths': 'Camino de la onda a los puntos de control',
+  'topo.geotech.rock.inModel': 'en el modelo',
+  'topo.geotech.rock.pathsHint':
+    'Informativo: la ley de vibración (K, β) calibrada con sismógrafo no cambia.',
+  'topo.geotech.rock.hint':
+    'Activado, la fragmentación usa el factor de roca de cada taladro (ponderado por carga) y la cubicación la densidad de su bloque. Fuera del modelo vale la roca de arriba.',
 
   // Asistente de importación
   'topo.import.title': 'Importar topografía',
@@ -365,6 +381,22 @@ export const en = {
   'topo.geotech.soft': 'Soft',
   'topo.geotech.useForRock': 'Use as calculation rock',
   'topo.geotech.undo': 'Block model mapping {name}',
+  'topo.geotech.rock.title': 'Rock from geotechnical model',
+  'topo.geotech.rock.none':
+    'No geotechnical model: import a block model with UCS, RMR or lithology (Topography) so the rock changes per block.',
+  'topo.geotech.rock.on': 'On: each hole uses the rock of its block',
+  'topo.geotech.rock.off': 'Off: the rock above is used',
+  'topo.geotech.rock.lithologies': 'Lithologies',
+  'topo.geotech.rock.holes': '{n} of {total} holes inside the model',
+  'topo.geotech.rock.holesUnit': 'holes',
+  'topo.geotech.rock.outside': 'Outside the model',
+  'topo.geotech.rock.factor': 'Charge-weighted rock factor A: {a} · critical PPV {ppvc} mm/s',
+  'topo.geotech.rock.paths': 'Wave path to the monitoring points',
+  'topo.geotech.rock.inModel': 'in the model',
+  'topo.geotech.rock.pathsHint':
+    'For information only: the seismograph-calibrated vibration law (K, β) does not change.',
+  'topo.geotech.rock.hint':
+    'When on, fragmentation uses each hole’s rock factor (weighted by charge) and the tonnage uses the density of its block. Outside the model the rock above applies.',
 
   'topo.import.title': 'Import topography',
   'topo.import.aria': 'Import a topographic survey',

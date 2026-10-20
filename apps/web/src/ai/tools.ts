@@ -51,6 +51,7 @@ import { KNOWLEDGE_READ_ONLY, KNOWLEDGE_TOOLS } from './knowledgeTools';
 import { SCENE_READ_ONLY, SCENE_TOOLS } from './sceneTools';
 import { WORKSPACE_READ_ONLY, WORKSPACE_TOOLS } from './workspaceTools';
 import { UNDERGROUND_READ_ONLY, UNDERGROUND_TOOLS } from './undergroundTools';
+import { GEOTECH_READ_ONLY, GEOTECH_TOOLS } from './geotechTools';
 import { recordStep } from './steps';
 import { logTool } from './transcript';
 import { cardFromTool, closeCard, pushCard, type AgentCard } from './cards';
@@ -1497,6 +1498,7 @@ const TOOLS: Record<string, ToolDef> = {
   ...SCENE_TOOLS,
   ...WORKSPACE_TOOLS,
   ...UNDERGROUND_TOOLS,
+  ...GEOTECH_TOOLS,
   get_design: {
     description:
       'Full design state: bench, perimeters (vertices, edges, free faces), patterns, hole counts, tie-up and the product library. Call it before acting when unsure.',
@@ -1604,6 +1606,7 @@ export const READ_ONLY_TOOLS = new Set([
   ...SCENE_READ_ONLY,
   ...WORKSPACE_READ_ONLY,
   ...UNDERGROUND_READ_ONLY,
+  ...GEOTECH_READ_ONLY,
 ]);
 
 // ------------------------------------------------------------------ Gemini

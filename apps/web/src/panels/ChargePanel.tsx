@@ -10,6 +10,7 @@ import {
 import { useState } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';
+import { GeotechRockSection } from './GeotechRockSection';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
@@ -357,6 +358,7 @@ export function ChargePanel() {
           </>
         )}
         <p className="hint">{t('charge.rockHint')}</p>
+        <GeotechRockSection />
       </section>
     </>
   );
