@@ -10,6 +10,7 @@ import type {
   SnapResult,
   Vec2,
 } from '@cronos/core';
+import type { Pick3dHit } from '../layers/TunnelLayer';
 import type { EngineText } from '../text';
 
 export type ToolName =
@@ -88,6 +89,8 @@ export interface Tool {
   onPointerMove?(p: ToolPointer, ctx: ToolContext): void;
   onPointerUp?(p: ToolPointer, ctx: ToolContext): void;
   onDoubleClick?(p: ToolPointer, ctx: ToolContext): void;
+  /** Clic en la vista 3D sobre una labor, nube o el terreno (punto 3D en coordenadas de proyecto). */
+  onClick3d?(hit: Pick3dHit, ctx: ToolContext): void;
   /** Devuelve true si consumió la tecla. */
   onKeyDown?(e: KeyboardEvent, ctx: ToolContext): boolean;
   /** Aborta la interacción en curso (Esc, cambio de herramienta). Devuelve true si había algo que cancelar. */

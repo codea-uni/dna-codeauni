@@ -24,6 +24,24 @@ export interface TunnelView {
   surface?: boolean;
   /** Índice de una sección a resaltar (el frente), opcional. */
   highlight?: number;
+  /** Nombre de la labor (al elegirla con clic en 3D, p. ej. para un punto de control). */
+  label?: string;
+}
+
+/** Polilínea 3D de contexto (taladros y perímetros de otro proyecto de la mina). */
+export interface ContextLine {
+  points: readonly Vec3[];
+  color: number;
+  closed?: boolean;
+}
+
+/** Lo que se tocó con clic en 3D (punto de control en una labor, nube o terreno). */
+export interface Pick3dHit {
+  /** Punto en coordenadas de proyecto [m]. */
+  point: Vec3;
+  target: 'working' | 'model' | 'surface';
+  /** Nombre de la labor tocada, si se sabe. */
+  name?: string;
 }
 
 /** Aristas longitudinales por sección (las demás vértices solo forman la piel). */
@@ -64,8 +82,9 @@ export class TunnelLayer {
       const b = secs[j + 1] as readonly Vec3[];
       for (let i = 0; i < n; i += step) lines.push(...rel(a[i] as Vec3), ...rel(b[i] as Vec3));
     }
-    this.addLines(lines, t.color, 0.45);
-    this.addLines(strong, t.color, 0.95);
+    const tag = { tunnel: t.label ?? t.id };
+    this.addLines(lines, t.color, 0.45, tag);
+    this.addLines(strong, t.color, 0.95, tag);
     if (t.surface && secs.length > 1) {
       const pos: number[] = [];
       for (let j = 0; j + 1 < secs.length; j++) {
@@ -87,6 +106,7 @@ export class TunnelLayer {
         depthWrite: false,
       });
       const mesh = new Mesh(geometry, material);
+      mesh.userData = tag;
       mesh.renderOrder = 2;
       this.root.add(mesh);
       this.disposers.push(() => {
@@ -96,12 +116,19 @@ export class TunnelLayer {
     }
   }
 
-  private addLines(values: number[], color: number, opacity: number): void {
+  private addLines(
+    values: number[],
+    color: number,
+    opacity: number,
+    userData: Record<string, unknown>,
+  ): void {
     if (values.length === 0) return;
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new Float32BufferAttribute(values, 3));
     const material = new LineBasicMaterial({ color, transparent: opacity < 1, opacity });
-    this.root.add(new LineSegments(geometry, material));
+    const lines = new LineSegments(geometry, material);
+    lines.userData = userData;
+    this.root.add(lines);
     this.disposers.push(() => {
       geometry.dispose();
       material.dispose();
@@ -116,5 +143,51 @@ export class TunnelLayer {
 
   dispose(): void {
     this.clear();
+  }
+}
+
+/** Polilíneas 3D de contexto (solo lectura): otro proyecto de la misma mina. */
+export class ContextLinesLayer {
+  readonly root = new Group();
+  private disposers: (() => void)[] = [];
+
+  constructor() {
+    this.root.name = 'context-lines';
+  }
+
+  set(lines: readonly ContextLine[], origin: Vec3): void {
+    this.clear();
+    const byColor = new Map<number, number[]>();
+    for (const l of lines) {
+      const n = l.points.length;
+      if (n < 2) continue;
+      let list = byColor.get(l.color);
+      if (!list) byColor.set(l.color, (list = []));
+      const last = l.closed ? n : n - 1;
+      for (let i = 0; i < last; i++) {
+        const a = l.points[i] as Vec3;
+        const b = l.points[(i + 1) % n] as Vec3;
+        list.push(a.x - origin.x, a.y - origin.y, a.z - origin.z);
+        list.push(b.x - origin.x, b.y - origin.y, b.z - origin.z);
+      }
+    }
+    for (const [color, values] of byColor) {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new Float32BufferAttribute(values, 3));
+      const material = new LineBasicMaterial({ color, transparent: true, opacity: 0.75 });
+      const seg = new LineSegments(geometry, material);
+      seg.userData = { context: true };
+      this.root.add(seg);
+      this.disposers.push(() => {
+        geometry.dispose();
+        material.dispose();
+      });
+    }
+  }
+
+  clear(): void {
+    for (const d of this.disposers) d();
+    this.disposers = [];
+    this.root.clear();
   }
 }
