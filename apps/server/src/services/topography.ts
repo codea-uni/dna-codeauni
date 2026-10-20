@@ -113,9 +113,10 @@ export async function syncProjectTopography(
   const knownIds = new Set(known.map((k) => k.id));
   for (const s of surveys) {
     if (knownIds.has(s.id)) {
-      // El mapeo de un modelo de bloques (geológico/geotécnico, columnas) se edita después de
-      // importarlo: se guarda en la mina para que los demás proyectos lo reciban.
-      if (s.blockModel)
+      // El mapeo de un modelo de bloques (geológico/geotécnico, columnas) y el tipo de cada labor
+      // (galería, tajeo…) se editan después de importarlos: se guardan en la mina para que los
+      // demás proyectos los reciban.
+      if (s.blockModel ?? s.workingKinds)
         await db
           .updateTable('topography_survey')
           .set({ meta: JSON.stringify(s) })

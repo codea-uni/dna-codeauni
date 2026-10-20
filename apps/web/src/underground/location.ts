@@ -10,6 +10,9 @@ import {
   type Vec3,
   type WorkingProfileSpec,
   type WorkingsData,
+  type WorkingKind,
+  workingKinds,
+  WORKING_KINDS,
 } from '@cronos/core';
 import { t } from '../i18n';
 import { getEngine, session } from '../session';
@@ -38,7 +41,33 @@ export interface WorkingTarget {
   profile?: WorkingProfileSpec;
   /** Ancho y alto medidos en el sólido (el tipo de sección no se conoce). */
   estimated?: boolean;
+  /** Tipo de labor importada (galería, tajeo…); falta en las galerías de un diseño. */
+  kind?: WorkingKind;
   mesh: { vertices: ArrayLike<number>; triangles: ArrayLike<number> } | null;
+}
+
+/**
+ * Orden de los tipos en la lista de labores: para los abanicos (métodos de tajeo) primero los
+ * tajeos; para el frente de avance, las labores de desarrollo y los tajeos al final.
+ */
+export function kindOrder(tab: UndergroundTab): WorkingKind[] {
+  const rest = WORKING_KINDS.filter((k) => k !== 'stope');
+  return tab === 'ring' ? ['stope', ...rest] : [...rest, 'stope'];
+}
+
+/** Labores agrupadas por tipo (en el orden de `kindOrder`) y, al final, las de los diseños. */
+export function groupTargets(
+  targets: readonly WorkingTarget[],
+  tab: UndergroundTab,
+): { kind: WorkingKind | null; targets: WorkingTarget[] }[] {
+  const out: { kind: WorkingKind | null; targets: WorkingTarget[] }[] = [];
+  for (const kind of kindOrder(tab)) {
+    const list = targets.filter((x) => x.kind === kind);
+    if (list.length > 0) out.push({ kind, targets: list });
+  }
+  const designed = targets.filter((x) => !x.kind);
+  if (designed.length > 0) out.push({ kind: null, targets: designed });
+  return out;
 }
 
 const axesCache = new WeakMap<WorkingsData, Vec3[][]>();
@@ -87,6 +116,7 @@ export function workingTargets(project: Project = session.document.project): Wor
   const out: WorkingTarget[] = [];
   for (const { survey, workings } of loadedWorkings()) {
     const axes = axesOf(workings);
+    const kinds = workingKinds(workings, survey.workingKinds);
     workings.axes.forEach((meta, i) => {
       const points = axes[i] ?? [];
       if (points.length < 2) return;
@@ -98,6 +128,7 @@ export function workingTargets(project: Project = session.document.project): Wor
         length: axisLength(points),
         ...(meta.profile ? { profile: meta.profile } : {}),
         ...(meta.estimated ? { estimated: true } : {}),
+        kind: kinds[i] ?? 'other',
         mesh: { vertices: workings.vertices, triangles: workings.triangles },
       });
     });

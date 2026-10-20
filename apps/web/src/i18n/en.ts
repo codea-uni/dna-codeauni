@@ -14,6 +14,7 @@ import * as platform from './ns/platform';
 import * as product from './ns/product';
 import * as projects from './ns/projects';
 import * as topography from './ns/topography';
+import * as surveyTools from './ns/surveyTools';
 import * as underground from './ns/underground';
 import * as undergroundAnalysis from './ns/undergroundAnalysis';
 import * as vibration from './ns/vibration';
@@ -35,6 +36,7 @@ export const en = {
   ...product.en,
   ...projects.en,
   ...topography.en,
+  ...surveyTools.en,
   ...underground.en,
   ...undergroundAnalysis.en,
   ...vibration.en,
