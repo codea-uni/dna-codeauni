@@ -9,7 +9,7 @@ import {
   type TopographySurveyId,
 } from '@cronos/core';
 import type { InstancedMesh } from 'three';
-import { Color, Matrix4, Vector3 } from 'three';
+import { Color, Matrix4, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_3D_OPTIONS, explosiveColorHex, MATERIAL_COLORS, Scene3D } from './Scene3D';
 
@@ -237,5 +237,51 @@ describe('escena 3D', () => {
     const top = DEFAULT_BENCH.floorElevation + DEFAULT_BENCH.height;
     expect(Math.max(...zs)).toBeCloseTo(top, 4);
     expect(Math.min(...zs)).toBeCloseTo(DEFAULT_BENCH.floorElevation, 4);
+  });
+});
+
+describe('grosor de los taladros en 3D', () => {
+  it('diámetro real × factor (sin mínimo fijo de 15 cm) y al menos lo que pide la cámara', () => {
+    const p = projectWith(1, 1);
+    const blast = p.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    // Taladros de frente: 45 mm.
+    const thin = {
+      ...p,
+      blasts: [{ ...blast, holes: blast.holes.map((h) => ({ ...h, diameter: 0.045 })) }],
+    };
+    const scene = new Scene3D();
+    scene.rebuild(thin, thin.blasts, { x: 0, y: 0, z: 0 }, DEFAULT_3D_OPTIONS);
+    const radii = [...scene.segmentRadii];
+    // Cargado: 0.0225 × 2; vacío: × 0,6.
+    expect(Math.max(...radii)).toBeCloseTo(0.045, 4);
+    expect(Math.min(...radii)).toBeCloseTo(0.027, 4);
+    // La cámara se aleja: 1 px = 0,3 m; los vacíos siguen más delgados.
+    expect(scene.setViewMinRadius(0.3)).toBe(true);
+    expect(Math.max(...scene.segmentRadii)).toBeCloseTo(0.3, 4);
+    expect(Math.min(...scene.segmentRadii)).toBeCloseTo(0.18, 4);
+    const m = new Matrix4();
+    cylinders(scene).getMatrixAt(0, m);
+    const s = new Vector3();
+    m.decompose(new Vector3(), new Quaternion(), s);
+    expect(Math.abs(s.x)).toBeCloseTo(0.3, 4);
+    // Un cambio menor al 10 % no reescribe; volver cerca recupera el diámetro real.
+    expect(scene.setViewMinRadius(0.31)).toBe(false);
+    expect(scene.setViewMinRadius(0.001)).toBe(true);
+    expect(Math.max(...scene.segmentRadii)).toBeCloseTo(0.045, 4);
+    // Una reconstrucción conserva el mínimo de la cámara.
+    scene.setViewMinRadius(0.2);
+    scene.rebuild(thin, thin.blasts, { x: 0, y: 0, z: 0 }, DEFAULT_3D_OPTIONS);
+    expect(Math.max(...scene.segmentRadii)).toBeCloseTo(0.2, 4);
+  });
+
+  it('la extensión del diseño no incluye la topografía de referencia', () => {
+    const p = projectWith(1, 0);
+    const scene = new Scene3D();
+    scene.rebuild(p, p.blasts, { x: 0, y: 0, z: 0 }, DEFAULT_3D_OPTIONS);
+    expect(scene.designBounds).toEqual(scene.bounds);
+    const empty = { ...p, blasts: p.blasts.map((b) => ({ ...b, holes: [], boundaries: [] })) };
+    scene.rebuild(empty, empty.blasts, { x: 0, y: 0, z: 0 }, DEFAULT_3D_OPTIONS);
+    expect(scene.designBounds).toBeNull();
   });
 });
