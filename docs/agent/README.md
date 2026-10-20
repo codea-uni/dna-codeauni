@@ -33,7 +33,9 @@ Herramientas nuevas: `search_knowledge`, `company_explosives`, `enable_explosive
 `save_project_note`, `presets`, `scenarios`, `set_camera`, `edit_perimeter`,
 `edit_protected_point`, `show_choices`, `set_site_conditions`, `add_protected_point`, `recommend_design`,
 `predict_results`, `evaluate_explosive`, `design_presplit`, `design_buffer`, `split_zone`,
-`track_blocks`, `show_results`, `vr_view`.
+`track_blocks`, `show_results`, `vr_view`, `list_mining_methods` y `design_by_method` (plantillas
+subterráneas por método de minado UG-01 a UG-19: `packages/core/src/underground/methods.ts`,
+pestaña «Método de minado» del panel Subterránea, reglas UG-R en `docs/RULES.md` §6).
 
 ## Pendiente (supuestos a confirmar con el ingeniero)
 

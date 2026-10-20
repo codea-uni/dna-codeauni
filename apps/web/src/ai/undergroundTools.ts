@@ -1,4 +1,14 @@
-import type { Explosive, ProductLibrary } from '@cronos/core';
+import {
+  designByMethod,
+  methodParams,
+  MINING_METHOD_IDS,
+  MINING_METHODS,
+  miningMethod,
+  type Explosive,
+  type MethodParams,
+  type MiningMethodId,
+  type ProductLibrary,
+} from '@cronos/core';
 import { z } from 'zod';
 import { formatNumber, t } from '../i18n';
 import { session } from '../session';
@@ -23,6 +33,13 @@ import {
   taggedHoles,
   type Placement,
 } from '../underground/send';
+import {
+  defaultMethodPlacement,
+  methodExplosive,
+  methodHolesInBlast,
+  sendMethod,
+} from '../underground/methodSend';
+import { useMethodStore } from '../underground/methodStore';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
 import { pushCard } from './cards';
@@ -91,8 +108,12 @@ function explosiveByName(lib: ProductLibrary, name: string | undefined): string 
   return found.id;
 }
 
-function openPanel(tab: UndergroundTab): void {
-  useUndergroundStore.getState().setTab(tab);
+function openPanel(tab: UndergroundTab | 'methods'): void {
+  if (tab === 'methods') useMethodStore.getState().setActive(true);
+  else {
+    useMethodStore.getState().setActive(false);
+    useUndergroundStore.getState().setTab(tab);
+  }
   // Como `openWorkspacePanel('underground')`, sin importar las ventanas (ciclo de módulos).
   const ui = useUiStore.getState();
   const id = 'workspace.underground';
@@ -422,6 +443,264 @@ function designRings(args: z.infer<typeof ringSchema>) {
   return result;
 }
 
+// ------------------------------------------------------------------ Plantillas por método de minado
+
+const DEG_PER_RAD = 180 / Math.PI;
+
+/** Argumento del asistente → parámetro de la plantilla y factor a SI. */
+const METHOD_ARGS = [
+  ['width_m', 'width', 1],
+  ['height_m', 'height', 1],
+  ['thickness_m', 'thickness', 1],
+  ['hole_diameter_mm', 'holeDiameter', 0.001],
+  ['relief_diameter_mm', 'reliefDiameter', 0.001],
+  ['relief_holes', 'reliefCount', 1],
+  ['cartridge_diameter_mm', 'cartridgeDiameter', 0.001],
+  ['length_m', 'length', 1],
+  ['dip_deg', 'dip', DEG],
+  ['subdrill_m', 'subdrill', 1],
+  ['burden_m', 'burden', 1],
+  ['spacing_m', 'spacing', 1],
+  ['rows', 'rows', 1],
+  ['wall_offset_m', 'wallOffset', 1],
+  ['stemming_m', 'stemming', 1],
+  ['drive_width_m', 'driveWidth', 1],
+  ['drive_height_m', 'driveHeight', 1],
+  ['toe_spacing_m', 'toeSpacing', 1],
+  ['dead_zone_deg', 'deadZone', DEG],
+  ['dump_deg', 'dump', DEG],
+  ['stope_bottom_m', 'stopeBottom', 1],
+  ['stope_top_m', 'stopeTop', 1],
+  ['lift_height_m', 'liftHeight', 1],
+  ['burial_depth_m', 'burialDepth', 1],
+  ['rock_constant', 'rockConstant', 1],
+  ['rock_density_t_m3', 'rockDensity', 1000],
+  ['deviation_pct', 'deviation', 0.01],
+  ['hole_delay_ms', 'holeInterval', 0.001],
+  ['row_delay_ms', 'rowInterval', 0.001],
+] as const satisfies readonly (readonly [string, keyof MethodParams, number])[];
+
+/** Parámetro de la plantilla en las unidades del asistente. */
+function friendly(key: keyof MethodParams, v: MethodParams): number | string | boolean {
+  const value = v[key];
+  if (typeof value !== 'number') return value;
+  const arg = METHOD_ARGS.find(([, k]) => k === key);
+  if (!arg) return r(value, 3);
+  const f = arg[2];
+  return f === DEG ? r(value * DEG_PER_RAD, 1) : r(value / f, f === 0.001 ? 0 : 2);
+}
+
+function friendlyName(key: keyof MethodParams): string {
+  return METHOD_ARGS.find(([, k]) => k === key)?.[0] ?? key;
+}
+
+function listMiningMethods() {
+  return {
+    groups: (['development', 'raise', 'stope'] as const).map((g) => ({
+      group: g,
+      title: t(`ugm.group.${g}`),
+      methods: MINING_METHODS.filter((m) => m.group === g).map((m) => {
+        const p = methodParams(m.id);
+        return {
+          method: m.id,
+          code: m.code,
+          name: t(`ugm.m.${m.id}.name`),
+          use: t(`ugm.m.${m.id}.use`),
+          sequence: t(`ugm.m.${m.id}.seq`),
+          explosive: t(`ugm.m.${m.id}.exp`),
+          powder_factor_target: `${String(m.powderFactor.min)}–${String(m.powderFactor.max)} ${m.powderFactor.unit === 'kg/t' ? 'kg/t' : 'kg/m³'}`,
+          defaults: Object.fromEntries(m.params.map((k) => [friendlyName(k), friendly(k, p)])),
+          ...(m.presets ? { presets: m.presets.map((x) => x.label) } : {}),
+        };
+      }),
+    })),
+    note: 'Defaults are handbook starting values (Hustrulid & Bullock 2001, López Jimeno 1995, Holmberg 1982, EXSA); burden 0 = Langefors-Kihlström automatic. Use design_by_method with the method id.',
+  };
+}
+
+const methodSchema = z.object({
+  method: z
+    .enum(MINING_METHOD_IDS as [MiningMethodId, ...MiningMethodId[]])
+    .describe(
+      'Template id from list_mining_methods: driftConventional, driftMechanized, ramp, bypass, roomPillar, conventionalRaise, dropRaise, slotRaise, longholeParallel, longholeFan, narrowVein, vcr, slc, undercut, drawbell, breasting, uppers, shrinkage, roomBench, benchFill.',
+    ),
+  preset: z
+    .string()
+    .optional()
+    .describe('Preset label of the template (e.g. "4,0 × 4,0", "Ø 89 mm").'),
+  profile: z.enum(['arched', 'rectangular']).optional(),
+  smooth_blasting: z.boolean().optional(),
+  width_m: z.number().min(0.5).max(100).optional().describe('Section, vein or stope width.'),
+  height_m: z
+    .number()
+    .min(0.5)
+    .max(150)
+    .optional()
+    .describe('Section height, stope/raise height (downhole length) or slice height.'),
+  thickness_m: z.number().min(0.5).max(30).optional().describe('Raise/slot plan thickness.'),
+  hole_diameter_mm: z.number().min(25).max(250).optional(),
+  relief_diameter_mm: z.number().min(32).max(2000).optional(),
+  relief_holes: z.number().int().min(1).max(6).optional(),
+  cartridge_diameter_mm: z.number().min(0).max(127).optional().describe('0 = bulk.'),
+  length_m: z
+    .number()
+    .min(0.5)
+    .max(60)
+    .optional()
+    .describe('Hole / feed length (faces, uppers, breasting) or max length (rings).'),
+  dip_deg: z.number().min(30).max(90).optional().describe('Dip from horizontal (90 = vertical).'),
+  subdrill_m: z.number().min(0).max(3).optional(),
+  burden_m: z.number().min(0).max(8).optional().describe('0 = automatic (Langefors).'),
+  spacing_m: z.number().min(0).max(10).optional(),
+  rows: z.number().int().min(1).max(40).optional().describe('Rows or rings.'),
+  wall_offset_m: z.number().min(0).max(5).optional(),
+  stemming_m: z.number().min(0).max(10).optional(),
+  drive_width_m: z.number().min(1).max(15).optional(),
+  drive_height_m: z.number().min(1).max(15).optional(),
+  toe_spacing_m: z.number().min(0).max(10).optional(),
+  dead_zone_deg: z.number().min(0).max(170).optional(),
+  dump_deg: z.number().min(0).max(30).optional(),
+  stope_bottom_m: z.number().min(-100).max(100).optional(),
+  stope_top_m: z.number().min(-100).max(200).optional(),
+  lift_height_m: z.number().min(0.5).max(10).optional(),
+  burial_depth_m: z.number().min(0.3).max(5).optional(),
+  rock_constant: z.number().min(0.1).max(2).optional(),
+  rock_density_t_m3: z.number().min(1).max(6).optional(),
+  deviation_pct: z.number().min(0).max(10).optional(),
+  hole_delay_ms: z.number().min(0).max(1000).optional(),
+  row_delay_ms: z.number().min(0).max(5000).optional(),
+  explosive: z.string().optional().describe('Explosive name from the library.'),
+  ...placementFields,
+});
+
+function designMethod(args: z.infer<typeof methodSchema>) {
+  const lib = document.project.library;
+  const id = args.method;
+  const m = miningMethod(id);
+  const store = useMethodStore.getState();
+  const patch: Partial<MethodParams> = {};
+  if (args.preset !== undefined) {
+    const preset = m.presets?.find(
+      (p) => p.label.replace(/\s/g, '') === args.preset?.replace(/\s/g, ''),
+    );
+    if (!preset)
+      throw new ToolError(
+        `No preset "${args.preset}" for ${id}. Available: ${(m.presets ?? []).map((p) => p.label).join(', ') || 'none'}.`,
+      );
+    Object.assign(patch, preset.values);
+  }
+  for (const [arg, key, f] of METHOD_ARGS) {
+    const v = args[arg];
+    if (typeof v === 'number') Object.assign(patch, { [key]: v * f });
+  }
+  if (args.profile) patch.profile = args.profile;
+  if (args.smooth_blasting !== undefined) patch.smooth = args.smooth_blasting;
+  const merged = { ...store.patches[id], ...patch };
+  const explosiveId = explosiveByName(lib, args.explosive) ?? store.explosives[id];
+  const params = methodParams(id, merged);
+  const explosive = methodExplosive(lib, id, explosiveId, params.holeDiameter);
+  if (!explosive) throw new ToolError('The project library has no explosive.');
+  let design;
+  try {
+    design = designByMethod(id, merged, explosive);
+  } catch (e) {
+    throw new ToolError(`Invalid data for ${id}: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  store.patch(id, patch);
+  if (args.explosive !== undefined) store.setExplosive(id, explosive.id);
+  const base = store.placements[id] ?? defaultMethodPlacement(document.project, id);
+  const placement: Placement = {
+    ...base,
+    ...(args.x !== undefined ? { x: args.x } : {}),
+    ...(args.y !== undefined ? { y: args.y } : {}),
+    ...(args.z !== undefined ? { z: args.z } : {}),
+    ...(args.azimuth_deg !== undefined ? { azimuthDeg: args.azimuth_deg % 360 } : {}),
+    ...(args.gradient_pct !== undefined ? { gradientPct: args.gradient_pct } : {}),
+  };
+  store.setPlacement(id, placement);
+  store.choose(id);
+  openPanel('methods');
+  const send = args.send ?? true;
+  let sent = 0;
+  if (send) {
+    readOnlyGuard();
+    blastOrFail();
+    sent = sendMethod(id, design, explosive, placement);
+  }
+  const k = design.kpis;
+  const perTonne = m.powderFactor.unit === 'kg/t';
+  const pf = perTonne ? k.chargePerTonne : k.powderFactor;
+  const pfUnit = perTonne ? 'kg/t' : 'kg/m³';
+  const roles: Record<string, number> = {};
+  for (const h of design.holes) roles[h.role] = (roles[h.role] ?? 0) + 1;
+  const warnings = [
+    ...design.warnings.map((w) =>
+      t(
+        `ugm.warn.${w.code}`,
+        Object.fromEntries(Object.entries(w.params ?? {}).map(([a, b]) => [a, formatNumber(b, 2)])),
+      ),
+    ),
+    ...design.faceWarnings
+      .filter((w) => w.code !== 'depthLimited')
+      .map((w) => faceWarningText(w, t, formatNumber)),
+  ];
+  const name = t(`ugm.m.${id}.name`);
+  const result = {
+    method: id,
+    code: m.code,
+    name,
+    parameters: Object.fromEntries(
+      m.params.map((key) => [friendlyName(key), friendly(key, params)]),
+    ),
+    explosive: explosive.name,
+    holes_total: k.holes,
+    charged_holes: k.chargedHoles,
+    relief_holes: k.reliefHoles,
+    holes_by_type: roles,
+    drilled_m: r(k.drilledMeters, 1),
+    total_charge_kg: r(k.totalCharge, 1),
+    volume_m3: r(k.volume, 0),
+    tonnes: r(k.tonnes, 0),
+    powder_factor: `${formatNumber(pf, 2)} ${pfUnit}`,
+    powder_factor_target: `${String(m.powderFactor.min)}–${String(m.powderFactor.max)} ${pfUnit}`,
+    powder_factor_status: design.powderFactorStatus,
+    ...(k.advance !== undefined ? { advance_m: r(k.advance) } : {}),
+    max_charge_per_delay_kg: r(k.maxChargePerDelay, 1),
+    ...(design.rules
+      ? {
+          burden_m: r(design.rules.burden),
+          spacing_m: r(design.rules.spacing),
+          langefors_practical_burden_m: r(design.rules.langeforsPractical),
+          empirical_burden_m: `${formatNumber(design.rules.empiricalMin, 1)}–${formatNumber(design.rules.empiricalMax, 1)}`,
+        }
+      : {}),
+    sequence: t(`ugm.m.${id}.seq`),
+    warnings,
+    in_3d: send ? sent > 0 : false,
+    placed_holes: sent,
+    tag: m.tag,
+    placement: placementOut(placement),
+    note: send
+      ? 'Holes are in the 3D design with their working (drive, raise or stope) and electronic timing; each template has its own tag and location, so other workings are kept. The drawing is in the Subterránea panel, tab Método de minado.'
+      : 'Only computed: shown in the Subterránea panel (Método de minado); call again with send true to put it in 3D.',
+  };
+  pushCard({
+    id: `ugm-${id}`,
+    title: `${m.code} · ${name}`,
+    sub: explosive.name,
+    metrics: [
+      { label: t('ug.kpi.holes'), value: n(k.holes), tone: 'accent' },
+      { label: t('ug.kpi.drilled'), value: n(k.drilledMeters, 0, 'm') },
+      { label: t('ug.kpi.charge'), value: n(k.totalCharge, 0, 'kg') },
+      { label: t('ug.kpi.powderFactor'), value: n(pf, 2, pfUnit) },
+    ],
+    bars: [],
+    notes: warnings.map((text) => ({ text, tone: 'warn' as const })),
+    t0: performance.now(),
+  });
+  return result;
+}
+
 // ------------------------------------------------------------------ Estado
 
 function undergroundState() {
@@ -469,6 +748,11 @@ function undergroundState() {
       placement: placementOut(placements.ring),
       holes_in_3d: taggedHoles(blast, RING_TAG).length,
     },
+    mining_method_templates_in_3d: Object.fromEntries(
+      MINING_METHODS.map((m): [string, number] => [m.id, methodHolesInBlast(m.tag)]).filter(
+        ([, c]) => c !== 0,
+      ),
+    ),
     explosives: lib.explosives.map((e) => ({
       name: e.name,
       form: e.form,
@@ -490,6 +774,18 @@ export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
     schema: ringSchema,
     run: designRings,
   },
+  list_mining_methods: {
+    description:
+      'UNDERGROUND: catalog of blast design templates by mining method (development: drifts, ramp, bypass, wide rooms; raises: conventional, drop raise, slot; stoping: parallel long holes, fan long holes, narrow vein, VCR, sublevel caving, undercut, drawbell, breasting, uppers, shrinkage, room benching, bench and fill), with typical use, sequence, suggested explosive, powder-factor target and default parameters. Read-only.',
+    schema: z.object({}),
+    run: listMiningMethods,
+  },
+  design_by_method: {
+    description:
+      'UNDERGROUND: design a working with a mining-method template (one per stope/raise/heading): fills the template defaults, applies the given values (omitted values keep the last ones used for that template), computes holes, charges (column, lift or spherical crater charges, alternating ring collars), delays, kg, powder factor vs target, Langefors burden check and warnings; opens the panel tab «Método de minado» with the drawings and, unless send is false, puts the holes in 3D with their own tag (other templates and the face/rings tabs are kept).',
+    schema: methodSchema,
+    run: designMethod,
+  },
   underground_state: {
     description:
       'UNDERGROUND: current face and ring parameters, their 3D placement, how many underground holes are in the design and the explosives available (with cartridge sizes).',
@@ -498,4 +794,4 @@ export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
   },
 };
 
-export const UNDERGROUND_READ_ONLY = ['underground_state'];
+export const UNDERGROUND_READ_ONLY = ['underground_state', 'list_mining_methods'];

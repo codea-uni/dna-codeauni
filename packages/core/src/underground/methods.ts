@@ -656,7 +656,7 @@ export const MINING_METHODS: readonly MiningMethod[] = [
     code: 'UG-01',
     group: 'development',
     generator: 'face',
-    tag: 'ug-drift',
+    tag: 'ug-jackleg',
     explosive: PACKAGED_EMULSION,
     contourExplosive: CONTOUR,
     powderFactor: { min: 2.5, max: 3.5, unit: 'kg/m3' },

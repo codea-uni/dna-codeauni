@@ -83,6 +83,8 @@ describe('catálogo de métodos', () => {
       expect(m.code).toMatch(/^UG-\d\d$/);
       expect(pickExplosiveByHint(lib, m.explosive)).not.toBeNull();
     }
+    // Una marca por plantilla: enviar una labor no reemplaza a otra.
+    expect(new Set(MINING_METHODS.map((m) => m.tag)).size).toBe(MINING_METHODS.length);
     // Desarrollo, chimeneas y tajeo.
     const groups = new Set(MINING_METHODS.map((m) => m.group));
     expect([...groups].sort()).toEqual(['development', 'raise', 'stope']);

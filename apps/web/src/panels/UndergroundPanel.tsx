@@ -26,6 +26,8 @@ import {
 } from '../underground/send';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
+import { useMethodStore } from '../underground/methodStore';
+import { MethodsTab } from './underground/MethodsTab';
 
 const DEG = Math.PI / 180;
 
@@ -56,24 +58,30 @@ export function UndergroundPanel() {
     if (!placements) setPlacements(defaultPlacements(project));
   }, [placements, project, setPlacements]);
 
+  // Pestaña «Método de minado» (plantillas por método): estado propio para no tocar `tab`.
+  const methods = useMethodStore((s) => s.active);
+  const setMethods = useMethodStore((s) => s.setActive);
+  const current = methods ? 'methods' : tab;
+
   return (
     <section className="panel ug">
       <div className="segmented" role="tablist">
-        {(['face', 'ring'] as const).map((id) => (
+        {(['methods', 'face', 'ring'] as const).map((id) => (
           <button
             key={id}
             role="tab"
-            aria-selected={tab === id}
-            className={tab === id ? 'active' : ''}
+            aria-selected={current === id}
+            className={current === id ? 'active' : ''}
             onClick={() => {
-              setTab(id);
+              setMethods(id === 'methods');
+              if (id !== 'methods') setTab(id);
             }}
           >
-            {t(id === 'face' ? 'ug.tab.face' : 'ug.tab.ring')}
+            {t(id === 'methods' ? 'ugm.tab' : id === 'face' ? 'ug.tab.face' : 'ug.tab.ring')}
           </button>
         ))}
       </div>
-      {tab === 'face' ? <FaceTab /> : <RingTab />}
+      {current === 'methods' ? <MethodsTab /> : current === 'face' ? <FaceTab /> : <RingTab />}
     </section>
   );
 }
