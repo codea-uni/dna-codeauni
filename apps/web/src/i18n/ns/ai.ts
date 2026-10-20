@@ -5,6 +5,13 @@ export const es = {
   'ai.intro':
     'Agente de voladura: te pregunta la roca, el agua y el objetivo, y diseña la malla, el precorte, la carga y el amarre dentro del perímetro. Predice el P80, la vibración, los tiros cortados y los gases. Cada cambio se puede deshacer (Ctrl+Z).',
   'ai.examples': 'Por ejemplo:',
+  'ai.ugIntro':
+    'Agente de voladura subterránea: diseña frentes, chimeneas y abanicos por método de minado, los ubica en tus labores, revisa la secuencia y simula la voladura con la pila. Cada cambio se puede deshacer (Ctrl+Z).',
+  'ai.ugExample.1': 'Diseña una galería con jumbo de 4 por 4 y llévala al 3D',
+  'ai.ugExample.2': '¿Qué métodos de minado tienes? Haz taladros largos en abanico de 76 mm',
+  'ai.ugExample.3': 'Pon el frente en la labor cargada a 40 m del inicio',
+  'ai.ugExample.4': '¿Hay taladros acoplados o riesgo de corte? ¿Cuánto da el P80?',
+  'ai.ugExample.5': 'Simula la voladura y dime hasta dónde llega la pila',
   'ai.example.1': 'Diseña la voladura de este perímetro: es mineral para chancadora',
   'ai.example.2': 'Pon precorte en la pared final y una fila buffer',
   'ai.example.3': 'Carga todos con 3 m de ANFO pesado al fondo, columna de ANFO y 4,5 m de taco',
@@ -191,6 +198,13 @@ export const en = {
   'ai.intro':
     'Blast design agent: it asks for rock, water and goal, then designs the pattern, presplit, charge and tie-up inside the perimeter, and predicts P80, vibration, cut-offs and fumes. Every change can be undone (Ctrl+Z).',
   'ai.examples': 'For example:',
+  'ai.ugIntro':
+    'Underground blasting agent: designs faces, raises and fans by mining method, places them on your workings, checks the sequence and simulates the blast with its muckpile. Every change can be undone (Ctrl+Z).',
+  'ai.ugExample.1': 'Design a 4 by 4 jumbo drift and send it to 3D',
+  'ai.ugExample.2': 'Which mining methods do you have? Make 76 mm long-hole fans',
+  'ai.ugExample.3': 'Put the face on the loaded working 40 m from the start',
+  'ai.ugExample.4': 'Are any holes coupled or at cut-off risk? What is the P80?',
+  'ai.ugExample.5': 'Simulate the blast and tell me how far the muckpile reaches',
   'ai.example.1': 'Design the blast for this perimeter: it is ore for the crusher',
   'ai.example.2': 'Add a presplit on the final wall and a buffer row',
   'ai.example.3':

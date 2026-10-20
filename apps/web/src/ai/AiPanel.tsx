@@ -5,6 +5,7 @@ import { serverMode } from '../server/api';
 import { canRecord, startRecording, type Recording } from './audio';
 import { ERROR_KEYS, speak, speechLang, TOOL_LABELS } from './labels';
 import LiveBar from './LiveBar';
+import { useProjectKind } from '../product/product';
 import {
   cancelAssistant,
   resetAssistant,
@@ -57,6 +58,15 @@ const EXAMPLES = [
   'ai.example.5',
 ] as const satisfies readonly MessageKey[];
 
+/** En Cronos Underground: ejemplos de frentes, abanicos y simulación (no de bancos). */
+const UG_EXAMPLES = [
+  'ai.ugExample.1',
+  'ai.ugExample.2',
+  'ai.ugExample.3',
+  'ai.ugExample.4',
+  'ai.ugExample.5',
+] as const satisfies readonly MessageKey[];
+
 const VOICE_ERRORS: Record<string, MessageKey> = {
   'not-allowed': 'ai.voice.not-allowed',
   'service-not-allowed': 'ai.voice.not-allowed',
@@ -90,6 +100,7 @@ function Entry({ entry }: { entry: ChatEntry }) {
 /** Sección del asistente de IA: conversación por texto o por voz. */
 export default function AiPanel() {
   const t = useT();
+  const underground = useProjectKind() === 'underground';
   const locale = useLocale((s) => s.locale);
   const entries = useAiStore((s) => s.entries);
   const busy = useAiStore((s) => s.busy);
@@ -243,9 +254,9 @@ export default function AiPanel() {
         {entries.length === 0 && (
           <div className="ai-empty">
             <Bot size={28} aria-hidden />
-            <p>{t('ai.intro')}</p>
+            <p>{t(underground ? 'ai.ugIntro' : 'ai.intro')}</p>
             <p className="hint">{t('ai.examples')}</p>
-            {EXAMPLES.map((key) => (
+            {(underground ? UG_EXAMPLES : EXAMPLES).map((key) => (
               <button
                 key={key}
                 type="button"
