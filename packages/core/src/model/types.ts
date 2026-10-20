@@ -436,6 +436,51 @@ export interface TopographySurvey {
   };
   /** Hash SHA-256 de cada asset `CRTS`. */
   assets: { tin?: string; lines?: string; image?: string; cloud?: string; blocks?: string };
+  /** Qué es el modelo de bloques y qué columna da cada propiedad de la roca (viaja con él). */
+  blockModel?: BlockModelMapping;
+}
+
+/** Propiedades de roca que puede traer una columna de un modelo de bloques geotécnico. */
+export type GeotechField =
+  | 'density'
+  | 'ucs'
+  | 'rmr'
+  | 'gsi'
+  | 'q'
+  | 'rqd'
+  | 'youngModulus'
+  | 'vp'
+  | 'tensileStrength'
+  | 'lithology';
+
+/**
+ * Valores típicos de una litología (tabla editable). Unidades de planilla: densidad [t/m³], UCS y
+ * tracción [MPa], módulo [GPa], Vp [m/s], RMR [0–100].
+ */
+export interface LithologyProps {
+  name: string;
+  density?: number;
+  ucs?: number;
+  youngModulus?: number;
+  vp?: number;
+  tensileStrength?: number;
+  rmr?: number;
+}
+
+/**
+ * Mapeo de columnas de un modelo de bloques: geológico (leyes, mineral/desmonte), geotécnico
+ * (caracteriza la roca) o ambos. Las columnas se leen en unidades de planilla (densidad t/m³,
+ * UCS/tracción MPa, módulo GPa, Vp m/s, RQD %); si los valores muestran otra escala (kg/m³, Pa,
+ * fracción) se convierten solos.
+ */
+export interface BlockModelMapping {
+  geological: boolean;
+  geotechnical: boolean;
+  columns: Partial<Record<GeotechField, string>>;
+  /** Litologías del modelo con sus valores (editados); las que falten salen de la tabla típica. */
+  lithologies?: LithologyProps[];
+  /** La roca de cálculo (fragmentación, cubicación, halos) sale de este modelo. */
+  useForRock?: boolean;
 }
 
 // ===================== Malla / patrón =====================
