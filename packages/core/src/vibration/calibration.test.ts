@@ -76,7 +76,9 @@ describe('calibración de la ley de vibración (factor de terreno)', () => {
 
   it('menos de 3 mediciones o sin dispersión en SD: sin ajuste', () => {
     expect(fitVibrationLaw(synthetic(1, 1.5).slice(0, 2), 'square-root')).toBeNull();
-    const same = [0, 1, 2].map((i) => ({ ...synthetic(1, 1.5)[0]!, id: String(i) }));
+    const first = synthetic(1, 1.5)[0];
+    if (!first) throw new Error('sin datos');
+    const same = [0, 1, 2].map((i) => ({ ...first, id: String(i) }));
     expect(fitVibrationLaw(same, 'square-root')).toBeNull();
   });
 

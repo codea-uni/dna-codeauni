@@ -23,6 +23,7 @@ import { VersionsDialog } from './dialogs/VersionsDialog';
 import { startAutosave } from './persistence/autosave';
 import { startTopographySync } from './topography/session';
 import { startTunnelSync } from './underground/send';
+import { startMineVibrationSync } from './vibration/mineStore';
 import { openTopography, requireCrs, restoreLatestAutosave } from './actions';
 import { getCompute } from './session';
 import { useUiStore } from './stores/uiStore';
@@ -75,6 +76,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
       startVibrationRunner(),
       startMuckpileRunner(),
       startTunnelSync(),
+      startMineVibrationSync(),
     ];
     return () => {
       stopDemo();

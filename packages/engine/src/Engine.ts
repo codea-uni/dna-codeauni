@@ -1,7 +1,6 @@
 import {
   Color,
   Group,
-  Object3D,
   Raycaster,
   OrthographicCamera,
   PerspectiveCamera,
@@ -9,6 +8,7 @@ import {
   Vector2,
   WebGLRenderer,
 } from 'three';
+import type { Object3D } from 'three';
 import {
   DEFAULT_HOLE_TEMPLATE,
   LineSnapIndex,
@@ -1405,10 +1405,8 @@ export class Engine {
       : 0.5;
     ray.params.Line = { threshold: 6 * mpp };
     ray.params.Points = { threshold: 4 * mpp };
-    const visible = (o: { visible: boolean; parent: unknown }): boolean => {
-      for (let n: { visible: boolean; parent: unknown } | null = o; n;)
-        if (!n.visible) return false;
-        else n = n.parent as typeof n;
+    const visible = (o: Object3D): boolean => {
+      for (let n: Object3D | null = o; n !== null; n = n.parent) if (!n.visible) return false;
       return true;
     };
     const hits = ray
@@ -1417,9 +1415,8 @@ export class Engine {
         true,
       )
       .filter((h) => visible(h.object));
-    const under = (root: Object3D, o: { parent: unknown }) => {
-      for (let n: { parent: unknown } | null = o; n; n = n.parent as typeof n)
-        if (n === root) return true;
+    const under = (root: Object3D, o: Object3D) => {
+      for (let n: Object3D | null = o; n !== null; n = n.parent) if (n === root) return true;
       return false;
     };
     // Las labores ganan aunque estén detrás de la piel del terreno (se ven a través).

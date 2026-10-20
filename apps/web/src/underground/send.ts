@@ -20,6 +20,7 @@ import {
   type UV,
   type Vec3,
 } from '@cronos/core';
+import type { TunnelView } from '@cronos/engine';
 import { t } from '../i18n';
 import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
@@ -178,6 +179,14 @@ const COLORS: Record<UndergroundExcavation['kind'], number> = {
 };
 
 let shown: readonly UndergroundExcavation[] = [];
+/** Labores de otros proyectos de la mina (contexto de solo lectura, `vibration/mineStore`). */
+let extra: readonly TunnelView[] = [];
+
+/** Excavaciones de otros proyectos que se dibujan junto a las de este (solo lectura). */
+export function setExtraTunnels(views: readonly TunnelView[]): void {
+  extra = views;
+  syncTunnels(true);
+}
 
 /**
  * Pasa al motor las excavaciones de la voladura cuyos taladros sigan existiendo (deshacer o borrar
@@ -193,16 +202,18 @@ export function syncTunnels(force = false): void {
   }
   if (!force && visible.length === shown.length && visible.every((e, i) => e === shown[i])) return;
   shown = visible;
-  engine.setTunnels(
-    visible.map((e, i) => ({
+  engine.setTunnels([
+    ...visible.map((e, i) => ({
       id: `${e.tag}-${e.kind}-${String(i)}`,
       sections: e.sections,
       color: COLORS[e.kind],
       surface: e.kind === 'drive',
       // El frente es la primera sección del avance de la ronda.
       ...(e.kind === 'round' ? { highlight: 0 } : {}),
+      label: e.tag,
     })),
-  );
+    ...extra,
+  ]);
 }
 
 /** Mantiene el contexto 3D al día con el documento (cargar, deshacer, borrar). */
