@@ -182,6 +182,23 @@ let shown: readonly UndergroundExcavation[] = [];
 /** Labores de otros proyectos de la mina (contexto de solo lectura, `vibration/mineStore`). */
 let extra: readonly TunnelView[] = [];
 
+/** Galería que modela la pila subterránea detrás de lo dibujado (la roca llega más lejos). */
+let pileGalleries: readonly TunnelView[] = [];
+
+/** Tramos de galería de la pila subterránea (`underground.galleries`); [] los quita. */
+export function setPileGalleries(
+  galleries: readonly { tag: string; kind: 'drive' | 'stope'; sections: Vec3[][] }[],
+): void {
+  pileGalleries = galleries.map((g, i) => ({
+    id: `pile-${g.tag}-${String(i)}`,
+    sections: g.sections,
+    color: COLORS[g.kind],
+    surface: g.kind === 'drive',
+    label: g.tag,
+  }));
+  syncTunnels(true);
+}
+
 /** Excavaciones de otros proyectos que se dibujan junto a las de este (solo lectura). */
 export function setExtraTunnels(views: readonly TunnelView[]): void {
   extra = views;
@@ -212,6 +229,7 @@ export function syncTunnels(force = false): void {
       ...(e.kind === 'round' ? { highlight: 0 } : {}),
       label: e.tag,
     })),
+    ...pileGalleries,
     ...extra,
   ]);
 }

@@ -87,3 +87,11 @@ El ejemplo **«Pila de material»** es demostración y regresión, **no un CR**:
 - Los límites de los dominios se resuelven al tamaño del bloque.
 - k, n y las atenuaciones son parámetros de calibración: sin levantamientos del sitio, la pila es una estimación.
 - La sección y los mapas son de la grilla de la pila: su resolución es `blockSize`.
+
+## Pila subterránea
+
+`underground/muckpile.ts` (`computeUndergroundMuckpile`) devuelve el mismo `MuckpileResult` para los
+taladros `ug-*`: los bloques salen del frente o del anillo y vuelan **confinados** por la galería o el
+tajeo (rebote en techo y paredes), por eso traen su trayectoria muestreada (`blocks.path`,
+`pathPoints`) y el engine la recorre en lugar del tiro parabólico. La de banco no la lleva y no
+cambia. Reglas UG-P en `docs/RULES.md` §9; se anima desde la pestaña Análisis de Subterránea.

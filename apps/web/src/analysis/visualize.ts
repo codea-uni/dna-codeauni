@@ -1,5 +1,6 @@
 import {
   sdobBand,
+  turboRgb,
   type BlastAnalysis,
   type HoleId,
   type MuckpileResult,
@@ -8,6 +9,7 @@ import {
 import type { Engine, HoleScalars, IsochroneData, MuckpileView } from '@cronos/engine';
 import { blockColors, cellColors, planRaster } from './muckpileColors';
 import { session } from '../session';
+import { setPileGalleries } from '../underground/send';
 import {
   useAnalysisStore,
   type ColorBy,
@@ -146,6 +148,24 @@ export function pileBlockColorBy(r: MuckpileResult, mode: MuckpileColorBy): Muck
   return isUndergroundPile(r) && mode !== 'displacement' ? 'launch' : mode;
 }
 
+/**
+ * Colores de los bloques subterráneos: por tiempo de salida con el mapa turbo sin su extremo casi
+ * negro (en la galería oscura no se verían); por desplazamiento, como el banco.
+ */
+function ugBlockColors(r: UndergroundMuckpileResult, mode: MuckpileColorBy): Uint8Array {
+  if (pileBlockColorBy(r, mode) !== 'launch') return blockColors(r, 'displacement', []);
+  const b = r.blocks;
+  const a = r.stats.firstLaunch;
+  const span = Math.max(1e-3, r.stats.lastLaunch - a);
+  const out = new Uint8Array(3 * b.count);
+  for (let k = 0; k < b.count; k++) {
+    const t = b.launchTime[k] ?? NaN;
+    const rgb = Number.isFinite(t) ? turboRgb(0.12 + 0.88 * ((t - a) / span)) : [150, 132, 108];
+    out.set(rgb, 3 * k);
+  }
+  return out;
+}
+
 /** Bloques de la pila subterránea: solo los bloques (la superficie y la planta no se dibujan). */
 function undergroundView(r: UndergroundMuckpileResult, mode: MuckpileColorBy): MuckpileView {
   return {
@@ -164,7 +184,7 @@ function undergroundView(r: UndergroundMuckpileResult, mode: MuckpileColorBy): M
       height: r.blocks.height,
       topSlope: r.blocks.topSlope,
       size: r.underground.blockSize,
-      colors: blockColors(r, pileBlockColorBy(r, mode), []),
+      colors: ugBlockColors(r, mode),
       frames: null,
       path: r.blocks.path ?? null,
       pathPoints: r.blocks.pathPoints ?? 0,
@@ -256,17 +276,18 @@ export function bindVisualization(engine: Engine): () => void {
       engine.setFlyrockZone(v ? v.flyrock.zone : null);
     }
     if (changed('analysis')) engine.setDisplacement(analysis ? displacementArrows(analysis) : null);
-    if (changed('muckpile') || changed('muckpileFrames') || changed('muckpileMode'))
+    if (changed('muckpile') || changed('muckpileFrames') || changed('muckpileMode')) {
       engine.setMuckpile(muckpileView(s));
-    else if ((changed('muckpileColorBy') || changed('muckpileCompare')) && s.muckpile) {
+      // Subterránea: la galería se dibuja hasta donde llega la pila.
+      if (changed('muckpile'))
+        setPileGalleries(
+          s.muckpile && isUndergroundPile(s.muckpile) ? s.muckpile.underground.galleries : [],
+        );
+    } else if ((changed('muckpileColorBy') || changed('muckpileCompare')) && s.muckpile) {
       const domains = session.document.project.blasts[0]?.domains ?? [];
       const cells = cellColors(s.muckpile, s.muckpileColorBy, domains, s.muckpileCompare);
       if (isUndergroundPile(s.muckpile))
-        engine.setMuckpileColors(
-          null,
-          null,
-          blockColors(s.muckpile, pileBlockColorBy(s.muckpile, s.muckpileColorBy), []),
-        );
+        engine.setMuckpileColors(null, null, ugBlockColors(s.muckpile, s.muckpileColorBy));
       else
         engine.setMuckpileColors(
           cells,

@@ -141,7 +141,7 @@ export interface UgPileDesign {
    * la galería; tajeo y chimenea → mayor desplazamiento de un bloque [m].
    */
   throw: Meters;
-  /** Altura máxima de la pila sobre el piso [m] y altura junto al frente nuevo [m] (frente). */
+  /** Altura máxima de la pila sobre el piso [m] y altura a 1 m del frente nuevo [m] (frente). */
   maxHeight: Meters;
   heightAtFace: Meters;
   /** Desplazamiento medio de los bloques (3D, ponderado por volumen) [m]. */
@@ -165,6 +165,12 @@ export interface UndergroundMuckpileResult extends MuckpileResult {
     /** Lado del bloque [m]. */
     blockSize: Meters;
     designs: UgPileDesign[];
+    /**
+     * Tramos que modela la pila fuera de las excavaciones guardadas (secciones cada 1 m,
+     * coordenadas de proyecto): la galería detrás del frente hasta donde llega la roca y el hueco
+     * del tajeo del lado de la cara libre.
+     */
+    galleries: { tag: string; kind: 'drive' | 'stope'; sections: Vec3[][] }[];
     warnings: UgMuckpileWarning[];
     params: UgMuckpileParams;
   };
@@ -284,6 +290,10 @@ interface Chamber {
   cutCenter: Vec2;
   /** Piso del nivel inferior (`shaft`) [m]. */
   bottomZ: number;
+  /** Tramo de las excavaciones guardadas a lo largo del eje [m] y sección de la galería. */
+  ctx0: number;
+  ctx1: number;
+  gallerySection: Vec2[];
   uMin: number;
   uMax: number;
   vMin: number;
@@ -491,6 +501,9 @@ function buildChamber(
     vMax,
     holes: holeIdx,
     out,
+    ctx0,
+    ctx1,
+    gallerySection: drv ?? prim,
   };
   if (round) {
     // Frente (o chimenea): sección de la ronda × avance efectivo desde la boca (s = 0).
@@ -527,8 +540,9 @@ function buildChamber(
     s0 = ctx0;
     s1 = ctx1;
   }
-  // Hueco del lado de la cara libre (slot o tajeo ya extraído): lugar para el esponjamiento.
-  const slot = Math.max(2 * burden, 0.6 * (s1 - s0));
+  // Hueco del lado de la cara libre (slot o tajeo ya extraído, 1,5 veces el largo volado, tope
+  // 40 m): lugar para el esponjamiento; la roca cae y se amontona en él.
+  const slot = Math.min(40, Math.max(2 * burden, 1.5 * (s1 - s0)));
   // En el tajeo solo se vuela la franja de la sección que alcanzan las cargas (p. ej. la rebanada
   // del VCR): la carga más baja − 1 m y la más alta + 1,5 m (el taco también se rompe).
   let blastedPoly = prim;
@@ -765,6 +779,7 @@ export function simulateUndergroundMuckpile(
     path: [],
   };
   const designs: UgPileDesign[] = [];
+  const galleries: { tag: string; kind: 'drive' | 'stope'; sections: Vec3[][] }[] = [];
   let grids: MuckpileResult['grids'] | null = null;
   let gridsVolume = -1;
   let clipped = 0;
@@ -773,6 +788,7 @@ export function simulateUndergroundMuckpile(
   for (const c of chambers) {
     const r = simulateChamber(c, input, params, cell, acc, warnings);
     designs.push(r.design);
+    if (r.gallery) galleries.push({ tag: c.tag, ...r.gallery });
     clipped += r.clipped;
     maxExcess = Math.max(maxExcess, r.maxExcess);
     pileVolume += r.design.pileVolume;
@@ -861,7 +877,7 @@ export function simulateUndergroundMuckpile(
     sizeClasses: [],
     warnings: byTag.size === 0 ? [{ id: 'muckpile.noChargedHoles' }] : [],
     elapsedMs: 0,
-    underground: { blockSize: cell, designs, warnings, params },
+    underground: { blockSize: cell, designs, galleries, warnings, params },
   };
   result.elapsedMs = performance.now() - t0;
   return result;
@@ -869,6 +885,7 @@ export function simulateUndergroundMuckpile(
 
 interface ChamberResult {
   design: UgPileDesign;
+  gallery: { kind: 'drive' | 'stope'; sections: Vec3[][] } | null;
   grids: MuckpileResult['grids'];
   clipped: number;
   maxExcess: number;
@@ -1316,14 +1333,15 @@ function simulateChamber(
     // Distancias desde el frente nuevo (s = avance) hacia la galería.
     throwD = 0;
     const stepD = Math.max(0.25, cell / 2);
-    for (let d = 0; d <= c.s1 - c.openS0; d += stepD) {
+    // Desde medio bloque del frente nuevo (justo en el frente la celda ya es roca).
+    for (let d = 0.5; d <= c.s1 - c.openS0; d += stepD) {
       const r = covered(c.s1 - d);
-      if (d === 0) heightAtFace = r.thick;
       if (r.thick >= PILE_MIN) throwD = d;
       if (!maxBlockage || r.frac > maxBlockage.fraction)
         maxBlockage = { distance: d, fraction: r.frac };
     }
-    for (const d of [0, 5, 10, 15, 20, 30, 40])
+    heightAtFace = covered(c.s1 - 1).thick;
+    for (const d of [1, 5, 10, 15, 20, 30, 40])
       if (d <= throwD + 5) blockage.push({ distance: d, fraction: covered(c.s1 - d).frac });
     if (maxBlockage && maxBlockage.fraction >= BLOCKAGE_WARNING)
       warnings.push({
@@ -1352,8 +1370,28 @@ function simulateChamber(
     firstLaunch: Number.isFinite(firstLaunch) ? firstLaunch : NaN,
     lastImpact: Number.isFinite(lastImpact) ? lastImpact : NaN,
   };
+  // Galería dibujada hasta el pie de la pila (más 3 m) si la guardada es más corta; en el tajeo,
+  // el hueco del lado de la cara libre donde cae la roca.
+  let gallery: { kind: 'drive' | 'stope'; sections: Vec3[][] } | null = null;
+  const sweep = (a: number, b: number, poly: readonly Vec2[]): Vec3[][] => {
+    const n = Math.max(1, Math.ceil(b - a));
+    return Array.from({ length: n + 1 }, (_, i) =>
+      poly.map((p) => toWorld(f, a + ((b - a) * i) / n, p.x, p.y)),
+    );
+  };
+  if (c.mode === 'face') {
+    const from = Math.max(c.openS0, c.s1 - throwD - 3);
+    if (from < c.ctx0 - 0.5 && c.gallerySection.length >= 3)
+      gallery = { kind: 'drive', sections: sweep(from, c.ctx0, c.gallerySection) };
+  } else if (c.mode === 'stope') {
+    if (c.out < 0 && c.openS0 < c.ctx0 - 0.5)
+      gallery = { kind: 'stope', sections: sweep(c.openS0, c.ctx0, c.open[0] ?? []) };
+    else if (c.out > 0 && c.openS1 > c.ctx1 + 0.5)
+      gallery = { kind: 'stope', sections: sweep(c.ctx1, c.openS1, c.open[0] ?? []) };
+  }
   return {
     design,
+    gallery,
     grids: chamberGrids(hm, grid),
     clipped,
     maxExcess: openReposeExcess(hm, grid, params.reposeAngle),

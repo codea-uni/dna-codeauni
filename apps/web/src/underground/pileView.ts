@@ -108,17 +108,27 @@ export function flyToPile(r: UndergroundMuckpileResult): boolean {
   // Hacia dónde se movió la roca (en planta): la cámara se pone de ese lado, 35° de costado.
   const mx = dx - ox;
   const my = dy - oy;
-  const moved = Math.hypot(mx, my) > 0.5;
+  const mm = Math.hypot(mx, my);
+  const moved = mm > 0.5;
   const heading = moved ? (Math.atan2(mx, my) * 180) / Math.PI : 0;
   const extent = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+  // Alcance del grueso de la pila (percentil 80): la cola de bloques sueltos no aleja la cámara.
+  const reach: number[] = [];
+  for (let k = 0; k < n; k++)
+    reach.push(Math.hypot((b.destination[3 * k] ?? 0) - ox, (b.destination[3 * k + 1] ?? 0) - oy));
+  reach.sort((p, q) => p - q);
+  const d80 = reach[Math.floor(0.8 * (n - 1))] ?? 0;
+  const ux = moved ? mx / mm : 0;
+  const uy = moved ? my / mm : 0;
   useUiStore.getState().setViewMode('3d');
   engine.flyCamera({
     at: face
-      ? { x: ox + 0.45 * mx, y: oy + 0.45 * my, z: Math.min(oz, dz) }
+      ? { x: ox + ux * 0.4 * d80, y: oy + uy * 0.4 * d80, z: Math.min(oz, dz) }
       : { x: (ox + dx) / 2, y: (oy + dy) / 2, z: (oz + dz) / 2 },
-    size: face ? Math.max(14, extent * 0.9) : Math.max(12, extent * 1.3),
-    yawDeg: ((((moved ? heading : 0) + 35) % 360) + 360) % 360,
-    pitchDeg: face ? 24 : 15,
+    size: face ? Math.max(12, d80 * 1.6 + 6) : Math.max(12, extent * 1.5),
+    // Tajeo: de costado al eje (se ve la roca salir hacia el hueco y caer al fondo).
+    yawDeg: ((((moved ? heading : 0) + (face ? 35 : 75)) % 360) + 360) % 360,
+    pitchDeg: face ? 22 : 12,
     mode: '3d',
   });
   return true;
