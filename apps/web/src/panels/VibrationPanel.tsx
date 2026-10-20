@@ -766,7 +766,14 @@ function AddPointByCoordinates() {
   const fmt = useFormat();
   const [name, setName] = useState('');
   const [kind, setKind] = useState<MonitoringPointKind | undefined>('underground-working');
-  const [pos, setPos] = useState({ x: 0, y: 0, z: 0 });
+  // Por defecto, 50 m bajo el centro de la voladura (una labor debajo del tajo).
+  const [pos, setPos] = useState(() => {
+    const holes = session.document.project.blasts[0]?.holes ?? [];
+    if (holes.length === 0) return { x: 0, y: 0, z: 0 };
+    const avg = (f: (h: (typeof holes)[number]) => number) =>
+      Math.round(holes.reduce((a, h) => a + f(h), 0) / holes.length);
+    return { x: avg((h) => h.collar.x), y: avg((h) => h.collar.y), z: avg((h) => h.collar.z) - 50 };
+  });
   const [working, setWorking] = useState('');
   useMineVibration((m) => m.context);
   const workings = namedWorkings();

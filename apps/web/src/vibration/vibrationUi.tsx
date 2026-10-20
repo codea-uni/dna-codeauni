@@ -107,8 +107,8 @@ export function CrossingWarnings({
   if (list.length === 0) return null;
   return (
     <>
-      {list.map((w) => (
-        <p key={w} className="warn">
+      {list.map((w, i) => (
+        <p key={i} className="warn">
           {w}
         </p>
       ))}
