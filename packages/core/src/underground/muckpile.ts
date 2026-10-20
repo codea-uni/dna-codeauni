@@ -95,7 +95,7 @@ export interface UgMuckpileParams {
   throwFactor: number;
   /** Largo de galería que se modela detrás del frente [m] (60). */
   maxRunout: Meters;
-  /** Deslizamiento máximo tras tocar el piso [m] (15). */
+  /** Deslizamiento máximo tras tocar el piso [m] (8): recorta la cola de bloques sueltos lejos del frente. */
   maxSlide: Meters;
   /** Bloques objetivo (el lado del bloque se ajusta entre `minBlock` y 3 m). */
   targetBlocks: number;
@@ -117,7 +117,7 @@ export const DEFAULT_UG_MUCKPILE_PARAMS: UgMuckpileParams = {
   stopeFactor: 0.35,
   throwFactor: 1,
   maxRunout: 60,
-  maxSlide: 15,
+  maxSlide: 8,
   targetBlocks: 4000,
   minBlock: 0.4,
   advanceEfficiency: DEFAULT_ADVANCE_EFFICIENCY,

@@ -77,6 +77,21 @@ describe('pila subterránea: frente de galería', () => {
   const width = METHOD_DEFAULTS.driftMechanized.width;
   const height = METHOD_DEFAULTS.driftMechanized.height;
 
+  it('casi toda la roca queda en los primeros 25 m de la galería (pocos bloques sueltos lejos)', () => {
+    const dist: number[] = [];
+    for (let k = 0; k < r.blocks.count; k++) {
+      const p = {
+        x: r.blocks.destination[3 * k] ?? 0,
+        y: r.blocks.destination[3 * k + 1] ?? 0,
+        z: r.blocks.destination[3 * k + 2] ?? 0,
+      };
+      dist.push(-local(frame, p).s);
+    }
+    dist.sort((a, b) => a - b);
+    const p90 = dist[Math.floor(0.9 * (dist.length - 1))] ?? 0;
+    expect(p90).toBeLessThan(25);
+  });
+
   it('calcula bloques que salen del frente y forman una pila en la galería', () => {
     expect(hasUndergroundCharges(blast)).toBe(true);
     expect(d.mode).toBe('face');
