@@ -29,6 +29,11 @@ import {
   type PointCloudData,
   colorBlocks,
   turboRgb,
+  buildGeotechModel,
+  colorBlocksByCompetence,
+  projectRock,
+  type BlockModelMapping,
+  type GeotechModel,
 } from '@cronos/core';
 import type { BlockModelView, PointCloudView, TopographyViewData } from '@cronos/engine';
 import { getAsset, putAsset } from '../persistence/assets';
@@ -65,8 +70,20 @@ export interface BlockStyle {
 const blockStyles = new Map<string, BlockStyle>();
 const blockColorings = new Map<string, BlockColoring>();
 
-/** Atributo con el que se colorea al cargar: litología o material, si no densidad. */
-function defaultBlockStyle(m: BlockModelData): BlockStyle {
+/** Atributos especiales de color: competencia por RMR o por UCS (modelo geotécnico). */
+export const COMPETENCE_RMR = '@competence:rmr';
+export const COMPETENCE_UCS = '@competence:ucs';
+
+/**
+ * Atributo con el que se colorea al cargar: la competencia si el modelo es geotécnico; si no,
+ * litología o material; si no, densidad.
+ */
+function defaultBlockStyle(m: BlockModelData, mapping?: BlockModelMapping): BlockStyle {
+  if (mapping?.geotechnical) {
+    const c = mapping.columns;
+    if (c.rmr ?? c.gsi ?? c.q) return { attribute: COMPETENCE_RMR, opacity: 1 };
+    if (c.ucs) return { attribute: COMPETENCE_UCS, opacity: 1 };
+  }
   const cat =
     m.categorical.find((a) => /^(lito|litologia|litología|lith|rock|roca)/i.test(a.name)) ??
     m.categorical.find((a) => /material|tipo/i.test(a.name)) ??
@@ -93,11 +110,48 @@ export function setBlockStyle(surveyId: string, style: BlockStyle): void {
   notify();
 }
 
+const geotechModels = new Map<string, { key: string; model: GeotechModel }>();
+
+/**
+ * Modelo geotécnico de un levantamiento (roca de cada bloque completada e índice espacial), con la
+ * roca de la voladura como respaldo. undefined si no es geotécnico o no está cargado.
+ */
+export function geotechModelOf(surveyId: string): GeotechModel | undefined {
+  const s = loaded.get(surveyId);
+  const mapping = s?.survey.blockModel;
+  if (!s?.blocks || !mapping?.geotechnical) return undefined;
+  const project = session.document.project;
+  const base = projectRock(project, project.blasts[0]);
+  const key = JSON.stringify([mapping, base]);
+  const hit = geotechModels.get(surveyId);
+  if (hit?.key === key) return hit.model;
+  const model = buildGeotechModel(surveyId, s.blocks, mapping, base);
+  geotechModels.set(surveyId, { key, model });
+  return model;
+}
+
+/** Operación que cambia el mapeo de un modelo de bloques (viaja con el levantamiento). */
+export function blockMappingOps(surveyId: string, mapping: BlockModelMapping): Op[] {
+  const topography = session.document.project.topography.map((s) =>
+    s.id === surveyId ? { ...s, blockModel: mapping } : s,
+  );
+  return [{ type: 'project/patch', patch: { topography } }];
+}
+
 function coloringOf(id: string, m: BlockModelData): BlockColoring {
   let c = blockColorings.get(id);
   if (c) return c;
-  const style = blockStyles.get(id) ?? defaultBlockStyle(m);
+  const style = blockStyles.get(id) ?? defaultBlockStyle(m, loaded.get(id)?.survey.blockModel);
   blockStyles.set(id, style);
+  const geo =
+    style.attribute === COMPETENCE_RMR || style.attribute === COMPETENCE_UCS
+      ? geotechModelOf(id)
+      : undefined;
+  if (geo) {
+    c = colorBlocksByCompetence(geo, style.attribute === COMPETENCE_RMR ? 'rmr' : 'ucs');
+    blockColorings.set(id, c);
+    return c;
+  }
   c = colorBlocks(m, style.attribute, turboRgb, {
     ...(style.min !== undefined ? { min: style.min } : {}),
     ...(style.max !== undefined ? { max: style.max } : {}),
@@ -340,8 +394,53 @@ export async function syncTopography(project: Project): Promise<void> {
       loaded.delete(id);
       changed = true;
     }
+  // Metadatos editados (mapeo del modelo de bloques): se toman sin recargar los datos.
+  for (const s of project.topography) {
+    const l = loaded.get(s.id);
+    if (!l || l.survey === s) continue;
+    if (JSON.stringify(l.survey.blockModel) !== JSON.stringify(s.blockModel)) {
+      blockColorings.delete(s.id);
+      const style = blockStyles.get(s.id);
+      if (style?.attribute.startsWith('@competence') && !s.blockModel?.geotechnical)
+        blockStyles.delete(s.id);
+      changed = true;
+    }
+    l.survey = s;
+  }
   const added = await Promise.all(project.topography.map(load));
+  pushRockModels();
   if (changed || added.some(Boolean)) notify();
+}
+
+let pushedRockKey = '';
+const rockListeners = new Set<() => void>();
+
+/** Avisa cuando el worker recibe otros modelos de bloques (la roca de cálculo puede cambiar). */
+export function onRockModelsChange(listener: () => void): () => void {
+  rockListeners.add(listener);
+  return () => {
+    rockListeners.delete(listener);
+  };
+}
+
+/**
+ * Pasa al worker los modelos de bloques geotécnicos cargados (una vez por conjunto): la roca de
+ * cálculo por bloque (`rockFromModel`) los usa si el levantamiento lo tiene activo.
+ */
+function pushRockModels(): void {
+  const models = [...loaded.values()].flatMap((s) =>
+    s.blocks && s.survey.blockModel?.geotechnical
+      ? [{ surveyId: s.survey.id as string, blocks: s.blocks }]
+      : [],
+  );
+  const key = models.map((m) => m.surveyId).join(',');
+  if (key === pushedRockKey) return;
+  pushedRockKey = key;
+  void getCompute()
+    .api.setRockModels(models)
+    .then(() => {
+      for (const l of rockListeners) l();
+    });
 }
 
 /** Recalcula las curvas de nivel (al cambiar el intervalo). */

@@ -7,7 +7,7 @@ import {
   type EnergyOptions,
 } from '@cronos/core';
 import { getCompute, session } from '../session';
-import { onTopographyChange, topographyTin } from '../topography/session';
+import { onRockModelsChange, onTopographyChange, topographyTin } from '../topography/session';
 import { useAnalysisStore } from '../stores/analysisStore';
 
 const DEBOUNCE_MS = 120;
@@ -47,12 +47,15 @@ export function startAnalysisRunner(): () => void {
   };
 
   const offDoc = session.document.subscribe(schedule);
+  // Modelo geotécnico recién cargado: el tonelaje usa la densidad de sus bloques.
+  const offRock = onRockModelsChange(schedule);
   const offOptions = useAnalysisStore.subscribe((s, prev) => {
     if (s.isochroneIntervalMs !== prev.isochroneIntervalMs) schedule();
   });
   schedule();
   return () => {
     offDoc();
+    offRock();
     offOptions();
     if (timer) clearTimeout(timer);
   };
@@ -184,6 +187,7 @@ export function startFragmentationRunner(): () => void {
     if (mine === calc) useAnalysisStore.getState().set({ frag });
   };
   const offDoc = session.document.subscribe(schedule);
+  const offRock = onRockModelsChange(schedule);
   const offStore = useAnalysisStore.subscribe((s, prev) => {
     if (s.fragAuto && !prev.fragAuto) schedule();
     if (
@@ -198,6 +202,7 @@ export function startFragmentationRunner(): () => void {
   schedule();
   return () => {
     offDoc();
+    offRock();
     offStore();
     if (timer) clearTimeout(timer);
   };
