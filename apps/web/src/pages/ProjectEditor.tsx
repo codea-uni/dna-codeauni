@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { useEffect } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { App } from '../App';
 import { stopDemo } from '../demo/playback';
 import { AuthShell } from '../auth/AuthGate';
@@ -9,8 +9,10 @@ import { ComparePanel } from '../server/ComparePanel';
 import { useCompare } from '../server/compareStore';
 import { PublishDialog } from '../server/PublishDialog';
 import { useServerDialogs } from '../server/ProjectContext';
-import { hasUnpublished, useProjectSession } from '../server/projectSession';
+import { hasUnpublished, isCrossView, useProjectSession } from '../server/projectSession';
 import { VersionHistoryDialog } from '../server/VersionHistoryDialog';
+import { CrossViewBanner, useWorkDialog, WorkHereDialog } from '../product/CrossView';
+import { PRODUCT_NAME, toolFromSearch } from '../product/product';
 import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 
@@ -22,6 +24,9 @@ export function ProjectEditor() {
   const t = useT();
   const { projectId = '', number } = useParams();
   const version = number === undefined ? undefined : Number(number);
+  // `?tool=`: herramienta desde la que se abre (un proyecto de la otra se abre solo para verlo).
+  const [search] = useSearchParams();
+  const tool = toolFromSearch(search) ?? undefined;
   const status = useProjectSession((s) => s.status);
   const demoOn = useUiStore((s) => s.demoStep !== null);
   const current = useProjectSession((s) => s.current);
@@ -33,14 +38,15 @@ export function ProjectEditor() {
 
   useEffect(() => {
     stopDemo();
-    void open(projectId, version);
+    void open(projectId, version, tool);
     return stopDemo;
-  }, [projectId, version, open]);
+  }, [projectId, version, tool, open]);
   useEffect(
     () => () => {
       useCompare.getState().stop();
       close();
       showDialog(null);
+      useWorkDialog.getState().show(false);
     },
     [close, showDialog],
   );
@@ -52,6 +58,15 @@ export function ProjectEditor() {
   useEffect(
     () =>
       session.document.onReadOnlyAttempt((label) => {
+        const cur = useProjectSession.getState().current;
+        // Proyecto de la otra herramienta: se ofrece ir a trabajar allá.
+        if (cur && isCrossView(cur)) {
+          useUiStore
+            .getState()
+            .notify(t('product.attempt', { label, tool: t(PRODUCT_NAME[cur.kind]) }), 'error');
+          useWorkDialog.getState().show(true);
+          return;
+        }
         useUiStore.getState().notify(t('projects.readOnlyAttempt', { label }), 'error');
       }),
     [t],
@@ -84,7 +99,8 @@ export function ProjectEditor() {
     demoOn ||
     (status === 'ready' &&
       current?.projectId === projectId &&
-      (version === undefined ? !current.viewingOld : current.base.number === version));
+      (version === undefined ? !current.viewingOld : current.base.number === version) &&
+      (tool ?? current.kind) === current.tool);
   // En el visor, cambiar de proyecto (p. ej. por voz) no desmonta el editor: desmontarlo cierra
   // la sesión VR y la voz. El documento se reemplaza en su sitio al terminar de cargar. Incluye el
   // primer render tras navegar (todavía «ready» con el proyecto anterior, antes de que el efecto
@@ -104,6 +120,8 @@ export function ProjectEditor() {
     <>
       <App restoreLocalDraft={false} />
       <EditorBanner />
+      <CrossViewBanner />
+      <WorkHereDialog />
       <ComparePanel />
       {dialog === 'publish' && <PublishDialog onClose={closeDialog} />}
       {dialog === 'history' && <VersionHistoryDialog onClose={closeDialog} />}
@@ -129,7 +147,7 @@ function EditorBanner() {
         </Link>
       </div>
     );
-  if (!draft) return null;
+  if (!draft || isCrossView(current)) return null;
   return (
     <div className="editor-banner" role="status">
       {t('history.draftFound', { date: fmtDate(draft.savedAt) })}

@@ -1,4 +1,6 @@
 import { permissions } from '@cronos/api';
+import type { ProjectKind } from '@cronos/core';
+import { ProductMark } from '../product/CrossView';
 import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import { UserMenu } from '../auth/UserMenu';
@@ -10,7 +12,7 @@ import { activeRole } from '../stores/workspaceStore';
  * Marco de las páginas fuera del editor: marca, empresa del usuario (fija, D-15), navegación y
  * cuenta. `children` va en una columna de contenido centrada.
  */
-export function PageShell({ children }: { children: ReactNode }) {
+export function PageShell({ children, tool }: { children: ReactNode; tool?: ProjectKind }) {
   const t = useT();
   const organization = useWorkspace((s) => s.organization);
   const role = useWorkspace(activeRole);
@@ -28,6 +30,8 @@ export function PageShell({ children }: { children: ReactNode }) {
         <Link to="/" className="wordmark" translate="no">
           Cronos
         </Link>
+        {/* Herramienta elegida en la mina (Open Pit o Underground). */}
+        {tool && <ProductMark tool={tool} />}
         <nav aria-label={t('workspace.navigation')}>
           {organization && (
             <NavLink to="/" end>
@@ -37,7 +41,9 @@ export function PageShell({ children }: { children: ReactNode }) {
           {role && permissions.manageMembers(role) && (
             <NavLink to="/admin">{t('workspace.admin')}</NavLink>
           )}
-          {(organization !== null || isSuperAdmin) && <NavLink to="/knowledge">{t('kb.nav')}</NavLink>}
+          {(organization !== null || isSuperAdmin) && (
+            <NavLink to="/knowledge">{t('kb.nav')}</NavLink>
+          )}
           {isSuperAdmin && <NavLink to="/platform">{t('platform.title')}</NavLink>}
         </nav>
         <div className="toolbar-account">

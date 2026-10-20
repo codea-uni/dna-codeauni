@@ -1,5 +1,5 @@
 import { permissions, type Mine, type ProjectVersion, type Role } from '@cronos/api';
-import type { Project } from '@cronos/core';
+import { projectKind, type Project, type ProjectKind } from '@cronos/core';
 import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import type { MessageKey } from '../i18n';
@@ -22,6 +22,18 @@ export interface OpenProject {
   latestNumber: number;
   /** `true` si se abrió una versión anterior solo para consultarla. */
   viewingOld: boolean;
+  /** Tipo del proyecto (herramienta a la que pertenece). */
+  kind: ProjectKind;
+  /**
+   * Herramienta desde la que se mira (Cronos Open Pit o Underground). Si difiere de `kind`, el
+   * proyecto se abrió desde la otra herramienta solo para visualizarlo (`isCrossView`).
+   */
+  tool: ProjectKind;
+}
+
+/** El proyecto es de la otra herramienta: se ve completo pero no se edita. */
+export function isCrossView(cur: Pick<OpenProject, 'kind' | 'tool'> | null | undefined): boolean {
+  return cur ? cur.kind !== cur.tool : false;
 }
 
 type SessionError = MessageKey | { text: string };
@@ -36,8 +48,11 @@ interface ProjectSessionState {
   /** Borrador local más nuevo que la versión base, ofrecido para recuperar. */
   draft: VersionInfo | null;
   error: SessionError | null;
-  /** Abre la última versión o, con `version`, una anterior en solo lectura. */
-  open: (projectId: string, version?: number) => Promise<void>;
+  /**
+   * Abre la última versión o, con `version`, una anterior en solo lectura. `tool`: herramienta
+   * desde la que se abre; si el proyecto es del otro tipo, se abre solo para visualizarlo.
+   */
+  open: (projectId: string, version?: number, tool?: ProjectKind) => Promise<void>;
   /** Vuelve a abrir aunque sea el mismo proyecto (tras restaurar, o para descartar cambios). */
   reload: () => Promise<void>;
   /** La publicación salió bien: la nueva versión pasa a ser la base. */
@@ -76,14 +91,15 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
   draft: null,
   error: null,
 
-  open: async (projectId, version) => {
+  open: async (projectId, version, tool) => {
     // Aperturas seguidas (p. ej. el agente abre uno y otro dispositivo pide otro): solo cuenta la
     // última. Si una anterior termina después, no carga su contenido bajo el proyecto nuevo.
     const ticket = ++openTicket;
     const cur = get().current;
     const same =
       cur?.projectId === projectId &&
-      (version === undefined ? !cur.viewingOld : cur.viewingOld && cur.base.number === version);
+      (version === undefined ? !cur.viewingOld : cur.viewingOld && cur.base.number === version) &&
+      (tool ?? cur.kind) === cur.tool;
     if (same && get().status === 'ready') return;
     set({ status: 'loading', error: null, draft: null });
     try {
@@ -98,7 +114,10 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
         return;
       }
       const viewingOld = base.number !== detail.project.latest.number;
-      const editable = permissions.editDesign(detail.role) && !viewingOld;
+      const kind = projectKind(parsed.file.project);
+      const viewTool = tool ?? kind;
+      // Un proyecto de la otra herramienta se mira completo, sin editar (se trabaja en la suya).
+      const editable = permissions.editDesign(detail.role) && !viewingOld && viewTool === kind;
       session.document.setReadOnly(false);
       setDraftBase(editable ? base.id : null);
       if (parsed.file.embeddedAssets) await storeEmbeddedAssets(parsed.file.embeddedAssets);
@@ -117,6 +136,8 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
           base,
           latestNumber: detail.project.latest.number,
           viewingOld,
+          kind,
+          tool: viewTool,
         },
         baseProject: parsed.file.project,
         baseDocVersion: session.document.version,
@@ -135,7 +156,7 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
     const cur = get().current;
     if (!cur) return;
     set({ current: null });
-    await get().open(cur.projectId);
+    await get().open(cur.projectId, undefined, cur.tool);
   },
 
   published: (version, project) => {

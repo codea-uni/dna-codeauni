@@ -5,10 +5,19 @@ import {
   type ProjectSummary,
   type ProjectVersion,
 } from '@cronos/api';
-import { createEmptyProject } from '@cronos/core';
-import { ArrowLeft, FilePlus, FileUp, History } from 'lucide-react';
+import { createEmptyProject, PROJECT_KINDS, type ProjectKind } from '@cronos/core';
+import { ArrowLeft, Eye, FilePlus, FileUp, History } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { KindBadge } from '../product/CrossView';
+import {
+  PRODUCT_ICON,
+  PRODUCT_NAME,
+  TOOL_PARAM,
+  projectPath,
+  toolFromSearch,
+  useProductChrome,
+} from '../product/product';
 import { useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
 import { parseErrorText } from '../i18n/coreText';
 import { api } from '../server/api';
@@ -44,6 +53,20 @@ export function MinePage() {
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
+  const nameInput = useRef<HTMLInputElement>(null);
+  // Herramienta elegida en la mina (`?tool=`): Open Pit por defecto, que es lo que ya se usa.
+  const [search, setSearch] = useSearchParams();
+  const tool: ProjectKind = toolFromSearch(search) ?? 'surface';
+  const toolName = t(PRODUCT_NAME[tool]);
+  useProductChrome(tool, `${toolName} · ${current?.detail?.mine.name ?? ''}`.replace(/ · $/, ''));
+  const chooseTool = (next: ProjectKind) => {
+    setSearch({ [TOOL_PARAM]: next }, { replace: true });
+  };
+  // «Crear un proyecto nuevo en …» desde la visualización cruzada: enfoca el nombre.
+  const wantsNew = search.get('new') === '1';
+  useEffect(() => {
+    if (wantsNew && detail) nameInput.current?.focus();
+  }, [wantsNew, detail]);
 
   useEffect(() => {
     let alive = true;
@@ -83,7 +106,7 @@ export function MinePage() {
 
   const createEmpty = () =>
     create(async () => {
-      const project = createEmptyProject(name.trim());
+      const project = createEmptyProject(name.trim(), new Date(), tool);
       const epsg = detail?.mine.epsg;
       if (epsg) project.coordinateSystem = { ...project.coordinateSystem, epsg };
       return getCompute().api.serializeProject(project, { appVersion: APP_VERSION });
@@ -99,16 +122,24 @@ export function MinePage() {
           setActionError(parseErrorText(parsed.error));
           return null;
         }
-        return text;
+        // Un archivo sin tipo (anterior a las dos herramientas) entra en la herramienta elegida.
+        if (parsed.file.project.kind) return text;
+        const data = JSON.parse(text) as { project?: Record<string, unknown> };
+        if (data.project) data.project.kind = tool;
+        return JSON.stringify(data);
       },
       t('projects.importedMessage', { file: file.name }),
     );
 
   const error = current?.error;
   const canEdit = detail ? permissions.editDesign(detail.role) : false;
+  // Cada herramienta lista sus proyectos; los de la otra se pueden ver sin editarlos.
+  const mine = projects?.filter((p) => p.kind === tool) ?? null;
+  const others = projects?.filter((p) => p.kind !== tool) ?? null;
+  const otherTool: ProjectKind = tool === 'surface' ? 'underground' : 'surface';
 
   return (
-    <PageShell>
+    <PageShell tool={tool}>
       <Link to="/" className="back-link">
         <ArrowLeft size={14} aria-hidden /> {t('workspace.backToMines')}
       </Link>
@@ -137,21 +168,49 @@ export function MinePage() {
             </ul>
           </header>
 
+          <div className="tool-entries" role="group" aria-label={t('product.shared')}>
+            {PROJECT_KINDS.map((kind) => {
+              const Icon = PRODUCT_ICON[kind];
+              return (
+                <button
+                  key={kind}
+                  type="button"
+                  className="tool-entry"
+                  data-kind={kind}
+                  aria-pressed={tool === kind}
+                  onClick={() => {
+                    chooseTool(kind);
+                  }}
+                >
+                  <Icon size={26} aria-hidden />
+                  <strong translate="no">{t(`product.enter.${kind}`)}</strong>
+                  <small>{t(`product.enterHint.${kind}`)}</small>
+                  <small>
+                    {t('product.count', {
+                      n: projects ? projects.filter((p) => p.kind === kind).length : '…',
+                    })}
+                  </small>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="mine-layout">
             <section className="section" aria-labelledby="projects-title">
               <div className="section-head">
-                <h2 id="projects-title">{t('projects.title')}</h2>
+                <h2 id="projects-title">{t('product.projectsOf', { tool: toolName })}</h2>
               </div>
-              {projects?.length === 0 && (
+              <p className="muted">{t('product.shared')}</p>
+              {mine?.length === 0 && (
                 <div className="empty">
-                  <strong>{t('projects.empty')}</strong>
+                  <strong>{t('product.empty', { tool: toolName })}</strong>
                   {canEdit ? t('projects.emptyHint') : t('projects.emptyReviewer')}
                 </div>
               )}
-              {projects && projects.length > 0 && (
+              {mine && mine.length > 0 && (
                 <ul className="rows">
-                  {projects.map((p) => (
-                    <ProjectRow key={p.id} project={p} />
+                  {mine.map((p) => (
+                    <ProjectRow key={p.id} project={p} tool={tool} />
                   ))}
                 </ul>
               )}
@@ -169,6 +228,7 @@ export function MinePage() {
                   }}
                 >
                   <input
+                    ref={nameInput}
                     required
                     name="project-name"
                     autoComplete="off"
@@ -180,7 +240,7 @@ export function MinePage() {
                     }}
                   />
                   <button className="primary" type="submit" disabled={busy}>
-                    <FilePlus size={15} aria-hidden /> {t('projects.new')}
+                    <FilePlus size={15} aria-hidden /> {t('product.newIn', { tool: toolName })}
                   </button>
                   <button
                     type="button"
@@ -203,6 +263,22 @@ export function MinePage() {
                   />
                 </form>
               )}
+
+              <div className="tool-others">
+                <h3>{t('product.others', { tool: t(PRODUCT_NAME[otherTool]) })}</h3>
+                {others?.length === 0 && (
+                  <p className="muted">
+                    {t('product.othersEmpty', { tool: t(PRODUCT_NAME[otherTool]) })}
+                  </p>
+                )}
+                {others && others.length > 0 && (
+                  <ul className="rows">
+                    {others.map((p) => (
+                      <ProjectRow key={p.id} project={p} tool={tool} />
+                    ))}
+                  </ul>
+                )}
+              </div>
             </section>
 
             <div className="mine-side">
@@ -216,14 +292,15 @@ export function MinePage() {
   );
 }
 
-function ProjectRow({ project: p }: { project: ProjectSummary }) {
+/** Un proyecto de la lista; si es de la otra herramienta, se abre solo para verlo. */
+function ProjectRow({ project: p, tool }: { project: ProjectSummary; tool: ProjectKind }) {
   const t = useT();
   const fmt = useFormat();
   const fmtDate = useFormatDate();
   return (
     <li className="project-row">
       <span className="row-title">
-        <strong>{p.name}</strong>
+        <strong>{p.name}</strong> <KindBadge kind={p.kind} />
         <span className="row-meta">{t('projects.holes', { n: fmt(p.latest.holeCount) })}</span>
       </span>
       <span className="latest">
@@ -235,8 +312,14 @@ function ProjectRow({ project: p }: { project: ProjectSummary }) {
         </span>
         <p title={p.latest.message}>{p.latest.message}</p>
       </span>
-      <Link className="button-link" to={`/projects/${p.id}`}>
-        {t('projects.open')}
+      <Link className="button-link" to={projectPath(p.id, p.kind, tool)}>
+        {p.kind === tool ? (
+          t('projects.open')
+        ) : (
+          <>
+            <Eye size={14} aria-hidden /> {t('product.view')}
+          </>
+        )}
       </Link>
     </li>
   );

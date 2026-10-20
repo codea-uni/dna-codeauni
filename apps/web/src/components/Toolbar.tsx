@@ -60,6 +60,8 @@ import { exampleText } from '../i18n/coreText';
 import { tabAvailable, useWorkflow } from '../hooks/useWorkflow';
 import { WORKSPACE_PANELS, openWorkspacePanel } from './WorkspaceWindows';
 import { XrButtons } from '../xr/XrButtons';
+import { OtherToolProjects, ProductMark } from '../product/CrossView';
+import { fitsKind, kindOrder, useEditorTool, useProjectKind } from '../product/product';
 
 export interface ToolDef {
   name: ToolName;
@@ -186,12 +188,18 @@ export function Toolbar() {
   const geoJsonInput = useRef<HTMLInputElement>(null);
   const boundariesInput = useRef<HTMLInputElement>(null);
   const topographyInput = useRef<HTMLInputElement>(null);
+  // Herramienta en uso (marca) y tipo del proyecto (qué paneles y herramientas tienen sentido).
+  const productTool = useEditorTool();
+  const kind = useProjectKind();
+  const panels = WORKSPACE_PANELS.filter(
+    (panel) => panel.section === ribbonTab && fitsKind(panel.id, kind),
+  ).sort((a, b) => kindOrder(a.id, kind) - kindOrder(b.id, kind));
 
   return (
     <header className="toolbar">
       <strong className="brand" translate="no">
         <img className="brand-logo" src="/brand/codeauni-blanco.png" alt="CODEa UNI" />
-        <span>Cronos</span>
+        <ProductMark tool={productTool} />
       </strong>
       {serverMode && <ProjectContext />}
       <nav
@@ -560,21 +568,23 @@ export function Toolbar() {
                     )[g] ?? 'toolbar.tools'),
               )}
             >
-              {group.map((t) => (
-                <IconButton
-                  showLabel
-                  key={t.name}
-                  icon={t.icon}
-                  label={tr(t.label)}
-                  shortcut={t.key}
-                  hint={tr(t.hint)}
-                  active={tool === t.name}
-                  onClick={() => {
-                    setViewMode('plan');
-                    setTool(t.name);
-                  }}
-                />
-              ))}
+              {group
+                .filter((t) => fitsKind(t.name, kind))
+                .map((t) => (
+                  <IconButton
+                    showLabel
+                    key={t.name}
+                    icon={t.icon}
+                    label={tr(t.label)}
+                    shortcut={t.key}
+                    hint={tr(t.hint)}
+                    active={tool === t.name}
+                    onClick={() => {
+                      setViewMode('plan');
+                      setTool(t.name);
+                    }}
+                  />
+                ))}
             </div>
           ))}
         {ribbonTab === 'view' && (
@@ -678,7 +688,7 @@ export function Toolbar() {
           </div>
         )}
         <div className="toolbar-group workspace-actions" data-group={tr('ribbon.parameters')}>
-          {WORKSPACE_PANELS.filter((panel) => panel.section === ribbonTab).map((panel) => {
+          {panels.map((panel) => {
             const available = demoOn || tabAvailable(panel.requires, workflow);
             return (
               <IconButton
@@ -704,6 +714,7 @@ export function Toolbar() {
       {serverMode && (
         <div className="toolbar-group toolbar-account">
           <ProjectActions />
+          <OtherToolProjects />
           <BackToMine />
           <UserMenu />
         </div>

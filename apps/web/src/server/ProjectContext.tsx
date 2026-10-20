@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { IconButton } from '../components/IconButton';
 import { useProject } from '../hooks/useDocument';
 import { t as translate, useT } from '../i18n';
+import { mineToolPath } from '../product/product';
 import { hasUnpublished, useProjectSession, useUnpublished } from './projectSession';
 
 /** Diálogos del modo servidor dentro del editor. */
@@ -88,12 +89,15 @@ export function BackToMine() {
   const t = useT();
   const navigate = useNavigate();
   const mineId = useProjectSession((s) => s.current?.mine.id);
+  // A la mina en la herramienta en uso (Open Pit o Underground).
+  const tool = useProjectSession((s) => s.current?.tool);
   return (
     <IconButton
       icon={Building2}
       label={mineId ? t('projects.backToMine') : t('workspace.backToMines')}
       onClick={() => {
-        if (confirmLeave()) void navigate(mineId ? `/mines/${mineId}` : '/');
+        if (confirmLeave())
+          void navigate(mineId ? (tool ? mineToolPath(mineId, tool) : `/mines/${mineId}`) : '/');
       }}
     />
   );
