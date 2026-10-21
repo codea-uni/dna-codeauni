@@ -202,9 +202,45 @@ export function applyLocation(
     if (patch && tab === 'face') store.patchFace(patch);
     if (patch && tab === 'ring') store.patchRing(patch);
   }
-  // Abanico en un tajeo inclinado: su buzamiento aparente en el plano del anillo.
-  if (tab === 'ring' && target.dip) store.patchRing(stopeLeanFor(target.dip, placement.azimuthDeg));
+  // Abanico en un tajeo inclinado (o en la galería bajo él): su buzamiento aparente en el plano
+  // del anillo.
+  if (tab === 'ring') {
+    const dip = target.dip ?? nearestStopeDip(placement);
+    if (dip) store.patchRing(stopeLeanFor(dip, placement.azimuthDeg));
+  }
   return placement;
+}
+
+/** Distancia de un punto a una polilínea 3D. */
+function distanceToAxis(p: Vec3, axis: readonly Vec3[]): number {
+  let best = Infinity;
+  for (let i = 0; i + 1 < axis.length; i++) {
+    const a = axis[i];
+    const b = axis[i + 1];
+    if (!a || !b) continue;
+    const d = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+    const l2 = d.x * d.x + d.y * d.y + d.z * d.z;
+    const t =
+      l2 > 0
+        ? Math.max(0, Math.min(1, ((p.x - a.x) * d.x + (p.y - a.y) * d.y + (p.z - a.z) * d.z) / l2))
+        : 0;
+    best = Math.min(
+      best,
+      Math.hypot(a.x + t * d.x - p.x, a.y + t * d.y - p.y, a.z + t * d.z - p.z),
+    );
+  }
+  return best;
+}
+
+/** Buzamiento del tajeo importado más cercano al punto (a menos de 40 m de su eje), si hay. */
+function nearestStopeDip(p: Vec3): WorkingDip | undefined {
+  let best: { d: number; dip: WorkingDip } | null = null;
+  for (const x of workingTargets()) {
+    if (x.kind !== 'stope' || !x.dip) continue;
+    const d = distanceToAxis(p, x.points);
+    if (d <= 40 && (!best || d < best.d)) best = { d, dip: x.dip };
+  }
+  return best?.dip;
 }
 
 /**
