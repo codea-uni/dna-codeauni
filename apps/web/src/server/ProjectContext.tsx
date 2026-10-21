@@ -59,7 +59,9 @@ export function ProjectContext() {
   return (
     <div className="toolbar-context">
       <span className="crumbs" title={`${current.mine.name} / ${project.name}`}>
-        {current.mine.name} / <strong>{project.name}</strong>
+        {/* Si falta espacio se recorta primero la mina y después el proyecto. */}
+        <span className="crumb-mine">{current.mine.name} /</span>
+        <strong>{project.name}</strong>
       </span>
       <span className="version-tag">v{current.base.number}</span>
       {current.viewingOld ? (
@@ -80,7 +82,9 @@ export function ProjectContext() {
       )}
       {!current.viewingOld && current.role !== 'reviewer' && unpublished && (
         <>
-          <span className="badge unpublished">{t('history.unpublished')}</span>
+          <span className="badge unpublished" title={t('history.unpublishedHint')}>
+            {t('history.unpublished')}
+          </span>
           {canPublish && (
             // «Guardar versión» con texto junto al aviso: es el guardado real en la mina.
             <button

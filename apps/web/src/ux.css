@@ -1,22 +1,41 @@
 /* Guardar versión, sistema de coordenadas e importación (prueba de usabilidad, oct. 2026). */
 
-/* Barra superior en una sola línea a 1440 px aunque aparezca «Cambios sin publicar» y
-   «Guardar versión»: las pestañas se reparten el espacio libre (con desplazamiento si no caben)
-   en vez de empujar la cuenta a una segunda fila, y la miga de pan se recorta. */
+/* Barra superior en una sola línea a 1440 px aunque aparezcan «Sin guardar» y «Guardar versión»:
+   el contexto (mina / proyecto) entra con base 0 y toma solo el espacio libre, así la fila no se
+   parte; se recorta primero la mina, luego el proyecto. Las pestañas no se recortan. */
 @media (min-width: 901px) {
-  .toolbar > .ribbon-tabs {
-    flex: 1 1 0;
-  }
   .toolbar > .toolbar-context {
-    flex: 0 1 auto;
+    flex: 1 1 0;
     min-width: 0;
+    max-width: none;
+  }
+  .toolbar > .ribbon-tabs {
+    flex: 0 1 auto;
   }
   .toolbar-context .crumbs {
-    min-width: 4rem;
+    display: flex;
+    gap: 0.3em;
+    min-width: 2.5rem;
+  }
+  .toolbar-context .crumbs > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .toolbar-context .crumb-mine {
+    flex: 0 1000 auto;
+  }
+  .toolbar-context .crumbs strong {
+    flex: 0 1 auto;
   }
 }
-/* Pantallas medianas: Documentación solo con el ícono (el nombre queda en el título). */
+/* Pantallas medianas: pestañas algo más juntas y Documentación solo con el ícono (el nombre queda
+   en el título). */
 @media (min-width: 901px) and (max-width: 1600px) {
+  .toolbar .ribbon-tabs button {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
   .toolbar-documentation {
     font-size: 0;
     gap: 0;

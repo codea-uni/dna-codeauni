@@ -68,7 +68,7 @@ export function CrsPicker({
                     onChange(p.epsg);
                   }}
                 >
-                  {p.country === 'local' ? t('crs.local') : p.name}
+                  {p.country === 'local' ? t('crs.local') : p.name.replace(' / Argentina ', ' / ')}
                 </button>
               ))}
             </div>

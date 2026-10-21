@@ -15,7 +15,7 @@ export const es = {
   'muckpile.model.zhang.hint':
     'La misma velocidad del desplazamiento por taladro con el burden efectivo según la secuencia; c_B y θ en Vista.',
   'muckpile.model.scaledBurden.hint':
-    'Q = kg por taladro, B = burden efectivo. k y n no tienen fuente publicada (R0): calíbralos con un levantamiento.',
+    'Q = kg por taladro, B = burden efectivo. k y n no tienen fuente publicada: calíbralos con un levantamiento.',
   'muckpile.model.richardsMoore.hint':
     'm = kg por metro de carga. k = 13,5 en roca competente blanda y 27 en dura; n = 1,3. Se calibró para proyecciones: es un caso peor.',
   'muckpile.launchFromFace': 'Lanzamiento según la cara libre (90° − β)',
@@ -144,7 +144,7 @@ export const es = {
   'muckpile.warn.staticBlocks':
     '{blocks} bloques de {holes} taladros no vuelan (sin tiempo, sin carga, sin superficie libre o fuera de la validez del modelo): quedan esponjados en su lugar.',
   'muckpile.warn.powerLawR0':
-    'k y n de la ley de potencia no tienen fuente (R0): calíbralos con un levantamiento de la pila.',
+    'k y n de la ley de potencia no tienen fuente: calíbralos con un levantamiento de la pila.',
   'muckpile.warn.faceVelocityFlyrock':
     'Richards y Moore calibraron la velocidad de cara para proyecciones: la pila sale como un caso peor.',
   'muckpile.warn.clipped': '{blocks} bloques llegaron al borde de la grilla (alcance > 400 m).',
@@ -165,7 +165,7 @@ export const en = {
   'muckpile.model.zhang.hint':
     'Same per-hole displacement velocity with the effective burden from the sequence; c_B and θ in View.',
   'muckpile.model.scaledBurden.hint':
-    'Q = kg per hole, B = effective burden. k and n have no published source (R0): calibrate them with a survey.',
+    'Q = kg per hole, B = effective burden. k and n have no published source: calibrate them with a survey.',
   'muckpile.model.richardsMoore.hint':
     'm = kg per metre of charge. k = 13.5 in soft competent rock and 27 in hard rock; n = 1.3. Calibrated for flyrock: a worst case.',
   'muckpile.launchFromFace': 'Launch according to the free face (90° − β)',
@@ -293,7 +293,7 @@ export const en = {
   'muckpile.warn.staticBlocks':
     '{blocks} blocks from {holes} holes do not fly (no time, no charge, no free surface or outside the model’s validity): they swell in place.',
   'muckpile.warn.powerLawR0':
-    'The power law’s k and n have no source (R0): calibrate them with a muckpile survey.',
+    'The power law’s k and n have no source: calibrate them with a muckpile survey.',
   'muckpile.warn.faceVelocityFlyrock':
     'Richards and Moore calibrated face velocity for flyrock: the muckpile is a worst case.',
   'muckpile.warn.clipped': '{blocks} blocks reached the grid edge (reach > 400 m).',

@@ -95,7 +95,7 @@ export function designChecks(
     id: 'benchDiameter',
     severity: 'info',
     title: 'Diámetro poco usual para la altura de banco',
-    detail: `H/Ø fuera de ${fmtRange(options.benchDiameterRatio)} (regla informativa, R0).`,
+    detail: `H/Ø fuera de ${fmtRange(options.benchDiameterRatio)} (regla informativa).`,
     params: { ...options.benchDiameterRatio },
     holes: benchDiameter,
   });

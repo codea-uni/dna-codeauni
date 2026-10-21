@@ -58,10 +58,12 @@ export const es = {
   'history.discardAndReload': 'Descartar mis cambios y abrir la última',
   'history.downloadMine': 'Descargar mis cambios (.cronos.json)',
   'history.copyName': '{name} (copia)',
-  'history.copyMessage': 'Copia de «{name}» con cambios sin publicar sobre la v{n}',
-  'history.unpublished': 'Cambios sin publicar',
+  'history.copyMessage': 'Copia de «{name}» con cambios sin guardar sobre la v{n}',
+  'history.unpublished': 'Sin guardar',
+  'history.unpublishedHint':
+    'Hay cambios que todavía no se guardaron en la mina: quedan como borrador solo en este navegador. Usa «Guardar versión».',
   'history.unpublishedConfirm':
-    'Hay cambios sin publicar. Quedan como borrador en este navegador. ¿Salir igual?',
+    'Hay cambios sin guardar en la mina. Quedan como borrador solo en este navegador. ¿Salir igual?',
   'history.title': 'Historial del proyecto',
   'history.titleHint':
     'Cada versión es inmutable. Restaurar crea una versión nueva; no se borra ninguna.',
@@ -80,7 +82,7 @@ export const es = {
   'history.viewingOld': 'Consultando la v{n} (solo lectura)',
   'history.backToLatest': 'Volver a la última (v{n})',
   'history.draftFound':
-    'Hay un borrador de este proyecto guardado en este navegador el {date}, sin publicar.',
+    'Hay un borrador de este proyecto en este navegador del {date}, sin guardar en la mina.',
   'history.recoverDraft': 'Recuperar',
   'history.dismissDraft': 'Descartar',
   'history.error.conflict': 'Otra persona guardó una versión más nueva.',
@@ -187,7 +189,9 @@ export const en = {
   'history.downloadMine': 'Download my changes (.cronos.json)',
   'history.copyName': '{name} (copy)',
   'history.copyMessage': 'Copy of “{name}” with unpublished changes on v{n}',
-  'history.unpublished': 'Unpublished changes',
+  'history.unpublished': 'Not saved',
+  'history.unpublishedHint':
+    'There are changes not yet saved to the mine: they stay as a draft only in this browser. Use "Save version".',
   'history.unpublishedConfirm':
     'There are unpublished changes. They stay as a draft in this browser. Leave anyway?',
   'history.title': 'Project history',
