@@ -9,7 +9,7 @@ import type {
   Vec2,
 } from '../model/types';
 import { nominalVolume } from '../design/burden';
-import { holeCharge, indexLibrary } from './charge';
+import { holeCharge, indexLibrary, unpricedProducts } from './charge';
 import { influenceAreas } from './influence';
 
 /** Resultado de carguío y cubicación de una voladura. Arreglos indexados como `holeIds`. */
@@ -53,6 +53,11 @@ export interface ChargeResult {
   byRow: (ChargeSummary & { patternId: PatternId; row: number })[];
   /** Costo total de productos (explosivos, taco, primas, detonadores). */
   cost: number;
+  /**
+   * Productos usados sin precio en la librería (explosivo sin $/kg, prima o detonador sin $/u):
+   * con alguno, `cost` está incompleto y no debe presentarse como el costo real.
+   */
+  unpriced: string[];
   /** Costo de perforación [US$]: metros perforados × `calcParams.drillingCostPerMeter` (`R1` F28). */
   drillingCost: number;
   loadedHoles: number;
@@ -176,6 +181,7 @@ export function computeCharges(
     byGroup: [...byGroup.values()],
     byRow: [...byRow.values()].sort((a, b) => a.row - b.row),
     cost,
+    unpriced: unpricedProducts(holes, lib),
     drillingCost: drilledLength * blast.calcParams.drillingCostPerMeter,
     loadedHoles,
     autoBoundary: influence.autoBoundary,

@@ -117,10 +117,27 @@ export function ResultsPanel() {
               </>
             )}
             <Row label={t('results.energy')} value={`${fmt(c.totalEnergy / 1e6)} MJ`} />
+            {/* Un producto sin precio (p. ej. los comerciales precargados) deja el costo incompleto:
+                no se presenta como costo real. */}
             <Row
               label={t('results.cost')}
-              value={`${fmt(c.cost)} ${session.document.project.currency}`}
+              value={
+                c.unpriced.length > 0
+                  ? t('results.unpriced')
+                  : `${fmt(c.cost)} ${session.document.project.currency}`
+              }
+              warn={c.unpriced.length > 0}
             />
+            {c.unpriced.length > 0 && (
+              <tr className="warn">
+                <td colSpan={2} className="small">
+                  {t('results.unpricedHint', {
+                    names: c.unpriced.join(', '),
+                    partial: `${fmt(c.cost)} ${session.document.project.currency}`,
+                  })}
+                </td>
+              </tr>
+            )}
             {c.drillingCost > 0 && (
               <>
                 <Row
@@ -129,7 +146,12 @@ export function ResultsPanel() {
                 />
                 <Row
                   label={t('results.costPerTonne')}
-                  value={`${fmt(((c.cost + c.drillingCost) / (allUg ? ugTonnage : c.tonnage)) * 1000, 3)} ${session.document.project.currency}/t`}
+                  value={
+                    c.unpriced.length > 0
+                      ? t('results.unpriced')
+                      : `${fmt(((c.cost + c.drillingCost) / (allUg ? ugTonnage : c.tonnage)) * 1000, 3)} ${session.document.project.currency}/t`
+                  }
+                  warn={c.unpriced.length > 0}
                 />
               </>
             )}

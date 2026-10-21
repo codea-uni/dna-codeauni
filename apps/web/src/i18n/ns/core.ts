@@ -64,6 +64,9 @@ export const es = {
   'check.sdobLow.title': 'Confinamiento bajo (SDOB)',
   'check.sdobLow.detail':
     'Profundidad escalada de enterramiento < {value} m/kg^⅓: energía incontrolada, posible proyección desde el collar (R1 F12; configurable).',
+  'check.unpricedProducts.title': 'Productos sin precio',
+  'check.unpricedProducts.detail':
+    'Sin precio en la librería: {names}. El costo de productos queda incompleto (no es el costo real) hasta cargar los precios en Librería.',
   'check.tieCycle.title': 'Amarre con ciclos',
   'check.tieCycle.detail':
     'Hay conexiones que forman un circuito cerrado: revisa el sentido del amarre (H-504).',
@@ -230,6 +233,9 @@ export const en = {
   'check.sdobLow.title': 'Low confinement (SDOB)',
   'check.sdobLow.detail':
     'Scaled depth of burial < {value} m/kg^⅓: uncontrolled energy, possible flyrock from the collar (R1 F12; configurable).',
+  'check.unpricedProducts.title': 'Products without price',
+  'check.unpricedProducts.detail':
+    'No price in the library: {names}. Product cost is incomplete (not the real cost) until prices are entered in Library.',
   'check.tieCycle.title': 'Tie-up with loops',
   'check.tieCycle.detail':
     'Some connections form a closed loop: check the direction of the tie-up (H-504).',

@@ -160,6 +160,30 @@ export function holeCharge(hole: Hole, lib: ProductIndex): HoleCharge {
 }
 
 /**
+ * Nombres de los productos usados por los taladros que no tienen precio cargado (explosivo sin
+ * $/kg, prima o detonador sin $/u), sin repetir y en orden de aparición. El taco y los tapones no
+ * cuentan: suelen ser material del sitio sin costo propio.
+ */
+export function unpricedProducts(holes: readonly Hole[], lib: ProductIndex): string[] {
+  const out = new Set<string>();
+  const missing = (price: number | undefined) => !(price !== undefined && price > 0);
+  for (const h of holes) {
+    for (const d of h.decks) {
+      if (d.kind !== 'explosive') continue;
+      const e = lib.explosives.get(d.explosiveId);
+      if (e && missing(e.costPerKg)) out.add(e.name);
+    }
+    for (const init of h.initiators) {
+      const det = lib.detonators.get(init.detonatorId);
+      if (det && missing(det.costPerUnit)) out.add(det.name);
+      const primer = init.primerId ? lib.primers.get(init.primerId) : undefined;
+      if (primer && missing(primer.costPerUnit)) out.add(primer.name);
+    }
+  }
+  return [...out];
+}
+
+/**
  * Aplica una regla de carga: de fondo a boca, explosivo · aire (opcional) · taco.
  * Si taco + aire superan el largo, el explosivo queda en 0 m y el taco se recorta.
  * El iniciador (si hay detonador) se ubica a `primerOffsetFromToe` del fondo.

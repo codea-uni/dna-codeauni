@@ -7,8 +7,13 @@ export interface ScenarioKpis {
   name: string;
   holes: number;
   loadedHoles: number;
-  /** Explosivo total (con primas) [kg]. */
+  /** Explosivo [kg] sin primas, igual que el resumen de carguío y el informe PDF. */
   explosive: number;
+  /** Primas [kg]. */
+  primers: number;
+  /** Costo de productos y productos sin precio (con alguno, el costo está incompleto). */
+  cost: number;
+  unpriced: string[];
   drilledLength: number;
   /** De diseño, con el volumen nominal B·S·H (P-06): kg/m³, kg/kg y J/kg. */
   loadingFactor: number | null;
@@ -51,7 +56,10 @@ export function compareScenarios(
       name,
       holes: blast.holes.length,
       loadedHoles: c?.loadedHoles ?? 0,
-      explosive: c ? c.totalExplosive + c.totalPrimers : 0,
+      explosive: c?.totalExplosive ?? 0,
+      primers: c?.totalPrimers ?? 0,
+      cost: c?.cost ?? 0,
+      unpriced: c?.unpriced ?? [],
       drilledLength: c?.drilledLength ?? 0,
       loadingFactor: n && n.volume > 0 ? n.explosive / n.volume : null,
       powderFactor: tonnes > 0 && n ? n.explosive / tonnes : null,

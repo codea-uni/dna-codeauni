@@ -183,6 +183,7 @@ export const es = {
   'scenarios.computing': 'Calculando…',
   'scenarios.kpi.holes': 'Taladros (cargados)',
   'scenarios.kpi.explosive': 'Explosivo [kg]',
+  'scenarios.kpi.cost': 'Costo de productos',
   'scenarios.kpi.drilled': 'Perforado [m]',
   'scenarios.kpi.loadingFactor': 'Factor de carga [kg/m³]',
   'scenarios.kpi.powderFactor': 'Factor de potencia [kg/t]',

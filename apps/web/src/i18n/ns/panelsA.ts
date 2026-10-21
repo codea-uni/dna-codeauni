@@ -97,6 +97,9 @@ export const es = {
   'results.powderFactor': 'Factor de potencia real',
   'results.energy': 'Energía',
   'results.cost': 'Costo de productos',
+  'results.unpriced': 'precio sin cargar',
+  'results.unpricedHint':
+    'Sin precio en Librería: {names}. El costo no es real (parcial: {partial}) hasta cargar sus precios.',
   'results.drillingCost': 'Costo de perforación',
   'results.costPerTonne': 'Costo de perforación y voladura',
   'results.timing': 'Tiempos',
@@ -411,6 +414,9 @@ export const en = {
   'results.powderFactor': 'Actual powder factor',
   'results.energy': 'Energy',
   'results.cost': 'Product cost',
+  'results.unpriced': 'price not entered',
+  'results.unpricedHint':
+    'No price in Library: {names}. The cost is not real (partial: {partial}) until their prices are entered.',
   'results.drillingCost': 'Drilling cost',
   'results.costPerTonne': 'Drill and blast cost',
   'results.timing': 'Timing',

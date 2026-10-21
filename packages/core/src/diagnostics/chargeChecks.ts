@@ -1,4 +1,9 @@
-import { deckIntervals, explosiveDeckMass, indexLibrary } from '../charging/charge';
+import {
+  deckIntervals,
+  explosiveDeckMass,
+  indexLibrary,
+  unpricedProducts,
+} from '../charging/charge';
 import { scaledDepthOfBurial } from '../charging/sdob';
 import type { Blast, Explosive, HoleId, HoleWater, ProductLibrary } from '../model/types';
 import { isUndergroundHole } from '../underground/toHoles';
@@ -37,7 +42,9 @@ export function chargeChecks(
   const doublePriming: HoleId[] = [];
   const sdobSevere: HoleId[] = [];
   const sdobLow: HoleId[] = [];
+  const unpriced: HoleId[] = [];
   for (const h of blast.holes) {
+    if (unpricedProducts([h], lib).length > 0) unpriced.push(h.id);
     const intervals = deckIntervals(h);
     const charges = intervals.filter((iv) => iv.deck.kind === 'explosive');
     if (charges.length === 0) continue;
@@ -110,6 +117,7 @@ export function chargeChecks(
     if (sd && sd.sdob < options.sdob.severe) sdobSevere.push(h.id);
     else if (sd && sd.sdob < options.sdob.safe) sdobLow.push(h.id);
   }
+  const names = unpricedProducts(blast.holes, lib).join(', ');
   const checks: DesignCheck[] = [
     {
       id: 'openColumn',
@@ -165,6 +173,14 @@ export function chargeChecks(
       detail: `Profundidad escalada de enterramiento < ${String(options.sdob.safe)} m/kg^⅓: energía incontrolada, posible proyección desde el collar (R1 F12; configurable).`,
       params: { value: options.sdob.safe },
       holes: sdobLow,
+    },
+    {
+      id: 'unpricedProducts',
+      severity: 'info',
+      title: 'Productos sin precio',
+      detail: `Sin precio en la librería: ${names}. El costo de productos queda incompleto (no es el costo real) hasta cargar los precios en Librería.`,
+      params: { names },
+      holes: unpriced,
     },
   ];
   return checks.filter((c) => c.holes.length > 0);

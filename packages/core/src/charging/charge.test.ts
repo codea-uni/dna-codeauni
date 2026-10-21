@@ -10,6 +10,7 @@ import {
   holeCharge,
   indexLibrary,
   linearChargeDensity,
+  unpricedProducts,
 } from './charge';
 import { computeCharges } from './chargeAnalysis';
 import { influenceAreas } from './influence';
@@ -77,6 +78,23 @@ describe('carguío', () => {
     ]);
     const short = applyChargeRule(hole(3), rule, lib);
     expect(short.decks.map((d) => d.kind)).toEqual(['stemming']);
+  });
+});
+
+describe('productos sin precio', () => {
+  it('un explosivo comercial precargado sin $/kg deja el costo incompleto y se nombra', () => {
+    const famesa = lib.explosives.find((e) => e.name === 'Emulnor 3000 (Famesa)');
+    if (!famesa) throw new Error('falta Emulnor 3000');
+    expect(famesa.costPerKg ?? 0).toBe(0);
+    const h = hole();
+    const priced = { ...h, ...applyChargeRule(h, rule, lib) };
+    const unpriced = { ...h, ...applyChargeRule(h, { ...rule, explosiveId: famesa.id }, lib) };
+    const idx = indexLibrary(lib);
+    // ANFO, booster y detonador de la librería por defecto tienen precio.
+    expect(unpricedProducts([priced], idx)).toEqual([]);
+    expect(unpricedProducts([unpriced, unpriced, priced], idx)).toEqual(['Emulnor 3000 (Famesa)']);
+    const blast = { ...createBlast('V', newId<'RockMass'>()), holes: [priced, unpriced] };
+    expect(computeCharges(blast, lib, 2650).unpriced).toEqual(['Emulnor 3000 (Famesa)']);
   });
 });
 

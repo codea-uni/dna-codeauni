@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { analyzeBlast } from '../analysis/analyzeBlast';
 import { compareScenarios } from '../analysis/compareScenarios';
 import { buildExample, EXAMPLE_SPECS } from '../examples/examples';
 import { DocumentStore } from './DocumentStore';
@@ -59,6 +60,12 @@ describe('escenarios (H-701, R-23)', () => {
     expect(alt?.mic ?? 0).toBeGreaterThan(base?.mic ?? Infinity);
     expect(base?.loadingFactor).toBeCloseTo(alt?.loadingFactor ?? NaN, 12);
     expect(base?.maxPpv?.point).toBeDefined();
+    // Mismos kg y costo que el resumen de carguío y el informe (explosivo sin primas).
+    const charge = analyzeBlast(project, blast.id)?.charge;
+    expect(base?.explosive).toBeCloseTo(charge?.totalExplosive ?? NaN, 9);
+    expect(base?.primers).toBeCloseTo(charge?.totalPrimers ?? NaN, 9);
+    expect(base?.cost).toBeCloseTo(charge?.cost ?? NaN, 9);
+    expect(base?.unpriced).toEqual(charge?.unpriced);
   });
 });
 

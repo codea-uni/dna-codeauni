@@ -180,6 +180,7 @@ export const en = {
   'scenarios.computing': 'Computing…',
   'scenarios.kpi.holes': 'Holes (charged)',
   'scenarios.kpi.explosive': 'Explosive [kg]',
+  'scenarios.kpi.cost': 'Product cost',
   'scenarios.kpi.drilled': 'Drilled [m]',
   'scenarios.kpi.loadingFactor': 'Loading factor [kg/m³]',
   'scenarios.kpi.powderFactor': 'Powder factor [kg/t]',

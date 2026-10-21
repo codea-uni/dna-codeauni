@@ -3,7 +3,7 @@ import { ClipboardCopy, GitCompare, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import { IconButton } from '../components/IconButton';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
-import { formatNumber, useLocale, useT, type MessageKey } from '../i18n';
+import { formatNumber, t as translate, useLocale, useT, type MessageKey } from '../i18n';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import * as actions from '../actions';
@@ -15,6 +15,11 @@ const fmt = (v: number | null, d = 0) => (v === null ? '—' : formatNumber(v, d
 const ROWS: [MessageKey, (k: ScenarioKpis) => string][] = [
   ['scenarios.kpi.holes', (k) => `${String(k.holes)} (${String(k.loadedHoles)})`],
   ['scenarios.kpi.explosive', (k) => fmt(k.explosive)],
+  // Sin precio de algún producto el costo no es real: se dice en vez de mostrar un parcial.
+  [
+    'scenarios.kpi.cost',
+    (k) => (k.unpriced.length > 0 ? translate('results.unpriced') : fmt(k.cost)),
+  ],
   ['scenarios.kpi.drilled', (k) => fmt(k.drilledLength)],
   ['scenarios.kpi.loadingFactor', (k) => fmt(k.loadingFactor, 3)],
   [
