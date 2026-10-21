@@ -224,3 +224,52 @@ describe('DXF de topografía', () => {
     expect(d.points).toHaveLength(6);
   });
 });
+
+describe('DXF de topografía con una mina subterránea en el mismo archivo', () => {
+  const g = (...pairs: (string | number)[]) => pairs.join('\n');
+  // Superficie MESH de un cuadrado (1 cara de 4 lados), un eje de rampa y puntos de labores.
+  const text = [
+    g(0, 'SECTION', 2, 'ENTITIES'),
+    g(0, 'MESH', 8, 'TOPO_SUPERFICIE', 100, 'AcDbSubDMesh', 71, 2, 72, 0, 91, 0, 92, 4),
+    g(
+      10,
+      0,
+      20,
+      0,
+      30,
+      2000,
+      10,
+      100,
+      20,
+      0,
+      30,
+      2010,
+      10,
+      100,
+      20,
+      100,
+      30,
+      2020,
+      10,
+      0,
+      20,
+      100,
+      30,
+      2005,
+    ),
+    g(93, 5, 90, 4, 90, 0, 90, 1, 90, 2, 90, 3, 94, 0, 95, 0),
+    g(0, 'LINE', 8, 'EJE_RAMPA', 10, 0, 20, 0, 30, 1800, 11, 50, 21, 0, 31, 1806),
+    g(0, 'POINT', 8, 'PUNTOS', 10, 10, 20, 10, 30, 1800),
+    g(0, 'ENDSEC', 0, 'EOF'),
+  ].join('\n');
+
+  it('la superficie MESH es la triangulación; labores y sus puntos se ignoran', () => {
+    const layers = inspectDxfTopography(text);
+    const roles = Object.fromEntries(layers.map((l) => [l.name, l.suggested]));
+    expect(roles).toEqual({ EJE_RAMPA: 'ignore', PUNTOS: 'ignore', TOPO_SUPERFICIE: 'tin' });
+    const data = parseDxfTopography(text, roles);
+    expect(data.faces?.triangles.length).toBe(6);
+    expect(Math.min(...(data.faces?.vertices.filter((_, i) => i % 3 === 2) ?? []))).toBe(2000);
+    expect(data.lines).toHaveLength(0);
+  });
+});

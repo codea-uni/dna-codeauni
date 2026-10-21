@@ -1,6 +1,6 @@
 import type { I3DfaceEntity, ILineEntity, ILwpolylineEntity, IPolylineEntity } from 'dxf-parser';
 import { decodeText } from '../io/csv';
-import { entityPoints, parseDxfEntities } from '../io/dxf';
+import { entityPoints, parseDxfEntities, parseDxfMeshes } from '../io/dxf';
 import type { Meters, Radians, Vec3 } from '../model/types';
 import type { WorkingAxisMeta, WorkingProfileSpec, WorkingsData } from '../topography/asset';
 import type { TopoWarning } from '../topography/data';
@@ -74,12 +74,54 @@ export function workingProfile(spec: WorkingProfileSpec): ExcavationProfile {
 
 // ------------------------------------------------------------------ Lectura
 
+/** Capa de un DXF de labores: cuántos ejes y sólidos trae y si conviene importarla. */
+export interface WorkingsLayerInfo {
+  name: string;
+  axes: number;
+  solids: number;
+  /** Sugerida: no parece topografía, hastiales, textos ni otra capa de dibujo. */
+  suggested: boolean;
+}
+
+/** Capas que no son labores aunque traigan líneas: relieve, contorno de paredes, anotaciones. */
+const NOT_WORKINGS =
+  /topo|curva|contour|maestra|superficie|surface|terreno|hastial|wall|texto|text|cota|grilla|grid|marco|borde|border|faja|conveyor|perfil|seccion|sección/i;
+
+/** Capas del DXF que pueden ser labores, con ejes y sólidos por capa y una selección sugerida. */
+export function inspectWorkingsDxf(text: string): WorkingsLayerInfo[] {
+  const layers = new Map<string, { axes: number; solids: number }>();
+  const add = (layer: string, kind: 'axes' | 'solids') => {
+    const l = layers.get(layer) ?? { axes: 0, solids: 0 };
+    l[kind]++;
+    layers.set(layer, l);
+  };
+  for (const e of parseDxfEntities(text)) {
+    if (e.type === '3DFACE') add(e.layer, 'solids');
+    else if (e.type === 'POLYLINE') {
+      const pl = e as IPolylineEntity;
+      if (pl.isPolyfaceMesh) add(e.layer, 'solids');
+      else if (!pl.is3dPolygonMesh) add(e.layer, 'axes');
+    } else if (e.type === 'LWPOLYLINE' || e.type === 'LINE') add(e.layer, 'axes');
+  }
+  for (const m of parseDxfMeshes(text)) add(m.layer, 'solids');
+  return [...layers]
+    .map(([name, l]) => ({ name, ...l, suggested: !NOT_WORKINGS.test(name) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Opciones de lectura de un DXF de labores. */
+export interface WorkingsReadOptions {
+  /** Capas a leer; sin ella, todas. */
+  layers?: readonly string[];
+}
+
 /**
- * Lee un DXF de labores: 3DFACE y POLYLINE polyface como sólidos (uno por capa); POLYLINE 3D o 2D,
- * LWPOLYLINE y LINE (encadenadas) como ejes. La malla poligonal M×N y la entidad MESH no se leen
- * (aviso).
+ * Lee un DXF de labores: 3DFACE, POLYLINE polyface y MESH como sólidos (uno por capa); POLYLINE 3D
+ * o 2D, LWPOLYLINE y LINE (encadenadas) como ejes. La malla poligonal M×N no se lee (aviso).
  */
-export function parseWorkingsDxf(text: string): WorkingsSource {
+export function parseWorkingsDxf(text: string, options: WorkingsReadOptions = {}): WorkingsSource {
+  const only = options.layers ? new Set(options.layers) : null;
+  const keep = (layer: string) => !only || only.has(layer);
   const out: WorkingsSource = { solids: [], axes: [], warnings: [] };
   const solids = new Map<string, { s: WorkingsSolid; index: Map<string, number> }>();
   const solidOf = (layer: string) => {
@@ -132,6 +174,7 @@ export function parseWorkingsDxf(text: string): WorkingsSource {
   // Algunos exportadores omiten la cota (código 30): llega sin `z` aunque el tipo diga otra cosa.
   const zOf = (p: { z?: number | undefined }) => p.z ?? 0;
   for (const e of parseDxfEntities(text)) {
+    if (!keep(e.layer)) continue;
     if (e.type === '3DFACE') {
       quad(e.layer, (e as I3DfaceEntity).vertices);
       continue;
@@ -179,11 +222,25 @@ export function parseWorkingsDxf(text: string): WorkingsSource {
       lines.set(e.layer, list);
     }
   }
+  // MESH: cada cara en abanico desde su primer vértice. Sus vértices no se comparten con otras
+  // mallas de la capa: tajeos contiguos siguen siendo labores separadas.
+  for (const m of parseDxfMeshes(text)) {
+    if (!keep(m.layer)) continue;
+    const { s } = solidOf(m.layer);
+    const base = s.vertices.length / 3;
+    const nv = Math.floor(m.vertices.length / 3);
+    s.vertices.push(...m.vertices.slice(0, nv * 3));
+    for (const f of m.faces)
+      for (let k = 1; k + 1 < f.length; k++) {
+        const [a, b, c] = [f[0] ?? -1, f[k] ?? -1, f[k + 1] ?? -1];
+        if (a < 0 || b < 0 || c < 0 || a >= nv || b >= nv || c >= nv) continue;
+        if (a !== b && b !== c && a !== c) s.triangles.push(base + a, base + b, base + c);
+      }
+  }
   for (const [layer, segs] of lines) for (const chain of chainSegments(segs)) addAxis(layer, chain);
   for (const { s } of solids.values()) if (s.triangles.length > 0) out.solids.push(s);
   if (polygonMesh > 0)
     out.warnings.push({ code: 'workings.polygonMesh', params: { n: polygonMesh } });
-  if (/^\s*0\s*\r?\n\s*MESH\s*$/m.test(text)) out.warnings.push({ code: 'workings.meshEntity' });
   if (flat > 0) out.warnings.push({ code: 'workings.flatAxis', params: { n: flat } });
   if (out.solids.length === 0 && out.axes.length === 0)
     out.warnings.push({ code: 'workings.empty' });
@@ -271,6 +328,7 @@ export const WORKINGS_ACCEPT = '.dxf,.str,.dtm';
  */
 export function readWorkingsFiles(
   files: readonly { name: string; bytes: Uint8Array }[],
+  options: WorkingsReadOptions = {},
 ): WorkingsSource {
   const out: WorkingsSource = { solids: [], axes: [], warnings: [] };
   const base = (n: string) => n.replace(/\.[^.]+$/, '').toLowerCase();
@@ -278,7 +336,7 @@ export function readWorkingsFiles(
   const text = (f: { bytes: Uint8Array }) => decodeText(f.bytes).text;
   for (const f of files) {
     let src: WorkingsSource | null = null;
-    if (ext(f.name) === 'dxf') src = parseWorkingsDxf(text(f));
+    if (ext(f.name) === 'dxf') src = parseWorkingsDxf(text(f), options);
     else if (ext(f.name) === 'str') {
       const dtm = files.find((d) => ext(d.name) === 'dtm' && base(d.name) === base(f.name));
       src = parseWorkingsSurpac(text(f), dtm ? text(dtm) : undefined);

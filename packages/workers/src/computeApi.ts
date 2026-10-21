@@ -35,7 +35,10 @@ import {
   buildSurvey,
   buildWorkings,
   readWorkingsFiles,
+  inspectWorkingsDxf,
   type BuildWorkingsOptions,
+  type WorkingsLayerInfo,
+  type WorkingsReadOptions,
   type TopoWarning,
   type WorkingsData,
   parseBlockModelCsv,
@@ -503,6 +506,26 @@ export const computeApi = {
     );
   },
 
+  /** Capas de los DXF de labores (ejes y sólidos por capa, con una selección sugerida). */
+  async inspectWorkings(
+    files: readonly Blob[],
+    names: readonly string[],
+  ): Promise<WorkingsLayerInfo[]> {
+    const out: WorkingsLayerInfo[] = [];
+    for (const [i, f] of files.entries()) {
+      if (!/\.dxf$/i.test(names[i] ?? '')) continue;
+      const text = decodeText(new Uint8Array(await f.arrayBuffer())).text;
+      for (const l of inspectWorkingsDxf(text)) {
+        const same = out.find((o) => o.name === l.name);
+        if (same) {
+          same.axes += l.axes;
+          same.solids += l.solids;
+        } else out.push(l);
+      }
+    }
+    return out;
+  },
+
   /**
    * Labores subterráneas: lee los DXF y `.str`/`.dtm` de Surpac, convierte los ejes en túneles con
    * el perfil dado y estima el eje de cada sólido.
@@ -510,7 +533,7 @@ export const computeApi = {
   async importWorkings(
     files: readonly Blob[],
     names: readonly string[],
-    options: BuildWorkingsOptions,
+    options: BuildWorkingsOptions & WorkingsReadOptions,
   ): Promise<{ workings: WorkingsData; warnings: TopoWarning[] }> {
     const read = await Promise.all(
       files.map(async (f, i) => ({
@@ -518,7 +541,7 @@ export const computeApi = {
         bytes: new Uint8Array(await f.arrayBuffer()),
       })),
     );
-    const src = readWorkingsFiles(read);
+    const src = readWorkingsFiles(read, options.layers ? { layers: options.layers } : {});
     const workings = buildWorkings(src, options);
     return transfer(
       { workings, warnings: src.warnings },

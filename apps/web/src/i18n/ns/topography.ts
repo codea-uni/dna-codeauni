@@ -284,6 +284,12 @@ export const es = {
   'topo.workings.axisCenter': 'el centro de la sección',
   'topo.workings.choose': 'Elegir archivos…',
   'topo.workings.cancel': 'Cancelar',
+  'topo.workings.layers': 'Capas del DXF',
+  'topo.workings.layersHint':
+    'Marca las capas que son labores: los ejes (líneas) se convierten en túnel con el perfil de arriba y los sólidos se importan tal cual. Topografía, hastiales y textos vienen desmarcados.',
+  'topo.workings.layerAxes': '{n} ejes',
+  'topo.workings.layerSolids': '{n} sólidos',
+  'topo.workings.importLayers': 'Importar {n} capas',
   'topo.workings.reading': 'Leyendo labores {name}…',
   'topo.workings.done': '{name}: {n} labores en 3D ({solids} de sólidos, {axes} de ejes).',
   'topo.workings.undo': 'Importar labores {name}',
@@ -292,8 +298,6 @@ export const es = {
   'topo.workings.layer': 'Labores subterráneas',
   'topo.warn.workings.polygonMesh':
     '{n} mallas poligonales M×N no se leyeron: expórtalas como 3DFACE o polyface.',
-  'topo.warn.workings.meshEntity':
-    'Las entidades MESH no se leen: expórtalas como 3DFACE o polyface.',
   'topo.warn.workings.flatAxis': '{n} ejes sin cota (z = 0): revisa que sean polilíneas 3D.',
   'topo.warn.workings.empty': 'El archivo no tiene sólidos ni ejes de labores.',
   'topo.warn.workings.unknownFile': '{name}: formato no reconocido (usa .dxf o .str con su .dtm).',
@@ -572,6 +576,12 @@ export const en = {
   'topo.workings.axisCenter': 'the section centre',
   'topo.workings.choose': 'Choose files…',
   'topo.workings.cancel': 'Cancel',
+  'topo.workings.layers': 'DXF layers',
+  'topo.workings.layersHint':
+    'Tick the layers that are workings: axes (lines) become tunnels with the profile above and solids are imported as they are. Topography, walls and text come unticked.',
+  'topo.workings.layerAxes': '{n} axes',
+  'topo.workings.layerSolids': '{n} solids',
+  'topo.workings.importLayers': 'Import {n} layers',
   'topo.workings.reading': 'Reading workings {name}…',
   'topo.workings.done': '{name}: {n} workings in 3D ({solids} from solids, {axes} from axes).',
   'topo.workings.undo': 'Import workings {name}',
@@ -580,7 +590,6 @@ export const en = {
   'topo.workings.layer': 'Underground workings',
   'topo.warn.workings.polygonMesh':
     '{n} M×N polygon meshes were not read: export them as 3DFACE or polyface.',
-  'topo.warn.workings.meshEntity': 'MESH entities are not read: export them as 3DFACE or polyface.',
   'topo.warn.workings.flatAxis': '{n} axes without elevation (z = 0): check they are 3D polylines.',
   'topo.warn.workings.empty': 'The file has no working solids or axes.',
   'topo.warn.workings.unknownFile': '{name}: unknown format (use .dxf, or .str with its .dtm).',

@@ -1,4 +1,9 @@
-import { WORKINGS_ACCEPT, workingKinds, type BuildWorkingsOptions } from '@cronos/core';
+import {
+  WORKINGS_ACCEPT,
+  workingKinds,
+  type BuildWorkingsOptions,
+  type WorkingsReadOptions,
+} from '@cronos/core';
 import { topoWarningText } from '../dialogs/TopographyImportDialog';
 import { formatNumber, t } from '../i18n';
 import { getCompute, getEngine, session } from '../session';
@@ -31,7 +36,7 @@ export function clearKindsReview(): void {
  */
 export async function importWorkingsFiles(
   files: readonly File[],
-  options: BuildWorkingsOptions,
+  options: BuildWorkingsOptions & WorkingsReadOptions,
 ): Promise<void> {
   const ui = useUiStore.getState();
   const main = files.find((f) => !/\.dtm$/i.test(f.name)) ?? files[0];

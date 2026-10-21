@@ -1,10 +1,11 @@
-import type { WorkingProfileSpec } from '@cronos/core';
+import type { WorkingProfileSpec, WorkingsLayerInfo } from '@cronos/core';
 import { Spline } from 'lucide-react';
 import { useRef, useState } from 'react';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useUnits } from '../hooks/useUnits';
-import { useT } from '../i18n';
+import { useFormat, useT } from '../i18n';
+import { getCompute } from '../session';
 import { importWorkingsFiles, WORKINGS_ACCEPT } from '../topography/workings';
 import { PROFILE_CHOICES } from '../underground/model';
 import { useUndergroundStore } from '../underground/store';
@@ -12,7 +13,8 @@ import { useUndergroundStore } from '../underground/store';
 /**
  * Importar labores subterráneas (DXF/Surpac): primero el perfil con el que los ejes se convierten
  * en túnel (por defecto, la sección del frente del panel Subterránea) y dónde está el eje; luego los
- * archivos. Los sólidos (3DFACE, polyface) se importan tal cual.
+ * archivos. Los sólidos (3DFACE, polyface, MESH) se importan tal cual. Si un DXF trae varias capas,
+ * se eligen antes cuáles son labores (topografía, hastiales y textos vienen desmarcados).
  */
 export function WorkingsImport() {
   const t = useT();
@@ -26,6 +28,17 @@ export function WorkingsImport() {
     height: face.height,
   });
   const [axisAt, setAxisAt] = useState<'floor' | 'center'>('floor');
+  const fmt = useFormat();
+  const [pending, setPending] = useState<{
+    files: File[];
+    layers: WorkingsLayerInfo[];
+    chosen: Set<string>;
+  } | null>(null);
+  const finish = (files: File[], layers?: string[]) => {
+    setOpen(false);
+    setPending(null);
+    void importWorkingsFiles(files, { profile, axisAt, ...(layers ? { layers } : {}) });
+  };
   return (
     <>
       <button
@@ -92,18 +105,68 @@ export function WorkingsImport() {
               <option value="center">{t('topo.workings.axisCenter')}</option>
             </select>
           </label>
-          <div className="row">
-            <button className="primary" onClick={() => input.current?.click()}>
-              {t('topo.workings.choose')}
-            </button>
-            <button
-              onClick={() => {
-                setOpen(false);
-              }}
-            >
-              {t('topo.workings.cancel')}
-            </button>
-          </div>
+          {pending ? (
+            <>
+              <strong>{t('topo.workings.layers')}</strong>
+              <p className="hint">{t('topo.workings.layersHint')}</p>
+              <div className="workings-layers">
+                {pending.layers.map((l) => (
+                  <label key={l.name} className="check">
+                    <input
+                      type="checkbox"
+                      checked={pending.chosen.has(l.name)}
+                      onChange={(e) => {
+                        const chosen = new Set(pending.chosen);
+                        if (e.target.checked) chosen.add(l.name);
+                        else chosen.delete(l.name);
+                        setPending({ ...pending, chosen });
+                      }}
+                    />
+                    <span>{l.name}</span>
+                    <small className="muted">
+                      {[
+                        l.axes > 0 ? t('topo.workings.layerAxes', { n: fmt(l.axes, 0) }) : '',
+                        l.solids > 0 ? t('topo.workings.layerSolids', { n: fmt(l.solids, 0) }) : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </small>
+                  </label>
+                ))}
+              </div>
+              <div className="row">
+                <button
+                  className="primary"
+                  disabled={pending.chosen.size === 0}
+                  onClick={() => {
+                    finish(pending.files, [...pending.chosen]);
+                  }}
+                >
+                  {t('topo.workings.importLayers', { n: fmt(pending.chosen.size, 0) })}
+                </button>
+                <button
+                  onClick={() => {
+                    setPending(null);
+                  }}
+                >
+                  {t('topo.workings.cancel')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="row">
+              <button className="primary" onClick={() => input.current?.click()}>
+                {t('topo.workings.choose')}
+              </button>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                {t('topo.workings.cancel')}
+              </button>
+            </div>
+          )}
         </div>
       )}
       <input
@@ -116,8 +179,24 @@ export function WorkingsImport() {
           const files = [...(e.target.files ?? [])];
           e.target.value = '';
           if (files.length === 0) return;
-          setOpen(false);
-          void importWorkingsFiles(files, { profile, axisAt });
+          void getCompute()
+            .api.inspectWorkings(
+              files,
+              files.map((f) => f.name),
+            )
+            .then((layers) => {
+              // Una sola capa (o ningún DXF): no hay nada que elegir.
+              if (layers.length <= 1) finish(files);
+              else
+                setPending({
+                  files,
+                  layers,
+                  chosen: new Set(layers.filter((l) => l.suggested).map((l) => l.name)),
+                });
+            })
+            .catch(() => {
+              finish(files);
+            });
         }}
       />
     </>

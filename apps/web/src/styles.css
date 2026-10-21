@@ -3037,3 +3037,20 @@ button.link {
   padding: 0.1rem 0.2rem;
   font-size: 11.5px;
 }
+
+/* Capas del DXF al importar labores: nombre a la izquierda, ejes/sólidos a la derecha. */
+.workings-layers {
+  max-height: 260px;
+  overflow: auto;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.workings-layers .check {
+  margin: 0.25rem 0;
+}
+.workings-layers .check span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

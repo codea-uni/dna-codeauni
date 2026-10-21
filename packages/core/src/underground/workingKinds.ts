@@ -22,7 +22,12 @@ export const WORKING_KINDS: readonly WorkingKind[] = [
 /** Nombres usuales en planos de mina (español e inglés), en el orden en que se prueban. */
 const NAME_HINTS: [WorkingKind, RegExp][] = [
   ['stope', /(^|[^a-z])(tajeos?|taj|tj|stopes?|stp)([^a-z]|$)/i],
-  ['raise', /(^|[^a-z])(chimeneas?|chim|raises?|echaderos?|ore ?pass|ch(?=[-_ .]?\d))/i],
+  [
+    'raise',
+    /(^|[^a-z])(chimeneas?|chim|raises?|echaderos?|ore ?pass|pozos?|shafts?|ch(?=[-_ .]?\d))/i,
+  ],
+  // Cámaras de carguío, chancado o refugio: no son galerías de avance.
+  ['other', /(^|[^a-z])(c[aá]maras?|chambers?|refugios?)([^a-z]|$)/i],
   ['bypass', /(^|[^a-z])(by[-_ ]?pass|bp(?=[-_ .]?\d))/i],
   ['ramp', /(^|[^a-z])(rampas?|ramps?|rp(?=[-_ .]?\d))/i],
   ['crosscut', /(^|[^a-z])(cruceros?|crosscuts?|cross cut|xc|cx(?=[-_ .]?\d))/i],

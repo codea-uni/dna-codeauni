@@ -1,5 +1,5 @@
 import type { I3DfaceEntity, ILwpolylineEntity, IPointEntity, IPolylineEntity } from 'dxf-parser';
-import { entityPoints, parseDxfEntities } from '../io/dxf';
+import { entityPoints, parseDxfEntities, parseDxfMeshes } from '../io/dxf';
 import type { LineRole } from './asset';
 import type { TopoData } from './data';
 
@@ -12,11 +12,18 @@ export interface TopoLayerInfo {
   suggested: TopoLayerRole;
 }
 
+/** Nombres de capas de labores subterráneas (no son relieve aunque traigan líneas o puntos). */
+const UNDERGROUND =
+  /\beje|_eje|hastial|galer|rampa|tajeo|stope|c[aá]mara|chimenea|raise|pozo|shaft|bah[ií]a|crucero|ventana|by-?pass|labor|drift|tunel|túnel|nivel_|faja/i;
+
 /** Rol sugerido por el nombre de la capa (español/inglés habituales) y sus entidades. */
 export function suggestTopoRole(name: string, counts: Record<string, number>): TopoLayerRole {
   const c = (t: string) => counts[t] ?? 0;
   const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-  if (c('3DFACE') > total / 2) return 'tin';
+  // Labores subterráneas en el mismo DXF (sólidos o ejes): no son relieve.
+  const underground = UNDERGROUND.test(name) && !/superf|surface|topo|terreno/i.test(name);
+  if (underground) return 'ignore';
+  if (c('3DFACE') + c('MESH') > total / 2) return 'tin';
   if (/cresta|crest/i.test(name)) return 'crest';
   if (/\bpie\b|toe/i.test(name)) return 'toe';
   if (/quiebre|break/i.test(name)) return 'breakline';
@@ -30,14 +37,22 @@ export function suggestTopoRole(name: string, counts: Record<string, number>): T
 /** Capas del DXF con sus entidades y el rol topográfico sugerido. */
 export function inspectDxfTopography(text: string): TopoLayerInfo[] {
   const layers = new Map<string, Record<string, number>>();
-  for (const e of parseDxfEntities(text)) {
-    const counts = layers.get(e.layer) ?? {};
-    counts[e.type] = (counts[e.type] ?? 0) + 1;
-    layers.set(e.layer, counts);
-  }
-  return [...layers]
-    .map(([name, counts]) => ({ name, counts, suggested: suggestTopoRole(name, counts) }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const count = (layer: string, type: string) => {
+    const counts = layers.get(layer) ?? {};
+    counts[type] = (counts[type] ?? 0) + 1;
+    layers.set(layer, counts);
+  };
+  for (const e of parseDxfEntities(text)) count(e.layer, e.type);
+  for (const m of parseDxfMeshes(text)) count(m.layer, 'MESH');
+  const info = [...layers].map(([name, counts]) => ({
+    name,
+    counts,
+    suggested: suggestTopoRole(name, counts),
+  }));
+  // Un DXF con labores y su superficie: los puntos sueltos suelen ser de las labores, no relieve.
+  if (info.some((l) => l.suggested === 'tin') && info.some((l) => UNDERGROUND.test(l.name)))
+    for (const l of info) if (l.suggested === 'points') l.suggested = 'ignore';
+  return info.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -90,6 +105,23 @@ export function parseDxfTopography(text: string, roles: Record<string, TopoLayer
       (e as Partial<ILwpolylineEntity | IPolylineEntity>).shape === true;
     if (pts.every((p) => p.z === 0)) flat++;
     data.lines.push({ coords: pts.flatMap((p) => [p.x, p.y, p.z]), role, closed });
+  }
+  // MESH (dxf-parser no las lee): cada cara en abanico.
+  for (const m of parseDxfMeshes(text)) {
+    if (roles[m.layer] !== 'tin') continue;
+    const at = (i: number | undefined) =>
+      i === undefined
+        ? undefined
+        : {
+            x: m.vertices[i * 3] ?? 0,
+            y: m.vertices[i * 3 + 1] ?? 0,
+            z: m.vertices[i * 3 + 2] ?? 0,
+          };
+    for (const f of m.faces)
+      for (let k = 1; k + 1 < f.length; k++) {
+        const [a, b, c] = [at(f[0]), at(f[k]), at(f[k + 1])];
+        if (a && b && c) triangles.push(vertexOf(a), vertexOf(b), vertexOf(c));
+      }
   }
   if (triangles.length > 0)
     data.faces = { vertices: Float64Array.from(vertices), triangles: Uint32Array.from(triangles) };

@@ -6,6 +6,7 @@ import {
   axisLength,
   buildWorkings,
   estimateSolidAxis,
+  inspectWorkingsDxf,
   nearestStation,
   parseWorkingsDxf,
   parseWorkingsSurpac,
@@ -413,5 +414,116 @@ describe('sección de la labor en el plano del frente', () => {
       expect(p.x - p.y).toBeCloseTo(0, 6);
       expect(p.z).toBeCloseTo(10, 6);
     }
+  });
+});
+
+/** Caja como entidad MESH (AcDbSubDMesh): 8 vértices y 6 caras de 4 lados. */
+function meshBox(
+  layer: string,
+  x0: number,
+  y0: number,
+  z0: number,
+  w: number,
+  l: number,
+  h: number,
+) {
+  const v = [
+    [x0, y0, z0],
+    [x0 + w, y0, z0],
+    [x0 + w, y0 + l, z0],
+    [x0, y0 + l, z0],
+    [x0, y0, z0 + h],
+    [x0 + w, y0, z0 + h],
+    [x0 + w, y0 + l, z0 + h],
+    [x0, y0 + l, z0 + h],
+  ];
+  const faces = [
+    [0, 3, 2, 1],
+    [4, 5, 6, 7],
+    [0, 1, 5, 4],
+    [1, 2, 6, 5],
+    [2, 3, 7, 6],
+    [3, 0, 4, 7],
+  ];
+  return g(
+    0,
+    'MESH',
+    8,
+    layer,
+    100,
+    'AcDbSubDMesh',
+    71,
+    2,
+    72,
+    0,
+    91,
+    0,
+    92,
+    8,
+    ...v.flatMap((p) => [10, p[0] ?? 0, 20, p[1] ?? 0, 30, p[2] ?? 0]),
+    93,
+    30,
+    ...faces.flatMap((f) => [90, 4, ...f.flatMap((i) => [90, i])]),
+    94,
+    0,
+    95,
+    0,
+  );
+}
+
+const line = (layer: string, a: number[], b: number[]) =>
+  g(
+    0,
+    'LINE',
+    8,
+    layer,
+    10,
+    a[0] ?? 0,
+    20,
+    a[1] ?? 0,
+    30,
+    a[2] ?? 0,
+    11,
+    b[0] ?? 0,
+    21,
+    b[1] ?? 0,
+    31,
+    b[2] ?? 0,
+  );
+
+describe('DXF de labores: MESH y elección de capas', () => {
+  // Mina modelo: dos tajeos MESH, un eje de galería, hastiales y una curva de nivel.
+  const text = dxf(
+    meshBox('TAJEOS', 100, 0, 1775, 10, 20, 15),
+    meshBox('TAJEOS', 160, 0, 1775, 10, 20, 15),
+    line('EJE_GALERIA', [0, 0, 1775], [80, 0, 1775]),
+    line('HASTIALES', [0, 2, 1775], [80, 2, 1775]),
+    g(0, 'LWPOLYLINE', 8, 'TOPO_CURVAS', 38, 2000, 90, 2, 70, 0, 10, 0, 20, 0, 10, 50, 20, 50),
+  );
+
+  it('las capas sugeridas son las labores; topografía y hastiales quedan fuera', () => {
+    const layers = inspectWorkingsDxf(text);
+    expect(layers.map((l) => [l.name, l.axes, l.solids, l.suggested])).toEqual([
+      ['EJE_GALERIA', 1, 0, true],
+      ['HASTIALES', 1, 0, false],
+      ['TAJEOS', 0, 2, true],
+      ['TOPO_CURVAS', 1, 0, false],
+    ]);
+  });
+
+  it('cada MESH separada es un sólido: dos tajeos con su eje estimado', () => {
+    const src = parseWorkingsDxf(text, { layers: ['EJE_GALERIA', 'TAJEOS'] });
+    expect(src.axes.map((a) => a.name)).toEqual(['EJE_GALERIA']);
+    expect(src.solids.map((x) => [x.name, x.vertices.length / 3, x.triangles.length / 3])).toEqual([
+      ['TAJEOS', 16, 24],
+    ]);
+    const w = buildWorkings(src, { profile: { kind: 'arched', width: 4, height: 4 } });
+    expect(w.axes.map((a) => a.name)).toEqual(['EJE_GALERIA', 'TAJEOS 1', 'TAJEOS 2']);
+    expect(src.warnings.map((x) => x.code)).toEqual([]);
+  });
+
+  it('sin elegir capas se lee todo (como antes)', () => {
+    const src = parseWorkingsDxf(text);
+    expect(src.axes.map((a) => a.name).sort()).toEqual(['EJE_GALERIA', 'HASTIALES', 'TOPO_CURVAS']);
   });
 });

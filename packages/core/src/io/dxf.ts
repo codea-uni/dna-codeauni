@@ -285,6 +285,71 @@ export interface DxfInspection {
   bounds: { minX: number; minY: number; maxX: number; maxY: number } | null;
 }
 
+/** Malla de una entidad MESH: vértices x,y,z planos y caras como listas de índices. */
+export interface DxfMesh {
+  layer: string;
+  vertices: number[];
+  faces: number[][];
+}
+
+/**
+ * Entidades MESH (AcDbSubDMesh, AutoCAD 2010+) del DXF: dxf-parser no las lee. Se toma la malla de
+ * nivel 0 (vértices 92 + 10/20/30, caras 93 + 90) sin subdividir; aristas y pliegues se ignoran.
+ */
+export function parseDxfMeshes(text: string): DxfMesh[] {
+  const lines = text.split(/\r?\n/);
+  const out: DxfMesh[] = [];
+  let inEntities = false;
+  let mesh: DxfMesh | null = null;
+  // Estado dentro de la MESH: vértices o caras que faltan por leer.
+  let vertsLeft = 0;
+  let faceValues = 0;
+  let face: number[] = [];
+  let faceLeft = 0;
+  let x = 0;
+  let y = 0;
+  for (let i = 0; i + 1 < lines.length; i += 2) {
+    const code = (lines[i] ?? '').trim();
+    const value = (lines[i + 1] ?? '').trim();
+    if (code === '0') {
+      if (mesh && mesh.faces.length > 0) out.push(mesh);
+      mesh = null;
+      if (value === 'SECTION') continue;
+      if (value === 'ENDSEC') inEntities = false;
+      if (inEntities && value === 'MESH') {
+        mesh = { layer: '0', vertices: [], faces: [] };
+        vertsLeft = 0;
+        faceValues = 0;
+        faceLeft = 0;
+      }
+      continue;
+    }
+    if (code === '2' && value === 'ENTITIES') inEntities = true;
+    if (!mesh) continue;
+    const n = Number(value);
+    if (code === '8') mesh.layer = value;
+    else if (code === '92') vertsLeft = n;
+    else if (vertsLeft > 0 && code === '10') x = n;
+    else if (vertsLeft > 0 && code === '20') y = n;
+    else if (vertsLeft > 0 && code === '30') {
+      mesh.vertices.push(x, y, n);
+      vertsLeft--;
+    } else if (code === '93') faceValues = n;
+    else if (faceValues > 0 && code === '90') {
+      faceValues--;
+      if (faceLeft === 0) {
+        faceLeft = n;
+        face = [];
+      } else {
+        face.push(n);
+        if (--faceLeft === 0) mesh.faces.push(face);
+      }
+    }
+  }
+  if (mesh && mesh.faces.length > 0) out.push(mesh);
+  return out;
+}
+
 /** Entidades de un DXF (para otros lectores, p. ej. topografía). */
 export function parseDxfEntities(text: string): IEntity[] {
   const dxf = new DxfParser().parseSync(text);
