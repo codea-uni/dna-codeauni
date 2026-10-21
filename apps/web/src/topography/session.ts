@@ -1,4 +1,5 @@
 import {
+  projectKind,
   benchFloorFor,
   boundaryBench,
   holeBoundary,
@@ -49,6 +50,7 @@ import type {
 import { getAsset, putAsset } from '../persistence/assets';
 import { getCompute, getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { useUiStore } from '../stores/uiStore';
 
 /**
  * Topografía cargada en la sesión (D-16): los levantamientos que usa el proyecto, decodificados
@@ -260,6 +262,23 @@ function notify(): void {
   for (const l of listeners) l();
 }
 
+/** Proyecto que cada visor ya encuadró al abrirlo (un visor nuevo por cada vez que se abre). */
+const framedOnOpen = new WeakMap<object, string>();
+
+/**
+ * Bajo tierra, al abrir un proyecto con labores se pasa a 3D y se encuadra la mina: en planta, de
+ * cerca, solo se ve el terreno sobre el frente. Una vez por visor y proyecto, para no pelear con la
+ * cámara del usuario.
+ */
+function frameMineOnOpen(engine: NonNullable<ReturnType<typeof getEngine>>, hasWorkings: boolean) {
+  const project = session.document.project;
+  if (!hasWorkings || projectKind(project) !== 'underground') return;
+  if (framedOnOpen.get(engine) === project.id) return;
+  framedOnOpen.set(engine, project.id);
+  if (useUiStore.getState().viewMode !== '3d') useUiStore.getState().setViewMode('3d');
+  requestAnimationFrame(() => getEngine()?.frameModels3d());
+}
+
 /** Pasa al motor lo que esté cargado (al montar el visor o al cargar un levantamiento). */
 export function applyTopographyToEngine(): void {
   const engine = getEngine();
@@ -307,6 +326,7 @@ export function applyTopographyToEngine(): void {
   }
   if (movePreview) workings.push(movePreview);
   engine.setWorkings(workings);
+  frameMineOnOpen(engine, workings.length > 0);
   engine.setElevationSource(
     loaded.size > 0
       ? (x, y) => topographyElevation(x, y, session.document.project.blasts[0]?.bench.topographyId)
