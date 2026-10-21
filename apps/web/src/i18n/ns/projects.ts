@@ -6,6 +6,8 @@ export const es = {
   'projects.title': 'Proyectos',
   'projects.empty': 'Esta mina todavía no tiene proyectos',
   'projects.emptyHint': 'Crea uno vacío con el nombre del banco o importa un .cronos.json.',
+  'projects.emptyHintUg':
+    'Crea uno vacío con el nombre de la labor o del nivel (p. ej. «Nivel 3370 - GL 420») o importa un .cronos.json.',
   'projects.emptyReviewer': 'Cuando un diseñador cree un proyecto, aparecerá aquí.',
   'projects.holes': '{n} taladros',
   'projects.by': '{author}, {date}',
@@ -29,6 +31,8 @@ export const en = {
   'projects.title': 'Projects',
   'projects.empty': 'This mine has no projects yet',
   'projects.emptyHint': 'Create an empty one named after the bench, or import a .cronos.json.',
+  'projects.emptyHintUg':
+    'Create an empty one named after the working or level (e.g. «Level 3370 - GL 420»), or import a .cronos.json.',
   'projects.emptyReviewer': 'When a designer creates a project, it will show up here.',
   'projects.holes': '{n} holes',
   'projects.by': '{author}, {date}',

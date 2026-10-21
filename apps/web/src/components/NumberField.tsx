@@ -12,6 +12,8 @@ export interface NumberFieldProps {
   max?: number;
   disabled?: boolean;
   integer?: boolean;
+  /** Lectura propia del texto (p. ej. pies con «'»); devuelve el valor en unidades de presentación. */
+  parseText?: (text: string) => number | null;
 }
 
 function format(value: number | null, decimals: number): string {
@@ -35,6 +37,7 @@ function NumberFieldInner({
   max,
   disabled,
   integer,
+  parseText,
 }: NumberFieldProps) {
   const tr = useT();
   const [draft, setDraft] = useState(format(value, decimals));
@@ -47,7 +50,7 @@ function NumberFieldInner({
       setInvalid(false);
       return;
     }
-    const n = Number(text);
+    const n = parseText ? (parseText(draft.trim()) ?? NaN) : Number(text);
     const ok =
       Number.isFinite(n) &&
       (min === undefined || n >= min) &&

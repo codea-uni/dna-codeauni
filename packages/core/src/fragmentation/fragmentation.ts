@@ -1,6 +1,8 @@
 import { deckIntervals } from '../charging/charge';
 import type { ChargeResult } from '../charging/chargeAnalysis';
 import type { Blast, Meters, ProductLibrary, RockMass } from '../model/types';
+import { undergroundVolumes } from '../underground/analysis';
+import { isUndergroundHole } from '../underground/toHoles';
 
 /**
  * Factor de roca A de Cunningham (1987): A = 0.06 · (RMD + JF + RDI + HF).
@@ -274,26 +276,46 @@ export function kuzRamInputsFromBlast(
     }
   }
   const n = loaded.length;
+  // Bajo tierra (taladros `ug-*`, A8) no hay banco: H es el largo medio de taladro y, en abanicos,
+  // B es el burden entre anillos (guardado con el tajeo) y S = V/(B·H) el espaciamiento
+  // equivalente entre fondos. Las mallas de banco no aplican.
+  const underground = loaded.every((x) => isUndergroundHole(x.h));
+  const usePattern = underground ? undefined : pattern;
+  const height = underground ? loaded.reduce((s, x) => s + x.h.length, 0) / n : blast.bench.height;
+  const ringBurden = underground
+    ? blast.excavations?.find((e) => e.kind === 'stope' && (e.burden ?? 0) > 0)?.burden
+    : undefined;
+  // Bajo tierra el factor de carga es el de la cubicación subterránea (sección × avance o anillo ×
+  // burden), no el del área de influencia en planta × altura de banco.
+  const ugVolumes = underground ? undergroundVolumes(blast, library, rock.density) : [];
+  const ugVolume = ugVolumes.reduce((s, v) => s + v.volume, 0);
+  const loadingFactor =
+    ugVolume > 0 ? ugVolumes.reduce((s, v) => s + v.explosive, 0) / ugVolume : charge.loadingFactor;
   // Sin malla, B = S = √(V/H) con el volumen que da el factor de carga.
-  if (!pattern && charge.loadingFactor <= 0) return null;
-  const spacingGuess = Math.sqrt(kg / n / charge.loadingFactor / blast.bench.height);
+  if (!usePattern && loadingFactor <= 0) return null;
+  const volumePerHole = kg / n / loadingFactor;
+  const spacingGuess = ringBurden
+    ? volumePerHole / (ringBurden * height)
+    : Math.sqrt(volumePerHole / height);
+  const burdenGuess = ringBurden ?? spacingGuess;
   const equilateral =
-    pattern !== undefined &&
-    Math.abs(pattern.spacing - (2 * pattern.burden) / Math.sqrt(3)) < 0.01 * pattern.spacing;
+    usePattern !== undefined &&
+    Math.abs(usePattern.spacing - (2 * usePattern.burden) / Math.sqrt(3)) <
+      0.01 * usePattern.spacing;
   return {
     rockFactor: rockFactor(rock),
-    loadingFactor: charge.loadingFactor,
+    loadingFactor,
     chargePerHole: kg / n,
     rws: massForRws > 0 ? rwsMass / massForRws : 1,
-    burden: pattern?.burden ?? spacingGuess,
-    spacing: pattern?.spacing ?? spacingGuess,
+    burden: usePattern?.burden ?? burdenGuess,
+    spacing: usePattern?.spacing ?? spacingGuess,
     diameter: diameter / n,
     drillDeviation: blast.calcParams.drillDeviation,
     chargeLength: chargeLength / n,
     bottomChargeLength: bottom / n,
     columnChargeLength: column / n,
-    benchHeight: blast.bench.height,
-    patternFactor: pattern?.kind === 'staggered' ? (equilateral ? 1.15 : 1.1) : 1,
+    benchHeight: height,
+    patternFactor: usePattern?.kind === 'staggered' ? (equilateral ? 1.15 : 1.1) : 1,
     ...(rock.swebrecB !== undefined ? { swebrecB: rock.swebrecB } : {}),
     variant: blast.calcParams.fragmentation?.model ?? 'cunningham1987',
   };

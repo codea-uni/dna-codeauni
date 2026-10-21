@@ -14,6 +14,7 @@ import type {
   Seconds,
   Vec3,
 } from '../model/types';
+import { shotTag } from './shots';
 import { isUndergroundHole, CUT_TAG, RELIEF_TAG } from './toHoles';
 
 /**
@@ -289,7 +290,8 @@ export interface ArrivalReceiver {
  * a menos de `window` del anterior). Detonan como una sola carga: pierden el alivio que da la
  * secuencia y suman su carga en la vibración. Con `receiver` se agrupa por tiempo de LLEGADA al
  * receptor, t_i + R_i/Vp (criterio adicional: dos taladros con tiempos distintos pueden llegar
- * juntos). `fireTime` va indexado como `holes`.
+ * juntos). `fireTime` va indexado como `holes`. Solo se acoplan taladros del mismo disparo
+ * (`shotTag`): el frente y los abanicos salen en voladas distintas.
  */
 export function couplingGroups(
   holes: readonly Hole[],
@@ -326,13 +328,23 @@ export function couplingGroups(
     }
     cur = [];
   };
+  // Cada disparo (frente, set de abanicos…) sale en su momento: solo se acoplan taladros del mismo.
+  const byShot = new Map<string, Fired[]>();
   for (const f of fired) {
-    const last = cur.at(-1);
-    if (last && f.t - last.t >= window - 1e-9) flush();
-    cur.push(f);
+    const k = shotTag(f.hole);
+    const list = byShot.get(k);
+    if (list) list.push(f);
+    else byShot.set(k, [f]);
   }
-  flush();
-  return groups;
+  for (const list of byShot.values()) {
+    for (const f of list) {
+      const last = cur.at(-1);
+      if (last && f.t - last.t >= window - 1e-9) flush();
+      cur.push(f);
+    }
+    flush();
+  }
+  return groups.sort((a, b) => a.time - b.time);
 }
 
 export interface WaveCutoffRisk {
@@ -375,6 +387,8 @@ export function waveCutoffRisks(
     for (let j = i + 1; j < fired.length; j++) {
       const b = fired[j];
       if (!b) continue;
+      // Otro disparo: se dispara en otro momento, no hay onda del vecino que lo corte.
+      if (shotTag(a.hole) !== shotTag(b.hole)) continue;
       const delay = b.t - a.t;
       if (delay < options.window - 1e-9) continue; // acoplados: otro aviso
       const limit = options.shockDistance * (wet(a.hole) || wet(b.hole) ? options.wetFactor : 1);

@@ -17,6 +17,8 @@ import {
   tunnelMesh,
   workingAxisPoints,
   workingProfile,
+  TYPICAL_WORKING_PROFILES,
+  workingProfileGroup,
 } from './workings';
 
 const deg = Math.PI / 180;
@@ -595,5 +597,51 @@ describe('capas con nombre de labor', () => {
       'TJAVIER',
     ])
       expect(isWorkingsLayerName(name), name).toBe(false);
+  });
+});
+
+describe('perfil por tipo de labor al importar ejes', () => {
+  const v = (x: number, y: number, z: number) => ({ x, y, z });
+  const src = {
+    solids: [],
+    warnings: [],
+    axes: [
+      { name: 'EJE_GALERIA', points: [v(0, 0, 100), v(50, 0, 100)] },
+      { name: 'CHIMENEAS', points: [v(10, 10, 100), v(10, 10, 160)] },
+      { name: 'POZO', points: [v(-20, 0, 50), v(-20, 0, 300)] },
+    ],
+  };
+  const w = buildWorkings(src, {
+    profile: { kind: 'arched', width: 4.5, height: 4 },
+    profiles: TYPICAL_WORKING_PROFILES,
+  });
+
+  it('la galería lleva el perfil general; la chimenea y el pique, el suyo', () => {
+    expect(w.axes.map((a) => a.profile)).toEqual([
+      { kind: 'arched', width: 4.5, height: 4 },
+      { kind: 'rectangular', width: 1.5, height: 1.5 },
+      { kind: 'circular', width: 5, height: 5 },
+    ]);
+  });
+
+  it('la sección de la chimenea queda centrada en su eje (1,5 m alrededor de x = 10, y = 10)', () => {
+    // Vértices del tramo de la chimenea: los del medio de la malla (4 por sección, 2 secciones).
+    const galleryVerts =
+      2 * workingProfile({ kind: 'arched', width: 4.5, height: 4 }).points.length;
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let i = galleryVerts; i < galleryVerts + 8; i++) {
+      xs.push(w.vertices[3 * i] ?? 0);
+      ys.push(w.vertices[3 * i + 1] ?? 0);
+    }
+    expect(Math.min(...xs)).toBeCloseTo(9.25, 6);
+    expect(Math.max(...xs)).toBeCloseTo(10.75, 6);
+    expect(Math.min(...ys)).toBeCloseTo(9.25, 6);
+    expect(Math.max(...ys)).toBeCloseTo(10.75, 6);
+  });
+
+  it('sin nombre que lo diga, un eje casi vertical es chimenea', () => {
+    expect(workingProfileGroup('L-12', [v(0, 0, 0), v(1, 0, 30)])).toBe('raise');
+    expect(workingProfileGroup('L-12', [v(0, 0, 0), v(30, 0, 1)])).toBeNull();
   });
 });

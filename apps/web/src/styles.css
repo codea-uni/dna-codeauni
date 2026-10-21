@@ -2910,8 +2910,8 @@ button.link {
  * que la animación 3D se vea; el resto sigue montado (los halos se calculan ahí) pero oculto.
  */
 .panel.ug.ug-compact > .segmented,
-.panel.ug.ug-compact .ug-analysis > :not(:first-child),
-.panel.ug.ug-compact .ug-analysis > :first-child > :not(.ug-sim-controls) {
+.panel.ug.ug-compact .ug-analysis > :not(.ug-sim-fold),
+.panel.ug.ug-compact .ug-analysis > .ug-sim-fold > :not(.ug-sim-controls) {
   display: none;
 }
 

@@ -12,3 +12,5 @@ export * from './workingKinds';
 export * from './methods';
 export * from './methodToHoles';
 export * from './muckpile';
+export * from './shots';
+export * from './stopeRings';

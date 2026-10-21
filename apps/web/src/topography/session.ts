@@ -335,7 +335,8 @@ export function applyTopographyToEngine(): void {
         vertices: s.workings.vertices,
         triangles,
         color: kind ? WORKING_KIND_COLORS[kind] : WORKINGS_UNASSIGNED,
-        ...(kind === 'stope' ? { opacity: 0.45 } : {}),
+        // Tajeos semitransparentes: cara doble, no deben tapar los taladros del abanico (A9).
+        ...(kind === 'stope' ? { opacity: 0.16 } : {}),
       });
     }
   }

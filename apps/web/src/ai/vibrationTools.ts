@@ -46,7 +46,7 @@ const pointSchema = z.object({
     .string()
     .optional()
     .describe(
-      'Name of the working/excavation (e.g. "ug-face", "galería", or a working of another project of the mine shown as context). The point goes to its center.',
+      'Name of the working/excavation (e.g. "Frente de túnel · galería", "galería", or a working of another project of the mine shown as context). The point goes to its center.',
     ),
   x: z.number().optional().describe('East [m] (with y and z instead of a working).'),
   y: z.number().optional().describe('North [m].'),
@@ -72,7 +72,8 @@ async function addWorkingPoint(args: z.infer<typeof pointSchema>) {
     const list = namedWorkings();
     const key = norm(args.working);
     const w =
-      list.find((x) => norm(x.name) === key) ?? list.find((x) => norm(x.name).includes(key));
+      list.find((x) => norm(x.name) === key || norm(x.alias ?? '') === key) ??
+      list.find((x) => norm(x.name).includes(key));
     if (!w)
       throw new ToolError(
         list.length === 0

@@ -13,9 +13,11 @@ import {
   type WorkingDip,
   type WorkingKind,
   workingKinds,
+  workingTriangleOwners,
+  stopeRingSetup,
   WORKING_KINDS,
 } from '@cronos/core';
-import { t } from '../i18n';
+import { formatNumber, t } from '../i18n';
 import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { loadedWorkings, surveyWorkingDips } from '../topography/session';
@@ -202,12 +204,97 @@ export function applyLocation(
     if (patch && tab === 'face') store.patchFace(patch);
     if (patch && tab === 'ring') store.patchRing(patch);
   }
+  // Abanicos en un tajeo importado: desde la galería de perforación junto a él, no sobre el eje
+  // del sólido (que baja con el buzamiento), y con el ancho y el alto del sólido.
+  if (tab === 'ring' && target.kind === 'stope' && withProfile) {
+    const fromStope = placeRingsInStope(target);
+    if (fromStope) return fromStope;
+  }
   // Abanico en un tajeo inclinado (o en la galería bajo él): su buzamiento aparente en el plano
   // del anillo.
   if (tab === 'ring') {
     const dip = target.dip ?? nearestStopeDip(placement);
     if (dip) store.patchRing(stopeLeanFor(dip, placement.azimuthDeg));
   }
+  return placement;
+}
+
+const ownersCache = new WeakMap<WorkingsData, Int32Array>();
+
+/** Labores importadas de las que salen los abanicos de un tajeo (sin los diseños enviados). */
+function importedTargets(): WorkingTarget[] {
+  return workingTargets().filter((x) => x.kind !== undefined);
+}
+
+/**
+ * Abanicos en el tajeo `target`: busca la galería de perforación más cercana (ventana, galería,
+ * crucero) y ubica ahí los anillos centrados en el tajeo; toma el ancho, el alto y el corrimiento
+ * del tajeo cortando el sólido en el plano del anillo. Sin galería cerca, los anillos van en la base
+ * del tajeo con pendiente 0 (coordenadas a mano) y se avisa. Devuelve null si no es un sólido.
+ */
+function placeRingsInStope(target: WorkingTarget): Placement | null {
+  const [surveyId, index] = target.id.split(':');
+  const entry = loadedWorkings().find((x) => x.survey.id === surveyId);
+  if (!entry || index === undefined) return null;
+  const w = entry.workings;
+  let owners = ownersCache.get(w);
+  if (!owners) {
+    owners = workingTriangleOwners(w);
+    ownersCache.set(w, owners);
+  }
+  const axisIndex = Number(index);
+  const stopeTriangles: number[] = [];
+  owners.forEach((o, t) => {
+    if (o === axisIndex) stopeTriangles.push(t);
+  });
+  if (stopeTriangles.length === 0) return null;
+  const store = useUndergroundStore.getState();
+  const form = store.ring;
+  const drives = importedTargets().filter((x) => x.id !== target.id);
+  const setup = stopeRingSetup(
+    { points: target.points, vertices: w.vertices, triangles: w.triangles, stopeTriangles },
+    drives.map((d) => ({ points: d.points, kind: d.kind ?? 'other' })),
+    { rings: form.rings, burden: form.burden },
+  );
+  const placement: Placement = {
+    x: setup.origin.x,
+    y: setup.origin.y,
+    z: setup.origin.z,
+    azimuthDeg: (setup.azimuth * 180) / Math.PI,
+    gradientPct: Math.tan(setup.gradient) * 100,
+  };
+  const drive = setup.driveIndex !== null ? drives[setup.driveIndex] : undefined;
+  store.setLocation(
+    'ring',
+    drive
+      ? { targetId: drive.id, station: setup.station, reverse: false, stopeId: target.id }
+      : null,
+  );
+  const all = store.placements ?? defaultPlacements(session.document.project);
+  store.setPlacements({ ...all, ring: placement });
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  const sec = setup.section;
+  if (sec)
+    store.patchRing({
+      stopeWidth: r1(sec.width),
+      stopeOffset: r1(sec.offset),
+      stopeBottom: r1(sec.bottom),
+      stopeTop: r1(sec.top),
+    });
+  if (target.dip) store.patchRing(stopeLeanFor(target.dip, placement.azimuthDeg));
+  const ui = useUiStore.getState();
+  const size = sec
+    ? { w: formatNumber(sec.width, 1), h: formatNumber(sec.top - sec.bottom, 1) }
+    : null;
+  if (drive)
+    ui.notify(
+      t('ug.loc.stopeDrive', {
+        stope: target.name,
+        drive: drive.name,
+        size: size ? t('ug.loc.stopeSize', size) : '',
+      }),
+    );
+  else ui.notify(t('ug.loc.stopeNoDrive', { stope: target.name }), 'error');
   return placement;
 }
 

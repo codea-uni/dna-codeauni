@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeBlast } from '../analysis/analyzeBlast';
+import { computeCharges } from '../charging/chargeAnalysis';
+import { kuzRamInputsFromBlast } from '../fragmentation/fragmentation';
 import { createBlast, createDefaultRockMass, createEmptyProject } from '../model/factories';
 import { newId } from '../model/ids';
 import { createDefaultLibrary } from '../model/library';
@@ -235,6 +237,22 @@ describe('cubicación subterránea', () => {
     // Sobreexcavación del 10 %: el área crece 10 %.
     const [ob] = undergroundVolumes(blast, lib, 2700, { advanceEfficiency: 0.9, overbreak: 0.1 });
     expect(must(ob).volume).toBeCloseTo(face.volume * 1.1, 6);
+  });
+
+  it('Kuz-Ram de un frente: factor de carga de la cubicación y H = largo de taladro (A8)', () => {
+    const { blast } = faceBlast(0.025);
+    const rho = 2700;
+    const [v] = undergroundVolumes(blast, lib, rho);
+    const charge = computeCharges(blast, lib, rho);
+    const inputs = must(
+      kuzRamInputsFromBlast(blast, lib, charge, { ...createDefaultRockMass(), density: rho }),
+    );
+    // No el de planta × altura de banco (antes salía ~200 kg/m³ y n = 0).
+    expect(inputs.loadingFactor).toBeCloseTo(must(v).loadingFactor, 9);
+    const loaded = blast.holes.filter((_, i) => (charge.perHole[i] ?? 0) > 0);
+    const meanLength = loaded.reduce((s, h) => s + h.length, 0) / loaded.length;
+    expect(inputs.benchHeight).toBeCloseTo(meanLength, 9);
+    expect(inputs.burden).toBeLessThan(1.5);
   });
 
   it('abanicos: (área del tajeo − galería) × burden × anillos', () => {

@@ -24,6 +24,7 @@ import type { TunnelView } from '@cronos/engine';
 import { t } from '../i18n';
 import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { excavationLabel } from './shots';
 import {
   pickExplosive,
   pickFaceExplosive,
@@ -194,7 +195,7 @@ export function setPileGalleries(
     sections: g.sections,
     color: COLORS[g.kind],
     surface: g.kind === 'drive',
-    label: g.tag,
+    label: excavationLabel(g.tag, g.kind),
   }));
   syncTunnels(true);
 }
@@ -227,7 +228,7 @@ export function syncTunnels(force = false): void {
       surface: e.kind === 'drive',
       // El frente es la primera sección del avance de la ronda.
       ...(e.kind === 'round' ? { highlight: 0 } : {}),
-      label: e.tag,
+      label: excavationLabel(e.tag, e.kind),
     })),
     ...pileGalleries,
     ...extra,
@@ -328,6 +329,29 @@ export function sendFace(form: FaceForm, face: FaceComputation, placement: Place
   const size = Math.max(profile.width, profile.height) * 2.6 + behind / 2;
   fly(frame, { u: 0, v: profile.height / 2 }, face.design.depth / 2, size, placement.azimuthDeg);
   return holes.length;
+}
+
+/**
+ * Vista previa de los anillos (A9): segmentos boca → fondo de cada taladro y el contorno del
+ * tajeo de cada anillo, en coordenadas de obra, para dibujarlos en el visor sin tocar el documento.
+ */
+export function ringPreviewSegments(
+  form: RingForm,
+  ring: RingComputation,
+  placement: Placement,
+): Vec3[] {
+  const frame = frameOf(placement);
+  const out: Vec3[] = [];
+  for (const p of replicateRings(form.rings, form.burden)) {
+    const f = offsetFrame(frame, p.offset);
+    for (const h of ring.ring.holes) out.push(localToWorld(f, h.collar), localToWorld(f, h.toe));
+    const b = ring.boundary;
+    b.forEach((q, i) => {
+      const next = b[(i + 1) % b.length];
+      if (next) out.push(localToWorld(f, q), localToWorld(f, next));
+    });
+  }
+  return out;
 }
 
 /** Envía los anillos; devuelve los taladros creados (0 si no se pudo). */

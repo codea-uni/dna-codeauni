@@ -288,8 +288,8 @@ export const guideChapters: GuideChapter[] = [
       {
         title: t('Método de minado', 'Mining method'),
         purpose: t(
-          'Plantillas UG-01 a UG-19 (desarrollo, chimeneas, tajeos) con malla, explosivo y secuencia típicos de manuales.',
-          'UG-01 to UG-19 templates (development, raises, stopes) with handbook pattern, explosive and sequence.',
+          'Plantillas UG-01 a UG-20 (desarrollo, chimeneas, tajeos) con malla, explosivo y secuencia típicos de manuales.',
+          'UG-01 to UG-20 templates (development, raises, stopes) with handbook pattern, explosive and sequence.',
         ),
         steps: [
           t(

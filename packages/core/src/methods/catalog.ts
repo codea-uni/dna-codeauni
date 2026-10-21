@@ -135,8 +135,8 @@ export const METHOD_TOPICS: readonly MethodTopic[] = [
     id: 'methods',
     title: t('Plantillas por método de minado', 'Mining-method templates'),
     intro: t(
-      'Prediseños UG-01 a UG-19 con reglas UG-R: valores de partida de manuales que el usuario ajusta.',
-      'UG-01 to UG-19 pre-designs with UG-R rules: starting values from handbooks for the user to adjust.',
+      'Prediseños UG-01 a UG-20 con reglas UG-R: valores de partida de manuales que el usuario ajusta.',
+      'UG-01 to UG-20 pre-designs with UG-R rules: starting values from handbooks for the user to adjust.',
     ),
   },
   {
@@ -880,7 +880,7 @@ const MODELS_LIST = [
   {
     id: 'methods.templates',
     topic: 'methods',
-    name: t('Reglas de las plantillas UG-01 a UG-19', 'Template rules UG-01 to UG-19'),
+    name: t('Reglas de las plantillas UG-01 a UG-20', 'Template rules UG-01 to UG-20'),
     authors: 'Hustrulid & Bullock (2001); Holmberg (1982); EXSA; Atlas Copco (2007)',
     reference:
       'Hustrulid & Bullock (2001), Underground Mining Methods, SME; Persson, Holmberg & Lee (1994)',

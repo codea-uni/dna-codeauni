@@ -83,6 +83,8 @@ describe('catálogo de métodos', () => {
       expect(m.code).toMatch(/^UG-\d\d$/);
       expect(pickExplosiveByHint(lib, m.explosive)).not.toBeNull();
     }
+    // Un código por plantilla (realce y shrinkage compartían UG-16).
+    expect(new Set(MINING_METHODS.map((m) => m.code)).size).toBe(MINING_METHODS.length);
     // Una marca por plantilla: enviar una labor no reemplaza a otra.
     expect(new Set(MINING_METHODS.map((m) => m.tag)).size).toBe(MINING_METHODS.length);
     // Desarrollo, chimeneas y tajeo.

@@ -15,6 +15,7 @@ import { useProjectSession } from '../server/projectSession';
 import { getCompute, getEngine, session } from '../session';
 import { workingTargets } from '../underground/location';
 import { setExtraTunnels } from '../underground/send';
+import { excavationLabel } from '../underground/shots';
 
 /**
  * Vibración de la mina (modo servidor): puntos de control compartidos entre sus proyectos,
@@ -29,6 +30,8 @@ export interface NamedWorking {
   sections: Vec3[][];
   /** Proyecto de la mina del que viene (null = este proyecto). */
   projectName: string | null;
+  /** Marca del diseño subterráneo (`ug-face`…): el asistente también la acepta como nombre. */
+  alias?: string;
 }
 
 interface ContextProject {
@@ -231,10 +234,13 @@ export function namedWorkings(): NamedWorking[] {
   for (const b of session.document.project.blasts)
     (b.excavations ?? []).forEach((e, i) => {
       own.push({
-        name: `${e.tag}${i > 0 ? ` ${String(i + 1)}` : ''}`,
+        name: e.tag.startsWith('ug-')
+          ? excavationLabel(e.tag, e.kind)
+          : `${e.tag} ${String(i + 1)}`,
         kind: e.kind,
         sections: e.sections,
         projectName: null,
+        alias: e.tag,
       });
     });
   // Labores importadas (DXF/Surpac): el punto va al centro de su eje, al nivel del piso.

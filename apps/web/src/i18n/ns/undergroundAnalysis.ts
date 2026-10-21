@@ -43,6 +43,16 @@ export const es = {
   'uga.pile.hint':
     'Modelo cinemático empírico y calibrable: velocidad por taladro v = k·(√m/B)^1,3 (Richards & Moore) con B al hueco ya abierto, vuelo confinado por la galería o el tajeo (rebote en techo y paredes, restitución 0,25), deslizamiento con fricción, esponjamiento y ángulo de reposo. Ajuste el factor de alcance con la pila medida en la mina; no reemplaza un modelo de elementos discretos.',
   'uga.design': 'Diseño',
+  'uga.shot': 'Disparo',
+  'uga.pile.legend': 'Colores de los bloques de roca',
+  'uga.pile.legendLaunch': 'Bloques de roca, color por tiempo de salida:',
+  'uga.pile.legendDisp': 'Bloques de roca, color por desplazamiento:',
+  'uga.exc.drive': 'galería',
+  'uga.exc.round': 'avance de la ronda',
+  'uga.exc.stope': 'tajeo',
+  'uga.shot.info': '{n} taladros · Ø {d} mm',
+  'uga.shot.hint':
+    'Cada diseño (frente, abanicos) es una voladura distinta: se analiza y se secuencia por separado.',
   'uga.sendFirst':
     'Lleva el frente o los abanicos al diseño 3D («Llevar al diseño 3D») para simular la voladura, ver los halos de energía y revisar la secuencia. La fragmentación de abajo usa el diseño de las pestañas.',
   'uga.noHoles': 'No hay taladros cargados de este diseño en la voladura.',
@@ -71,7 +81,7 @@ export const es = {
   'uga.show3d': 'Halos en 3D',
   'uga.time': 'Tiempo de la simulación',
   'uga.allFired': 'Todos los taladros',
-  'uga.timeAt': '{ms} ms · {n} detonados',
+  'uga.timeAt': '{ms} ms · {n} de {total} taladros detonados',
   'uga.halosHint':
     'El mapa es el plano del frente (perpendicular al avance, a la profundidad elegida) o del abanico. Con «Simular voladura» la vista 3D se pone de frente y los halos crecen a medida que detonan los taladros.',
   'uga.shockDistance': 'Distancia de corte por onda (seco)',
@@ -127,6 +137,13 @@ export const es = {
   'uga.frag.zone': 'Zona',
   'uga.frag.rr': '{curve}: P50 {p50} cm, P80 {p80} cm · factor de roca A = {a}',
   'uga.frag.detailZone': 'Valores de la primera zona: {zone}.',
+  'uga.frag.holeLength': 'Largo de taladro',
+  'uga.frag.ringBurden': 'Burden entre anillos',
+  'uga.frag.toeSpacing': 'Espaciamiento entre fondos',
+  'uga.frag.noteFace':
+    'Bajo tierra se calcula sobre los taladros del disparo elegido y H es el largo de taladro (no hay banco). Para el frente, la fragmentación por zonas (arranque, ayudas, contorno) está en Subterránea › Análisis.',
+  'uga.frag.noteRing':
+    'Bajo tierra se calcula sobre los taladros del disparo elegido: B es el burden entre anillos, S el espaciamiento entre fondos y H el largo de taladro (no hay banco).',
   'uga.frag.hint':
     'Frente: una curva por zona del método sueco (K de su volumen tributario) mezclada por la roca de cada zona. Abanico: burden entre anillos, espaciamiento de fondos y K del anillo; en roca dura tiende a subestimar X50: calibra C con fotos de la pila.',
   'uga.zone.cut': 'Arranque',
@@ -188,6 +205,16 @@ export const en = {
   'uga.pile.hint':
     'Empirical, calibratable kinematic model: hole velocity v = k·(√m/B)^1.3 (Richards & Moore) with B to the opening already blasted, flight confined by the drive or stope (bounces on roof and walls, restitution 0.25), sliding with friction, swell and angle of repose. Tune the throw factor with the muckpile measured at the mine; it does not replace a discrete-element model.',
   'uga.design': 'Design',
+  'uga.shot': 'Shot',
+  'uga.pile.legend': 'Rock block colours',
+  'uga.pile.legendLaunch': 'Rock blocks, coloured by launch time:',
+  'uga.pile.legendDisp': 'Rock blocks, coloured by displacement:',
+  'uga.exc.drive': 'drive',
+  'uga.exc.round': 'round advance',
+  'uga.exc.stope': 'stope',
+  'uga.shot.info': '{n} holes · Ø {d} mm',
+  'uga.shot.hint':
+    'Each design (face, rings) is a separate blast: it is analysed and sequenced on its own.',
   'uga.sendFirst':
     'Send the face or the rings to the 3D design («Send to 3D design») to simulate the blast, see the energy halos and check the sequence. The fragmentation below uses the design in the tabs.',
   'uga.noHoles': 'There are no charged holes of this design in the blast.',
@@ -216,7 +243,7 @@ export const en = {
   'uga.show3d': 'Halos in 3D',
   'uga.time': 'Simulation time',
   'uga.allFired': 'All holes',
-  'uga.timeAt': '{ms} ms · {n} fired',
+  'uga.timeAt': '{ms} ms · {n} of {total} holes fired',
   'uga.halosHint':
     'The map is the face plane (perpendicular to the advance, at the chosen depth) or the ring plane. «Simulate blast» turns the 3D view to the face and the halos grow as the holes fire.',
   'uga.shockDistance': 'Shock cut-off distance (dry)',
@@ -272,6 +299,13 @@ export const en = {
   'uga.frag.zone': 'Zone',
   'uga.frag.rr': '{curve}: P50 {p50} cm, P80 {p80} cm · rock factor A = {a}',
   'uga.frag.detailZone': 'Values from the first zone: {zone}.',
+  'uga.frag.holeLength': 'Hole length',
+  'uga.frag.ringBurden': 'Ring burden',
+  'uga.frag.toeSpacing': 'Toe spacing',
+  'uga.frag.noteFace':
+    'Underground it is computed on the holes of the selected shot and H is the hole length (there is no bench). For the face, fragmentation by zones (cut, easers, perimeter) is in Underground › Analysis.',
+  'uga.frag.noteRing':
+    'Underground it is computed on the holes of the selected shot: B is the ring burden, S the toe spacing and H the hole length (there is no bench).',
   'uga.frag.hint':
     'Face: one curve per Swedish-method zone (K of its tributary volume) mixed by the rock of each zone. Ring: ring burden, toe spacing and ring K; in hard rock it tends to underestimate X50: calibrate C with muckpile photos.',
   'uga.zone.cut': 'Cut',
