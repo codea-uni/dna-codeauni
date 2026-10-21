@@ -9,6 +9,7 @@ import {
   CircleDot,
   CirclePlus,
   DraftingCompass,
+  Drill,
   FileDown,
   FileText,
   FilePlus,
@@ -241,6 +242,19 @@ export function Toolbar() {
         actions.withCrs(() => holesInput.current?.click());
       },
     },
+    // La desviación medida se une a los taladros del diseño: se importa en su ventana.
+    ...(tabAvailable('holes', workflow)
+      ? [
+          {
+            icon: Drill,
+            label: tr('import.menu.drillSurvey'),
+            hint: tr('import.menu.drillSurveyHint'),
+            onSelect: () => {
+              openWorkspacePanel('drillSurvey');
+            },
+          },
+        ]
+      : []),
     {
       icon: Pentagon,
       label: tr('import.menu.boundariesCsv'),

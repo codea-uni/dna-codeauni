@@ -21,6 +21,7 @@ import * as surveyTools from './ns/surveyTools';
 import * as underground from './ns/underground';
 import * as undergroundAnalysis from './ns/undergroundAnalysis';
 import * as vibration from './ns/vibration';
+import * as drill from './ns/drill';
 import * as undergroundMethods from './ns/undergroundMethods';
 import * as workspace from './ns/workspace';
 import * as xr from './ns/xr';
@@ -46,6 +47,7 @@ export const es = {
   ...underground.es,
   ...undergroundAnalysis.es,
   ...vibration.es,
+  ...drill.es,
   ...undergroundMethods.es,
   ...workspace.es,
   ...xr.es,

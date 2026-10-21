@@ -5,6 +5,10 @@ import {
   createEmptyProject,
   electronicTimes,
   fitPatternToPolygon,
+  holesWithoutSurvey,
+  holesWithSurvey,
+  matchDrillSurvey,
+  type DrillSurveyInfo,
   holesByCollarHeight,
   makeGroup,
   newId,
@@ -690,6 +694,80 @@ export async function openBoundariesCsv(file: File): Promise<void> {
       r.errors.length ? 'error' : 'info',
     );
   });
+}
+
+/**
+ * Desviación medida de los taladros (.phd de Boretrak o CSV): la trayectoria de cada taladro queda
+ * guardada en él y la simulación pasa a usar la perforación real. Devuelve true si importó.
+ */
+export async function openDrillSurvey(file: File): Promise<boolean> {
+  const blast = document.project.blasts[0];
+  if (!blast) return false;
+  let ok = false;
+  await withBusy(t('drill.reading'), async () => {
+    const r = await getCompute().api.drillSurveyRead(
+      new Uint8Array(await file.arrayBuffer()),
+      file.name,
+    );
+    const match = matchDrillSurvey(blast, r.holes);
+    if (match.pairs.length === 0) {
+      notify(
+        r.holes.length === 0
+          ? t('drill.empty')
+          : t('drill.noMatch', { n: r.holes.length, example: r.holes[0]?.name ?? '' }),
+        'error',
+      );
+      return;
+    }
+    const holes = holesWithSurvey(match);
+    const info: DrillSurveyInfo = {
+      source: file.name,
+      importedAt: new Date().toISOString(),
+      azimuthCorrection: blast.drillSurvey?.azimuthCorrection ?? 0,
+      useInCalc: blast.drillSurvey?.useInCalc ?? true,
+    };
+    document.dispatch(
+      [
+        { type: 'holes/replace', blastId: blast.id, holes },
+        { type: 'blast/patch', blastId: blast.id, patch: { drillSurvey: info } },
+      ],
+      t('drill.importUndo', { n: holes.length }),
+    );
+    const unmatched = match.unmatched.length;
+    notify(
+      `${t('drill.imported', { n: holes.length, total: blast.holes.length })}${unmatched ? ` · ${t('drill.unmatched', { n: unmatched, list: match.unmatched.slice(0, 6).join(', ') })}` : ''}`,
+      unmatched ? 'error' : 'info',
+    );
+    ok = true;
+  });
+  return ok;
+}
+
+/** Cambia cómo se usa la medición de desviación (corrección de rumbo, simular con ella). */
+export function setDrillSurvey(patch: Partial<DrillSurveyInfo>, label: string): void {
+  const blast = document.project.blasts[0];
+  if (!blast?.drillSurvey) return;
+  document.dispatch(
+    {
+      type: 'blast/patch',
+      blastId: blast.id,
+      patch: { drillSurvey: { ...blast.drillSurvey, ...patch } },
+    },
+    label,
+  );
+}
+
+/** Quita la medición de desviación: los taladros vuelven a ser solo los del diseño. */
+export function removeDrillSurvey(): void {
+  const blast = document.project.blasts[0];
+  if (!blast) return;
+  document.dispatch(
+    [
+      { type: 'holes/replace', blastId: blast.id, holes: holesWithoutSurvey(blast) },
+      { type: 'blast/patch', blastId: blast.id, patch: { drillSurvey: undefined } },
+    ],
+    t('drill.removeUndo'),
+  );
 }
 
 /** Catálogo de explosivos a CSV (H-401). */

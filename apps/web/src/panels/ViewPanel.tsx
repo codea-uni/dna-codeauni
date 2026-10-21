@@ -133,6 +133,7 @@ export function ViewPanel() {
             ['labels', 'view.labels'],
             ['traces', 'view.layer.traces'],
             ['displacement', 'view.layer.displacement'],
+            ['asDrilled', 'drill.layer'],
           ] as const
         ).map(([layer, label]) => (
           <label key={layer} className="check">

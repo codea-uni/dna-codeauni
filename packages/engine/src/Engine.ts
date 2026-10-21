@@ -11,6 +11,7 @@ import {
 } from 'three';
 import type { Object3D } from 'three';
 import {
+  asDrilledHoles,
   DEFAULT_HOLE_TEMPLATE,
   LineSnapIndex,
   freeFaceQuads,
@@ -80,6 +81,7 @@ import { VersionDiffLayer } from './layers/VersionDiffLayer';
 import { HolesLayer } from './layers/HolesLayer';
 import { InitiationLayer } from './layers/InitiationLayer';
 import { IsochronesLayer, type IsochroneData } from './layers/IsochronesLayer';
+import { AsDrilledLayer } from './layers/AsDrilledLayer';
 import { LabelsLayer } from './layers/LabelsLayer';
 import { BlastFxLayer } from './layers/BlastFxLayer';
 import { BlocksLayer, type BlocksData } from './layers/BlocksLayer';
@@ -189,7 +191,8 @@ export type EngineLayer =
   | 'benchPlanes'
   | 'pointClouds'
   | 'blockModels'
-  | 'workings';
+  | 'workings'
+  | 'asDrilled';
 
 /**
  * Pila de material (A7) lista para dibujar: superficie (3D y raster en planta), techo in situ,
@@ -286,6 +289,8 @@ export class Engine {
   private lastSiteMpp = 0;
   private readonly initiation = new InitiationLayer();
   private readonly isochrones = new IsochronesLayer();
+  /** Perforación real medida con sonda (desviación): planta y 3D. */
+  private readonly asDrilled = new AsDrilledLayer();
   /** Flechas de desplazamiento (A5): segmentos coloreados por velocidad con el mismo mapa. */
   private readonly displacement = new IsochronesLayer();
   private displacementData: IsochroneData | null = null;
@@ -349,6 +354,7 @@ export class Engine {
     pointClouds: true,
     blockModels: true,
     workings: true,
+    asDrilled: true,
   };
   /** Nubes de puntos y modelos de bloques (levantamientos que no se triangulan). */
   private readonly models3d = new Model3dLayer();
@@ -488,6 +494,7 @@ export class Engine {
       this.energy3d.root,
       this.vibration3d.root,
       this.isochrones3d.lines,
+      this.asDrilled.lines3d,
       this.initiation3d.root,
       this.site3d.root,
       this.labels3d.mesh,
@@ -526,6 +533,7 @@ export class Engine {
       this.sectionLine.lines,
       this.boundaries.root,
       this.initiation.root,
+      this.asDrilled.plan,
       this.holes.root,
       this.labels.mesh,
       this.boundaryLabels.mesh,
@@ -1552,6 +1560,7 @@ export class Engine {
       this.energy3d.root,
       this.vibration3d.root,
       this.isochrones3d.lines,
+      this.asDrilled.lines3d,
       this.initiation3d.root,
       this.avatars3d.root,
       this.buildFx3d.root,
@@ -2027,6 +2036,7 @@ export class Engine {
     this.initiation.dispose();
     this.isochrones.dispose();
     this.displacement.dispose();
+    this.asDrilled.dispose();
     this.energy.dispose();
     this.energy3d.dispose();
     this.vibration3d.dispose();
@@ -2118,6 +2128,8 @@ export class Engine {
       this.rebuildBoundaries();
       this.domains.rebuild(this.document.project.blasts, this.origin);
     }
+    if (cs.blasts.length > 0 || added.length + removed.length + updated.length > 0)
+      this.asDrilled.set(this.document.project.blasts, this.origin);
     // Las conexiones siguen a los taladros: se reconstruyen si cambian taladros, iniciación o librería.
     if (cs.blasts.length > 0 || cs.project || added.length + removed.length + updated.length > 0)
       this.rebuildInitiation();
@@ -2145,7 +2157,8 @@ export class Engine {
     const project = this.document.project;
     this.scene3d.rebuild(
       project,
-      project.blasts,
+      // Con la perforación real en el cálculo, los cilindros van a donde quedó cada taladro.
+      project.blasts.map(asDrilledHoles),
       this.origin,
       this.options3d,
       this.topographyTins,
@@ -2263,6 +2276,7 @@ export class Engine {
     const v = this.layerVisible;
     this.initiation3d.root.visible = v.connections;
     this.isochrones3d.lines.visible = v.isochrones;
+    this.asDrilled.lines3d.visible = v.asDrilled;
     this.energy3d.root.visible = v.energy;
     this.vibration3d.root.visible = v.vibration;
     this.site3d.setZoneVisible(v.flyrock);
@@ -2894,6 +2908,7 @@ export class Engine {
     this.rebuildVersionDiff();
     this.topography.set(this.topographyData, this.origin);
     this.domains.rebuild(this.document.project.blasts, this.origin);
+    this.asDrilled.set(this.document.project.blasts, this.origin);
     this.sectionLine.set(this.sectionData, this.origin);
     this.applyMuckpilePlan();
     this.rebuildMuckpile3d();
@@ -3053,6 +3068,7 @@ export class Engine {
     this.initiation.root.visible = this.layerVisible.connections;
     this.isochrones.lines.visible = this.layerVisible.isochrones;
     this.displacement.lines.visible = this.layerVisible.displacement;
+    this.asDrilled.plan.visible = this.layerVisible.asDrilled;
     this.topography.imageRoot.visible = this.layerVisible.topoImage;
     this.topography.shadeRoot.visible = this.layerVisible.topoShade;
     this.topography.contourRoot.visible = this.layerVisible.topoContours;

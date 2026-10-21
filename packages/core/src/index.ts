@@ -9,6 +9,8 @@ export * from './model/projectKind';
 export * from './units/units';
 export * from './geometry/vec';
 export * from './geometry/hole';
+export * from './drilling/asDrilled';
+export * from './drilling/surveyFiles';
 export * from './geometry/polygon';
 export * from './geometry/clip';
 export * from './geometry/snap';

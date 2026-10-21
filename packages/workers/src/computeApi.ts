@@ -6,6 +6,9 @@ import {
   type BlockModelData,
   type RockSample,
   analyzeBlast,
+  asDrilledProject,
+  readDrillSurvey,
+  type DrillSurveyFile,
   exportDxf,
   importDxf,
   inspectDxf,
@@ -185,6 +188,11 @@ export const computeApi = {
     return ping(message);
   },
 
+  /** Lee un archivo de desviación de taladros (.phd de Boretrak o CSV). */
+  drillSurveyRead(bytes: Uint8Array, fileName: string): DrillSurveyFile {
+    return readDrillSurvey(bytes, fileName);
+  },
+
   /** Genera los taladros de un patrón (O(filas × columnas)). */
   generatePattern(
     pattern: Pattern,
@@ -197,6 +205,8 @@ export const computeApi = {
 
   /** Carguío, cubicación, tiempos e isócronas de una voladura. */
   analyzeBlast(project: Project, blastId: BlastId, options: AnalysisOptions): BlastAnalysis | null {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const r = analyzeBlast(project, blastId, options);
     const blast = project.blasts.find((b) => b.id === blastId);
     // Con «Roca desde modelo geotécnico», el tonelaje usa la densidad del bloque de cada taladro.
@@ -210,6 +220,8 @@ export const computeApi = {
 
   /** Roca por taladro, resumen y caminos a los puntos de control (null sin modelo geotécnico activo). */
   holeRocks(project: Project, blastId: BlastId): HoleRocks | null {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const blast = project.blasts.find((b) => b.id === blastId);
     return blast ? holeRocks(project, blast) : null;
   },
@@ -228,6 +240,8 @@ export const computeApi = {
     /** Topografía del banco: arriba del terreno es aire (A7b). */
     tin: TinData | null = null,
   ): EnergyResult | null {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const blast = project.blasts.find((b) => b.id === blastId);
     if (!blast) return null;
     const surface = tin ? SurfaceIndex.build(tin) : null;
@@ -242,6 +256,8 @@ export const computeApi = {
 
   /** Entradas de Kuz-Ram derivadas de la voladura (malla, carga media, factor de carga, roca). */
   fragmentationInputs(project: Project, blastId: BlastId, patternId?: string): KuzRamInputs | null {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const blast = project.blasts.find((b) => b.id === blastId);
     if (!blast) return null;
     const rock = project.rockMasses.find((r) => r.id === blast.rockMassId) ?? {
@@ -270,6 +286,8 @@ export const computeApi = {
     /** Topografía del banco: cada celda se evalúa a la cota del terreno (receptor en superficie). */
     tin: TinData | null = null,
   ): VibrationResult | null {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const blast = project.blasts.find((b) => b.id === blastId);
     if (!blast) return null;
     const r = computeVibration(project, blast, options, tin ? SurfaceIndex.build(tin) : null);
@@ -291,6 +309,8 @@ export const computeApi = {
     tin: TinData | null,
     options: MuckpileOptions = {},
   ): MuckpileResult | null {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const r = computeMuckpile(project, blastId, tin ? SurfaceIndex.build(tin) : null, options);
     return r ? transfer(r, muckpileBuffers(r)) : null;
   },
@@ -304,6 +324,8 @@ export const computeApi = {
     blastId: BlastId,
     params: Partial<UgMuckpileParams> = {},
   ): UndergroundMuckpileResult | null {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const r = computeUndergroundMuckpile(project, blastId, params);
     if (!r) return null;
     const buffers = muckpileBuffers(r);
@@ -365,6 +387,8 @@ export const computeApi = {
     ranges: { k: CalibrationRange; n: CalibrationRange },
     onProgress?: (done: number, total: number) => void,
   ): CalibrationResult | null {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const input = muckpileInput(project, blastId, tin ? SurfaceIndex.build(tin) : null);
     if (!input) return null;
     return calibrateMuckpile(
@@ -378,6 +402,8 @@ export const computeApi = {
 
   /** Informe PDF de la voladura (bytes del archivo). */
   async report(project: Project, blastId: BlastId, options: ReportOptions): Promise<Uint8Array> {
+    // Con la perforación real activada, se simula con los taladros como quedaron.
+    project = asDrilledProject(project);
     const bytes = await buildReport(project, blastId, options);
     return transfer(bytes, [bytes.buffer as ArrayBuffer]);
   },

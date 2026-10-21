@@ -143,6 +143,7 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
     pointClouds: true,
     blockModels: true,
     workings: true,
+    asDrilled: true,
   },
   sequenceTime: null,
   sequencePlaying: false,

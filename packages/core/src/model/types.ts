@@ -198,7 +198,21 @@ export interface Blast {
    * subterráneos enviados: secciones del perfil a lo largo del eje, ya en coordenadas de obra.
    */
   excavations?: UndergroundExcavation[];
+  /** Medición de la perforación real (sonda de desviación) importada para esta voladura. */
+  drillSurvey?: DrillSurveyInfo;
   notes?: string;
+}
+
+/** Medición de desviación de la voladura: de dónde vino y cómo se usa. */
+export interface DrillSurveyInfo {
+  /** Archivo de origen (p.ej. «deviation.phd»). */
+  source: string;
+  /** Fecha de importación (ISO). */
+  importedAt: string;
+  /** Corrección sumada a los rumbos medidos [rad]: declinación magnética o giro de la grilla. */
+  azimuthCorrection: Radians;
+  /** Simular carga, energía, vibración, fragmentación y pila con los taladros como quedaron. */
+  useInCalc: boolean;
 }
 
 /** Excavación de contexto de un diseño subterráneo (se dibuja en alambre o como superficie). */
@@ -639,8 +653,21 @@ export interface Hole {
   initiators: InHoleInitiator[];
   status: HoleStatus;
   /** Geometría real (as-drilled) si difiere del diseño. */
-  actual?: Partial<Pick<Hole, 'collar' | 'length' | 'inclination' | 'azimuth' | 'diameter'>>;
+  actual?: Partial<Pick<Hole, 'collar' | 'length' | 'inclination' | 'azimuth' | 'diameter'>> & {
+    /** Estaciones medidas con sonda, de la boca al fondo (rumbos sin corregir). */
+    survey?: SurveyStation[];
+  };
   tags?: string[];
+}
+
+/** Lectura de la sonda de desviación a una profundidad a lo largo del taladro. */
+export interface SurveyStation {
+  /** Profundidad medida desde la boca, a lo largo del eje [m]. */
+  depth: Meters;
+  /** Ángulo desde la vertical [rad]. */
+  inclination: Radians;
+  /** Rumbo horario desde el Norte [rad], tal como lo leyó la sonda. */
+  azimuth: Radians;
 }
 
 // ===================== Decks =====================

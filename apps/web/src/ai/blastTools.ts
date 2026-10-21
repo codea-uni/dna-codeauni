@@ -1276,6 +1276,7 @@ const LAYER_GROUPS = {
   vibration: ['vibration'],
   flyrock: ['flyrock'],
   displacement: ['displacement'],
+  as_drilled: ['asDrilled'],
   muckpile: ['muckpile', 'muckpileBefore', 'muckpileVectors'],
   material_blocks: ['muckpileBlocks'],
   ore_waste_zones: ['domains'],
@@ -1962,7 +1963,7 @@ export const BLAST_TOOLS: Record<string, ToolDef> = {
   },
   set_layers: {
     description:
-      'Show or hide map/3D/VR layers (the design is not changed): results (all result overlays), labels, hole_traces, tie_up, isochrones, energy, vibration, flyrock, displacement, muckpile, material_blocks (the colored muckpile blocks), ore_waste_zones, slope_faces, bench_surfaces (bench top/floor planes), topography. Perimeters and holes are not layers: to remove them use delete_perimeter / delete_holes.',
+      'Show or hide map/3D/VR layers (the design is not changed): results (all result overlays), labels, hole_traces, tie_up, isochrones, energy, vibration, flyrock, displacement, as_drilled (measured as-drilled hole paths from the deviation survey), muckpile, material_blocks (the colored muckpile blocks), ore_waste_zones, slope_faces, bench_surfaces (bench top/floor planes), topography. Perimeters and holes are not layers: to remove them use delete_perimeter / delete_holes.',
     schema: layersSchema,
     run: setLayers,
   },

@@ -1,5 +1,5 @@
 import { Suspense, useEffect, type ComponentType } from 'react';
-import { BookOpen, Bot, Layers, LayoutGrid, Mountain, Pickaxe, Shapes } from 'lucide-react';
+import { BookOpen, Bot, Drill, Layers, LayoutGrid, Mountain, Pickaxe, Shapes } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { tabAvailable, useWorkflow, type TabRequirement } from '../hooks/useWorkflow';
 import { useT, type MessageKey } from '../i18n';
@@ -8,6 +8,7 @@ import { BlastPanel } from '../panels/BlastPanel';
 import { TopographyPanel } from '../panels/TopographyPanel';
 import { PatternPanel } from '../panels/PatternPanel';
 import { GroupsPanel } from '../panels/GroupsPanel';
+import { DrillSurveyPanel } from '../panels/DrillSurveyPanel';
 import { FirstSteps } from '../panels/FirstSteps';
 import { useUiStore } from '../stores/uiStore';
 import { fitsKind, useProjectKind } from '../product/product';
@@ -88,6 +89,14 @@ export const WORKSPACE_PANELS: WorkspacePanel[] = [
     icon: Shapes,
     requires: 'holes',
     Content: GroupsPanel,
+  },
+  {
+    id: 'drillSurvey',
+    section: 'analysis',
+    label: 'drill.title',
+    icon: Drill,
+    requires: 'holes',
+    Content: DrillSurveyPanel,
   },
   ...LEFT_TABS.map((tab): WorkspacePanel => ({
     id: tab.id,

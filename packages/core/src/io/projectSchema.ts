@@ -89,6 +89,7 @@ const holeActual = z.object({
   inclination: num.exactOptional(),
   azimuth: num.exactOptional(),
   diameter: pos.exactOptional(),
+  survey: z.array(z.object({ depth: nonNeg, inclination: num, azimuth: num })).exactOptional(),
 });
 
 const hole: z.ZodType<M.Hole> = z.object({
@@ -246,6 +247,14 @@ const blast: z.ZodType<M.Blast> = z.object({
         burden: num.exactOptional(),
       }),
     )
+    .exactOptional(),
+  drillSurvey: z
+    .object({
+      source: z.string(),
+      importedAt: z.string(),
+      azimuthCorrection: num,
+      useInCalc: z.boolean(),
+    })
     .exactOptional(),
   notes: z.string().exactOptional(),
 });
