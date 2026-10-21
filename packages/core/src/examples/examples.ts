@@ -563,7 +563,7 @@ export const EXAMPLES: ExampleInfo[] = [
   {
     id: 'production',
     name: 'Producción estándar (2D)',
-    description: 'Banco plano completo · producción y buffer · salida en V · 2 escenarios',
+    description: 'Banco plano completo · producción y amortiguación · salida en V · 2 escenarios',
     build: plain(EXAMPLE_SPECS.production),
   },
   {
@@ -575,7 +575,7 @@ export const EXAMPLES: ExampleInfo[] = [
   {
     id: 'topoSector',
     name: 'Banco con ortofoto',
-    description: 'Talud de tres bancos con vuelo de dron · producción y buffer',
+    description: 'Talud de tres bancos con vuelo de dron · producción y amortiguación',
     build: () => Promise.resolve(buildSectorExample()),
   },
   {
@@ -593,7 +593,7 @@ export const EXAMPLES: ExampleInfo[] = [
   {
     id: 'inclined',
     name: 'Talud final',
-    description: 'Inclinados 15° · buffer junto a la pared final',
+    description: 'Inclinados 15° · amortiguación junto a la pared final',
     build: () => Promise.resolve(buildFinalWallExample()),
   },
   {

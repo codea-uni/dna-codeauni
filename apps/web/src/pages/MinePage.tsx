@@ -17,12 +17,13 @@ import {
   toolFromSearch,
   useProductChrome,
 } from '../product/product';
-import { useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
+import { formatDay, useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
 import { parseErrorText } from '../i18n/coreText';
 import { api } from '../server/api';
 import { summaryParts } from '../server/summaryText';
 import { APP_VERSION, getCompute } from '../session';
 import { workspaceErrorKey } from '../stores/workspaceStore';
+import { CrsPicker, crsDisplayName } from '../components/CrsPicker';
 import { PageShell } from './PageShell';
 import { roleKey } from './roles';
 
@@ -51,6 +52,7 @@ export function MinePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
+  const [crsOpen, setCrsOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
   // Herramienta elegida en la mina (`?tool=`): Open Pit por defecto, que es lo que ya se usa.
@@ -164,10 +166,24 @@ export function MinePage() {
               </Link>
             </div>
             <ul className="chips">
-              <li>
+              <li title={detail.mine.epsg ? `EPSG ${String(detail.mine.epsg)}` : undefined}>
                 {detail.mine.epsg
-                  ? t('workspace.epsg', { code: detail.mine.epsg })
-                  : t('workspace.noEpsg')}
+                  ? t('crs.mineChip', { name: crsDisplayName(detail.mine.epsg) })
+                  : t('crs.mineMissing')}
+                {!detail.mine.epsg && permissions.manageMines(detail.role) && (
+                  <>
+                    {' · '}
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => {
+                        setCrsOpen(true);
+                      }}
+                    >
+                      {t('crs.setForMine')}
+                    </button>
+                  </>
+                )}
               </li>
               <li>{t('workspace.yourRole', { role: t(roleKey(detail.role)) })}</li>
             </ul>
@@ -291,6 +307,18 @@ export function MinePage() {
           </div>
         </>
       )}
+      {crsOpen && detail && (
+        <MineCrsDialog
+          mineId={mineId}
+          onClose={() => {
+            setCrsOpen(false);
+          }}
+          onSaved={(mine) => {
+            setLoaded((l) => (l?.detail ? { ...l, detail: { ...l.detail, mine } } : l));
+            setCrsOpen(false);
+          }}
+        />
+      )}
     </PageShell>
   );
 }
@@ -376,7 +404,8 @@ function MineSurveys({ surveys }: { surveys: MineSurvey[] }) {
           {surveys.map(({ survey: s, createdAt, createdBy }) => (
             <li key={s.id}>
               <span>
-                <strong>{s.name}</strong> <span className="row-meta">{s.surveyDate}</span>
+                <strong>{s.name}</strong>{' '}
+                <span className="row-meta">{formatDay(s.surveyDate)}</span>
               </span>
               <p className="muted">
                 {t('topo.panel.stats', {
@@ -396,5 +425,62 @@ function MineSurveys({ surveys }: { surveys: MineSurvey[] }) {
         </ol>
       )}
     </aside>
+  );
+}
+
+/** Sistema de coordenadas de una mina que no lo tiene (lo define quien la administra). */
+function MineCrsDialog({
+  mineId,
+  onClose,
+  onSaved,
+}: {
+  mineId: string;
+  onClose: () => void;
+  onSaved: (mine: MineDetail['mine']) => void;
+}) {
+  const t = useT();
+  const [epsg, setEpsg] = useState<number | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('crs.title')}
+      onClick={onClose}
+    >
+      <div
+        className="modal dialog-narrow"
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <header>
+          <h2>{t('crs.title')}</h2>
+        </header>
+        <CrsPicker value={epsg} onChange={setEpsg} autoFocus />
+        <p className="muted">{t('crs.mineInherit')}</p>
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <footer>
+          <button onClick={onClose}>{t('common.cancel')}</button>
+          <button
+            className="primary-inline"
+            disabled={epsg === undefined}
+            onClick={() => {
+              if (epsg === undefined) return;
+              api.updateMine(mineId, { epsg }).then(onSaved, (err: unknown) => {
+                setError(t(workspaceErrorKey(err)));
+              });
+            }}
+          >
+            {t('crs.save')}
+          </button>
+        </footer>
+      </div>
+    </div>
   );
 }

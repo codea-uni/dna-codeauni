@@ -41,13 +41,34 @@ export function checkTopography(
   if (bounds.minZ === 0 && bounds.maxZ === 0) w.push({ code: 'topo.noZ' });
   const p = ctx.projectBounds;
   if (p && Number.isFinite(p.minX)) {
-    const dx = Math.max(0, p.minX - bounds.maxX, bounds.minX - p.maxX);
-    const dy = Math.max(0, p.minY - bounds.maxY, bounds.minY - p.maxY);
-    const d = Math.hypot(dx, dy);
+    const d = boundsGap(bounds, p);
     if (d > FAR_FROM_PROJECT)
       w.push({ code: 'topo.farFromProject', params: { km: Math.round(d / 1000) } });
   }
   return w;
+}
+
+/** Separación en planta entre dos cajas envolventes [m]: 0 si se superponen o se tocan. */
+export function boundsGap(
+  a: Pick<Bounds3, 'minX' | 'minY' | 'maxX' | 'maxY'>,
+  b: Pick<Bounds3, 'minX' | 'minY' | 'maxX' | 'maxY'>,
+): number {
+  const dx = Math.max(0, b.minX - a.maxX, a.minX - b.maxX);
+  const dy = Math.max(0, b.minY - a.maxY, a.minY - b.maxY);
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * Capa recién cargada lejos de las demás: la menor separación con cualquiera de ellas [m], o null
+ * si no hay otras o alguna queda a menos de `FAR_FROM_PROJECT` (están en el mismo lugar).
+ */
+export function farFromLayers(
+  bounds: Pick<Bounds3, 'minX' | 'minY' | 'maxX' | 'maxY'>,
+  others: readonly Pick<Bounds3, 'minX' | 'minY' | 'maxX' | 'maxY'>[],
+): number | null {
+  if (others.length === 0) return null;
+  const gap = Math.min(...others.map((o) => boundsGap(bounds, o)));
+  return gap > FAR_FROM_PROJECT ? gap : null;
 }
 
 /** Intercambia en el lugar X e Y de coordenadas x, y, z intercaladas (Norte/Este cambiados). */

@@ -1,8 +1,10 @@
 import type { ToolName } from '@cronos/engine';
 import {
+  Activity,
   Bot,
   BookOpen,
   Box,
+  Boxes,
   Cable,
   CircleDot,
   CirclePlus,
@@ -39,6 +41,7 @@ import {
   Settings,
   Shapes,
   Sheet,
+  Spline,
   Undo2,
   Wrench,
   Zap,
@@ -62,6 +65,8 @@ import { WORKSPACE_PANELS, openWorkspacePanel } from './WorkspaceWindows';
 import { XrButtons } from '../xr/XrButtons';
 import { OtherToolProjects, ProductMark } from '../product/CrossView';
 import { fitsKind, kindOrder, useEditorTool, useProjectKind } from '../product/product';
+import { importModel3dFiles, MODEL3D_ACCEPT } from '../topography/models3d';
+import { openWorkingsImport } from '../panels/WorkingsImport';
 
 export interface ToolDef {
   name: ToolName;
@@ -183,17 +188,86 @@ export function Toolbar() {
   const workflow = useWorkflow();
   const floating = useUiStore((s) => s.floating);
   const fileInput = useRef<HTMLInputElement>(null);
-  const csvInput = useRef<HTMLInputElement>(null);
-  const dxfInput = useRef<HTMLInputElement>(null);
   const geoJsonInput = useRef<HTMLInputElement>(null);
   const boundariesInput = useRef<HTMLInputElement>(null);
   const topographyInput = useRef<HTMLInputElement>(null);
+  const model3dInput = useRef<HTMLInputElement>(null);
+  const holesInput = useRef<HTMLInputElement>(null);
   // Herramienta en uso (marca) y tipo del proyecto (qué paneles y herramientas tienen sentido).
   const productTool = useEditorTool();
   const kind = useProjectKind();
   const panels = WORKSPACE_PANELS.filter(
     (panel) => panel.section === ribbonTab && fitsKind(panel.id, kind),
   ).sort((a, b) => kindOrder(a.id, kind) - kindOrder(b.id, kind));
+
+  // Un solo menú Importar con lo que se puede traer, cada opción dice qué es y qué archivos lee.
+  // Bajo tierra las labores van primero. Sin sistema de coordenadas se pide y sigue sola.
+  const workingsItem = {
+    icon: Spline,
+    label: tr('import.menu.workings'),
+    hint: tr('import.menu.workingsHint'),
+    onSelect: () => {
+      actions.withCrs(() => {
+        openWorkspacePanel('topography');
+        openWorkingsImport();
+      });
+    },
+  };
+  const vibrationAvailable = tabAvailable('charged', workflow);
+  const importItems = [
+    ...(kind === 'underground' ? [workingsItem] : []),
+    {
+      icon: Mountain,
+      label: tr('import.menu.topography'),
+      hint: tr('import.menu.topographyHint'),
+      onSelect: () => {
+        actions.withCrs(() => topographyInput.current?.click());
+      },
+    },
+    ...(kind === 'underground' ? [] : [workingsItem]),
+    {
+      icon: Boxes,
+      label: tr('import.menu.model3d'),
+      hint: tr('import.menu.model3dHint'),
+      onSelect: () => {
+        actions.withCrs(() => model3dInput.current?.click());
+      },
+    },
+    {
+      icon: DraftingCompass,
+      label: tr('import.menu.holes'),
+      hint: tr('import.menu.holesHint'),
+      onSelect: () => {
+        actions.withCrs(() => holesInput.current?.click());
+      },
+    },
+    {
+      icon: Pentagon,
+      label: tr('import.menu.boundariesCsv'),
+      onSelect: () => {
+        actions.withCrs(() => boundariesInput.current?.click());
+      },
+    },
+    {
+      icon: MapIcon,
+      label: tr('import.menu.geoJson'),
+      onSelect: () => {
+        actions.withCrs(() => geoJsonInput.current?.click());
+      },
+    },
+    // Los registros de sismógrafos son de la mina y se cargan en la ventana Vibración.
+    ...(vibrationAvailable
+      ? [
+          {
+            icon: Activity,
+            label: tr('import.menu.seismographs'),
+            onSelect: () => {
+              openWorkspacePanel('vibration');
+            },
+          },
+        ]
+      : []),
+  ];
 
   return (
     <header className="toolbar">
@@ -289,13 +363,18 @@ export function Toolbar() {
                 />
               </>
             )}
-            <IconButton
-              showLabel
-              icon={Save}
-              label={tr('toolbar.saveProject')}
-              shortcut="Ctrl+S"
-              onClick={() => void actions.saveProject()}
-            />
+            {/* Sin servidor, la copia descargada es el guardado; en la mina se guarda una versión
+                (junto al aviso de cambios sin publicar) y la copia queda en Exportar. */}
+            {!serverMode && (
+              <IconButton
+                showLabel
+                icon={Save}
+                label={tr('save.downloadCopy')}
+                hint={tr('save.downloadCopyHint')}
+                shortcut="Ctrl+S"
+                onClick={() => void actions.saveProject()}
+              />
+            )}
             <MenuButton
               showLabel
               icon={Clapperboard}
@@ -340,53 +419,22 @@ export function Toolbar() {
                 useUiStore.getState().setSettingsOpen(true);
               }}
             />
-            <MenuButton
-              showLabel
-              icon={FileUp}
-              label={tr('toolbar.import')}
-              items={[
-                {
-                  icon: Sheet,
-                  label: tr('toolbar.importCsv'),
-                  onSelect: () => {
-                    if (actions.requireCrs()) csvInput.current?.click();
-                  },
-                },
-                {
-                  icon: DraftingCompass,
-                  label: tr('toolbar.importDxf'),
-                  onSelect: () => {
-                    if (actions.requireCrs()) dxfInput.current?.click();
-                  },
-                },
-                {
-                  icon: Mountain,
-                  label: tr('topo.importMenu'),
-                  onSelect: () => {
-                    if (actions.requireCrs()) topographyInput.current?.click();
-                  },
-                },
-                {
-                  icon: MapIcon,
-                  label: tr('toolbar.importGeoJson'),
-                  onSelect: () => {
-                    if (actions.requireCrs()) geoJsonInput.current?.click();
-                  },
-                },
-                {
-                  icon: Pentagon,
-                  label: tr('toolbar.importBoundariesCsv'),
-                  onSelect: () => {
-                    if (actions.requireCrs()) boundariesInput.current?.click();
-                  },
-                },
-              ]}
-            />
+            <MenuButton showLabel icon={FileUp} label={tr('toolbar.import')} items={importItems} />
             <MenuButton
               showLabel
               icon={FileDown}
               label={tr('toolbar.export')}
               items={[
+                ...(serverMode
+                  ? [
+                      {
+                        icon: Save,
+                        label: tr('save.downloadCopy'),
+                        hint: tr('save.downloadCopyHint'),
+                        onSelect: () => void actions.saveProject(),
+                      },
+                    ]
+                  : []),
                 {
                   icon: Sheet,
                   label: tr('toolbar.exportCsv'),
@@ -431,17 +479,6 @@ export function Toolbar() {
               }}
             />
             <input
-              ref={dxfInput}
-              type="file"
-              accept=".dxf"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void actions.openDxf(file);
-                e.target.value = '';
-              }}
-            />
-            <input
               ref={topographyInput}
               type="file"
               accept={actions.TOPOGRAPHY_ACCEPT}
@@ -450,6 +487,31 @@ export function Toolbar() {
               onChange={(e) => {
                 const files = [...(e.target.files ?? [])];
                 if (files.length > 0) void actions.openTopography(files);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={model3dInput}
+              type="file"
+              accept={MODEL3D_ACCEPT}
+              multiple
+              hidden
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                if (files.length > 0) void importModel3dFiles(files);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={holesInput}
+              type="file"
+              accept=".dxf,.csv,.txt,.tsv,text/csv"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // Un solo «Taladros y perímetros»: el DXF va a su asistente y el texto al de CSV.
+                if (file)
+                  void (/\.dxf$/i.test(file.name) ? actions.openDxf(file) : actions.openCsv(file));
                 e.target.value = '';
               }}
             />
@@ -472,17 +534,6 @@ export function Toolbar() {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) void actions.openBoundariesCsv(file);
-                e.target.value = '';
-              }}
-            />
-            <input
-              ref={csvInput}
-              type="file"
-              accept=".csv,.txt,.tsv,text/csv"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void actions.openCsv(file);
                 e.target.value = '';
               }}
             />

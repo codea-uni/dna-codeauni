@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { inspectDxfTopography, parseDxfTopography } from './dxfTopography';
 import { parseLandXml } from './landxml';
-import { parsePoints } from './points';
+import { headerColumns, parsePoints, splitPointsRow } from './points';
 import { parseSurpac } from './surpac';
 
 // Fixtures armados a mano: el valor esperado es el que define el propio archivo (formato y
@@ -32,6 +32,25 @@ describe('puntos CSV/TXT', () => {
     expect(r.delimiter).toBe(' ');
     expect(r.points).toEqual([345678, 8512345, 4250, 345680, 8512347, 4251]);
     expect(r.warnings).toContainEqual({ code: 'points.badRows', params: { n: 1 } });
+  });
+
+  it('cabeceras con unidades, prefijos y en otro orden (PUNTO, Norte (m), COORD_E, Cota msnm)', () => {
+    expect(headerColumns(['PUNTO', 'Norte (m)', 'COORD_E', 'Cota msnm', 'Código'])).toEqual({
+      north: 1,
+      east: 2,
+      elevation: 3,
+    });
+    expect(headerColumns(['X_UTM', 'Y_UTM', 'Elevación'])).toEqual({
+      east: 0,
+      north: 1,
+      elevation: 2,
+    });
+    // «Descripción» o «Este Norte» juntos no son una columna.
+    expect(headerColumns(['Descripción', 'Este Norte'])).toEqual({});
+    const r = parsePoints(bytes('PUNTO,Norte (m),Este (m),Cota\n1,8512345.5,345678.25,4250\n'));
+    expect(r.columns).toEqual({ north: 1, east: 2, elevation: 3 });
+    expect(r.points).toEqual([345678.25, 8512345.5, 4250]);
+    expect(splitPointsRow('PUNTO;Norte (m);Este')).toEqual(['PUNTO', 'Norte (m)', 'Este']);
   });
 
   it('sin tres columnas numéricas avisa', () => {

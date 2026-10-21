@@ -5,6 +5,7 @@ import { projectKind } from '@cronos/core';
 import { fitsKind } from '../product/product';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { saveVersionShortcut } from '../server/ProjectContext';
 
 function isEditable(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -15,9 +16,17 @@ function isEditable(target: EventTarget | null): boolean {
 export function useShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || isEditable(e.target)) return;
+      if (e.defaultPrevented) return;
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
+      // Ctrl+S también desde un campo: nunca el «Guardar página» del navegador.
+      if (mod && !e.altKey && key === 's') {
+        e.preventDefault();
+        // En la mina abre «Guardar versión»; sin servidor, descarga la copia.
+        if (!saveVersionShortcut()) void actions.saveProject();
+        return;
+      }
+      if (isEditable(e.target)) return;
       if (mod && key === 'z') {
         if (e.shiftKey) actions.redo();
         else actions.undo();
@@ -25,8 +34,6 @@ export function useShortcuts(): void {
         actions.redo();
       } else if (mod && key === 'a') {
         actions.selectAll();
-      } else if (mod && key === 's') {
-        void actions.saveProject();
       } else if (!mod && !e.altKey && e.key === '3') {
         const ui = useUiStore.getState();
         ui.setViewMode(ui.viewMode === '3d' ? 'plan' : '3d');

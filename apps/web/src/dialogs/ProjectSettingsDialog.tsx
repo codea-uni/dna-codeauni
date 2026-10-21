@@ -1,18 +1,13 @@
 import type { DisplayUnits } from '@cronos/core';
 import { X } from 'lucide-react';
-import { NumberField } from '../components/NumberField';
+import { useEffect } from 'react';
+import { CrsPicker } from '../components/CrsPicker';
 import { useProject } from '../hooks/useDocument';
 import { useLocale, useT, type Locale } from '../i18n';
 import { session } from '../session';
+import { setProjectCrs } from './CrsPromptDialog';
 
-/** Zonas UTM WGS 84 del hemisferio sur que cubren Perú (sugerencias; se acepta cualquier EPSG). */
-const EPSG_SUGGESTIONS: [number, string][] = [
-  [32717, 'WGS 84 / UTM 17S'],
-  [32718, 'WGS 84 / UTM 18S'],
-  [32719, 'WGS 84 / UTM 19S'],
-];
-
-/** Ajustes del proyecto: CRS (H-101), unidades de visualización (H-104) e idioma (R-26). */
+/** Ajustes del proyecto: sistema de coordenadas (H-101), unidades de visualización (H-104) e idioma (R-26). */
 export function ProjectSettingsDialog({ onClose }: { onClose: () => void }) {
   const t = useT();
   const project = useProject();
@@ -26,17 +21,16 @@ export function ProjectSettingsDialog({ onClose }: { onClose: () => void }) {
       t('settings.units'),
     );
   };
-  const setEpsg = (epsg: number) => {
-    const name = EPSG_SUGGESTIONS.find(([code]) => code === epsg)?.[1];
-    // El nombre anterior correspondía a otro código: solo se conserva el de una sugerencia.
-    session.document.dispatch(
-      {
-        type: 'project/patch',
-        patch: { coordinateSystem: { origin: crs.origin, epsg, ...(name ? { name } : {}) } },
-      },
-      t('settings.crs'),
-    );
-  };
+  // Escape cierra los ajustes, también desde un campo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
 
   return (
     <div
@@ -73,31 +67,8 @@ export function ProjectSettingsDialog({ onClose }: { onClose: () => void }) {
           />
         </label>
 
-        <h3>{t('settings.crs')}</h3>
-        <NumberField
-          label={t('settings.epsg')}
-          value={crs.epsg ?? null}
-          integer
-          min={1024}
-          max={32767}
-          decimals={0}
-          onCommit={setEpsg}
-        />
-        <p className="hint">{t('settings.epsgHint')}</p>
-        <div className="row">
-          {EPSG_SUGGESTIONS.map(([code, name]) => (
-            <button
-              key={code}
-              className={crs.epsg === code ? 'active' : ''}
-              onClick={() => {
-                setEpsg(code);
-              }}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-        {crs.name && <p className="muted">{crs.name}</p>}
+        <h3>{t('crs.title')}</h3>
+        <CrsPicker value={crs.epsg} onChange={setProjectCrs} />
 
         <h3>{t('settings.units')}</h3>
         <label className="field">
@@ -121,7 +92,7 @@ export function ProjectSettingsDialog({ onClose }: { onClose: () => void }) {
             }}
           >
             <option value="mm">mm</option>
-            <option value="in">in</option>
+            <option value="in">{t('units.inches')}</option>
           </select>
         </label>
         <p className="hint">{t('settings.unitsHint')}</p>

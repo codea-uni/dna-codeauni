@@ -72,7 +72,7 @@ export function designChecks(
     severity: 'warning',
     title: 'Sin cara libre definida',
     detail:
-      'Solo queda la superficie del banco como cara libre: voladura confinada, más vibración y peor fragmentación (RM-06). Marca la cara libre en el perímetro (herramienta C).',
+      'Solo queda la superficie del banco como cara libre: voladura confinada, más vibración y peor fragmentación. Marca la cara libre en el perímetro (herramienta C).',
     holes: hasFreeFace ? [] : surface.map((h) => h.id),
   });
   add({
@@ -95,7 +95,7 @@ export function designChecks(
     id: 'benchDiameter',
     severity: 'info',
     title: 'Diámetro poco usual para la altura de banco',
-    detail: `H/Ø fuera de ${fmtRange(options.benchDiameterRatio)} (regla informativa, R0).`,
+    detail: `H/Ø fuera de ${fmtRange(options.benchDiameterRatio)} (regla informativa).`,
     params: { ...options.benchDiameterRatio },
     holes: benchDiameter,
   });
@@ -154,7 +154,7 @@ export function designChecks(
     id: 'overcharged',
     severity: 'error',
     title: 'Columna más larga que el taladro',
-    detail: 'La suma de decks supera la longitud del taladro.',
+    detail: 'La suma de las cubiertas (decks) supera la longitud del taladro.',
     holes: overcharged,
   });
   add({
@@ -162,14 +162,14 @@ export function designChecks(
     severity: 'error',
     title: 'Sin taco',
     detail:
-      'Explosivo hasta la boca: alto riesgo de proyecciones y sobrepresión (P-04). Confirma que es intencional (alivio o prueba).',
+      'Explosivo hasta la boca: alto riesgo de proyecciones y sobrepresión. Confirma que es intencional (alivio o prueba).',
     holes: noStemming,
   });
   add({
     id: 'shortStemming',
     severity: 'warning',
     title: 'Taco corto',
-    detail: `Taco menor que ${String(options.minStemmingRatio)} × burden (sin malla: ${String(options.minStemmingDiameters)} × Ø); riesgo de proyecciones (P-04).`,
+    detail: `Taco menor que ${String(options.minStemmingRatio)} × burden (sin malla: ${String(options.minStemmingDiameters)} × Ø); riesgo de proyecciones.`,
     params: { ratio: options.minStemmingRatio, diameters: options.minStemmingDiameters },
     holes: shortStemming,
   });

@@ -3,6 +3,7 @@ import { decodeAsset, encodeAsset } from '../topography/asset';
 import { buildSurvey } from '../topography/survey';
 import { planeFrame } from './transform';
 import {
+  isWorkingsLayerName,
   axisLength,
   buildWorkings,
   estimateSolidAxis,
@@ -556,5 +557,43 @@ describe('eje estimado de un tajeo de 8 esquinas', () => {
       expect(zs[i] ?? 0).toBeLessThanOrEqual((zs[i - 1] ?? 0) + 1e-9);
     expect(Math.min(...zs)).toBeCloseTo(1895, 6);
     expect(axisLength(est?.points ?? [])).toBeLessThan(60);
+  });
+});
+
+describe('capas con nombre de labor', () => {
+  it('reconoce galerías, cruceros, rampas, tajeos, cámaras y chimeneas (abreviados o con número)', () => {
+    for (const name of [
+      'GALERIA_420',
+      'Galería 3370',
+      'CRUCERO',
+      'XC-12',
+      'RAMPA',
+      'RP_NEGATIVA',
+      'TAJEO 520',
+      'CAMARA',
+      'Cámara de carguío',
+      'CHIMENEA',
+      'CH-3',
+      'BY-PASS',
+      'stopes',
+      'Drift_3370',
+    ])
+      expect(isWorkingsLayerName(name), name).toBe(true);
+  });
+
+  it('no confunde topografía, textos ni capas de dibujo', () => {
+    for (const name of [
+      'TOPO',
+      'CURVAS',
+      'CURVAS_GALERIA',
+      'TEXTO_RAMPA',
+      '0',
+      'BORDE',
+      'PIT',
+      'Defpoints',
+      'GALLO',
+      'TJAVIER',
+    ])
+      expect(isWorkingsLayerName(name), name).toBe(false);
   });
 });

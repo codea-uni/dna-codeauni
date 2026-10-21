@@ -55,7 +55,7 @@ export const es = {
   'view.sdob.controlled': 'Controlada',
   'view.sdob.veryControlled': 'Muy controlada',
   'view.sdob.minimal': 'Efectos mínimos',
-  'view.sdobCuts': 'Cortes {cuts} m/kg^⅓ (R1 F12)',
+  'view.sdobCuts': 'Cortes {cuts} m/kg^⅓',
   'view.color.group': 'Grupo',
   'view.noGroups': 'Sin grupos (pestaña Diseño)',
   'view.labels': 'Etiquetas',
@@ -153,13 +153,12 @@ export const es = {
   'frag.nOut':
     'n = {n} fuera del rango usual {min}–{max} (Cunningham 2005): revisa la malla o la carga.',
   'frag.status':
-    'Kuz-Ram se verifica con CR-02 (regresión) hasta tener un ejemplo publicado independiente (CR-07). Swebrec: literatura abierta, sin caso de referencia.',
+    'Kuz-Ram se verifica con un caso de referencia (regresión) hasta tener un ejemplo publicado independiente. Swebrec: literatura abierta, sin caso de referencia.',
   'frag.field.chargeLength': 'Largo de carga',
   'frag.field.bottomChargeLength': 'Carga de fondo',
   'frag.field.columnChargeLength': 'Carga de columna',
   'frag.field.benchHeight': 'Altura de banco',
-  'frag.rockFactorOut':
-    'Factor de roca A = {a} fuera de {min}–{max} (típico 6–13 en roca media, P-08).',
+  'frag.rockFactorOut': 'Factor de roca A = {a} fuera de {min}–{max} (típico 6–13 en roca media).',
   'frag.curve': 'Curva',
   'frag.xmax': 'Tamaño máximo (Swebrec)',
   'frag.oversize': 'Sobretamaño sobre',
@@ -185,7 +184,7 @@ export const es = {
   'energy.siteConstants': 'Constantes de sitio (Holmberg–Persson)',
   'energy.formulaHint': 'v = K · [Σ q·dx / d^(β/α)]^α · típicos: K = 700 mm/s, α = 0,7, β = 1,5.',
   'energy.validityHint':
-    'Holmberg–Persson vale cerca de la carga (R ≲ 2–3 veces el largo de carga). K y α deben calibrarse con mediciones cercanas, no con las de la ley de PPV (P-17).',
+    'Holmberg–Persson vale cerca de la carga (R ≲ 2–3 veces el largo de carga). K y α deben calibrarse con mediciones cercanas, no con las de la ley de PPV.',
   'energy.damage.title': 'Criterio de daño (¼, 1, 4 y 8 × VPPc)',
   'energy.damage.vp': 'Velocidad de onda P (Vp)',
   'energy.damage.vppc': 'VPPc medida (retroanálisis)',
@@ -227,7 +226,7 @@ export const es = {
   'timing.useSelected': 'Usar taladro seleccionado como inicio',
   'timing.type': 'Tipo',
   'timing.mode.rows': 'Por filas (línea a línea o en V)',
-  'timing.mode.echelon': 'En escalón (echelon)',
+  'timing.mode.echelon': 'Escalonado (echelon)',
   'timing.modeHint':
     'Por filas: columna en un extremo = línea a línea; central = salida en V. En escalón: solo la fila de inicio se encadena y cada taladro sale desde el de adelante (isócronas en diagonal).',
   'timing.nonel': 'Nonel (superficie)',
@@ -249,12 +248,12 @@ export const es = {
   'timing.sequenceParams': 'Parámetros de la secuencia',
   'timing.relief': 'Alivio del burden',
   'timing.reliefHint':
-    'Un taladro ya detonado cuenta como cara libre si salió al menos este tiempo por metro de burden antes (P-02: 3 ms/m roca dura, 5–6 ms/m roca blanda; 0 = caso límite optimista).',
+    'Un taladro ya detonado cuenta como cara libre si salió al menos este tiempo por metro de burden antes (3 ms/m roca dura, 5–6 ms/m roca blanda; 0 = caso límite optimista).',
   'timing.interHoleMin': 'Entre taladros mín.',
   'timing.interRowMin': 'Entre filas mín.',
   'timing.max': 'máx.',
   'timing.guideHint':
-    'Guía de diseño (aviso informativo): entre taladros por metro de espaciamiento (P-11: 3–8 ms/m), entre filas por metro de burden (6–12 ms/m).',
+    'Guía de diseño (aviso informativo): entre taladros por metro de espaciamiento (3–8 ms/m), entre filas por metro de burden (6–12 ms/m).',
 
   'vib.title': 'Vibración y sobrepresión',
   'vib.enabled': 'Calcular y mostrar',
@@ -376,7 +375,7 @@ export const en = {
   'view.sdob.controlled': 'Controlled',
   'view.sdob.veryControlled': 'Very controlled',
   'view.sdob.minimal': 'Minimal effects',
-  'view.sdobCuts': 'Cuts {cuts} m/kg^⅓ (R1 F12)',
+  'view.sdobCuts': 'Cuts {cuts} m/kg^⅓',
   'view.color.group': 'Group',
   'view.noGroups': 'No groups (Design tab)',
   'view.labels': 'Labels',
@@ -473,13 +472,12 @@ export const en = {
   'frag.nOut':
     'n = {n} outside the usual {min}–{max} range (Cunningham 2005): check the pattern or the charge.',
   'frag.status':
-    'Kuz-Ram is checked against CR-02 (regression) until an independent published example exists (CR-07). Swebrec: open literature, no reference case.',
+    'Kuz-Ram is checked against a reference case (regression) until an independent published example exists. Swebrec: open literature, no reference case.',
   'frag.field.chargeLength': 'Charge length',
   'frag.field.bottomChargeLength': 'Bottom charge',
   'frag.field.columnChargeLength': 'Column charge',
   'frag.field.benchHeight': 'Bench height',
-  'frag.rockFactorOut':
-    'Rock factor A = {a} outside {min}–{max} (typically 6–13 in medium rock, P-08).',
+  'frag.rockFactorOut': 'Rock factor A = {a} outside {min}–{max} (typically 6–13 in medium rock).',
   'frag.curve': 'Curve',
   'frag.xmax': 'Maximum size (Swebrec)',
   'frag.oversize': 'Oversize above',
@@ -504,7 +502,7 @@ export const en = {
   'energy.siteConstants': 'Site constants (Holmberg–Persson)',
   'energy.formulaHint': 'v = K · [Σ q·dx / d^(β/α)]^α · typical: K = 700 mm/s, α = 0.7, β = 1.5.',
   'energy.validityHint':
-    'Holmberg–Persson holds near the charge (R ≲ 2–3 charge lengths). Calibrate K and α with near-field measurements, not with the PPV law ones (P-17).',
+    'Holmberg–Persson holds near the charge (R ≲ 2–3 charge lengths). Calibrate K and α with near-field measurements, not with the PPV law ones.',
   'energy.damage.title': 'Damage criterion (¼, 1, 4 and 8 × PPVc)',
   'energy.damage.vp': 'P-wave velocity (Vp)',
   'energy.damage.vppc': 'Measured PPVc (back-analysis)',
@@ -567,12 +565,12 @@ export const en = {
   'timing.sequenceParams': 'Sequence parameters',
   'timing.relief': 'Burden relief',
   'timing.reliefHint':
-    'A hole that has already fired counts as a free face if it fired at least this time per metre of burden earlier (P-02: 3 ms/m hard rock, 5–6 ms/m soft rock; 0 = optimistic limit case).',
+    'A hole that has already fired counts as a free face if it fired at least this time per metre of burden earlier (3 ms/m hard rock, 5–6 ms/m soft rock; 0 = optimistic limit case).',
   'timing.interHoleMin': 'Between holes min.',
   'timing.interRowMin': 'Between rows min.',
   'timing.max': 'max.',
   'timing.guideHint':
-    'Design guide (informational notice): between holes per metre of spacing (P-11: 3–8 ms/m), between rows per metre of burden (6–12 ms/m).',
+    'Design guide (informational notice): between holes per metre of spacing (3–8 ms/m), between rows per metre of burden (6–12 ms/m).',
 
   'vib.title': 'Vibration and airblast',
   'vib.enabled': 'Compute and show',

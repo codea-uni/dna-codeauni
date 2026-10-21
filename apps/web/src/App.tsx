@@ -18,13 +18,14 @@ import { CsvImportDialog } from './dialogs/CsvImportDialog';
 import { DxfImportDialog } from './dialogs/DxfImportDialog';
 import { TopographyImportDialog } from './dialogs/TopographyImportDialog';
 import { ProjectSettingsDialog } from './dialogs/ProjectSettingsDialog';
+import { CrsPromptDialog } from './dialogs/CrsPromptDialog';
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
 import { VersionsDialog } from './dialogs/VersionsDialog';
 import { startAutosave } from './persistence/autosave';
 import { startTopographySync } from './topography/session';
 import { startTunnelSync } from './underground/send';
 import { startMineVibrationSync } from './vibration/mineStore';
-import { openTopography, requireCrs, restoreLatestAutosave } from './actions';
+import { openTopography, withCrs, restoreLatestAutosave } from './actions';
 import { getCompute } from './session';
 import { useT } from './i18n';
 import { PRODUCT_NAME, useEditorTool, useProductChrome, useProjectKind } from './product/product';
@@ -120,7 +121,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
           const files = [...e.dataTransfer.files];
           if (files.length === 0) return;
           e.preventDefault();
-          if (requireCrs()) void openTopography(files);
+          withCrs(() => void openTopography(files));
         }}
       >
         <Viewport />
@@ -136,6 +137,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
           }}
         />
       )}
+      <CrsPromptDialog />
       {settingsOpen && (
         <ProjectSettingsDialog
           onClose={() => {

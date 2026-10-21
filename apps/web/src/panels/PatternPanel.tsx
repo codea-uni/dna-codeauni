@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { IconButton } from '../components/IconButton';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
+import { DiameterUnitToggle } from '../components/DiameterUnitToggle';
 import { useActiveBlast } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
@@ -71,6 +72,7 @@ export function PatternPanel() {
             setTemplate({ diameter: dia.parse(v) });
           }}
         />
+        <DiameterUnitToggle />
         <NumberField
           label={t('props.inclination')}
           unit="°"

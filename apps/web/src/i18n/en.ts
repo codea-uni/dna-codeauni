@@ -22,6 +22,7 @@ import * as vibration from './ns/vibration';
 import * as undergroundMethods from './ns/undergroundMethods';
 import * as workspace from './ns/workspace';
 import * as xr from './ns/xr';
+import * as ux from './ns/ux';
 
 export const en = {
   ...ai.en,
@@ -45,6 +46,7 @@ export const en = {
   ...undergroundMethods.en,
   ...workspace.en,
   ...xr.en,
+  ...ux.en,
   'toolbar.documentation': 'Documentation',
   'workspace.loading': 'Loading…',
   'toolbar.newProject': 'New project',
@@ -94,7 +96,7 @@ export const en = {
   'settings.name': 'Name',
   'settings.crs': 'Coordinate system',
   'settings.epsg': 'EPSG code',
-  'settings.epsgHint': 'Required to import (H-101). Peru: UTM WGS 84 zones 17S, 18S and 19S.',
+  'settings.epsgHint': 'Required to import. Peru: UTM WGS 84 zones 17S, 18S and 19S.',
   'settings.crsName': 'CRS name',
   'settings.units': 'Display units',
   'settings.unitsHint': 'Only what is shown changes; data is stored in SI.',
@@ -118,7 +120,7 @@ export const en = {
   'toolbar.exportGeoJson': 'Plan to GeoJSON',
   'groups.title': 'Hole groups',
   'groups.hint':
-    'Presplit, buffer and production are charged and tied differently (RM-18). Lasso-select holes and create or assign the group; then select the group to charge it or set its timing.',
+    'Presplit, buffer and production are charged and tied differently. Lasso-select holes and create or assign the group; then select the group to charge it or set its timing.',
   'groups.new': 'New group from selection',
   'groups.assign': 'Assign selection',
   'groups.unassign': 'Remove selection from its group',
@@ -140,10 +142,10 @@ export const en = {
     'Suggested buffer: B = {b} {u} · S = 1.15·B = {s} {u} (with {w} kg per hole and the production powder factor, {pf} kg/t)',
   'groups.buffer.needProduction':
     'A production group with pattern and charge, and the rock, are needed to suggest the buffer.',
-  'groups.source': 'Course formulas (R1 F26, case CR-01): guidance only, never blocking.',
+  'groups.source': 'Blasting course formulas: guidance only, never blocking.',
   'burden.title': 'Theoretical burden',
   'burden.hint':
-    'A reference to choose the operating burden; it does not block (docs/theory/02 §1). Kd and Ks come from the Konya and Walter (1990) tables.',
+    'A reference to choose the operating burden; it does not block. Kd and Ks come from the Konya and Walter (1990) tables.',
   'burden.explosive': 'Explosive',
   'burden.model': 'Model',
   'burden.reference': 'Reference',
@@ -164,7 +166,7 @@ export const en = {
   'burden.applySubdrill': 'Apply to template',
   'pattern.equilateral': 'Equilateral (S = 2B/√3)',
   'pattern.noFreeFace':
-    'Pattern generated without a free face: burden is not measured from a face (RM-06). Mark the boundary free face with tool C.',
+    'Pattern generated without a free face: burden is not measured from a face. Mark the boundary free face with tool C.',
   'scenarios.title': 'Scenarios',
   'scenarios.hint':
     'A scenario is a complete design variant (pattern, charges, tie-up, delays and parameters). Save the current design, change it and compare the indicators side by side.',

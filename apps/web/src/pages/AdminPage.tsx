@@ -6,6 +6,8 @@ import { useFormatDate, useT, type MessageKey } from '../i18n';
 import { api, useAuth, useWorkspace } from '../server/api';
 import { workspaceErrorKey } from '../stores/workspaceStore';
 import { ErrorLine, PageShell } from './PageShell';
+import { CrsPicker, crsDisplayName } from '../components/CrsPicker';
+import { Explosives } from './KnowledgePage';
 import { roleHintKey, roleKey } from './roles';
 
 const AUDIT_KEYS: Record<string, MessageKey> = {
@@ -29,6 +31,9 @@ const AUDIT_KEYS: Record<string, MessageKey> = {
 const TABS = [
   ['people', 'admin.members'],
   ['mines', 'admin.mines'],
+  // El catálogo de explosivos de la empresa también se administra aquí (además de en la base
+  // del asistente IA).
+  ['explosives', 'kb.layer.explosives'],
   ['audit', 'admin.audit'],
 ] as const satisfies readonly (readonly [string, MessageKey])[];
 type Tab = (typeof TABS)[number][0];
@@ -67,6 +72,12 @@ export function AdminPage() {
       <ErrorLine />
       {tab === 'people' && <People />}
       {tab === 'mines' && <Mines />}
+      {tab === 'explosives' && organization && (
+        <section className="section">
+          <p className="muted">{t('kb.hint.explosives')}</p>
+          <Explosives orgId={organization.id} />
+        </section>
+      )}
       {tab === 'audit' && <Audit />}
     </PageShell>
   );
@@ -153,12 +164,16 @@ function AddMember() {
   const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('designer');
   const [password, setPassword] = useState('');
+  // Confirmación visible al agregar (antes el formulario solo se vaciaba).
+  const [added, setAdded] = useState<string | null>(null);
 
   return (
     <form
       className="form-panel"
       onSubmit={(e) => {
         e.preventDefault();
+        setAdded(null);
+        const who = `${name.trim()} (${email.trim()})`;
         void add({
           email: email.trim(),
           name: name.trim(),
@@ -166,6 +181,7 @@ function AddMember() {
           ...(password ? { password } : {}),
         }).then((ok) => {
           if (ok) {
+            setAdded(who);
             setEmail('');
             setName('');
             setPassword('');
@@ -237,6 +253,11 @@ function AddMember() {
         <button className="primary" type="submit" disabled={busy}>
           {t('admin.addMemberAction')}
         </button>
+        {added && (
+          <p className="form-ok" role="status">
+            {t('admin.memberAdded', { who: added })}
+          </p>
+        )}
       </div>
     </form>
   );
@@ -248,7 +269,7 @@ function Mines() {
   const createMine = useWorkspace((s) => s.createMine);
   const busy = useWorkspace((s) => s.busy);
   const [name, setName] = useState('');
-  const [epsg, setEpsg] = useState('');
+  const [epsg, setEpsg] = useState<number | undefined>(undefined);
   const [editing, setEditing] = useState<Mine | null>(null);
 
   return (
@@ -259,7 +280,7 @@ function Mines() {
           <thead>
             <tr>
               <th>{t('workspace.name')}</th>
-              <th>EPSG</th>
+              <th>{t('crs.title')}</th>
               <th>{t('admin.access')}</th>
               <th />
             </tr>
@@ -268,7 +289,7 @@ function Mines() {
             {mines.map((m) => (
               <tr key={m.id}>
                 <td>{m.name}</td>
-                <td>{m.epsg ?? '—'}</td>
+                <td>{m.epsg ? crsDisplayName(m.epsg) : '—'}</td>
                 <td>
                   {m.restricted
                     ? t('workspace.usersCount', { n: m.accessUserIds.length })
@@ -292,14 +313,11 @@ function Mines() {
         className="form-panel"
         onSubmit={(e) => {
           e.preventDefault();
-          const code = Number(epsg);
-          void createMine({
-            name: name.trim(),
-            ...(epsg && Number.isInteger(code) && code > 0 ? { epsg: code } : {}),
-          }).then((mine) => {
+          if (epsg === undefined) return;
+          void createMine({ name: name.trim(), epsg }).then((mine) => {
             if (mine) {
               setName('');
-              setEpsg('');
+              setEpsg(undefined);
             }
           });
         }}
@@ -318,24 +336,15 @@ function Mines() {
               }}
             />
           </label>
-          <label>
-            EPSG
-            <input
-              type="number"
-              inputMode="numeric"
-              name="mine-epsg"
-              min={1}
-              step={1}
-              value={epsg}
-              onChange={(e) => {
-                setEpsg(e.target.value);
-              }}
-            />
-            <small>{t('admin.epsgHint')}</small>
-          </label>
         </div>
+        {/* El sistema de coordenadas se pide al crear la mina: los proyectos lo heredan. */}
+        <fieldset className="crs-fieldset">
+          <legend>{t('crs.title')}</legend>
+          <CrsPicker value={epsg} onChange={setEpsg} />
+          <small>{t('crs.mineInherit')}</small>
+        </fieldset>
         <div>
-          <button className="primary" type="submit" disabled={busy}>
+          <button className="primary" type="submit" disabled={busy || epsg === undefined}>
             {t('admin.createMine')}
           </button>
         </div>

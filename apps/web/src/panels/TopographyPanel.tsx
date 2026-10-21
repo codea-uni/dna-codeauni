@@ -10,7 +10,7 @@ import { useEffect, useReducer, useRef } from 'react';
 import * as actions from '../actions';
 import { IconButton } from '../components/IconButton';
 import { useProject } from '../hooks/useDocument';
-import { useFormat, useT } from '../i18n';
+import { formatDay, useFormat, useT } from '../i18n';
 import { useProjectKind } from '../product/product';
 import { session } from '../session';
 import {
@@ -82,6 +82,7 @@ export function TopographyPanel() {
           benchOffTopography(blast.bench, benchSurvey.bounds))
       : false;
   const remove = (s: TopographySurvey) => {
+    if (!window.confirm(t('topo.removeConfirm', { name: s.name }))) return;
     const ops: Op[] = [
       {
         type: 'project/patch',
@@ -120,7 +121,7 @@ export function TopographyPanel() {
               <li key={s.id} className={inUse ? 'in-use' : undefined}>
                 <div className="survey-head">
                   <strong>{s.name}</strong>
-                  <span className="muted">{s.surveyDate}</span>
+                  <span className="muted">{formatDay(s.surveyDate)}</span>
                   <IconButton
                     icon={Trash2}
                     label={t('topo.panel.remove')}
@@ -196,7 +197,7 @@ export function TopographyPanel() {
         <button
           className="topo-import-btn"
           onClick={() => {
-            if (actions.requireCrs()) input.current?.click();
+            actions.withCrs(() => input.current?.click());
           }}
         >
           <Mountain size={18} aria-hidden />

@@ -3,14 +3,14 @@
  * por la mina. `satisfies` exige las mismas claves en ambos idiomas.
  */
 export const es = {
-  'product.surface': 'Cronos Open Pit',
-  'product.underground': 'Cronos Underground',
-  'product.kind.surface': 'Open Pit (superficial)',
-  'product.kind.underground': 'Underground (subterráneo)',
-  'product.badge.surface': 'Open Pit',
-  'product.badge.underground': 'Underground',
-  'product.enter.surface': 'Entrar a Open Pit',
-  'product.enter.underground': 'Entrar a Underground',
+  'product.surface': 'Cronos Cielo abierto',
+  'product.underground': 'Cronos Subterránea',
+  'product.kind.surface': 'Cielo abierto',
+  'product.kind.underground': 'Subterránea',
+  'product.badge.surface': 'Cielo abierto',
+  'product.badge.underground': 'Subterránea',
+  'product.enter.surface': 'Entrar a Cielo abierto',
+  'product.enter.underground': 'Entrar a Subterránea',
   'product.enterHint.surface':
     'Bancos a cielo abierto: malla, cara libre, simulación de la pila y vibración.',
   'product.enterHint.underground':

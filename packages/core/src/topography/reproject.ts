@@ -30,6 +30,25 @@ export const CRS_DEFS: Record<number, { name: string; proj4: string }> = {
     name: 'PSAD56 / UTM 19S',
     proj4: '+proj=utm +zone=19 +south +ellps=intl +towgs84=-288,175,-376,0,0,0,0 +units=m +no_defs',
   },
+  32720: {
+    name: 'WGS 84 / UTM 20S',
+    proj4: '+proj=utm +zone=20 +south +datum=WGS84 +units=m +no_defs',
+  },
+  32721: {
+    name: 'WGS 84 / UTM 21S',
+    proj4: '+proj=utm +zone=21 +south +datum=WGS84 +units=m +no_defs',
+  },
+  // POSGAR 2007 / Argentina faja 1–7 (EPSG 5343–5349): Gauss-Krüger con meridiano central
+  // −72° + 3°·(n − 1), k = 1, falso Este n·10⁶ + 500 000 m y falso Norte 0 en el polo sur.
+  ...Object.fromEntries(
+    [1, 2, 3, 4, 5, 6, 7].map((n) => [
+      5342 + n,
+      {
+        name: `POSGAR 2007 / Argentina faja ${String(n)}`,
+        proj4: `+proj=tmerc +lat_0=-90 +lon_0=${String(-72 + 3 * (n - 1))} +k=1 +x_0=${String(n * 1_000_000 + 500_000)} +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`,
+      },
+    ]),
+  ),
 };
 
 export const isKnownCrs = (epsg: number): boolean => epsg in CRS_DEFS;

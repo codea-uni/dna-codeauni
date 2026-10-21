@@ -8,6 +8,7 @@ import { tabAvailable, useWorkflow } from '../hooks/useWorkflow';
 import { WORKSPACE_PANELS, openWorkspacePanel } from '../components/WorkspaceWindows';
 import { chapters, type Chapter, type Text } from './content';
 import { guideChapters, type GuideChapter } from './guide';
+import { confidenceKey } from '../methods/confidence';
 import { modelAnchor, useDocsNav } from './docsNav';
 import './documentation.css';
 
@@ -378,6 +379,7 @@ function ModelsView({
   models: readonly MethodModel[];
   locale: Locale;
 }) {
+  const t = useT();
   const es = locale === 'es';
   const status = (m: MethodModel) =>
     m.status === 'planned'
@@ -416,8 +418,8 @@ function ModelsView({
               <dd>{m.reference}</dd>
             </div>
             <div>
-              <dt>{es ? 'Confianza' : 'Confidence'}</dt>
-              <dd>{m.confidence}</dd>
+              <dt>{es ? 'Respaldo' : 'Backing'}</dt>
+              <dd title={m.confidence}>{t(confidenceKey(m.confidence))}</dd>
             </div>
             <div>
               <dt>{es ? 'Reglas' : 'Rules'}</dt>

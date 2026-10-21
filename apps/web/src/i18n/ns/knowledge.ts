@@ -3,8 +3,8 @@
  * mismas claves en ambos idiomas.
  */
 export const es = {
-  'kb.nav': 'Conocimiento',
-  'kb.title': 'Conocimiento del agente',
+  'kb.nav': 'Base del asistente IA',
+  'kb.title': 'Base de conocimiento del asistente IA',
   'kb.lede':
     'El agente de voladura razona por capas: su skill de experto, el conocimiento general, el de la empresa, el del sitio y el del proyecto. Cuando dos capas dicen cosas distintas, manda la más cercana al diseño.',
   'kb.layer.general': 'General',
@@ -62,18 +62,20 @@ export const es = {
   'kb.ex.rws': 'RWS',
   'kb.ex.water': 'Resistencia al agua',
   'kb.ex.addStandard': 'Agregar de la biblioteca estándar',
-  'kb.ex.addStandardHint': 'Copia una ficha genérica de Cronos al catálogo; luego se ajusta en el proyecto.',
+  'kb.ex.addStandardHint':
+    'Copia una ficha genérica de Cronos al catálogo; luego se ajusta en el proyecto.',
   'kb.ex.add': 'Agregar',
   'kb.ex.adminOnly': 'Solo el administrador de la empresa edita el catálogo.',
   'kb.ex.water.none': 'ninguna',
   'kb.ex.water.limited': 'limitada',
   'kb.ex.water.high': 'alta',
-  'kb.noOrg': 'Las capas de empresa, sitio y proyecto son de cada empresa; la plataforma edita la general.',
+  'kb.noOrg':
+    'Las capas de empresa, sitio y proyecto son de cada empresa; la plataforma edita la general.',
 };
 
 export const en = {
-  'kb.nav': 'Knowledge',
-  'kb.title': 'Agent knowledge',
+  'kb.nav': 'AI assistant knowledge',
+  'kb.title': 'AI assistant knowledge base',
   'kb.lede':
     'The blasting agent reasons in layers: its expert skill, general knowledge, the company, the site and the project. When two layers disagree, the one closest to the design wins.',
   'kb.layer.general': 'General',
@@ -85,8 +87,10 @@ export const en = {
     'Theory, practical concepts, transcriptions and specialist recommendations. Maintained by the platform and read by every company.',
   'kb.hint.organization':
     'Procedures of the company using Cronos (e.g. the explosives company providing the service). Edited by the administrator.',
-  'kb.hint.mine': 'Site procedures, geological conditions and parameters of the client mine. Edited by designers.',
-  'kb.hint.project': 'Project notes and lessons. Its surveys and enabled explosives live in the design.',
+  'kb.hint.mine':
+    'Site procedures, geological conditions and parameters of the client mine. Edited by designers.',
+  'kb.hint.project':
+    'Project notes and lessons. Its surveys and enabled explosives live in the design.',
   'kb.hint.explosives':
     'Data sheets of the explosives the company has. Each project enables only those it uses (design library or the assistant: "enable … from the catalog").',
   'kb.mine': 'Mine',
@@ -129,11 +133,13 @@ export const en = {
   'kb.ex.rws': 'RWS',
   'kb.ex.water': 'Water resistance',
   'kb.ex.addStandard': 'Add from the standard library',
-  'kb.ex.addStandardHint': 'Copies a generic Cronos data sheet to the catalog; adjust it in the project.',
+  'kb.ex.addStandardHint':
+    'Copies a generic Cronos data sheet to the catalog; adjust it in the project.',
   'kb.ex.add': 'Add',
   'kb.ex.adminOnly': 'Only the company administrator edits the catalog.',
   'kb.ex.water.none': 'none',
   'kb.ex.water.limited': 'limited',
   'kb.ex.water.high': 'high',
-  'kb.noOrg': 'Company, site and project layers belong to each company; the platform edits the general one.',
+  'kb.noOrg':
+    'Company, site and project layers belong to each company; the platform edits the general one.',
 } satisfies Record<keyof typeof es, string>;

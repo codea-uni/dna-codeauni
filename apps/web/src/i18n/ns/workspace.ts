@@ -47,7 +47,7 @@ export const es = {
   'admin.saveAccess': 'Guardar acceso',
   'admin.detail': 'Detalle',
   'admin.membersHint':
-    'El administrador crea las cuentas con una contraseña que no hace falta cambiar al entrar (H-801).',
+    'El administrador crea las cuentas con una contraseña que no hace falta cambiar al entrar.',
   'admin.email': 'Correo',
   'admin.role': 'Rol',
   'admin.since': 'Desde',
@@ -68,7 +68,7 @@ export const es = {
   'admin.accessHint':
     'Sin nadie marcado, la ve toda la empresa. Los administradores siempre la ven.',
   'admin.audit': 'Registro de auditoría',
-  'admin.auditHint': 'Quién hizo qué y cuándo. No se puede modificar (NF-07).',
+  'admin.auditHint': 'Quién hizo qué y cuándo. No se puede modificar.',
   'admin.auditEmpty': 'Sin eventos.',
   'admin.when': 'Cuándo',
   'admin.who': 'Quién',
@@ -147,7 +147,7 @@ export const en = {
   'admin.saveAccess': 'Save access',
   'admin.detail': 'Detail',
   'admin.membersHint':
-    'The administrator creates accounts with a password that does not need to be changed on sign-in (H-801).',
+    'The administrator creates accounts with a password that does not need to be changed on sign-in.',
   'admin.email': 'Email',
   'admin.role': 'Role',
   'admin.since': 'Since',
@@ -167,7 +167,7 @@ export const en = {
   'admin.accessHint':
     'With nobody checked, the whole company sees it. Administrators always see it.',
   'admin.audit': 'Audit log',
-  'admin.auditHint': 'Who did what and when. It cannot be modified (NF-07).',
+  'admin.auditHint': 'Who did what and when. It cannot be modified.',
   'admin.auditEmpty': 'No events.',
   'admin.when': 'When',
   'admin.who': 'Who',

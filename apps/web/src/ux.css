@@ -1,0 +1,175 @@
+/* Guardar versión, sistema de coordenadas e importación (prueba de usabilidad, oct. 2026). */
+
+/* Barra superior en una sola línea a 1440 px aunque aparezcan «Sin guardar» y «Guardar versión»:
+   el contexto (mina / proyecto) entra con base 0 y toma solo el espacio libre, así la fila no se
+   parte; se recorta primero la mina, luego el proyecto. Las pestañas no se recortan. */
+@media (min-width: 901px) {
+  .toolbar > .toolbar-context {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+  .toolbar > .ribbon-tabs {
+    flex: 0 1 auto;
+  }
+  .toolbar-context .crumbs {
+    display: flex;
+    gap: 0.3em;
+    min-width: 2.5rem;
+  }
+  .toolbar-context .crumbs > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .toolbar-context .crumb-mine {
+    flex: 0 1000 auto;
+  }
+  .toolbar-context .crumbs strong {
+    flex: 0 1 auto;
+  }
+}
+/* Pantallas medianas: pestañas algo más juntas y Documentación solo con el ícono (el nombre queda
+   en el título). */
+@media (min-width: 901px) and (max-width: 1600px) {
+  .toolbar .ribbon-tabs button {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .toolbar-documentation {
+    font-size: 0;
+    gap: 0;
+    padding: 5px 7px;
+  }
+}
+
+.toolbar-context .save-version {
+  display: inline-flex;
+  flex: none;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--accent-ink);
+  background: var(--accent-2);
+  border: 1px solid var(--accent-2);
+  border-radius: 6px;
+}
+.toolbar-context .save-version:hover {
+  background: var(--accent);
+}
+.badge.saved {
+  color: var(--brand-green);
+  border-color: #72ad3a88;
+}
+
+/* Elegir el sistema de coordenadas */
+.crs-picker {
+  display: grid;
+  gap: 8px;
+}
+.crs-picker .hint {
+  margin: 0;
+}
+.crs-search,
+.crs-code {
+  display: grid;
+  gap: 4px;
+}
+.crs-search input,
+.crs-code input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.crs-code input {
+  max-width: 10rem;
+}
+.crs-group {
+  display: grid;
+  gap: 4px;
+}
+.crs-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.crs-options button {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.crs-options button.active {
+  color: var(--accent-ink);
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+.crs-picker .warn {
+  color: var(--amber);
+  margin: 0;
+}
+.crs-fieldset {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Aviso con acción dentro de un diálogo (p. ej. «parecen labores subterráneas») */
+.hint-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0;
+  padding: 8px 10px;
+  color: var(--text);
+  background: #ffae0014;
+  border: 1px solid #ffae0066;
+  border-radius: 6px;
+}
+
+.link-button {
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.form-ok {
+  margin: 8px 0 0;
+  color: var(--brand-green);
+}
+
+/* mm / pulg junto al diámetro */
+.unit-toggle {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: -2px 0 6px;
+}
+.unit-toggle button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.unit-toggle button.active {
+  color: var(--accent-ink);
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+.scenario-name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: end;
+}
+.scenario-name .field {
+  flex: 1 1 14rem;
+}

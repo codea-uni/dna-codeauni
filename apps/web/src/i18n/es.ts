@@ -23,6 +23,7 @@ import * as vibration from './ns/vibration';
 import * as undergroundMethods from './ns/undergroundMethods';
 import * as workspace from './ns/workspace';
 import * as xr from './ns/xr';
+import * as ux from './ns/ux';
 
 export const es = {
   ...ai.es,
@@ -46,6 +47,7 @@ export const es = {
   ...undergroundMethods.es,
   ...workspace.es,
   ...xr.es,
+  ...ux.es,
   'toolbar.documentation': 'Documentación',
   'workspace.loading': 'Cargando…',
   'toolbar.newProject': 'Proyecto nuevo',
@@ -95,7 +97,7 @@ export const es = {
   'settings.name': 'Nombre',
   'settings.crs': 'Sistema de coordenadas',
   'settings.epsg': 'Código EPSG',
-  'settings.epsgHint': 'Obligatorio para importar (H-101). Perú: UTM WGS 84 zonas 17S, 18S y 19S.',
+  'settings.epsgHint': 'Obligatorio para importar. Perú: UTM WGS 84 zonas 17S, 18S y 19S.',
   'settings.crsName': 'Nombre del CRS',
   'settings.units': 'Unidades de visualización',
   'settings.unitsHint': 'Solo cambian lo que se muestra; los datos se guardan en SI.',
@@ -120,7 +122,7 @@ export const es = {
   'toolbar.exportGeoJson': 'Plano a GeoJSON',
   'groups.title': 'Grupos de taladros',
   'groups.hint':
-    'Precorte, buffer y producción se cargan y amarran distinto (RM-18). Selecciona con el lazo y crea o asigna el grupo; luego selecciona el grupo para cargarlo o darle tiempos.',
+    'Precorte, amortiguación (buffer) y producción se cargan y amarran distinto. Selecciona con el lazo y crea o asigna el grupo; luego selecciona el grupo para cargarlo o darle tiempos.',
   'groups.new': 'Nuevo grupo con la selección',
   'groups.assign': 'Asignar selección',
   'groups.unassign': 'Quitar selección de su grupo',
@@ -130,7 +132,7 @@ export const es = {
   'groups.none': 'Sin grupos.',
   'groups.defaultName': 'Grupo {n}',
   'groups.kind.presplit': 'Precorte',
-  'groups.kind.buffer': 'Buffer',
+  'groups.kind.buffer': 'Amortiguación (buffer)',
   'groups.kind.production': 'Producción',
   'groups.kind.other': 'Otro',
   'groups.presplit.pb': 'Pb = {pb} MPa (UCS de la roca: {ucs} MPa) · f = {f}',
@@ -140,13 +142,13 @@ export const es = {
   'groups.presplit.suggest': 'Carga para Pb = UCS: Ø {d} {u}',
   'groups.presplit.noCharge': 'Carga los taladros del grupo para calcular el precorte.',
   'groups.buffer.suggest':
-    'Buffer sugerido: B = {b} {u} · S = 1,15·B = {s} {u} (con {w} kg por taladro y el FC de la producción, {pf} kg/t)',
+    'Amortiguación sugerida: B = {b} {u} · S = 1,15·B = {s} {u} (con {w} kg por taladro y el FC de la producción, {pf} kg/t)',
   'groups.buffer.needProduction':
-    'Para sugerir el buffer hace falta un grupo de producción con malla y carga, y la roca.',
-  'groups.source': 'Fórmulas del curso (R1 F26, caso CR-01): orientan, no bloquean.',
+    'Para sugerir la amortiguación hace falta un grupo de producción con malla y carga, y la roca.',
+  'groups.source': 'Fórmulas del curso de voladura: orientan, no bloquean.',
   'burden.title': 'Burden teórico',
   'burden.hint':
-    'Referencia para elegir el burden operativo; no bloquea (docs/theory/02 §1). Kd y Ks salen de las tablas de Konya y Walter (1990).',
+    'Referencia para elegir el burden operativo; no bloquea. Kd y Ks salen de las tablas de Konya y Walter (1990).',
   'burden.explosive': 'Explosivo',
   'burden.model': 'Modelo',
   'burden.reference': 'Referencia',
@@ -167,7 +169,7 @@ export const es = {
   'burden.applySubdrill': 'Aplicar a la plantilla',
   'pattern.equilateral': 'Equilátera (S = 2B/√3)',
   'pattern.noFreeFace':
-    'Malla generada sin cara libre: el burden no se mide desde una cara (RM-06). Marca la cara libre del perímetro con la herramienta C.',
+    'Malla generada sin cara libre: el burden no se mide desde una cara. Marca la cara libre del perímetro con la herramienta C.',
   'scenarios.title': 'Escenarios',
   'scenarios.hint':
     'Un escenario es una variante completa del diseño (malla, cargas, amarre, retardos y parámetros). Guarda el diseño actual, modifícalo y compara los indicadores lado a lado.',

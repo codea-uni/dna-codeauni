@@ -119,14 +119,14 @@ export function timingChecks(
       severity: 'error',
       title: 'Amarre con ciclos',
       detail:
-        'Hay conexiones que forman un circuito cerrado: revisa el sentido del amarre (H-504).',
+        'Hay conexiones que forman un circuito cerrado: revisa el sentido del amarre.',
       holes: cycleHoles(blast),
     },
     {
       id: 'unrelievedBurden',
       severity: 'warning',
       title: 'Cara libre no despejada',
-      detail: `Burden efectivo ≥ ${String(options.maxEffectiveBurdenRatio)} × nominal al detonar: la cara hacia la que sale todavía no se abrió (RM-07, CR-05).`,
+      detail: `Burden efectivo ≥ ${String(options.maxEffectiveBurdenRatio)} × nominal al detonar: la cara hacia la que sale todavía no se abrió.`,
       params: { value: options.maxEffectiveBurdenRatio },
       holes: unrelieved,
     },
@@ -134,7 +134,7 @@ export function timingChecks(
       id: 'partialRelief',
       severity: 'warning',
       title: 'Alivio insuficiente',
-      detail: `Burden efectivo ≥ ${String(options.midEffectiveBurdenRatio)} × nominal al detonar: sale con más burden que el de diseño (P-16).`,
+      detail: `Burden efectivo ≥ ${String(options.midEffectiveBurdenRatio)} × nominal al detonar: sale con más burden que el de diseño.`,
       params: { value: options.midEffectiveBurdenRatio },
       holes: partialRelief,
     },
@@ -143,7 +143,7 @@ export function timingChecks(
       severity: 'warning',
       title: 'Orden invertido respecto de la cara libre',
       detail:
-        'Detonan antes que un vecino que está más cerca de la cara libre: salen contra roca sin alivio (CK-10).',
+        'Detonan antes que un vecino que está más cerca de la cara libre: salen contra roca sin alivio.',
       holes: inverted,
     },
     {
@@ -151,7 +151,7 @@ export function timingChecks(
       // Nota (R1, sin caso): en salidas en V las «filas» efectivas son diagonales (S-07).
       severity: 'info',
       title: 'Intervalo corto con la fila de adelante',
-      detail: `La fila de adelante detonó hace menos de ${String(options.minInterRowDelay * 1000)} ms: riesgo de eyección del taco (R1 F27).`,
+      detail: `La fila de adelante detonó hace menos de ${String(options.minInterRowDelay * 1000)} ms: riesgo de eyección del taco.`,
       params: { value: options.minInterRowDelay * 1000 },
       holes: ejection,
     },
@@ -167,7 +167,7 @@ export function timingChecks(
       id: 'delayGuide',
       severity: 'info',
       title: 'Retardo fuera de la guía por metro',
-      detail: `Entre taladros ${ms(guide.interHole.min)}–${ms(guide.interHole.max)} ms/m de espaciamiento y entre filas ${ms(guide.interRow.min)}–${ms(guide.interRow.max)} ms/m de burden (guía de diseño, P-11; configurable).`,
+      detail: `Entre taladros ${ms(guide.interHole.min)}–${ms(guide.interHole.max)} ms/m de espaciamiento y entre filas ${ms(guide.interRow.min)}–${ms(guide.interRow.max)} ms/m de burden (guía de diseño; configurable).`,
       params: {
         holeMin: ms(guide.interHole.min),
         holeMax: ms(guide.interHole.max),

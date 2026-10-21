@@ -5,6 +5,7 @@ import { useFormat, useFormatDate, useT } from '../i18n';
 import { useAuth, useWorkspace } from '../server/api';
 import { activeRole } from '../stores/workspaceStore';
 import { ErrorLine, PageShell } from './PageShell';
+import { crsDisplayName } from '../components/CrsPicker';
 
 /** Inicio: las minas de la empresa del usuario, con sus proyectos y su última actividad. */
 export function HomePage() {
@@ -51,7 +52,9 @@ export function HomePage() {
                 <span className="row-title">
                   <strong>{m.name}</strong>
                   <span className="row-meta">
-                    {m.epsg ? t('workspace.epsg', { code: m.epsg }) : t('workspace.noEpsg')}
+                    {m.epsg
+                      ? t('crs.mineChip', { name: crsDisplayName(m.epsg) })
+                      : t('crs.mineMissing')}
                   </span>
                 </span>
                 <span className="row-figure">

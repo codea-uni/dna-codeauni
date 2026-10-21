@@ -28,7 +28,7 @@ export const guideChapters: GuideChapter[] = [
     id: 'guide.start',
     title: t('Cómo se organiza Cronos', 'How Cronos is organised'),
     intro: t(
-      'Cronos tiene dos herramientas conectadas por la mina: Open Pit (voladuras de banco) y Underground (frentes, chimeneas y tajeos). Ambas comparten la topografía, los levantamientos, los perímetros y los puntos de control de vibración de la mina.',
+      'Cronos tiene dos herramientas conectadas por la mina: Cielo abierto (voladuras de banco) y Subterránea (frentes, chimeneas y tajeos). Ambas comparten la topografía, los levantamientos, los perímetros y los puntos de control de vibración de la mina.',
       'Cronos has two tools connected by the mine: Open Pit (bench blasts) and Underground (faces, raises and stopes). Both share the mine topography, surveys, perimeters and vibration control points.',
     ),
     items: [
@@ -40,7 +40,7 @@ export const guideChapters: GuideChapter[] = [
         ),
         steps: [
           t(
-            'Elija la mina y la herramienta (Open Pit o Underground) en la página de inicio.',
+            'Elija la mina y la herramienta (Cielo abierto o Subterránea) en la página de inicio.',
             'Choose the mine and the tool (Open Pit or Underground) on the home page.',
           ),
           t(
@@ -113,7 +113,7 @@ export const guideChapters: GuideChapter[] = [
   },
   {
     id: 'guide.surface',
-    title: t('Open Pit: pantallas y paneles', 'Open Pit: screens and panels'),
+    title: t('Cielo abierto: pantallas y paneles', 'Open Pit: screens and panels'),
     intro: t(
       'Flujo típico de una voladura de banco: perímetro y cara libre → malla → carga → tiempos → análisis (energía, fragmentación, vibración, pila) → escenarios y reporte.',
       'Typical bench-blast flow: perimeter and free face → pattern → charging → timing → analysis (energy, fragmentation, vibration, muckpile) → scenarios and report.',
@@ -279,7 +279,7 @@ export const guideChapters: GuideChapter[] = [
   },
   {
     id: 'guide.underground',
-    title: t('Underground: pantallas y paneles', 'Underground: screens and panels'),
+    title: t('Subterránea: pantallas y paneles', 'Underground: screens and panels'),
     intro: t(
       'El panel Subterránea diseña en 2D (frente, abanicos o plantilla por método), lleva el diseño al 3D sobre la labor y lo analiza. Carguío, Tiempos, Energía, Fragmentación y Vibración aplican igual que en Open Pit.',
       'The Underground panel designs in 2D (face, rings or method template), takes the design to 3D on the working and analyses it. Charging, Timing, Energy, Fragmentation and Vibration work as in Open Pit.',

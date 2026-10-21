@@ -3,6 +3,7 @@ import { methodModel, plannedAlternatives, type MethodId } from '@cronos/core';
 import { Formula } from '../components/Formula';
 import { modelAnchor, openDocumentation } from '../documentation/docsNav';
 import { useFormat, useLocale, useT } from '../i18n';
+import { confidenceKey } from './confidence';
 
 /** Valores que usa ahora el cálculo, por `key` de variable, en la unidad del catálogo. */
 export type MethodValues = Readonly<Record<string, number | string | null | undefined>>;
@@ -53,17 +54,25 @@ export default function MethodDetailBody({
         <div>
           <dt>{t('md.confidence')}</dt>
           <dd>
-            <span className="method-detail-badge" title={t('md.confidenceHelp')}>
-              {m.confidence}
+            {/* Nivel en palabras; el código (R0–R4, [V]…) queda en el detalle técnico. */}
+            <span
+              className="method-detail-badge"
+              title={`${m.confidence} · ${t('md.confidenceHelp')}`}
+            >
+              {t(confidenceKey(m.confidence))}
             </span>
           </dd>
         </div>
         <div>
-          <dt>{t('md.rules')}</dt>
-          <dd className="method-detail-rules">
-            {m.rules.map((r) => (
-              <code key={r}>{r}</code>
-            ))}
+          <dt>{t('md.technical')}</dt>
+          <dd>
+            <details className="method-detail-rules">
+              <summary>{t('md.technicalShow')}</summary>
+              <code>{m.confidence}</code>
+              {m.rules.map((r) => (
+                <code key={r}>{r}</code>
+              ))}
+            </details>
           </dd>
         </div>
       </dl>
