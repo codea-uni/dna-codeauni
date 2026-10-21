@@ -57,6 +57,22 @@ function horizontalBlast(): { project: Project; blast: Blast; hole: Hole } {
 }
 
 describe('vibración bajo tierra (puntos 3D y taladros ug-*)', () => {
+  it('un alivio vacío sin tiempo no cuenta como «sin tiempo (carga individual)»', () => {
+    const { project, blast, hole } = horizontalBlast();
+    const relief: Hole = {
+      ...hole,
+      id: newId<'Hole'>(),
+      label: 'A-1',
+      collar: { x: 100.2, y: 50, z: -200 },
+      decks: [],
+      tags: ['ug-relief'],
+    };
+    const both: Blast = { ...blast, holes: [hole, relief] };
+    const r = computeVibration({ ...project, blasts: [both] }, both, opts);
+    // Solo el taladro cargado sin tiempo cuenta.
+    expect(r.notInitiated).toBe(1);
+  });
+
   it('taladro horizontal → punto en la labor: distancia 3D al segmento de carga', () => {
     const { project, blast } = horizontalBlast();
     // Carga entre y = 51 y y = 54 (fondo), a z = −200.

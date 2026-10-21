@@ -316,6 +316,7 @@ export interface VibrationResult extends ScalarGrid {
    * w + 2·σ_máx de los no electrónicos usados. null si todos son electrónicos.
    */
   micExtended: { window: number; mic: number } | null;
+  /** Taladros con carga que no tienen tiempo de salida (los alivios vacíos no cuentan). */
   notInitiated: number;
   /** Distancia a la que se alcanza cada nivel con la MIC [m] (mismo orden que `levels`). */
   distanceForLevel: number[];
@@ -574,7 +575,10 @@ export function computeVibration(
     levels,
     mic,
     micExtended,
-    notInitiated: timing.notInitiated,
+    // Solo cuentan los taladros cargados: un alivio vacío no lleva detonador ni hace vibrar.
+    notInitiated: timing.fireTime.filter(
+      (ft, i) => Number.isNaN(ft) && (charge.perHole[i] ?? 0) > 0,
+    ).length,
     distanceForLevel,
     receivers,
     underground,
