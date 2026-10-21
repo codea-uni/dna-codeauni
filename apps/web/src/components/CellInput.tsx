@@ -10,6 +10,8 @@ interface NumberCellProps extends BaseProps {
   onCommit: (value: number) => void;
   decimals?: number;
   min?: number;
+  /** Texto en gris cuando el valor es 0 (p. ej. «∞» = sin límite): la celda queda vacía y vacío es 0. */
+  zeroText?: string;
 }
 
 /** Celda numérica compacta para tablas: confirma con Enter o al salir; Escape revierte. */
@@ -24,12 +26,17 @@ function NumberCellInner({
   min,
   title,
   className,
+  zeroText,
 }: NumberCellProps) {
-  const text = String(Number(value.toFixed(decimals)));
+  const text = value === 0 && zeroText !== undefined ? '' : String(Number(value.toFixed(decimals)));
   const [draft, setDraft] = useState(text);
   const [invalid, setInvalid] = useState(false);
   const commit = () => {
-    const n = Number(draft.trim().replace(',', '.'));
+    const raw = draft.trim();
+    const n =
+      zeroText !== undefined && (raw === '' || raw === '∞' || raw === zeroText)
+        ? 0
+        : Number(raw.replace(',', '.'));
     if (draft.trim() === text) return;
     if (!Number.isFinite(n) || (min !== undefined && n < min)) {
       setInvalid(true);
@@ -44,6 +51,7 @@ function NumberCellInner({
       inputMode="decimal"
       title={title}
       value={draft}
+      placeholder={zeroText}
       aria-invalid={invalid}
       onChange={(e) => {
         setDraft(e.target.value);

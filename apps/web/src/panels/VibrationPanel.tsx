@@ -3,19 +3,23 @@ import {
   defaultKindPpvLimits,
   defaultVibrationLaw,
   excavationCenter,
+  fitByZone,
   isUncalibratedLaw,
+  isUndergroundBlast,
   MONITORING_POINT_KINDS,
   type MonitoringPoint,
   type MonitoringPointId,
   type MonitoringPointKind,
   type PpvLimit,
+  type VibrationLaw,
+  type VibrationLawId,
   type VibrationMetric,
   choiceModel,
   METHOD_CHOICES,
 } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { MapPin, Share2, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MethodDetail } from '../methods/MethodDetail';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { NumberField } from '../components/NumberField';
@@ -25,6 +29,7 @@ import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
+import { useProjectKind } from '../product/product';
 import { Floatable } from '../components/Floatable';
 import { namedWorkings, sharePoint, useMineVibration } from '../vibration/mineStore';
 import { MineVibrationSection } from '../vibration/MineVibrationSection';
@@ -42,11 +47,9 @@ export function VibrationPanel() {
   const setTool = useUiStore((st) => st.setTool);
   const tool = useUiStore((st) => st.tool);
   const site = project.siteModels;
-  // Sin elección, la ley del tipo de voladura (subterránea para taladros ug-*).
-  const law =
-    site.vibrationLaws.find((l) => l.id === s.vibLawId) ??
-    defaultVibrationLaw(project, project.blasts[0]) ??
-    undefined;
+  // La ley elegida para el proyecto (se guarda con el diseño); sin elección, la del tipo de
+  // voladura (subterránea para taladros ug-*). Es la misma que usan el cálculo y el informe PDF.
+  const law = defaultVibrationLaw(project, project.blasts[0]) ?? undefined;
   const canShare = useMineVibration((m) => m.mineId !== null && m.canEdit);
   const minePoints = useMineVibration((m) => m.points);
   const sharedIds = new Set(minePoints.map((p) => p.point.id));
@@ -161,6 +164,16 @@ export function VibrationPanel() {
                     </td>
                   </tr>
                 )}
+                {v.micExtended && v.micExtended.mic > v.mic && (
+                  <tr>
+                    <td colSpan={2} className="hint">
+                      {t('vib.extendedHint', {
+                        kg: fmt(v.micExtended.mic),
+                        ms: fmt(v.micExtended.window * 1000, 0),
+                      })}
+                    </td>
+                  </tr>
+                )}
                 {v.notInitiated > 0 && (
                   <tr className="warn">
                     <td>{t('vib.notInitiated')}</td>
@@ -201,6 +214,7 @@ export function VibrationPanel() {
             </table>
           </>
         )}
+        {isPpv && law && <LawInUse law={law} />}
         {s.vibComputing && <p className="muted small">{t('vib.computing')}</p>}
       </section>
 
@@ -224,16 +238,25 @@ export function VibrationPanel() {
           <table className="grid-table compact">
             <thead>
               <tr>
-                <th>{t('vib.point')}</th>
-                <th>{t('mv.kind')}</th>
-                <th title={t('mv.distance3dTitle')}>R [{len.unit}]</th>
-                <th title={t('mv.chargeTitle')}>kg</th>
-                <th>mm/s</th>
-                <th title={t('vib.limitTitle')}>{t('vib.limit')}</th>
-                <th />
-                <th title={t('vib.admissibleTitle')}>{t('vib.admissible')}</th>
-                <th>dB</th>
-                <th />
+                {/* Anchos fijos: el nombre y el tipo se leen completos y nada se sale de la ventana. */}
+                <th style={{ width: '24%' }}>{t('vib.point')}</th>
+                <th style={{ width: '20%' }}>{t('mv.kind')}</th>
+                <th className="num" title={t('mv.distance3dTitle')}>
+                  R [{len.unit}]
+                </th>
+                <th className="num" title={t('mv.chargeTitle')}>
+                  kg
+                </th>
+                <th className="num">mm/s</th>
+                <th className="num" title={t('vib.limitTitle')}>
+                  {t('vib.limit')}
+                </th>
+                <th style={{ width: 16 }} />
+                <th className="num" title={t('vib.admissibleTitle')}>
+                  {t('vib.admissible')}
+                </th>
+                <th className="num">dB</th>
+                <th style={{ width: canShare ? 52 : 28 }} />
               </tr>
             </thead>
             <tbody>
@@ -285,7 +308,7 @@ export function VibrationPanel() {
                       {rec?.admissibleCharge != null ? fmt(rec.admissibleCharge) : '—'}
                     </td>
                     <td className="num">{rec ? fmt(rec.airblastDb, 0) : '—'}</td>
-                    <td className="row-actions">
+                    <td className="row-actions" style={{ whiteSpace: 'nowrap' }}>
                       {canShare && (
                         <button
                           className={`icon${sharedIds.has(p.id) ? ' active' : ''}`}
@@ -373,7 +396,10 @@ export function VibrationPanel() {
                 <select
                   value={law.id}
                   onChange={(e) => {
-                    s.set({ vibLawId: e.target.value });
+                    setSite(
+                      { activeVibrationLawId: e.target.value as VibrationLawId },
+                      t('vib.undoLaw'),
+                    );
                   }}
                 >
                   {site.vibrationLaws.map((l) => (
@@ -499,6 +525,54 @@ export function VibrationPanel() {
       </section>
     </>
   );
+}
+
+/**
+ * Ley de PPV en uso (la misma del cálculo y del informe): nombre, zona, confianza, n y R². Si es la
+ * genérica y la mina tiene mediciones de sismógrafo para este tipo de voladura, aviso visible.
+ */
+function LawInUse({ law }: { law: VibrationLaw }) {
+  const t = useT();
+  const fmt = useFormat();
+  const project = useProject();
+  const records = useMineVibration((m) => m.records);
+  const fits = useMemo(() => fitByZone(records), [records]);
+  const blast = project.blasts[0];
+  const context = blast && isUndergroundBlast(blast) ? 'underground' : 'surface';
+  const available = isUncalibratedLaw(law)
+    ? fits.find((f) => f.context === context && f.squareRoot)
+    : undefined;
+  return (
+    <>
+      <p
+        className="small"
+        title={t('vib.lawFormula', { k: fmt(law.k * 1000, 0), beta: fmt(law.beta, 2) })}
+      >
+        <span className="muted">{t('vib.lawInUse')}: </span>
+        {lawSummary(law, t, fmt)}
+      </p>
+      {available && (
+        <p className="warn">
+          {t('vib.calibrationAvailable', {
+            zone: available.zone || t('mv.allZones'),
+            n: available.n,
+          })}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** «Tajo Norte · 95 % (n = 12, R² = 0,99) · K = 1.505 mm/s, β = 1,58» o «Genérica (USBM), sin calibrar». */
+function lawSummary(
+  law: VibrationLaw,
+  t: ReturnType<typeof useT>,
+  fmt: ReturnType<typeof useFormat>,
+): string {
+  const kb = t('vib.lawFormula', { k: fmt(law.k * 1000, 0), beta: fmt(law.beta, 2) });
+  return law.fit
+    ? `${law.name} (n = ${String(law.fit.n)}, R² = ${fmt(law.fit.r2, 2)}) · ${kb}`
+    : `${law.name}, ${t('vib.notCalibrated')} · ${kb}`;
 }
 
 /** Estructura, límite propio y K/β propios de cada punto (H-602). Vacío o 0 = el del sitio. */
@@ -700,6 +774,8 @@ function PpvLimitsTable() {
                     value={l.to ?? 0}
                     decimals={0}
                     min={0}
+                    zeroText="∞"
+                    title={t('vib.toTitle')}
                     onCommit={(v) => {
                       const next = { ...l };
                       if (v > 0) next.to = v;
@@ -808,14 +884,22 @@ function AddPointByCoordinates() {
   const t = useT();
   const fmt = useFormat();
   const [name, setName] = useState('');
-  const [kind, setKind] = useState<MonitoringPointKind | undefined>('underground-working');
-  // Por defecto, 50 m bajo el centro de la voladura (una labor debajo del tajo).
+  // Tipo por defecto según el proyecto: en cielo abierto una estructura en superficie (a la cota de
+  // las bocas); bajo tierra una labor, 50 m bajo el centro de la voladura.
+  const underground = useProjectKind() === 'underground';
+  const [kind, setKind] = useState<MonitoringPointKind | undefined>(
+    underground ? 'underground-working' : 'surface-structure',
+  );
   const [pos, setPos] = useState(() => {
     const holes = session.document.project.blasts[0]?.holes ?? [];
     if (holes.length === 0) return { x: 0, y: 0, z: 0 };
     const avg = (f: (h: (typeof holes)[number]) => number) =>
       Math.round(holes.reduce((a, h) => a + f(h), 0) / holes.length);
-    return { x: avg((h) => h.collar.x), y: avg((h) => h.collar.y), z: avg((h) => h.collar.z) - 50 };
+    return {
+      x: avg((h) => h.collar.x),
+      y: avg((h) => h.collar.y),
+      z: avg((h) => h.collar.z) - (underground ? 50 : 0),
+    };
   });
   const [working, setWorking] = useState('');
   useMineVibration((m) => m.context);

@@ -90,6 +90,16 @@ export const es = {
   'mv.warn.surfaceToUg':
     'La voladura superficial excede el límite en la labor {name}: {ppv} > {limit} mm/s. Carga por retardo admisible: {kg} kg.',
   'mv.warn.exceeds': '{name} ({kind}) excede el límite: {ppv} > {limit} mm/s.',
+  'mv.inUse': '· en uso ({level} %)',
+  'vib.lawInUse': 'Ley de PPV en uso',
+  'vib.lawFormula': 'K = {k} mm/s, β = {beta}',
+  'vib.notCalibrated': 'sin calibrar',
+  'vib.calibrationAvailable':
+    'La mina tiene mediciones de sismógrafo ({zone}, n = {n}) y se está usando la ley genérica: en «Calibración de la ley» pulsa «Usar 95 %» para diseñar con la ley de la mina.',
+  'vib.extendedHint':
+    'Con detonadores pirotécnicos la dispersión de los retardos puede juntar más taladros: en el peor caso salen {kg} kg en {ms} ms. Úsalo como valor conservador.',
+  'vib.toTitle': 'Distancia hasta donde vale el límite [m]; vacío o ∞ = sin límite',
+  'report.versionUnpublished': 'v{n} con cambios sin publicar',
 };
 
 export const en = {
@@ -179,4 +189,14 @@ export const en = {
   'mv.warn.surfaceToUg':
     'The surface blast exceeds the limit at the working {name}: {ppv} > {limit} mm/s. Admissible charge per delay: {kg} kg.',
   'mv.warn.exceeds': '{name} ({kind}) exceeds the limit: {ppv} > {limit} mm/s.',
+  'mv.inUse': '· in use ({level} %)',
+  'vib.lawInUse': 'PPV law in use',
+  'vib.lawFormula': 'K = {k} mm/s, β = {beta}',
+  'vib.notCalibrated': 'not calibrated',
+  'vib.calibrationAvailable':
+    'The mine has seismograph records ({zone}, n = {n}) but the generic law is in use: in «Law calibration» press «Use 95 %» to design with the mine law.',
+  'vib.extendedHint':
+    'With pyrotechnic detonators the delay scatter can group more holes: worst case {kg} kg within {ms} ms. Use it as a conservative value.',
+  'vib.toTitle': 'Distance up to which the limit applies [m]; empty or ∞ = no limit',
+  'report.versionUnpublished': 'v{n} with unpublished changes',
 } satisfies Record<keyof typeof es, string>;

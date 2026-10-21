@@ -45,6 +45,9 @@ export default function LawFitChart({ fit }: { fit: VibrationFit }) {
     // Las rectas cubren el rango de los datos y un poco más (extrapolar se ve punteado aparte).
     const lo = fit.sdMin / 1.5;
     const hi = fit.sdMax * 1.5;
+    // Etiquetas de los ejes log con el formato del idioma (sin «1.6329931618554523» en los extremos).
+    const tick = (v: number) =>
+      formatNumber(v, v >= 10 ? 0 : v >= 1 ? 1 : v >= 0.1 ? 2 : 3, locale);
     const line = (k: number) =>
       [lo, hi].map((sd) => [Number(sd.toPrecision(4)), mm(k * Math.pow(sd, -fit.beta))]);
     chart.current?.setOption(
@@ -70,14 +73,19 @@ export default function LawFitChart({ fit }: { fit: VibrationFit }) {
           nameGap: 22,
           min: lo,
           max: hi,
-          axisLabel: { color: '#8b949e' },
+          axisLabel: {
+            color: '#8b949e',
+            formatter: tick,
+            showMinLabel: false,
+            showMaxLabel: false,
+          },
           splitLine: { lineStyle: { color: '#21262d' } },
         },
         yAxis: {
           type: 'log',
           name: 'mm/s',
           nameGap: 8,
-          axisLabel: { color: '#8b949e' },
+          axisLabel: { color: '#8b949e', formatter: tick },
           splitLine: { lineStyle: { color: '#21262d' } },
         },
         series: [
