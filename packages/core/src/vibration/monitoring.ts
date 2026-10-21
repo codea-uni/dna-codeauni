@@ -87,8 +87,8 @@ export function isUndergroundBlast(blast: Pick<Blast, 'holes'>): boolean {
 
 /**
  * Ley de vibración de una voladura: la elegida para el proyecto (`activeVibrationLawId`, se guarda
- * con el diseño); si no hay, la subterránea (`context: 'underground'`) si la voladura es subterránea
- * y hay una; si no, la primera superficial; si no, la primera.
+ * con el diseño); si no hay, la del tipo de voladura (subterránea para taladros `ug-*`, si no
+ * superficial), prefiriendo la última calibrada con mediciones; si no, la primera.
  */
 export function defaultVibrationLaw(
   project: Pick<Project, 'siteModels'>,
@@ -99,8 +99,13 @@ export function defaultVibrationLaw(
   const chosen = active ? laws.find((l) => l.id === active) : undefined;
   if (chosen) return chosen;
   const ug = blast ? isUndergroundBlast(blast) : false;
-  const match = laws.find((l) => (l.context ?? 'surface') === (ug ? 'underground' : 'surface'));
-  return match ?? laws[0] ?? null;
+  const ofContext = laws.filter(
+    (l) => (l.context ?? 'surface') === (ug ? 'underground' : 'surface'),
+  );
+  // Versiones guardadas antes de `activeVibrationLawId`: una ley calibrada solo entra a la lista
+  // al pulsar «Usar» en la calibración, así que la última calibrada del tipo es la elegida.
+  const calibrated = ofContext.filter((l) => l.fit).at(-1);
+  return calibrated ?? ofContext[0] ?? laws[0] ?? null;
 }
 
 /** Distancia 3D [m] de `p` al segmento ab. */

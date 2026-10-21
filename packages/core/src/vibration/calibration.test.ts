@@ -178,6 +178,16 @@ describe('ley calibrada elegida para el proyecto', () => {
     expect(withActiveVibrationLaw(second, other).vibrationLaws).toHaveLength(3);
   });
 
+  it('versión guardada antes del arreglo (ley calibrada en la lista, sin elegida): se usa la calibrada', () => {
+    const p = createEmptyProject('Tajo');
+    const old = { ...p.siteModels, vibrationLaws: [...p.siteModels.vibrationLaws, law] };
+    expect(defaultVibrationLaw({ siteModels: old }, p.blasts[0])?.id).toBe(law.id);
+    // Una ley calibrada subterránea no se usa para una voladura de superficie.
+    const ug = lawFromFit(fit, { zone: 'Nivel 3370', context: 'underground', level: 95 });
+    const onlyUg = { ...p.siteModels, vibrationLaws: [...p.siteModels.vibrationLaws, ug] };
+    expect(defaultVibrationLaw({ siteModels: onlyUg }, p.blasts[0])?.name).toBe('Genérica (USBM)');
+  });
+
   it('si la ley elegida ya no existe, vuelve a la del tipo de voladura', () => {
     const p = createEmptyProject('Tajo');
     const site = {
