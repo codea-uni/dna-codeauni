@@ -72,6 +72,9 @@ export class BoundaryTool implements Tool {
         ctx.text('undo.drawNamed', { name: boundary.name }),
       );
       ctx.setActiveBoundary(boundary.id);
+      this.cancel(ctx);
+      ctx.boundaryCreated(boundary.id);
+      return;
     }
     this.cancel(ctx);
   }

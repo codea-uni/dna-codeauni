@@ -142,6 +142,8 @@ export interface EngineEvents extends Record<string, unknown> {
   sequenceEnded: null;
   /** Cambió el perímetro activo (por herramienta o al dibujar uno nuevo). */
   activeBoundary: BoundaryId | null;
+  /** Se cerró un perímetro dibujado con la herramienta. */
+  boundaryCreated: BoundaryId;
   /** Cambió la vista (planta o 3D). */
   viewMode: ViewMode;
   /** Se trazó una sección para el perfil de la pila (A7). */
@@ -2365,6 +2367,10 @@ export class Engine {
     this.loop.invalidate();
   }
 
+  private hasBoundaries(): boolean {
+    return this.document.project.blasts.some((b) => b.boundaries.length > 0);
+  }
+
   private rebuildBoundaries(): void {
     const blasts = this.document.project.blasts;
     if (
@@ -3037,7 +3043,8 @@ export class Engine {
     this.labels.setViewport(buffer.x, buffer.y, this.pixelRatio, radiusCss * this.pixelRatio);
     this.boundaryLabels.setViewport(buffer.x, buffer.y, this.pixelRatio, 4 * this.pixelRatio);
     // Los marcadores de vértice del perímetro activo tienen tamaño fijo en pantalla.
-    if (this.activeBoundaryId && Math.abs(this.lastVertexMpp - mpp) > mpp * 0.05) {
+    // El contorno grueso también (se dibuja con trazos desplazados en metros).
+    if (this.hasBoundaries() && Math.abs(this.lastVertexMpp - mpp) > mpp * 0.05) {
       this.lastVertexMpp = mpp;
       this.rebuildBoundaries();
     }
@@ -3234,6 +3241,9 @@ export class Engine {
       },
       setActiveBoundary: (id) => {
         this.setActiveBoundary(id);
+      },
+      boundaryCreated: (id) => {
+        this.events.emit('boundaryCreated', id);
       },
       setSection: (a, b) => {
         this.setSectionLine(a, b);

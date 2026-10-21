@@ -19,6 +19,9 @@ export function boundaryColorCss(index: number): string {
   return `#${boundaryColorHex(index).toString(16).padStart(6, '0')}`;
 }
 
+/** Borde oscuro del contorno: separa la línea del relieve y la ortofoto. */
+const HALO = new Color(0x0b0f14);
+
 /** Separación y largos de las marcas de talud en la cara libre [m]. */
 const HATCH_STEP = 2;
 const HATCH_LONG = 1.6;
@@ -27,7 +30,9 @@ const HATCH_SHORT = 0.8;
 /**
  * Perímetros de voladura: contorno con el color del perímetro, marcas de talud en las caras
  * libres (hacia donde se desplaza el material) y vértices del perímetro activo.
- * Se reconstruye entero: son pocos vértices.
+ * El contorno se dibuja grueso (3 px con borde oscuro) para verse sobre la topografía: las
+ * líneas WebGL miden 1 px, así que se repiten desplazadas. Se reconstruye entero: son pocos
+ * vértices.
  */
 export class BoundaryLayer {
   readonly root = new Group();
@@ -52,10 +57,33 @@ export class BoundaryLayer {
   ): void {
     const pos: number[] = [];
     const col: number[] = [];
+    // El borde oscuro va antes en el buffer: los trazos de color se dibujan encima.
+    const haloPos: number[] = [];
+    const haloCol: number[] = [];
     const color = new Color();
     const seg = (ax: number, ay: number, bx: number, by: number) => {
       pos.push(ax - origin.x, ay - origin.y, 0, bx - origin.x, by - origin.y, 0);
       col.push(color.r, color.g, color.b, color.r, color.g, color.b);
+    };
+    // `vertexSize` son 4 px en metros.
+    const px = vertexSize / 4;
+    const thick = (ax: number, ay: number, bx: number, by: number) => {
+      const l = Math.hypot(bx - ax, by - ay);
+      if (l === 0) return;
+      const nx = (-(by - ay) / l) * px;
+      const ny = ((bx - ax) / l) * px;
+      for (const k of [-2, 2]) {
+        haloPos.push(
+          ax + nx * k - origin.x,
+          ay + ny * k - origin.y,
+          0,
+          bx + nx * k - origin.x,
+          by + ny * k - origin.y,
+          0,
+        );
+        haloCol.push(HALO.r, HALO.g, HALO.b, HALO.r, HALO.g, HALO.b);
+      }
+      for (const k of [-1, 0, 1]) seg(ax + nx * k, ay + ny * k, bx + nx * k, by + ny * k);
     };
     for (const blast of blasts) {
       blast.boundaries.forEach((boundary, index) => {
@@ -68,7 +96,7 @@ export class BoundaryLayer {
           const e = polygonEdge(poly, i);
           if (!e) continue;
           const [a, b] = e;
-          seg(a.x, a.y, b.x, b.y);
+          thick(a.x, a.y, b.x, b.y);
           if (!boundary.freeFaceEdges.includes(i)) continue;
           // Símbolo de talud: marcas perpendiculares hacia afuera, alternando largas y cortas.
           const n = outwardNormal(poly, i);
@@ -97,8 +125,11 @@ export class BoundaryLayer {
         }
       });
     }
-    this.lines.geometry.setAttribute('position', new Float32BufferAttribute(pos, 3));
-    this.lines.geometry.setAttribute('color', new Float32BufferAttribute(col, 3));
+    this.lines.geometry.setAttribute(
+      'position',
+      new Float32BufferAttribute([...haloPos, ...pos], 3),
+    );
+    this.lines.geometry.setAttribute('color', new Float32BufferAttribute([...haloCol, ...col], 3));
   }
 
   dispose(): void {
