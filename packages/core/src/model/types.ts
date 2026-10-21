@@ -815,6 +815,11 @@ export interface RockMass {
 
 export interface SiteModels {
   vibrationLaws: VibrationLaw[];
+  /**
+   * Ley de PPV elegida para el proyecto (p. ej. la calibrada con sismógrafos). Se guarda con el
+   * proyecto y su versión; sin valor (o si ya no existe), la ley por defecto del tipo de voladura.
+   */
+  activeVibrationLawId?: VibrationLawId;
   /** Holmberg–Persson (campo cercano): v = k·[Σ q·dx / d^(β/α)]^α, v y k en m/s. Opcional: hay valores por defecto. */
   nearField?: { k: number; alpha: number; beta: number };
   airblast: AirblastLaw;

@@ -1,10 +1,12 @@
 import {
   commands,
+  defaultVibrationLaw,
   fitByZone,
   lawFromFit,
   parseSeismographCsv,
   recordDistance,
   uuidv7,
+  withActiveVibrationLaw,
   type LawScaling,
   type SeismographRecord,
   type VibrationFit,
@@ -167,13 +169,19 @@ function Calibration() {
   const project = useProject();
   const mine = useMineVibration();
   const notify = useUiStore((s) => s.notify);
-  const setAnalysis = useAnalysisStore((s) => s.set);
-  const [scaling, setScaling] = useState<LawScaling>('square-root');
+  // Ley en uso en el proyecto (la que se guarda con el diseño): si es calibrada, su zona y su
+  // distancia escalada son las que se muestran (fila resaltada y gráfico).
+  const active = defaultVibrationLaw(project, project.blasts[0]);
+  const activeKey = active?.fit ? `${active.context ?? 'surface'}|${active.fit.zone}` : null;
+  const [scaling, setScaling] = useState<LawScaling>(active?.fit ? active.scaling : 'square-root');
   const [selected, setSelected] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const fits = useMemo(() => fitByZone(mine.records), [mine.records]);
   const keyOf = (f: ZoneFit) => `${f.context}|${f.zone}`;
-  const current = fits.find((f) => keyOf(f) === selected) ?? fits[0];
+  const current =
+    fits.find((f) => keyOf(f) === (selected ?? activeKey)) ??
+    fits.find((f) => f.context === (active?.context ?? 'surface')) ??
+    fits[0];
   const fitOf = (f: ZoneFit | undefined): VibrationFit | null =>
     f
       ? scaling === 'square-root'
@@ -198,16 +206,11 @@ function Calibration() {
   };
   const applyLaw = (f: ZoneFit, fit: VibrationFit, level: 50 | 95) => {
     const law = lawFromFit(fit, { zone: f.zone, context: f.context, level });
-    const site = project.siteModels;
-    // Recalibrar reemplaza la ley de la misma zona y tipo.
-    const others = site.vibrationLaws.filter(
-      (l) => !(l.fit?.zone === f.zone && (l.context ?? 'surface') === f.context),
-    );
+    // Recalibrar reemplaza la ley de la misma zona y tipo; la elegida se guarda con el proyecto.
     session.document.dispatch(
-      commands.setSiteModels({ ...site, vibrationLaws: [...others, law] }),
+      commands.setSiteModels(withActiveVibrationLaw(project.siteModels, law)),
       t('mv.useLawUndo'),
     );
-    setAnalysis({ vibLawId: law.id });
     notify(t('mv.lawApplied', { name: law.name }));
   };
   const addRow = () => {
@@ -266,7 +269,7 @@ function Calibration() {
               <th className="num" title={t('mv.k95Title')}>
                 K95
               </th>
-              <th />
+              <th style={{ width: 150 }} />
             </tr>
           </thead>
           <tbody>
@@ -284,6 +287,16 @@ function Calibration() {
                   <td>
                     {f.zone || t('mv.allZones')}
                     <span className="muted small"> · {t(contextKey(f.context))}</span>
+                    {k === activeKey && active && (
+                      <span
+                        className="small"
+                        style={{ color: 'var(--accent)', fontWeight: 600 }}
+                        title={active.name}
+                      >
+                        {' '}
+                        {t('mv.inUse', { level: Math.round((active.confidence ?? 0.5) * 100) })}
+                      </span>
+                    )}
                   </td>
                   <td className="num">{f.n}</td>
                   <td className="num">{fit ? fmt(fit.k * 1000, 0) : '—'}</td>
@@ -292,7 +305,7 @@ function Calibration() {
                   <td className="num">{fit ? fmt(fit.k95 * 1000, 0) : '—'}</td>
                   <td>
                     {fit && (
-                      <span className="row-actions">
+                      <span className="row-actions" style={{ display: 'flex', gap: 4 }}>
                         <button
                           className="small"
                           title={t('mv.useLawTitle', { level: 95 })}

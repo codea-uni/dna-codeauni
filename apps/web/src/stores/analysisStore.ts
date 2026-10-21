@@ -67,7 +67,6 @@ interface AnalysisState {
   /** Vibración: se calcula solo si está habilitada. */
   vibEnabled: boolean;
   vibMetric: VibrationMetric;
-  vibLawId: string | null;
   /** Radio de cálculo [m]; 0 = automático. */
   vibExtent: number;
   /** Niveles en unidades de presentación (mm/s o dB); vacío = por defecto. */
@@ -168,7 +167,6 @@ export const useAnalysisStore = create<AnalysisState>()((set) => ({
   frag: null,
   vibEnabled: false,
   vibMetric: 'ppv',
-  vibLawId: null,
   vibExtent: 0,
   vibLevels: [],
   vibOpacity: 0.45,

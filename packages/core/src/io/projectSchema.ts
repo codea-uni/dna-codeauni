@@ -344,6 +344,7 @@ const siteModels: z.ZodType<M.SiteModels> = z.object({
       fit: z.object({ zone: z.string(), n: z.int().nonnegative(), r2: num }).exactOptional(),
     }),
   ),
+  activeVibrationLawId: id<'VibrationLaw'>().exactOptional(),
   nearField: z.object({ k: pos, alpha: pos, beta: pos }).exactOptional(),
   airblast: z.object({ k: pos, beta: pos }),
   flyrock: z.object({ k: pos, safetyFactor: pos }),

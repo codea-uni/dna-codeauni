@@ -6,6 +6,7 @@ import {
   fitByZone,
   isUncalibratedLaw,
   lawFromFit,
+  withActiveVibrationLaw,
   MONITORING_POINT_KINDS,
   type MonitoringPointKind,
   type VibrationFit,
@@ -122,14 +123,12 @@ async function vibrationReport() {
   const blast = blastOrFail();
   const project = document.project;
   const tin = blast.bench.topographyId ? (topographyTin(blast.bench.topographyId) ?? null) : null;
-  const lawId = useAnalysisStore.getState().vibLawId;
   const v = await getCompute().api.computeVibration(
     project,
     blast.id,
     {
       ...DEFAULT_VIBRATION_OPTIONS,
       skipGrid: true,
-      ...(lawId ? { lawId } : {}),
       extraPoints: minePointsForCalc(),
     },
     tin,
@@ -248,15 +247,11 @@ function calibrateLaw(args: z.infer<typeof calibrateSchema>) {
   if (args.apply === false) return result;
   readOnlyGuard();
   const law = lawFromFit(fit, { zone: zone.zone, context, level });
-  const site = document.project.siteModels;
-  const others = site.vibrationLaws.filter(
-    (l) => !(l.fit?.zone === zone.zone && (l.context ?? 'surface') === context),
-  );
   document.dispatch(
-    commands.setSiteModels({ ...site, vibrationLaws: [...others, law] }),
+    commands.setSiteModels(withActiveVibrationLaw(document.project.siteModels, law)),
     `IA: ley de vibración ${law.name}`,
   );
-  useAnalysisStore.getState().set({ vibLawId: law.id, vibEnabled: true });
+  useAnalysisStore.getState().set({ vibEnabled: true });
   return { ...result, applied: true, law: law.name };
 }
 

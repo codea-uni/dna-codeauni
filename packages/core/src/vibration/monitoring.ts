@@ -5,6 +5,7 @@ import type {
   MonitoringPoint,
   PpvLimit,
   Project,
+  SiteModels,
   Vec3,
   VibrationLaw,
 } from '../model/types';
@@ -85,14 +86,18 @@ export function isUndergroundBlast(blast: Pick<Blast, 'holes'>): boolean {
 }
 
 /**
- * Ley de vibración por defecto de una voladura: la subterránea (`context: 'underground'`) si la
- * voladura es subterránea y hay una; si no, la primera superficial; si no, la primera.
+ * Ley de vibración de una voladura: la elegida para el proyecto (`activeVibrationLawId`, se guarda
+ * con el diseño); si no hay, la subterránea (`context: 'underground'`) si la voladura es subterránea
+ * y hay una; si no, la primera superficial; si no, la primera.
  */
 export function defaultVibrationLaw(
   project: Pick<Project, 'siteModels'>,
   blast: Pick<Blast, 'holes'> | undefined,
 ): VibrationLaw | null {
   const laws = project.siteModels.vibrationLaws;
+  const active = project.siteModels.activeVibrationLawId;
+  const chosen = active ? laws.find((l) => l.id === active) : undefined;
+  if (chosen) return chosen;
   const ug = blast ? isUndergroundBlast(blast) : false;
   const match = laws.find((l) => (l.context ?? 'surface') === (ug ? 'underground' : 'surface'));
   return match ?? laws[0] ?? null;
@@ -156,6 +161,20 @@ export const BAUER_CALDER_THRESHOLDS = [0.254, 0.635, 2.54] as const;
 export function rockDamageClass(ppv: number): RockDamageClass {
   const [a, b, c] = BAUER_CALDER_THRESHOLDS;
   return ppv < a ? 'none' : ppv < b ? 'minor-slabbing' : ppv < c ? 'strong-cracking' : 'breakup';
+}
+
+/**
+ * Modelos de sitio con `law` en uso en el proyecto: reemplaza la ley calibrada de la misma zona y
+ * tipo de voladura (recalibrar) o la agrega, y la deja elegida (`activeVibrationLawId`).
+ */
+export function withActiveVibrationLaw(site: SiteModels, law: VibrationLaw): SiteModels {
+  const context = law.context ?? 'surface';
+  const others = site.vibrationLaws.filter(
+    (l) =>
+      l.id !== law.id &&
+      !(law.fit && l.fit?.zone === law.fit.zone && (l.context ?? 'surface') === context),
+  );
+  return { ...site, vibrationLaws: [...others, law], activeVibrationLawId: law.id };
 }
 
 /** La ley no viene de mediciones del sitio (sin ajuste): se avisa «ley no calibrada». */

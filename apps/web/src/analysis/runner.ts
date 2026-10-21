@@ -234,7 +234,6 @@ export function startVibrationRunner(): () => void {
         {
           ...DEFAULT_VIBRATION_OPTIONS,
           metric: s.vibMetric,
-          ...(s.vibLawId ? { lawId: s.vibLawId } : {}),
           extent: s.vibExtent,
           levels,
           // Puntos de la mina (comunidad, taludes, labores compartidos por otros proyectos).
@@ -264,7 +263,7 @@ export function startVibrationRunner(): () => void {
     if (st.points === prev.points && st.useMinePoints === prev.useMinePoints) return;
     if (useAnalysisStore.getState().vibEnabled) schedule();
   });
-  const keys = ['vibEnabled', 'vibMetric', 'vibLawId', 'vibExtent', 'vibLevels'] as const;
+  const keys = ['vibEnabled', 'vibMetric', 'vibExtent', 'vibLevels'] as const;
   const offOptions = useAnalysisStore.subscribe((s, prev) => {
     if (!keys.some((k) => s[k] !== prev[k])) return;
     if (!s.vibEnabled) useAnalysisStore.getState().set({ vibration: null });

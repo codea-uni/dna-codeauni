@@ -1,7 +1,6 @@
 import type { SeismographRecord } from '@cronos/core';
 import { describe, expect, it, vi } from 'vitest';
 import { session } from '../session';
-import { useAnalysisStore } from '../stores/analysisStore';
 import { useMineVibration } from '../vibration/mineStore';
 import { runTool } from './tools';
 
@@ -83,8 +82,9 @@ describe('asistente: vibración en labores y calibración', () => {
     expect(out).toMatchObject({ zone: 'Norte', context: 'surface', n: 9, applied: true });
     expect(out.k50_mm_s).toBeCloseTo(900, 0);
     expect(out.beta).toBeCloseTo(1.5, 3);
+    // La ley elegida queda en el proyecto (se guarda con la versión), no en el estado de la vista.
     const law = document.project.siteModels.vibrationLaws.find(
-      (l) => l.id === useAnalysisStore.getState().vibLawId,
+      (l) => l.id === document.project.siteModels.activeVibrationLawId,
     );
     expect(law).toMatchObject({ context: 'surface', confidence: 0.5 });
     expect(law?.k).toBeCloseTo(0.9, 6);

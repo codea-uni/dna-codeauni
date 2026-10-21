@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { parseProjectFile, serializeProject } from '../io/projectFile';
+import { createEmptyProject } from '../model/factories';
+import { defaultVibrationLaw, withActiveVibrationLaw } from './monitoring';
+import { computeVibration, DEFAULT_VIBRATION_OPTIONS } from './vibration';
 import {
   fitByZone,
   fitVibrationLaw,
@@ -131,5 +135,55 @@ describe('calibración de la ley de vibración (factor de terreno)', () => {
     expect(rec.context).toBe('underground');
     expect(recordDistance(rec)).toBeCloseTo(50, 12);
     expect(parseSeismographCsv('a,b\n1,2').errors[0]?.reason).toMatch(/columnas/);
+  });
+});
+
+describe('ley calibrada elegida para el proyecto', () => {
+  // Caso de la prueba de usabilidad: «Usar 95 %» en Tajo Norte, guardar versión y reabrir. La ley
+  // elegida vivía solo en el estado de la vista y al reabrir volvía la genérica (USBM).
+  const fit = fitByZone(synthetic(1.083, 1.58, 'Tajo Norte'))[0]?.squareRoot;
+  if (!fit) throw new Error('sin ajuste');
+  const law = lawFromFit(fit, { zone: 'Tajo Norte', context: 'surface', level: 95 });
+
+  it('se guarda con el proyecto y sobrevive a guardar y reabrir la versión', () => {
+    const p = createEmptyProject('Tajo');
+    const blast = p.blasts[0];
+    expect(defaultVibrationLaw(p, blast)?.name).toBe('Genérica (USBM)');
+    const used = { ...p, siteModels: withActiveVibrationLaw(p.siteModels, law) };
+    expect(defaultVibrationLaw(used, blast)?.id).toBe(law.id);
+    const parsed = parseProjectFile(serializeProject(used, { appVersion: 'x' }));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const reopened = parsed.file.project;
+    expect(reopened.siteModels.activeVibrationLawId).toBe(law.id);
+    const active = defaultVibrationLaw(reopened, reopened.blasts[0]);
+    expect(active?.name).toBe('Tajo Norte · 95 %');
+    expect(active?.fit).toEqual({ zone: 'Tajo Norte', n: 12, r2: fit.r2 });
+    // El cálculo (pantalla, resultados e informe) usa la misma ley sin pasarle un id.
+    const b = reopened.blasts[0];
+    if (!b) throw new Error('sin voladura');
+    expect(computeVibration(reopened, b, DEFAULT_VIBRATION_OPTIONS).law?.id).toBe(law.id);
+  });
+
+  it('recalibrar la misma zona reemplaza la ley anterior; otra zona se agrega', () => {
+    const p = createEmptyProject('Tajo');
+    const first = withActiveVibrationLaw(p.siteModels, law);
+    const again = lawFromFit(fit, { zone: 'Tajo Norte', context: 'surface', level: 50 });
+    const second = withActiveVibrationLaw(first, again);
+    expect(second.vibrationLaws.map((l) => l.name)).toEqual([
+      'Genérica (USBM)',
+      'Tajo Norte · 50 %',
+    ]);
+    expect(second.activeVibrationLawId).toBe(again.id);
+    const other = lawFromFit(fit, { zone: 'Tajo Sur', context: 'surface', level: 95 });
+    expect(withActiveVibrationLaw(second, other).vibrationLaws).toHaveLength(3);
+  });
+
+  it('si la ley elegida ya no existe, vuelve a la del tipo de voladura', () => {
+    const p = createEmptyProject('Tajo');
+    const site = {
+      ...withActiveVibrationLaw(p.siteModels, law),
+      vibrationLaws: p.siteModels.vibrationLaws,
+    };
+    expect(defaultVibrationLaw({ siteModels: site }, p.blasts[0])?.name).toBe('Genérica (USBM)');
   });
 });
