@@ -1,6 +1,8 @@
 import {
   hasUndergroundCharges,
   isUndergroundHole,
+  shotTag,
+  type HoleId,
   type MuckpileResult,
   type UgMuckpileParams,
   type UndergroundMuckpileResult,
@@ -10,12 +12,22 @@ import { getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
 import { useUgAnalysisStore } from './analysisStore';
+import { selectedShot } from './shots';
 
 /**
  * Pila subterránea en la vista: qué pila corresponde a la voladura (banco o subterránea), cámara
  * de costado al túnel para ver la roca saliendo del frente y amontonándose, y la reproducción de la
  * secuencia con el vuelo de los bloques (pestaña Análisis y asistente).
  */
+
+/** Tiempos de salida solo del disparo elegido (todos si la voladura tiene uno solo). */
+export function shotTimes(times: Map<HoleId, number>): Map<HoleId, number> {
+  const blast = session.document.project.blasts[0];
+  const shot = blast ? selectedShot(blast) : null;
+  if (!blast || shot === null) return times;
+  const mine = new Set<HoleId>(blast.holes.filter((h) => shotTag(h) === shot).map((h) => h.id));
+  return new Map([...times].filter(([id]) => mine.has(id)));
+}
 
 /** Duración de la animación con la pila [s reales]. */
 const PILE_SECONDS = 14;
@@ -54,7 +66,12 @@ export function ugPileParams(): Partial<UgMuckpileParams> {
 export function currentUgPile(): UndergroundMuckpileResult | null {
   const a = useAnalysisStore.getState();
   const r = a.muckpile;
-  return r && isUndergroundPile(r) && a.muckpileVersion === session.document.version ? r : null;
+  if (!r || !isUndergroundPile(r) || a.muckpileVersion !== session.document.version) return null;
+  // Con varios disparos, la pila es la del disparo elegido (se calcula por disparo, A8).
+  const blast = session.document.project.blasts[0];
+  const shot = blast ? selectedShot(blast) : null;
+  if (shot !== null && r.underground.designs.some((d) => d.tag !== shot)) return null;
+  return r;
 }
 
 /**
@@ -143,11 +160,12 @@ export function playUndergroundPile(camera = true): boolean {
   const a = useAnalysisStore.getState();
   const r = currentUgPile();
   if (!engine || !a.analysis || !r) return false;
-  const times = sequenceTimes(a.analysis);
+  const times = shotTimes(sequenceTimes(a.analysis));
   if (times.size === 0) return false;
   if (camera) flyToPile(r);
-  const first = a.analysis.timing.firstTime;
-  const end = Math.max(muckpileEnd(r, null), a.analysis.timing.lastTime + 0.3);
+  const tv = [...times.values()];
+  const first = Math.min(...tv);
+  const end = Math.max(muckpileEnd(r, null), Math.max(...tv) + 0.3);
   const from = first - 0.05;
   const speed = Math.max(0.001, (end - from) / PILE_SECONDS);
   a.set({ sequenceSpeed: speed, sequencePlaying: true });

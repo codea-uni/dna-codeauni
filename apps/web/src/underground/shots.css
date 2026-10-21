@@ -1,0 +1,25 @@
+/* Selector «Disparo» (A8): qué diseño subterráneo se analiza y sobre qué taladros. */
+.ug-shot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.8rem;
+  margin: 0 0 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+}
+
+.ug-shot .field {
+  margin: 0;
+}
+
+.ug-shot select {
+  max-width: 100%;
+}
+
+/* Controles de superficie ocultos bajo tierra (`hidden`), aunque su clase fije un display. */
+.panel [hidden] {
+  display: none !important;
+}

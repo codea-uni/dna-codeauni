@@ -16,6 +16,9 @@ import { useActiveBlast } from '../hooks/useDocument';
 import { useFormat, useT, type MessageKey } from '../i18n';
 import { session } from '../session';
 import { Floatable } from '../components/Floatable';
+import { useProjectKind } from '../product/product';
+import { ShotPicker, useShot } from '../underground/shots';
+import { RING_TAG } from '../underground/send';
 
 const SizeCurve = lazy(() => import('../charts/SizeCurve'));
 
@@ -86,6 +89,20 @@ export function FragmentationPanel() {
     if (inputs && patch.model) s.set({ fragInputs: { ...inputs, variant: patch.model } });
   };
   const h = r ? fragmentationHeadline(r, method.curve) : null;
+  // Subterránea (A8): se calcula sobre un disparo (frente o abanicos) y con nombres de labor.
+  const underground = useProjectKind() === 'underground';
+  const shot = useShot();
+  const ringShot = underground && (shot.tag ?? shot.single) === RING_TAG;
+  const fieldLabel = (key: NumKey, label: MessageKey): MessageKey =>
+    !underground
+      ? label
+      : key === 'benchHeight'
+        ? 'uga.frag.holeLength'
+        : ringShot && key === 'burden'
+          ? 'uga.frag.ringBurden'
+          : ringShot && key === 'spacing'
+            ? 'uga.frag.toeSpacing'
+            : label;
   const kr = choiceModel('fragmentationModel', method.model);
   const curveModel = choiceModel('fragmentationCurve', method.curve);
 
@@ -93,8 +110,10 @@ export function FragmentationPanel() {
     <>
       <section className="panel">
         <Floatable id="frag" title={t('frag.title')} width={760}>
+          <ShotPicker />
           <MethodDetail
             id={kr}
+            note={underground ? t(ringShot ? 'uga.frag.noteRing' : 'uga.frag.noteFace') : undefined}
             choice={{
               label: t('md.methodology'),
               value: method.model,
@@ -239,7 +258,7 @@ export function FragmentationPanel() {
             return (
               <NumberField
                 key={key}
-                label={t(label)}
+                label={t(fieldLabel(key, label))}
                 unit={conv.unit}
                 decimals={unit === 'mm' && dia.unit === 'in' ? 2 : d}
                 min={0}

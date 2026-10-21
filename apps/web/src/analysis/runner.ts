@@ -14,6 +14,8 @@ import { onRockModelsChange, onTopographyChange, topographyTin } from '../topogr
 import { minePointsForCalc, useMineVibration } from '../vibration/mineStore';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { ugPileParams } from '../underground/pileView';
+import { useUgAnalysisStore } from '../underground/analysisStore';
+import { shotProject } from '../underground/shots';
 
 const DEBOUNCE_MS = 120;
 
@@ -167,7 +169,11 @@ export function startFragmentationRunner(): () => void {
     const blast = session.document.project.blasts[0];
     if (!blast || !useAnalysisStore.getState().fragAuto) return;
     const mine = ++token;
-    const inputs = await getCompute().api.fragmentationInputs(session.document.project, blast.id);
+    // En subterránea, del disparo elegido (el frente y los abanicos son voladas distintas, A8).
+    const inputs = await getCompute().api.fragmentationInputs(
+      shotProject(session.document.project),
+      blast.id,
+    );
     if (mine === token && useAnalysisStore.getState().fragAuto)
       useAnalysisStore.getState().set({ fragInputs: inputs });
   };
@@ -193,6 +199,9 @@ export function startFragmentationRunner(): () => void {
   };
   const offDoc = session.document.subscribe(schedule);
   const offRock = onRockModelsChange(schedule);
+  const offShot = useUgAnalysisStore.subscribe((s, prev) => {
+    if (s.designTag !== prev.designTag) schedule();
+  });
   const offStore = useAnalysisStore.subscribe((s, prev) => {
     if (s.fragAuto && !prev.fragAuto) schedule();
     if (
@@ -208,6 +217,7 @@ export function startFragmentationRunner(): () => void {
   return () => {
     offDoc();
     offRock();
+    offShot();
     offStore();
     if (timer) clearTimeout(timer);
   };
@@ -229,7 +239,8 @@ export function startVibrationRunner(): () => void {
     s.set({ vibComputing: true });
     try {
       const vibration = await getCompute().api.computeVibration(
-        session.document.project,
+        // En subterránea, solo el disparo elegido: otro diseño sale en otra volada (A8).
+        shotProject(session.document.project),
         blast.id,
         {
           ...DEFAULT_VIBRATION_OPTIONS,
@@ -264,6 +275,9 @@ export function startVibrationRunner(): () => void {
     if (st.points === prev.points && st.useMinePoints === prev.useMinePoints) return;
     if (useAnalysisStore.getState().vibEnabled) schedule();
   });
+  const offShot = useUgAnalysisStore.subscribe((st, prev) => {
+    if (st.designTag !== prev.designTag && useAnalysisStore.getState().vibEnabled) schedule();
+  });
   const keys = ['vibEnabled', 'vibMetric', 'vibLawId', 'vibExtent', 'vibLevels'] as const;
   const offOptions = useAnalysisStore.subscribe((s, prev) => {
     if (!keys.some((k) => s[k] !== prev[k])) return;
@@ -274,6 +288,7 @@ export function startVibrationRunner(): () => void {
     offDoc();
     offTopo();
     offMine();
+    offShot();
     offOptions();
     if (timer) clearTimeout(timer);
   };
@@ -314,7 +329,12 @@ export function startMuckpileRunner(): () => void {
       const project = session.document.project;
       const muckpile =
         target === 'underground'
-          ? await getCompute().api.computeUndergroundMuckpile(project, blast.id, ugPileParams())
+          ? await getCompute().api.computeUndergroundMuckpile(
+              // Pila del disparo elegido: cada diseño sale en su propia volada (A8).
+              shotProject(project),
+              blast.id,
+              ugPileParams(),
+            )
           : await getCompute().api.computeMuckpile(benchOnly(project, blast.id), blast.id, tin);
       if (mine !== token) return;
       if (session.document.version !== version) {

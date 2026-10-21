@@ -57,7 +57,7 @@ describe('asistente: vibración en labores y calibración', () => {
     await ok('add_working_point', { x: 100, y: 0, z: 3400, kind: 'community', name: 'Comunidad' });
     const pts = document.project.monitoringPoints ?? [];
     expect(pts.map((p) => [p.name, p.kind, p.working ?? null])).toEqual([
-      ['Galería 3370', 'underground-working', 'ug-face'],
+      ['Galería 3370', 'underground-working', 'Frente de túnel · galería'],
       ['Comunidad', 'community', null],
     ]);
     const bad = await runTool('add_working_point', { working: 'rampa 9' });

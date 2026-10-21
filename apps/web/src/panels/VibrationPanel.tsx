@@ -29,6 +29,8 @@ import { Floatable } from '../components/Floatable';
 import { namedWorkings, sharePoint, useMineVibration } from '../vibration/mineStore';
 import { MineVibrationSection } from '../vibration/MineVibrationSection';
 import { CrossingWarnings, kindLabelKey, Semaphore } from '../vibration/vibrationUi';
+import { useProjectKind } from '../product/product';
+import { ShotPicker } from '../underground/shots';
 
 const dB = (pa: number) => (pa > 0 ? 20 * Math.log10(pa / 20e-6) : 0);
 
@@ -42,6 +44,8 @@ export function VibrationPanel() {
   const setTool = useUiStore((st) => st.setTool);
   const tool = useUiStore((st) => st.tool);
   const site = project.siteModels;
+  // Bajo tierra no aplican la sobrepresión de superficie ni la proyección de rocas (flyrock).
+  const underground = useProjectKind() === 'underground';
   // Sin elección, la ley del tipo de voladura (subterránea para taladros ug-*).
   const law =
     site.vibrationLaws.find((l) => l.id === s.vibLawId) ??
@@ -96,6 +100,7 @@ export function VibrationPanel() {
     <>
       <section className="panel">
         <h2>{t('vib.title')}</h2>
+        <ShotPicker />
         <label className="check">
           <input
             type="checkbox"
@@ -116,6 +121,7 @@ export function VibrationPanel() {
             <button
               key={m}
               role="radio"
+              hidden={underground && m === 'airblast'}
               aria-checked={s.vibMetric === m}
               className={s.vibMetric === m ? 'active' : ''}
               onClick={() => {
@@ -167,13 +173,13 @@ export function VibrationPanel() {
                     <td className="num">{v.notInitiated}</td>
                   </tr>
                 )}
-                <tr>
+                <tr hidden={underground}>
                   <td>{t('vib.flyrockRange')}</td>
                   <td className="num">
                     {fmt(len.show(v.flyrock.range))} {len.unit}
                   </td>
                 </tr>
-                <tr>
+                <tr hidden={underground}>
                   <td>{t('vib.flyrockFragment')}</td>
                   <td className="num">
                     {fmt(len.show(v.flyrock.fragmentSize), 2)} {len.unit}
@@ -405,49 +411,53 @@ export function VibrationPanel() {
             />
           </>
         )}
-        <h3>{t('vib.airblast')} · P = K · (R / W^⅓)^−β</h3>
-        <p className="hint">{t('vib.airblastSource')}</p>
-        <MethodDetail
-          id="flyrock.airblast"
-          values={{ k: site.airblast.k / 1000, beta: site.airblast.beta }}
-        />
-        <NumberField
-          label="K"
-          unit="kPa"
-          decimals={0}
-          min={1}
-          value={site.airblast.k / 1000}
-          onCommit={(x) => {
-            setSite({ airblast: { ...site.airblast, k: x * 1000 } }, t('vib.airblast'));
-          }}
-        />
-        <NumberField
-          label="β"
-          decimals={3}
-          min={0.01}
-          value={site.airblast.beta}
-          onCommit={(x) => {
-            setSite({ airblast: { ...site.airblast, beta: x } }, t('vib.airblast'));
-          }}
-        />
-        <h3>{t('vib.flyrockTitle')}</h3>
-        <MethodDetail
-          id="flyrock.lundborg"
-          values={{
-            d: maxDiameter > 0 ? maxDiameter * 1000 : undefined,
-            sf: site.flyrock.safetyFactor,
-            range: v?.flyrock.range,
-          }}
-        />
-        <NumberField
-          label={t('vib.safetyFactor')}
-          decimals={2}
-          min={0.1}
-          value={site.flyrock.safetyFactor}
-          onCommit={(x) => {
-            setSite({ flyrock: { ...site.flyrock, safetyFactor: x } }, t('vib.flyrockTitle'));
-          }}
-        />
+        {!underground && (
+          <>
+            <h3>{t('vib.airblast')} · P = K · (R / W^⅓)^−β</h3>
+            <p className="hint">{t('vib.airblastSource')}</p>
+            <MethodDetail
+              id="flyrock.airblast"
+              values={{ k: site.airblast.k / 1000, beta: site.airblast.beta }}
+            />
+            <NumberField
+              label="K"
+              unit="kPa"
+              decimals={0}
+              min={1}
+              value={site.airblast.k / 1000}
+              onCommit={(x) => {
+                setSite({ airblast: { ...site.airblast, k: x * 1000 } }, t('vib.airblast'));
+              }}
+            />
+            <NumberField
+              label="β"
+              decimals={3}
+              min={0.01}
+              value={site.airblast.beta}
+              onCommit={(x) => {
+                setSite({ airblast: { ...site.airblast, beta: x } }, t('vib.airblast'));
+              }}
+            />
+            <h3>{t('vib.flyrockTitle')}</h3>
+            <MethodDetail
+              id="flyrock.lundborg"
+              values={{
+                d: maxDiameter > 0 ? maxDiameter * 1000 : undefined,
+                sf: site.flyrock.safetyFactor,
+                range: v?.flyrock.range,
+              }}
+            />
+            <NumberField
+              label={t('vib.safetyFactor')}
+              decimals={2}
+              min={0.1}
+              value={site.flyrock.safetyFactor}
+              onCommit={(x) => {
+                setSite({ flyrock: { ...site.flyrock, safetyFactor: x } }, t('vib.flyrockTitle'));
+              }}
+            />
+          </>
+        )}
         <h3>{t('vib.map')}</h3>
         <label className="field">
           <span className="field-label">{t('energy.contours', { unit })}</span>
@@ -485,7 +495,7 @@ export function VibrationPanel() {
             />
             {t('vib.map')}
           </label>
-          <label className="check">
+          <label className="check" hidden={underground}>
             <input
               type="checkbox"
               checked={s.layers.flyrock}

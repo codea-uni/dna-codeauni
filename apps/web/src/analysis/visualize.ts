@@ -1,4 +1,5 @@
 import {
+  projectKind,
   sdobBand,
   turboRgb,
   type BlastAnalysis,
@@ -273,7 +274,9 @@ export function bindVisualization(engine: Engine): () => void {
     if (changed('vibration') || changed('vibOpacity')) {
       const v = s.vibration;
       engine.setVibration(v && v.nx > 0 ? { ...v, colorLog: true } : null, s.vibOpacity);
-      engine.setFlyrockZone(v ? v.flyrock.zone : null);
+      // Bajo tierra no hay proyección de rocas al aire libre: sin zona de flyrock.
+      const underground = projectKind(session.document.project) === 'underground';
+      engine.setFlyrockZone(v && !underground ? v.flyrock.zone : null);
     }
     if (changed('analysis')) engine.setDisplacement(analysis ? displacementArrows(analysis) : null);
     if (changed('muckpile') || changed('muckpileFrames') || changed('muckpileMode')) {

@@ -24,6 +24,7 @@ import type { TunnelView } from '@cronos/engine';
 import { t } from '../i18n';
 import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { excavationLabel } from './shots';
 import {
   pickExplosive,
   pickFaceExplosive,
@@ -194,7 +195,7 @@ export function setPileGalleries(
     sections: g.sections,
     color: COLORS[g.kind],
     surface: g.kind === 'drive',
-    label: g.tag,
+    label: excavationLabel(g.tag, g.kind),
   }));
   syncTunnels(true);
 }
@@ -227,7 +228,7 @@ export function syncTunnels(force = false): void {
       surface: e.kind === 'drive',
       // El frente es la primera sección del avance de la ronda.
       ...(e.kind === 'round' ? { highlight: 0 } : {}),
-      label: e.tag,
+      label: excavationLabel(e.tag, e.kind),
     })),
     ...pileGalleries,
     ...extra,

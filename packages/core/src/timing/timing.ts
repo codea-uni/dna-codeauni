@@ -1,6 +1,7 @@
 import type { Blast, HoleId, NodeRef, PatternId, ProductLibrary, Seconds } from '../model/types';
 import { MinHeap } from './heap';
 import { DEFAULT_CALC_PARAMS } from '../model/factories';
+import { shotTag } from '../underground/shots';
 
 export interface TimingOptions {
   /** Ventana de coincidencia [s] (práctica habitual: 8 ms). */
@@ -149,32 +150,45 @@ export function computeTiming(
   // Tolerancia de 1 ns: diferencias de exactamente la ventana (p.ej. 42 − 34 ms) no son coincidencia.
   const w = options.coincidenceWindow - 1e-9;
 
-  const coincidentGroups: HoleId[][] = [];
-  let group: number[] = [];
-  for (let k = 0; k < order.length; k++) {
-    if (k > 0 && t(k) - t(k - 1) < w) {
-      group.push(order[k] ?? 0);
-    } else {
-      if (group.length > 1) coincidentGroups.push(group.map((i) => holes[i]?.id as HoleId));
-      group = [order[k] ?? 0];
-    }
+  // Coincidencias y carga máxima por ventana dentro de cada disparo: en subterránea el frente y
+  // cada set de abanicos salen en voladas distintas (`shotTag`), sus tiempos no se suman.
+  const shotOf = holes.map(shotTag);
+  const shots = new Map<string, number[]>();
+  for (const i of order) {
+    const k = shotOf[i] ?? '';
+    const list = shots.get(k);
+    if (list) list.push(i);
+    else shots.set(k, [i]);
   }
-  if (group.length > 1) coincidentGroups.push(group.map((i) => holes[i]?.id as HoleId));
-
+  const coincidentGroups: HoleId[][] = [];
   let maxHolesPerWindow = order.length > 0 ? 1 : 0;
   let maxChargePerWindow = 0;
   let maxChargeWindowStart = 0;
-  let windowCharge = 0;
-  for (let hi = 0, lo = 0; hi < order.length; hi++) {
-    windowCharge += chargePerHole?.[order[hi] ?? 0] ?? 0;
-    while (t(hi) - t(lo) >= w) {
-      windowCharge -= chargePerHole?.[order[lo] ?? 0] ?? 0;
-      lo++;
+  for (const list of shots.values()) {
+    const ts = (k: number) => fireTime[list[k] ?? 0] ?? 0;
+    let group: number[] = [];
+    for (let k = 0; k < list.length; k++) {
+      if (k > 0 && ts(k) - ts(k - 1) < w) {
+        group.push(list[k] ?? 0);
+      } else {
+        if (group.length > 1) coincidentGroups.push(group.map((i) => holes[i]?.id as HoleId));
+        group = [list[k] ?? 0];
+      }
     }
-    maxHolesPerWindow = Math.max(maxHolesPerWindow, hi - lo + 1);
-    if (windowCharge > maxChargePerWindow) {
-      maxChargePerWindow = windowCharge;
-      maxChargeWindowStart = t(lo);
+    if (group.length > 1) coincidentGroups.push(group.map((i) => holes[i]?.id as HoleId));
+
+    let windowCharge = 0;
+    for (let hi = 0, lo = 0; hi < list.length; hi++) {
+      windowCharge += chargePerHole?.[list[hi] ?? 0] ?? 0;
+      while (ts(hi) - ts(lo) >= w) {
+        windowCharge -= chargePerHole?.[list[lo] ?? 0] ?? 0;
+        lo++;
+      }
+      maxHolesPerWindow = Math.max(maxHolesPerWindow, hi - lo + 1);
+      if (windowCharge > maxChargePerWindow) {
+        maxChargePerWindow = windowCharge;
+        maxChargeWindowStart = ts(lo);
+      }
     }
   }
 

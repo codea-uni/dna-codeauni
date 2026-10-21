@@ -50,8 +50,9 @@ import { useUiStore } from '../stores/uiStore';
 import { useUgAnalysisStore } from './analysisStore';
 import { computeFace, computeRing, pickExplosive, pickFaceExplosive } from './model';
 import { FACE_TAG, RING_TAG } from './send';
-import { currentUgPile, playUndergroundPile } from './pileView';
+import { currentUgPile, playUndergroundPile, shotTimes } from './pileView';
 import { useUndergroundStore } from './store';
+import { ShotPicker, shotLabel, useShot } from './shots';
 
 const SizeCurve = lazy(() => import('../charts/SizeCurve'));
 
@@ -175,10 +176,7 @@ function designTags(blast: Blast): string[] {
 }
 
 function designLabel(tag: string, t: ReturnType<typeof useT>): string {
-  if (tag === FACE_TAG) return t('ug.tab.face');
-  if (tag === RING_TAG) return t('ug.tab.ring');
-  const m = MINING_METHODS.find((x) => x.tag === tag);
-  return m ? `${m.code} · ${t(`ugm.m.${m.id}.name` as MessageKey)}` : tag;
+  return shotLabel(tag, t);
 }
 
 function planeView(
@@ -357,7 +355,15 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
     () => planeView(blast, effTarget, s.ringIndex, s.depthFraction, designTag),
     [blast, effTarget, s.ringIndex, s.depthFraction, designTag],
   );
-  const times = useMemo(() => (analysis ? sequenceTimes(analysis) : null), [analysis]);
+  // Solo los tiempos del disparo analizado: otro diseño sale en otra volada (A8).
+  const times = useMemo(() => {
+    if (!analysis) return null;
+    const all = sequenceTimes(analysis);
+    const mine = new Set<HoleId>(
+      blast.holes.filter((h) => h.tags?.includes(designTag)).map((h) => h.id),
+    );
+    return new Map([...all].filter(([id]) => mine.has(id)));
+  }, [analysis, blast, designTag]);
   // Taladros que ya detonaron en el instante de la simulación (todos si no hay simulación).
   const firedKey = useMemo(() => {
     if (!view || !times || seqTime === null) return -1;
@@ -410,11 +416,9 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
     // Sin pila (no se pudo calcular): la secuencia sola, con los halos.
     const a = useAnalysisStore.getState();
     if (!a.analysis) return;
-    getEngine()?.playSequence(
-      sequenceTimes(a.analysis),
-      a.sequenceSpeed,
-      a.analysis.timing.firstTime - 0.02,
-    );
+    const st = shotTimes(sequenceTimes(a.analysis));
+    if (st.size === 0) return;
+    getEngine()?.playSequence(st, a.sequenceSpeed, Math.min(...st.values()) - 0.02);
     a.set({ sequencePlaying: true });
   }, [muckpile, pileComputing]);
 
@@ -422,8 +426,9 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   const marks = holeMarks(view, effTarget);
   const b = view.plane.bounds ?? { minU: 0, minV: 0, maxU: 1, maxV: 1 };
   const fs = Math.max(b.maxU - b.minU, b.maxV - b.minV) / 45;
-  const first = analysis?.timing.firstTime ?? 0;
-  const last = analysis?.timing.lastTime ?? 0;
+  const tv = times ? [...times.values()] : [];
+  const first = tv.length > 0 ? Math.min(...tv) : 0;
+  const last = tv.length > 0 ? Math.max(...tv) : 0;
   const ms = (x: number) => fmt((x - first) * 1000, 0);
 
   const play = () => {
@@ -474,23 +479,6 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
   return (
     <>
       <div className="row" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
-        {designs.length > 1 && (
-          <label className="field">
-            <span className="field-label">{t('uga.design')}</span>
-            <select
-              value={designTag}
-              onChange={(e) => {
-                s.set({ designTag: e.target.value, ringIndex: 0 });
-              }}
-            >
-              {designs.map((tag) => (
-                <option key={tag} value={tag}>
-                  {designLabel(tag, t)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
         <label className="field">
           <span className="field-label">{t('uga.plane')}</span>
           <select
@@ -713,7 +701,11 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
         <span className="muted">
           {seqTime === null
             ? t('uga.allFired')
-            : t('uga.timeAt', { ms: ms(seqTime), n: Math.max(0, firedKey) })}
+            : t('uga.timeAt', {
+                ms: ms(seqTime),
+                n: Math.max(0, firedKey),
+                total: view.holes.length,
+              })}
         </span>
       </div>
       <p className="hint">{t('uga.halosHint')}</p>
@@ -934,23 +926,26 @@ function SequenceSection({ blast, project }: { blast: Blast; project: Project })
   const vp = rockVp(rock);
   const window = blast.calcParams.micWindow;
   const receiver = (project.monitoringPoints ?? []).find((m) => m.id === s.receiverId) ?? null;
+  // Secuencia del disparo elegido (A8): sus tiempos no se comparan con los de otro diseño.
+  const { holes: shotHoles } = useShot();
   const result = useMemo(() => {
     if (!analysis) return null;
     const times = sequenceTimes(analysis);
-    const fire = Float64Array.from(blast.holes, (h) => times.get(h.id) ?? NaN);
+    const fire = Float64Array.from(shotHoles, (h) => times.get(h.id) ?? NaN);
     const opts = { ...DEFAULT_UG_TIMING, window, shockDistance: s.shockDistance };
+    const fired = [...fire].filter(Number.isFinite);
     return {
-      groups: couplingGroups(blast.holes, fire, project.library, window),
+      groups: couplingGroups(shotHoles, fire, project.library, window),
       arrival: receiver
-        ? couplingGroups(blast.holes, fire, project.library, window, {
+        ? couplingGroups(shotHoles, fire, project.library, window, {
             position: receiver.position,
             vp: vp.value,
           })
         : [],
-      cut: waveCutoffRisks(blast.holes, fire, vp.value, opts),
-      first: analysis.timing.firstTime,
+      cut: waveCutoffRisks(shotHoles, fire, vp.value, opts),
+      first: fired.length > 0 ? Math.min(...fired) : analysis.timing.firstTime,
     };
-  }, [analysis, blast, project.library, window, s.shockDistance, receiver, vp.value]);
+  }, [analysis, shotHoles, project.library, window, s.shockDistance, receiver, vp.value]);
   if (!result) return <p className="hint">{t('uga.noTiming')}</p>;
   const label = new Map<HoleId, string>(blast.holes.map((h) => [h.id, h.label]));
   // Pares dentro del arranque: cercanos por diseño (cuele), se muestran como consejo, no como error.
@@ -1067,6 +1062,8 @@ function FragmentationSection({ blast, project }: { blast: Blast | undefined; pr
   const s = useUgAnalysisStore();
   const faceForm = useUndergroundStore((u) => u.face);
   const ringForm = useUndergroundStore((u) => u.ring);
+  // Con varios disparos en 3D, solo el elegido (el frente y los abanicos son voladas distintas).
+  const shot = useShot().tag;
   const lib = project.library;
   const rock =
     project.rockMasses.find((r) => r.id === blast?.rockMassId) ?? project.rockMasses[0] ?? null;
@@ -1074,7 +1071,7 @@ function FragmentationSection({ blast, project }: { blast: Blast | undefined; pr
     if (!rock) return [];
     const out: { key: 'face' | 'ring'; zones: UgFragmentationZone[]; rws: number; w: number }[] =
       [];
-    const fe = pickFaceExplosive(lib, faceForm);
+    const fe = shot === null || shot === FACE_TAG ? pickFaceExplosive(lib, faceForm) : null;
     if (fe) {
       try {
         const f = computeFace(faceForm, fe);
@@ -1089,7 +1086,7 @@ function FragmentationSection({ blast, project }: { blast: Blast | undefined; pr
         // Formulario fuera de rango: lo informa la pestaña del frente.
       }
     }
-    const re = pickExplosive(lib, ringForm.explosiveId);
+    const re = shot === null || shot === RING_TAG ? pickExplosive(lib, ringForm.explosiveId) : null;
     if (re) {
       try {
         const r = computeRing(ringForm, re);
@@ -1115,7 +1112,7 @@ function FragmentationSection({ blast, project }: { blast: Blast | undefined; pr
       });
       return r ? [{ key: o.key, r }] : [];
     });
-  }, [rock, lib, faceForm, ringForm, s, blast]);
+  }, [rock, lib, faceForm, ringForm, s, blast, shot]);
   if (!rock) return <p className="hint">{t('uga.noRock')}</p>;
   const cm = (m: number) => fmt(m * 100, 1);
   const first = results[0];
@@ -1279,6 +1276,7 @@ export function UndergroundAnalysis() {
       {!hasUg && <p className="hint warn">{t('uga.sendFirst')}</p>}
       {blast && hasUg && (
         <>
+          <ShotPicker />
           <Section title={t('uga.section.halos')}>
             <HaloSection blast={blast} project={project} />
           </Section>
