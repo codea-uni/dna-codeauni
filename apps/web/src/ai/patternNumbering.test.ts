@@ -20,12 +20,21 @@ vi.mock('../session', async () => {
     }),
   };
 });
+// Cota de boca que pone el terreno a cada taladro (por índice), o `null` para dejarlos como vienen.
+const terrain = vi.hoisted(() => ({ z: null as ((i: number) => number) | null }));
 vi.mock('../topography/session', () => ({
-  drapeNewHoles: (_blast: unknown, holes: unknown) =>
-    Promise.resolve({ holes, outside: 0, floor: null }),
+  drapeNewHoles: (_blast: unknown, holes: { collar: { z: number } }[]) =>
+    Promise.resolve({
+      holes: terrain.z
+        ? holes.map((h, i) => ({ ...h, collar: { ...h.collar, z: terrain.z?.(i) ?? h.collar.z } }))
+        : holes,
+      outside: 0,
+      floor: null,
+    }),
 }));
 
 beforeEach(() => {
+  terrain.z = null;
   const project = buildExample(EXAMPLE_SPECS.production);
   project.blasts[0]!.holes = project.blasts[0]!.holes.map((h, i) => ({
     ...h,
@@ -92,5 +101,23 @@ describe('generación real de una malla de reemplazo', () => {
     expect(labels[0]).toBe('1');
     expect(labels[1]).toBe('3');
     expect(new Set(after.holes.map((h) => h.label)).size).toBe(after.holes.length);
+  });
+});
+
+describe('taladros con la boca en el piso o bajo él', () => {
+  it('no se crean, los demás quedan numerados sin huecos y los cortos se informan', async () => {
+    const blast = session.document.project.blasts[0]!;
+    const floor = blast.boundaries[0]!.floorElevation ?? blast.bench.floorElevation;
+    const H = blast.bench.height;
+    // Terreno en pendiente: uno de cada tres bajo el piso, otro corto (¼ de banco), otro normal.
+    terrain.z = (i) => (i % 3 === 0 ? floor - 1 : i % 3 === 1 ? floor + H / 4 : floor + H);
+    const r = await regenerate();
+    const holes = session.document.project.blasts[0]!.holes;
+    expect(r?.belowFloor).toBeGreaterThan(0);
+    expect(r?.holes).toBe(holes.length);
+    expect(holes.every((h) => h.collar.z > floor)).toBe(true);
+    expect(holes.map((h) => h.label)).toEqual(holes.map((_, i) => String(i + 1)));
+    expect(r?.shortHoles.length).toBe(holes.filter((h) => h.collar.z - floor < H / 2).length);
+    expect(r?.shortHoles.length).toBeGreaterThan(0);
   });
 });

@@ -5,6 +5,7 @@ import {
   createEmptyProject,
   electronicTimes,
   fitPatternToPolygon,
+  holesByCollarHeight,
   makeGroup,
   newId,
   nextHoleNumber,
@@ -34,6 +35,7 @@ import { listVersions, loadWithoutSaving, readVersion } from './persistence/auto
 import { useUiStore } from './stores/uiStore';
 import { collectAssets, drapeNewHoles, storeEmbeddedAssets } from './topography/session';
 import { putAsset } from './persistence/assets';
+import { ask } from './components/AskDialog';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
 
@@ -194,6 +196,35 @@ export function removePattern(patternId: PatternId): void {
   );
 }
 
+/**
+ * Cambia la altura de banco o la cota de piso (del banco o de un perímetro). Si hay taladros cuyo
+ * largo cambiaría, ofrece aplicarlo a ellos; si no, el valor queda solo para las mallas nuevas.
+ * Con topografía y sin taladros afectados, el piso acompaña a la altura (piso = terreno − altura).
+ */
+export async function setBenchLevels(change: commands.BenchLevels): Promise<void> {
+  const blast = document.project.blasts[0];
+  if (!blast || blockedByReadOnly()) return;
+  const n = commands.benchLevelsChange(blast, change).holes.length;
+  let apply = true;
+  if (n > 0) {
+    const choice = await ask({
+      title: t('design.bench.applyTitle'),
+      text: t('design.bench.applyText', { n }),
+      choices: [
+        { id: 'only', label: t('design.bench.onlyValue') },
+        { id: 'apply', label: t('design.bench.applyHoles', { n }), kind: 'primary' },
+      ],
+    });
+    if (choice === null) return;
+    apply = choice === 'apply';
+  }
+  document.dispatch(
+    commands.setBenchLevels(document, blast.id, change, apply),
+    change.height !== undefined ? t('blast.benchHeight') : t('blast.floor'),
+  );
+  if (n > 0 && apply) notify(t('design.bench.applied', { n }));
+}
+
 /** Resultado de generar una malla (lo usa el asistente de IA para responder con datos). */
 export interface PatternResult {
   patternId: PatternId;
@@ -204,6 +235,12 @@ export interface PatternResult {
   hasFreeFace: boolean;
   /** Taladros fuera del levantamiento (sin cota de terreno). */
   outside: number;
+  /** Puntos de la malla con la boca en el piso o bajo él: no se crearon. */
+  belowFloor: number;
+  /** Taladros con la boca a menos de media altura de banco sobre el piso (cortos). */
+  shortHoles: HoleId[];
+  /** Cota de piso usada [m]. */
+  floor: number;
 }
 
 /**
@@ -218,7 +255,7 @@ export async function generatePattern(
   const blast = document.project.blasts[0];
   const engine = getEngine();
   if (!blast || !engine) return;
-  const ask = options.confirm ?? true;
+  const confirmFirst = options.confirm ?? true;
   const holeTemplate = options.template ?? useUiStore.getState().holeTemplate;
   const geometry = {
     kind: form.kind,
@@ -260,14 +297,19 @@ export async function generatePattern(
     replaced.some((p) => p.id === h.patternId),
   ).length;
   if (
-    ask &&
+    confirmFirst &&
     replaced.length > 0 &&
-    !window.confirm(
-      t('pattern.replaceConfirm', {
+    (await ask({
+      title: t('design.replace.title'),
+      text: t('pattern.replaceConfirm', {
         names: replaced.map((p) => p.name).join(', '),
         n: replacedHoles,
       }),
-    )
+      choices: [
+        { id: 'cancel', label: t('design.cancel') },
+        { id: 'replace', label: t('design.replace.ok'), kind: 'primary' },
+      ],
+    })) !== 'replace'
   )
     return;
   if (replaced.length > 0) {
@@ -279,13 +321,25 @@ export async function generatePattern(
   const hasFreeFace =
     blast.freeFaces.length > 0 || blast.boundaries.some((b) => b.freeFaceEdges.length > 0);
   // P-03: sin cara libre no se bloquea (cortes, rampas, primera voladura), pero el ingeniero la
-  // acepta explícitamente.
-  if (
-    ask &&
-    !hasFreeFace &&
-    !window.confirm(`${t('pattern.noFreeFace')}\n\n${t('actions.generateAnyway')}`)
-  )
-    return;
+  // acepta explícitamente; el aviso dice cómo marcarla.
+  if (confirmFirst && !hasFreeFace) {
+    const choice = await ask({
+      title: t('design.noFace.title'),
+      text: t('design.noFace.text'),
+      choices: [
+        { id: 'generate', label: t('design.noFace.generate') },
+        { id: 'mark', label: t('design.noFace.mark'), kind: 'primary' },
+      ],
+    });
+    if (choice === 'mark') {
+      if (boundary) useUiStore.getState().setActiveBoundary(boundary.id);
+      // La ventana de la malla se cierra para dejar ver el perímetro donde se marca.
+      useUiStore.getState().dockPanel('workspace.pattern');
+      useUiStore.getState().setTool('freeFace');
+      notify(t('design.noFace.howTo'));
+    }
+    if (choice !== 'generate') return;
+  }
 
   return withBusy(t('actions.generatingPattern'), async (): Promise<PatternResult> => {
     const t0 = performance.now();
@@ -297,16 +351,40 @@ export async function generatePattern(
       blast.calcParams.subdrillConvention,
     );
     // Con el banco sobre la topografía, cada boca va en el terreno (D-16).
-    const { holes, outside, floor } = await drapeNewHoles(
+    const remaining = blast.holes.filter((h) => !replaced.some((p) => p.id === h.patternId));
+    const draped = await drapeNewHoles(
       blast,
-      replaced.length > 0
-        ? numberHolesFromFirstFree(
-            generated,
-            blast.holes.filter((h) => !replaced.some((p) => p.id === h.patternId)),
-          )
-        : generated,
+      replaced.length > 0 ? numberHolesFromFirstFree(generated, remaining) : generated,
       boundary,
     );
+    const { outside, floor } = draped;
+    // Con la boca en el piso o bajo él solo quedaría la sobreperforación: esos puntos no se crean
+    // (terreno en pendiente que baja hasta el piso). Los cortos se crean y se avisan.
+    const own = boundaryBench(blast.bench, boundary);
+    const floorZ = floor ?? own.floorElevation;
+    const levels = holesByCollarHeight(draped.holes, floorZ, own.height);
+    const below = new Set<string>(levels.below);
+    const holes =
+      below.size === 0
+        ? draped.holes
+        : numberHolesFromFirstFree(
+            draped.holes.filter((h) => !below.has(h.id)),
+            remaining,
+          );
+    if (holes.length === 0) {
+      notify(t('design.allBelowFloor', { floor: formatNumber(floorZ, 2) }), 'error');
+      return {
+        patternId: pattern.id,
+        name: pattern.name,
+        holes: 0,
+        replacedHoles: 0,
+        hasFreeFace,
+        outside,
+        belowFloor: below.size,
+        shortHoles: [],
+        floor: floorZ,
+      };
+    }
     const t1 = performance.now();
     // Si el piso no correspondía a las bocas sobre el terreno (S-18), se ajusta en el mismo paso
     // y solo el del perímetro de esta malla: los demás perímetros no se mueven.
@@ -350,8 +428,11 @@ export async function generatePattern(
     });
     const offGround =
       (floor !== null ? ` ${t('topo.bench.floorSet', { floor: formatNumber(floor, 2) })}` : '') +
-      (outside > 0 ? ` ${t('topo.bench.outside', { n: outside })}` : '');
-    if (hasFreeFace && outside === 0) notify(`${summary}.${offGround}`);
+      (outside > 0 ? ` ${t('topo.bench.outside', { n: outside })}` : '') +
+      (below.size > 0
+        ? ` ${t('design.belowFloor', { n: below.size, floor: formatNumber(floorZ, 2) })}`
+        : '');
+    if (hasFreeFace && outside === 0 && below.size === 0) notify(`${summary}.${offGround}`);
     else
       notify(`${summary}.${hasFreeFace ? '' : ` ${t('pattern.noFreeFace')}`}${offGround}`, 'error');
     return {
@@ -361,6 +442,9 @@ export async function generatePattern(
       replacedHoles,
       hasFreeFace,
       outside,
+      belowFloor: below.size,
+      shortHoles: levels.short,
+      floor: floorZ,
     };
   });
 }
@@ -868,6 +952,35 @@ export async function compareScenarios(): Promise<void> {
     .setScenarioKpis(await getCompute().api.compareScenarios(document.project, designs));
 }
 
+/** Proyecto de la mina abierto y editable en el editor (modo servidor), o `null`. */
+async function openServerProject(): Promise<{ mineId: string; name: string } | null> {
+  const { serverMode } = await import('./server/api');
+  if (!serverMode) return null;
+  const { useProjectSession } = await import('./server/projectSession');
+  const cur = useProjectSession.getState().current;
+  if (!cur || cur.viewingOld || document.readOnly) return null;
+  return { mineId: cur.mine.id, name: document.project.name };
+}
+
+/** Crea en la mina un proyecto nuevo con el ejemplo y lo abre (el proyecto actual no se toca). */
+async function openExampleAsNewProject(id: string, name: string, mineId: string): Promise<void> {
+  const created = await withBusy(t('actions.preparingExample'), async () => {
+    const { project, assets } = await getCompute().api.buildExample(id);
+    await Promise.all(assets.map((a) => putAsset(a.hash, a.bytes)));
+    const [{ api }, { uploadMissingAssets }] = await Promise.all([
+      import('./server/api'),
+      import('./server/topographyAssets'),
+    ]);
+    await uploadMissingAssets(mineId, project);
+    const text = await getCompute().api.serializeProject(project, { appVersion: APP_VERSION });
+    return api.createProjectFromText(mineId, text, t('design.example.message', { name }));
+  });
+  if (!created) return;
+  const { appNavigate } = await import('./server/deviceSync');
+  if (!appNavigate(`/projects/${created.id}`)) location.assign(`/projects/${created.id}`);
+  notify(t('design.example.created', { name }));
+}
+
 /** Abre un proyecto de ejemplo completamente configurado (se genera en el worker). */
 export async function loadExample(
   id: string,
@@ -876,10 +989,43 @@ export async function loadExample(
   prepare?: (project: Project) => Project,
 ): Promise<void> {
   if (preview?.aborted || blockedByReadOnly()) return;
-  if (!preview && document.canUndo && !window.confirm(t('actions.discardForExample', { name })))
+  // En la mina el editor tiene un proyecto abierto: por defecto el ejemplo va a un proyecto nuevo
+  // (reemplazar el abierto lo pisaría y le cambiaría el nombre al publicar).
+  const server = preview ? null : await openServerProject();
+  let keepName: string | null = null;
+  if (server) {
+    const choice = await ask({
+      title: t('design.example.title', { name }),
+      text: t('design.example.text', { name, current: server.name }),
+      choices: [
+        { id: 'replace', label: t('design.example.replace'), kind: 'danger' },
+        { id: 'new', label: t('design.example.new'), kind: 'primary' },
+      ],
+    });
+    if (choice === null) return;
+    if (choice === 'new') {
+      await openExampleAsNewProject(id, name, server.mineId);
+      return;
+    }
+    keepName = server.name;
+  } else if (
+    !preview &&
+    document.canUndo &&
+    (await ask({
+      title: t('design.example.title', { name }),
+      text: t('actions.discardForExample', { name }),
+      choices: [
+        { id: 'cancel', label: t('design.cancel') },
+        { id: 'open', label: t('design.example.open'), kind: 'primary' },
+      ],
+    })) !== 'open'
+  )
     return;
   await withBusy(t('actions.preparingExample'), async () => {
-    const { project, assets } = await getCompute().api.buildExample(id);
+    const built = await getCompute().api.buildExample(id);
+    const { assets } = built;
+    // Reemplazar el proyecto de la mina conserva su nombre (el ejemplo no lo renombra).
+    const project = keepName === null ? built.project : { ...built.project, name: keepName };
     // La topografía del ejemplo se guarda en el navegador antes de abrirlo (D-16).
     await Promise.all(assets.map((a) => putAsset(a.hash, a.bytes)));
     if (preview?.aborted) return;

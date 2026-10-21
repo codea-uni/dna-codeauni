@@ -8,6 +8,7 @@ import {
   startVibrationRunner,
   startMuckpileRunner,
 } from './analysis/runner';
+import { AskDialog } from './components/AskDialog';
 import { StatusBar } from './components/StatusBar';
 import { DemoOverlay } from './demo/DemoOverlay';
 import { stopDemo } from './demo/playback';
@@ -129,6 +130,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
       <StatusBar />
       <WorkspaceWindows />
       <DemoOverlay />
+      <AskDialog />
       {shortcutsOpen && (
         <ShortcutsDialog
           onClose={() => {

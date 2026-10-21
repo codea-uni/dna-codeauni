@@ -642,6 +642,8 @@ async function generatePattern(args: z.infer<typeof patternSchema>) {
     replaced_holes: result.replacedHoles,
     free_face: result.hasFreeFace,
     holes_outside_topography: result.outside,
+    ...(result.belowFloor > 0 ? { points_below_floor_not_created: result.belowFloor } : {}),
+    ...(result.shortHoles.length > 0 ? { short_holes: result.shortHoles.length } : {}),
     note:
       result.replacedHoles > 0
         ? 'The new holes have no charge or tie-up: re-apply them if the user wants the previous ones.'

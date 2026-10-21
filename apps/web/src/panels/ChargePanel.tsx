@@ -1,5 +1,6 @@
 import {
   commands,
+  holesLeftUncharged,
   waterCompatible,
   type ChargeRule,
   type HoleGroupId,
@@ -14,7 +15,9 @@ import { GeotechRockSection } from './GeotechRockSection';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
-import { useT } from '../i18n';
+import { useFormat, useT } from '../i18n';
+import { ask } from '../components/AskDialog';
+import { focusHoles } from '../actions';
 
 type RuleForm = Omit<ChargeRule, 'airDeckLength' | 'primerId' | 'detonatorId'> & {
   airDeckLength: number;
@@ -83,9 +86,15 @@ export function ChargePanel() {
 
   const [groupId, setGroupId] = useState<string>('');
   const group = blast?.groups.find((g) => g.id === groupId);
+  const fmt = useFormat();
+  // Conservar el detonador (y su retardo) de cada taladro: cambiar el explosivo no borra tiempos.
+  const [keepDetonators, setKeepDetonators] = useState(true);
+  const withDetonator = blast?.holes.filter((h) => h.initiators.length > 0).length ?? 0;
+  // Taladros que la última aplicación dejó sin carga (más cortos que taco + aire).
+  const [uncharged, setUncharged] = useState<{ ids: HoleId[]; stemming: number } | null>(null);
 
   /** Aplica la regla a los taladros; con `toGroup`, además la guarda en el grupo (H-303). */
-  const apply = (ids: HoleId[], toGroup?: HoleGroupId) => {
+  const apply = async (ids: HoleId[], toGroup?: HoleGroupId) => {
     if (!blast) return;
     if (ids.length === 0) {
       useUiStore.getState().notify(t('charge.noHoles'), 'error');
@@ -104,6 +113,31 @@ export function ChargePanel() {
     if (form.primerId) rule.primerId = form.primerId as NonNullable<ChargeRule['primerId']>;
     if (form.detonatorId)
       rule.detonatorId = form.detonatorId as NonNullable<ChargeRule['detonatorId']>;
+    const keep = keepDetonators && withDetonator > 0;
+    if (!keep) {
+      // Sin conservar: los detonadores que ya tienen se reemplazan (o se quitan); se avisa antes.
+      const target = new Set<string>(ids);
+      const losing = blast.holes.filter(
+        (h) =>
+          target.has(h.id) &&
+          h.initiators.length > 0 &&
+          h.initiators.some((i) => i.detonatorId !== rule.detonatorId),
+      ).length;
+      if (
+        losing > 0 &&
+        (await ask({
+          title: t('charge.detonatorLossTitle'),
+          text: t(rule.detonatorId ? 'charge.detonatorReplace' : 'charge.detonatorRemove', {
+            n: losing,
+          }),
+          choices: [
+            { id: 'cancel', label: t('design.cancel') },
+            { id: 'go', label: t('charge.detonatorLossOk'), kind: 'danger' },
+          ],
+        })) !== 'go'
+      )
+        return;
+    }
     const saveInGroup: Op[] = toGroup
       ? [
           {
@@ -125,11 +159,30 @@ export function ChargePanel() {
           },
         ]
       : [];
+    const target = new Set<string>(ids);
+    const empty = holesLeftUncharged(
+      blast.holes.filter((h) => target.has(h.id)),
+      rule,
+    );
     session.document.dispatch(
-      [...saveInGroup, ...commands.applyChargeRule(session.document, ids, rule)],
+      [
+        ...saveInGroup,
+        ...commands.applyChargeRule(session.document, ids, rule, { keepInitiators: keep }),
+      ],
       t('charge.load', { n: ids.length }),
     );
-    useUiStore.getState().notify(t('charge.applied', { n: ids.length }));
+    setUncharged(empty.length > 0 ? { ids: empty, stemming: rule.stemmingLength } : null);
+    const loaded = ids.length - empty.length;
+    useUiStore.getState().notify(
+      empty.length > 0
+        ? `${t('charge.applied', { n: loaded })}. ${t('charge.tooShort', {
+            n: empty.length,
+            stemming: fmt(len.show(rule.stemmingLength), 2),
+            unit: len.unit,
+          })}`
+        : t('charge.applied', { n: loaded }),
+      empty.length > 0 ? 'error' : 'info',
+    );
   };
 
   return (
@@ -196,6 +249,18 @@ export function ChargePanel() {
             update({ detonatorId: v });
           }}
         />
+        {withDetonator > 0 && (
+          <label className="check" title={t('charge.keepDetonatorsTitle')}>
+            <input
+              type="checkbox"
+              checked={keepDetonators}
+              onChange={(e) => {
+                setKeepDetonators(e.target.checked);
+              }}
+            />
+            {t('charge.keepDetonators', { n: withDetonator })}
+          </label>
+        )}
         <NumberField
           label={t('charge.primerOffset')}
           unit={len.unit}
@@ -207,24 +272,45 @@ export function ChargePanel() {
             update({ primerOffsetFromToe: v });
           }}
         />
+        {/* Con 0 o 1 taladro seleccionado (p. ej. el que se miró antes) lo habitual es cargar todos. */}
         <div className="row">
           <button
-            className="primary-inline"
+            className={selection.size >= 2 ? 'primary-inline' : ''}
             disabled={selection.size === 0}
             onClick={() => {
-              apply([...selection]);
+              void apply([...selection]);
             }}
           >
-            {t('charge.applySelection', { n: selection.size })}
+            {selection.size === 1
+              ? t('charge.applyOne')
+              : t('charge.applySelection', { n: selection.size })}
           </button>
           <button
+            className={selection.size >= 2 ? '' : 'primary-inline'}
             onClick={() => {
-              apply(blast?.holes.map((h) => h.id) ?? []);
+              void apply(blast?.holes.map((h) => h.id) ?? []);
             }}
           >
-            {t('charge.applyAll')}
+            {t('charge.applyAllN', { n: blast?.holes.length ?? 0 })}
           </button>
         </div>
+        {uncharged && (
+          <p className="warn">
+            {t('charge.tooShort', {
+              n: uncharged.ids.length,
+              stemming: fmt(len.show(uncharged.stemming), 2),
+              unit: len.unit,
+            })}{' '}
+            <button
+              className="link"
+              onClick={() => {
+                focusHoles(uncharged.ids);
+              }}
+            >
+              {t('design.selectThem')}
+            </button>
+          </p>
+        )}
         {blast && blast.groups.length > 0 && (
           <div className="row">
             <select
@@ -246,7 +332,7 @@ export function ChargePanel() {
               title={t('charge.applyGroupTitle')}
               onClick={() => {
                 if (group)
-                  apply(
+                  void apply(
                     blast.holes.filter((h) => h.groupId === group.id).map((h) => h.id),
                     group.id,
                   );
@@ -303,6 +389,7 @@ export function ChargePanel() {
                 setRock({ ...rock, density: v * 1000 }, t('charge.rockDensity'));
               }}
             />
+            <p className="hint">{t('charge.rockHint')}</p>
             <NumberField
               label={t('charge.rockUcs')}
               unit="MPa"
@@ -355,9 +442,9 @@ export function ChargePanel() {
                 }}
               />
             )}
+            {blast && <p className="hint">{t('charge.drillingCostHint')}</p>}
           </>
         )}
-        <p className="hint">{t('charge.rockHint')}</p>
         <GeotechRockSection />
       </section>
     </>

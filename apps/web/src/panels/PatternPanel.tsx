@@ -5,16 +5,18 @@ import {
   radToDeg,
   type PatternKind,
 } from '@cronos/core';
-import { useT } from '../i18n';
+import { useFormat, useT } from '../i18n';
 import { BurdenReference } from './BurdenReference';
 import { Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IconButton } from '../components/IconButton';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast } from '../hooks/useDocument';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
+import { getCompute } from '../session';
+import { onTopographyChange, topographyTin } from '../topography/session';
 
 const KINDS: PatternKind[] = ['square', 'rectangular', 'staggered'];
 
@@ -55,9 +57,71 @@ export function PatternPanel() {
   const replacing = (blast?.holes ?? []).filter((h) =>
     blast?.patterns.some((p) => p.id === h.patternId && p.boundaryId === selectedBoundary?.id),
   ).length;
+  // Resultado de la última generación: taladros cortos o puntos bajo el piso (se avisan aquí).
+  const [last, setLast] = useState<actions.PatternResult | null>(null);
+
+  // Banco de la malla: altura (de la voladura) y piso (del perímetro si tiene uno propio).
+  const fmt = useFormat();
+  const bench = blast?.bench;
+  const floor = selectedBoundary?.floorElevation ?? bench?.floorElevation ?? 0;
+  const ground = useGroundInBoundary(bench?.topographyId, selectedBoundary?.polygon);
+  const suggested = ground !== null && bench ? ground - bench.height : null;
+  const setFloor = (v: number) => {
+    void actions.setBenchLevels({
+      floor: v,
+      ...(selectedBoundary?.floorElevation !== undefined
+        ? { boundaryId: selectedBoundary.id }
+        : {}),
+    });
+  };
 
   return (
     <>
+      {bench && (
+        <section className="panel">
+          <h2>{t('design.bench.title')}</h2>
+          <NumberField
+            label={t('blast.benchHeight')}
+            unit={len.unit}
+            decimals={2}
+            min={0.1}
+            value={len.show(bench.height)}
+            onCommit={(raw) => {
+              void actions.setBenchLevels({ height: len.parse(raw) });
+            }}
+          />
+          <NumberField
+            label={t('blast.floor')}
+            unit={len.unit}
+            decimals={2}
+            value={len.show(floor)}
+            onCommit={(raw) => {
+              setFloor(len.parse(raw));
+            }}
+          />
+          {suggested !== null && ground !== null && Math.abs(suggested - floor) > 0.5 && (
+            <p className="hint">
+              {t('design.bench.suggested', {
+                floor: fmt(len.show(suggested), 2),
+                ground: fmt(len.show(ground), 2),
+                height: fmt(len.show(bench.height), 2),
+                unit: len.unit,
+              })}{' '}
+              <button
+                className="link"
+                onClick={() => {
+                  setFloor(Number(suggested.toFixed(2)));
+                }}
+              >
+                {t('design.bench.useSuggested')}
+              </button>
+            </p>
+          )}
+          <p className="hint">
+            {t(bench.topographyId ? 'design.bench.hintTerrain' : 'design.bench.hintFlat')}
+          </p>
+        </section>
+      )}
       <section className="panel">
         <h2>{t('pattern.template')}</h2>
         <p className="hint">{t('pattern.templateHint')}</p>
@@ -267,12 +331,35 @@ export function PatternPanel() {
         <button
           className="primary"
           disabled={busy !== null}
-          onClick={() =>
-            void actions.generatePattern({ ...form, boundaryId: selectedBoundary?.id ?? null })
-          }
+          onClick={() => {
+            setLast(null);
+            void actions
+              .generatePattern({ ...form, boundaryId: selectedBoundary?.id ?? null })
+              .then((r) => {
+                setLast(r ?? null);
+              });
+          }}
         >
           {replacing > 0 ? t('pattern.regenerate') : t('pattern.generate')}
         </button>
+        {last && last.belowFloor > 0 && (
+          <p className="warn">
+            {t('design.belowFloor', { n: last.belowFloor, floor: fmt(len.show(last.floor), 2) })}
+          </p>
+        )}
+        {last && last.shortHoles.length > 0 && (
+          <p className="warn">
+            {t('design.shortHoles', { n: last.shortHoles.length })}{' '}
+            <button
+              className="link"
+              onClick={() => {
+                actions.focusHoles(last.shortHoles);
+              }}
+            >
+              {t('design.selectThem')}
+            </button>
+          </p>
+        )}
         {(blast?.patterns.length ?? 0) > 0 && (
           <>
             <h3>{t('pattern.list')}</h3>
@@ -304,4 +391,40 @@ export function PatternPanel() {
       </section>
     </>
   );
+}
+
+/**
+ * Cota mediana del terreno dentro del perímetro (en el worker), para sugerir el piso del banco.
+ * `null` sin topografía o sin perímetro.
+ */
+function useGroundInBoundary(
+  surveyId: string | undefined,
+  polygon: readonly { x: number; y: number }[] | undefined,
+): number | null {
+  // Resultado con la consulta que lo produjo: si cambian perímetro o levantamiento, no vale.
+  const [found, setFound] = useState<{ tin: unknown; polygon: unknown; z: number | null } | null>(
+    null,
+  );
+  const [rev, setRev] = useState(0);
+  const tin = surveyId ? topographyTin(surveyId) : undefined;
+  useEffect(
+    () =>
+      onTopographyChange(() => {
+        setRev((r) => r + 1);
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (!tin || !polygon || polygon.length < 3) return;
+    let alive = true;
+    void getCompute()
+      .api.topographyBenchElevation(tin, [...polygon])
+      .then((z) => {
+        if (alive) setFound({ tin, polygon, z });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [tin, polygon, rev]);
+  return found && found.tin === tin && found.polygon === polygon ? found.z : null;
 }

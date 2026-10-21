@@ -34,6 +34,9 @@ vi.mock('../actions', async (original) => ({
       replacedHoles: 250,
       hasFreeFace: true,
       outside: 0,
+      belowFloor: 0,
+      shortHoles: [],
+      floor: 0,
     }),
   ),
 }));
@@ -203,7 +206,12 @@ describe('herramientas del asistente de IA', () => {
   });
 
   it('amarre en V de 17/42 ms: un solo árbol que une todos los taladros desde el centro de la fila 1', async () => {
-    const r = await ok('set_tie_up', { mode: 'v', inter_hole: 17, inter_row: '42', confirmed: true });
+    const r = await ok('set_tie_up', {
+      mode: 'v',
+      inter_hole: 17,
+      inter_row: '42',
+      confirmed: true,
+    });
     const holes = blast().holes.filter((h) => h.patternId === blast().patterns[0]?.id);
     // Un amarre por filas conecta n taladros con n − 1 conexiones (una red sin ciclos).
     expect(blast().initiation.connections).toHaveLength(holes.length - 1);

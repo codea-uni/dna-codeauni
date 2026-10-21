@@ -1,7 +1,8 @@
 import { Engine } from '@cronos/engine';
 import { useEffect, useRef } from 'react';
 import { bindVisualization } from '../analysis/visualize';
-import { t, useLocale } from '../i18n';
+import { formatNumber, t, useLocale } from '../i18n';
+import { polygonSignedArea } from '@cronos/core';
 import { session, setEngine } from '../session';
 import { applyTopographyToEngine } from '../topography/session';
 import { syncTunnels } from '../underground/send';
@@ -71,6 +72,22 @@ export function Viewport() {
       engine.on('activeBoundary', (id) => {
         if (useUiStore.getState().activeBoundaryId !== id)
           useUiStore.getState().setActiveBoundary(id);
+      }),
+      // Perímetro cerrado: se avisa con su área y se vuelve a Seleccionar (la herramienta no queda
+      // activa esperando otro perímetro).
+      engine.on('boundaryCreated', (id) => {
+        const b = session.document.project.blasts
+          .flatMap((x) => x.boundaries)
+          .find((x) => x.id === id);
+        const ui = useUiStore.getState();
+        if (b)
+          ui.notify(
+            t('design.boundaryCreated', {
+              name: b.name,
+              area: formatNumber(Math.abs(polygonSignedArea(b.polygon)), 0),
+            }),
+          );
+        ui.setTool('select');
       }),
       engine.on('viewMode', (mode) => {
         if (useUiStore.getState().viewMode !== mode) useUiStore.getState().setViewMode(mode);

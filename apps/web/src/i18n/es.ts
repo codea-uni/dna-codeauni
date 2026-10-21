@@ -6,6 +6,7 @@ import * as ai from './ns/ai';
 import * as app from './ns/app';
 import * as auth from './ns/auth';
 import * as core from './ns/core';
+import * as designFlow from './ns/designFlow';
 import * as history from './ns/history';
 import * as knowledge from './ns/knowledge';
 import * as methods from './ns/methods';
@@ -29,6 +30,7 @@ export const es = {
   ...app.es,
   ...auth.es,
   ...core.es,
+  ...designFlow.es,
   ...history.es,
   ...knowledge.es,
   ...methods.es,
@@ -167,7 +169,7 @@ export const es = {
   'burden.applySubdrill': 'Aplicar a la plantilla',
   'pattern.equilateral': 'Equilátera (S = 2B/√3)',
   'pattern.noFreeFace':
-    'Malla generada sin cara libre: el burden no se mide desde una cara (RM-06). Marca la cara libre del perímetro con la herramienta C.',
+    'Malla generada sin cara libre: el burden no se mide desde el talud. Márcala con el botón «Cara libre (talud)» (tecla C) en el borde del perímetro que da al talud.',
   'scenarios.title': 'Escenarios',
   'scenarios.hint':
     'Un escenario es una variante completa del diseño (malla, cargas, amarre, retardos y parámetros). Guarda el diseño actual, modifícalo y compara los indicadores lado a lado.',
