@@ -1867,13 +1867,8 @@ button.link {
     grid-template-columns: minmax(0, 1fr) min(var(--right-sidebar-width, 290px), 38vw);
   }
 }
-/* En escritorio las pestañas se encogen (y se desplazan) en vez de bajar Documentación a otra fila
-   cuando aparece «Cambios sin publicar». */
-@media (min-width: 901px) {
-  .ribbon-tabs {
-    flex-basis: 0;
-  }
-}
+/* Pestañas más compactas en pantallas medianas: así Documentación no baja a otra fila cuando
+   aparece «Cambios sin publicar». */
 @media (min-width: 901px) and (max-width: 1600px) {
   .ribbon-tabs button {
     padding: 10px 10px 8px;
