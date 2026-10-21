@@ -11,6 +11,7 @@ import * as actions from '../actions';
 import { IconButton } from '../components/IconButton';
 import { useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
+import { useProjectKind } from '../product/product';
 import { session } from '../session';
 import {
   benchOnSurveyOps,
@@ -47,7 +48,9 @@ export function TopographyPanel() {
   const t = useT();
   const fmt = useFormat();
   const project = useProject();
-  const blast = project.blasts[0];
+  // Banco sobre la superficie, colgar taladros y cara libre son de cielo abierto: bajo tierra no.
+  const underground = useProjectKind() === 'underground';
+  const blast = underground ? undefined : project.blasts[0];
   const input = useRef<HTMLInputElement>(null);
   const modelInput = useRef<HTMLInputElement>(null);
   // Se vuelve a dibujar cuando termina de cargarse un levantamiento en el navegador.

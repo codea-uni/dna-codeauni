@@ -20,6 +20,7 @@ import { X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useFormat, useT, type MessageKey } from '../i18n';
 import { es } from '../i18n/es';
+import { useProjectKind } from '../product/product';
 import { getCompute, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import {
@@ -159,7 +160,9 @@ export function TopographyImportDialog({
   const isImage = format === 'image' || inspection.raster?.kind === 'image';
   const [name, setName] = useState(() => baseName(files));
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [useInBench, setUseInBench] = useState(blast !== undefined);
+  // Bajo tierra la superficie es contexto: no se apoya el diseño (frentes, abanicos) sobre ella.
+  const underground = useProjectKind() === 'underground';
+  const [useInBench, setUseInBench] = useState(blast !== undefined && !underground);
   const [result, setResult] = useState<{ r: AssembleResult; ms: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -572,7 +575,7 @@ export function TopographyImportDialog({
                 }}
               />
             </label>
-            {blast && (
+            {blast && !underground && (
               <label className="check">
                 <input
                   type="checkbox"
