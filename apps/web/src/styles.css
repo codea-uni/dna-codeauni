@@ -327,6 +327,11 @@ button.danger:hover:not(:disabled) {
   text-overflow: ellipsis;
 }
 
+/* El margen superior del botón principal lo desalinea de sus vecinos en la fila. */
+.row > button.primary {
+  margin-top: 0;
+}
+
 /* Reproducir / detener / velocidad de la secuencia: los botones no se aplastan. */
 .row.seq-controls button,
 .row.ug-sim-controls button {
@@ -1860,6 +1865,18 @@ button.link {
   }
   .app {
     grid-template-columns: minmax(0, 1fr) min(var(--right-sidebar-width, 290px), 38vw);
+  }
+}
+/* En escritorio las pestañas se encogen (y se desplazan) en vez de bajar Documentación a otra fila
+   cuando aparece «Cambios sin publicar». */
+@media (min-width: 901px) {
+  .ribbon-tabs {
+    flex-basis: 0;
+  }
+}
+@media (min-width: 901px) and (max-width: 1600px) {
+  .ribbon-tabs button {
+    padding: 10px 10px 8px;
   }
 }
 
