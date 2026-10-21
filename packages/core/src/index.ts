@@ -119,6 +119,7 @@ export * from './topography/surpac';
 export * from './topography/landxml';
 export * from './topography/dxfTopography';
 export * from './topography/reproject';
+export * from './topography/crsPresets';
 export * from './topography/validate';
 export * from './topography/assemble';
 export * from './topography/read';

@@ -87,6 +87,22 @@ export interface WorkingsLayerInfo {
 const NOT_WORKINGS =
   /topo|curva|contour|maestra|superficie|surface|terreno|hastial|wall|texto|text|cota|grilla|grid|marco|borde|border|faja|conveyor|perfil|seccion|sección/i;
 
+/**
+ * Nombres de capa típicos de labores subterráneas (galería, crucero, rampa, tajeo, cámara,
+ * chimenea, subnivel, by-pass…), en español o inglés, abreviados o con número («GAL_420», «RP-3»).
+ */
+const WORKINGS_NAME =
+  /(^|[^a-z])(gal|galeria|galerias|crucero|cruceros|xc|cx|rampa|rampas|rp|tajeo|tajeos|tj|camara|camaras|chimenea|chimeneas|ch|subnivel|subniveles|sn|bypass|by|ventana|labor|labores|socavon|stope|stopes|drift|drifts|decline|raise|crosscut|ramp|tunnel|tunel)([^a-z]|$)/;
+
+/** ¿El nombre de la capa parece una labor subterránea? (no topografía ni capa de dibujo). */
+export function isWorkingsLayerName(name: string): boolean {
+  const plain = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return WORKINGS_NAME.test(plain) && !NOT_WORKINGS.test(plain);
+}
+
 /** Capas del DXF que pueden ser labores, con ejes y sólidos por capa y una selección sugerida. */
 export function inspectWorkingsDxf(text: string): WorkingsLayerInfo[] {
   const layers = new Map<string, { axes: number; solids: number }>();

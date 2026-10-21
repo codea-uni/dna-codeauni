@@ -14,14 +14,67 @@ export interface PointsParse extends TopoData {
   hasHeader: boolean;
 }
 
-const HEADER: [keyof PointColumns, RegExp][] = [
-  ['north', /^(n|y|norte|northing|north)$/i],
-  ['east', /^(e|x|este|easting|east)$/i],
-  ['elevation', /^(z|h|cota|elev|elevacion|elevación|elevation|altura|rl)$/i],
+/** Palabras de cabecera de cada dato y palabras que pueden acompañarlas («Este (m)», «COORD_E»). */
+const HEADER_WORDS: [keyof PointColumns, Set<string>][] = [
+  ['north', new Set(['n', 'y', 'norte', 'northing', 'north', 'nort'])],
+  ['east', new Set(['e', 'x', 'este', 'easting', 'east', 'est'])],
+  [
+    'elevation',
+    new Set(['z', 'h', 'cota', 'cotas', 'elev', 'elevacion', 'elevation', 'altura', 'alt', 'rl']),
+  ],
 ];
+const HEADER_NOISE = new Set([
+  'coord',
+  'coords',
+  'coordenada',
+  'coordenadas',
+  'utm',
+  'wgs',
+  'psad',
+  'posgar',
+  'm',
+  'mts',
+  'metros',
+  'msnm',
+  'de',
+  'del',
+  'la',
+]);
 
-function split(line: string, delimiter: string): string[] {
-  return delimiter === ' ' ? line.trim().split(/\s+/) : line.split(delimiter);
+/**
+ * Columnas Este, Norte y Cota según el texto de la cabecera, sin tildes ni mayúsculas y aceptando
+ * unidades o prefijos («Este (m)», «COORD_N», «Cota msnm», «X_UTM»). Solo las que reconoce.
+ */
+export function headerColumns(header: readonly string[]): Partial<PointColumns> {
+  const found: Partial<PointColumns> = {};
+  header.forEach((h, i) => {
+    const words = h
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((w) => w !== '' && !HEADER_NOISE.has(w));
+    if (words.length !== 1) return;
+    const word = words[0] ?? '';
+    for (const [key, set] of HEADER_WORDS)
+      if (set.has(word) && found[key] === undefined) {
+        found[key] = i;
+        break;
+      }
+  });
+  return found;
+}
+
+/** Separador de un archivo de puntos: tabulador, punto y coma, coma o espacios. */
+export function pointsDelimiter(firstLine: string): string {
+  return ['\t', ';', ','].find((d) => firstLine.includes(d)) ?? ' ';
+}
+
+/** Celdas de una fila de puntos con el separador del archivo. */
+export function splitPointsRow(line: string, delimiter = pointsDelimiter(line)): string[] {
+  return (delimiter === ' ' ? line.trim().split(/\s+/) : line.split(delimiter)).map((c) =>
+    c.trim(),
+  );
 }
 
 /**
@@ -33,8 +86,8 @@ export function parsePoints(bytes: Uint8Array, columns?: PointColumns): PointsPa
   const { text } = decodeText(bytes);
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '' && !l.trim().startsWith('#'));
   const first = lines[0] ?? '';
-  const delimiter = ['\t', ';', ','].find((d) => first.includes(d)) ?? ' ';
-  const rows = lines.map((l) => split(l, delimiter).map((c) => c.trim()));
+  const delimiter = pointsDelimiter(first);
+  const rows = lines.map((l) => splitPointsRow(l, delimiter));
   const headerRow = rows[0] ?? [];
   const hasHeader =
     headerRow.length > 0 && headerRow.every((c) => !Number.isFinite(parseNumber(c)) || c === '');
@@ -43,10 +96,7 @@ export function parsePoints(bytes: Uint8Array, columns?: PointColumns): PointsPa
 
   let cols = columns;
   if (!cols && hasHeader) {
-    const found: Partial<PointColumns> = {};
-    headerRow.forEach((h, i) => {
-      for (const [key, re] of HEADER) if (re.test(h) && found[key] === undefined) found[key] = i;
-    });
+    const found = headerColumns(headerRow);
     if (found.east !== undefined && found.north !== undefined && found.elevation !== undefined)
       cols = found as PointColumns;
   }
