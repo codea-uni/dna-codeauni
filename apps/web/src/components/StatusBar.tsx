@@ -5,6 +5,8 @@ import { useUiStore } from '../stores/uiStore';
 import { toolHint } from './Toolbar';
 import { topographyElevation } from '../topography/session';
 import { useT } from '../i18n';
+import { tabAvailable, useWorkflow } from '../hooks/useWorkflow';
+import { VibrationLawChip } from './VibrationLawChip';
 
 export function StatusBar() {
   const tr = useT();
@@ -17,6 +19,7 @@ export function StatusBar() {
   const viewMode = useUiStore((s) => s.viewMode);
   const message = useUiStore((s) => s.message);
   const busy = useUiStore((s) => s.busy);
+  const workflow = useWorkflow();
   const holeCount = project.blasts.reduce((n, b) => n + b.holes.length, 0);
   const hoverLabel = hover ? session.document.findHole(hover)?.hole.label : undefined;
   // O(log n) con el índice del worker: se puede consultar en cada movimiento del cursor.
@@ -51,6 +54,7 @@ export function StatusBar() {
       <span>{tr('status.holes', { n: holeCount })}</span>
       <span>{tr('status.selected', { n: selected.size })}</span>
       {hoverLabel !== undefined && <span>{tr('status.hole', { label: hoverLabel })}</span>}
+      {tabAvailable('charged', workflow) && <VibrationLawChip />}
       <span className="grow muted">
         {busy ??
           (message ? (

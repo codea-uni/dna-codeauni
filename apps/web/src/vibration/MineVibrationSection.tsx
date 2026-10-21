@@ -30,6 +30,7 @@ import {
   useMineVibration,
 } from './mineStore';
 import { contextKey, kindLabelKey, Semaphore } from './vibrationUi';
+import { CALIBRATION_ANCHOR } from './lawStatus';
 
 const LawFitChart = lazy(() => import('../charts/LawFitChart'));
 
@@ -230,7 +231,7 @@ function Calibration() {
 
   return (
     <section className="panel">
-      <h2>{t('mv.calibration')}</h2>
+      <h2 id={CALIBRATION_ANCHOR}>{t('mv.calibration')}</h2>
       <p className="hint">{t('mv.calibrationHint')}</p>
       <div className="segmented" role="radiogroup" aria-label={t('vib.scaled')}>
         {(

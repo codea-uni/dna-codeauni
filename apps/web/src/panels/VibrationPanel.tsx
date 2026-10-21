@@ -3,9 +3,7 @@ import {
   defaultKindPpvLimits,
   defaultVibrationLaw,
   excavationCenter,
-  fitByZone,
   isUncalibratedLaw,
-  isUndergroundBlast,
   MONITORING_POINT_KINDS,
   type MonitoringPoint,
   type MonitoringPointId,
@@ -19,7 +17,7 @@ import {
 } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { MapPin, Share2, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { MethodDetail } from '../methods/MethodDetail';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { NumberField } from '../components/NumberField';
@@ -35,6 +33,7 @@ import { namedWorkings, sharePoint, useMineVibration } from '../vibration/mineSt
 import { MineVibrationSection } from '../vibration/MineVibrationSection';
 import { CrossingWarnings, kindLabelKey, Semaphore } from '../vibration/vibrationUi';
 import { ShotPicker } from '../underground/shots';
+import { lawSummary, useVibrationLawStatus } from '../vibration/lawStatus';
 
 const dB = (pa: number) => (pa > 0 ? 20 * Math.log10(pa / 20e-6) : 0);
 
@@ -546,14 +545,7 @@ export function VibrationPanel() {
 function LawInUse({ law }: { law: VibrationLaw }) {
   const t = useT();
   const fmt = useFormat();
-  const project = useProject();
-  const records = useMineVibration((m) => m.records);
-  const fits = useMemo(() => fitByZone(records), [records]);
-  const blast = project.blasts[0];
-  const context = blast && isUndergroundBlast(blast) ? 'underground' : 'surface';
-  const available = isUncalibratedLaw(law)
-    ? fits.find((f) => f.context === context && f.squareRoot)
-    : undefined;
+  const { available } = useVibrationLawStatus();
   return (
     <>
       <p
@@ -573,18 +565,6 @@ function LawInUse({ law }: { law: VibrationLaw }) {
       )}
     </>
   );
-}
-
-/** «Tajo Norte · 95 % (n = 12, R² = 0,99) · K = 1.505 mm/s, β = 1,58» o «Genérica (USBM), sin calibrar». */
-function lawSummary(
-  law: VibrationLaw,
-  t: ReturnType<typeof useT>,
-  fmt: ReturnType<typeof useFormat>,
-): string {
-  const kb = t('vib.lawFormula', { k: fmt(law.k * 1000, 0), beta: fmt(law.beta, 2) });
-  return law.fit
-    ? `${law.name} (n = ${String(law.fit.n)}, R² = ${fmt(law.fit.r2, 2)}) · ${kb}`
-    : `${law.name}, ${t('vib.notCalibrated')} · ${kb}`;
 }
 
 /** Estructura, límite propio y K/β propios de cada punto (H-602). Vacío o 0 = el del sitio. */

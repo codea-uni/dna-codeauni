@@ -126,6 +126,10 @@ export const es = {
   'status.view3d':
     'Vista 3D: arrastre orbita · Shift o botón derecho desplaza · rueda acerca · F encuadra · 3 vuelve a planta',
   'status.frameTitle': 'Medido durante la última interacción (el render es a demanda)',
+  'status.law.calibrated': 'Vibración: {name} (n = {n})',
+  'status.law.generic': 'Vibración: ley genérica, sin calibrar',
+  'status.law.unused': 'Vibración: ley genérica · hay mediciones sin usar',
+  'status.law.open': 'Clic para abrir la calibración con sismógrafos',
 
   'csv.aria': 'Importar CSV',
   'csv.title': 'Importar taladros · {file}',
@@ -358,6 +362,10 @@ export const en = {
   'status.view3d':
     '3D view: drag orbits · Shift or right button pans · wheel zooms · F fits · 3 returns to plan',
   'status.frameTitle': 'Measured during the last interaction (rendering is on demand)',
+  'status.law.calibrated': 'Vibration: {name} (n = {n})',
+  'status.law.generic': 'Vibration: generic law, not calibrated',
+  'status.law.unused': 'Vibration: generic law · unused measurements',
+  'status.law.open': 'Click to open the seismograph calibration',
 
   'csv.aria': 'Import CSV',
   'csv.title': 'Import holes · {file}',

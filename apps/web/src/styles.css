@@ -382,6 +382,28 @@ button.danger:hover:not(:disabled) {
   color: var(--text);
 }
 
+/* Ley de PPV en uso (verde = calibrada con sismógrafos de la mina, ámbar = genérica). */
+.statusbar .status-law {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.statusbar .status-law.ok {
+  color: var(--brand-green);
+}
+
+.statusbar .status-law.warn {
+  color: var(--amber);
+}
+
 .tabs {
   position: sticky;
   top: 0;
