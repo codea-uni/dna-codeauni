@@ -1,7 +1,12 @@
-import { applyChargeRule as chargeRuleDecks } from '../charging/charge';
+import {
+  applyChargeRule as chargeRuleDecks,
+  fitChargeToLength,
+  type ChargeRuleOptions,
+} from '../charging/charge';
 import { lengthToFloor } from '../geometry/hole';
 import { newId } from '../model/ids';
 import type {
+  Bench,
   Blast,
   BlastBoundary,
   BlastId,
@@ -346,6 +351,89 @@ export function setBoundaryFloor(
   return ops;
 }
 
+/** Cambio de altura de banco y/o cota de piso (del banco o, con `boundaryId`, de un perímetro). */
+export interface BenchLevels {
+  height?: Meters;
+  floor?: Meters;
+  boundaryId?: BoundaryId;
+}
+
+/**
+ * Banco y perímetros después del cambio, y los taladros que cambian si se actualizan. Sin
+ * topografía la superficie del banco es plana (piso + altura): las bocas suben o bajan con ella.
+ * Con topografía las bocas quedan en el terreno y, si solo cambia la altura, el piso baja o sube
+ * lo mismo (piso = terreno − altura). La longitud va hasta piso + sobreperforación.
+ * `floorFollowsHeight = false`: el piso no acompaña a la altura (solo cambia el valor pedido).
+ */
+export function benchLevelsChange(
+  blast: Blast,
+  change: BenchLevels,
+  floorFollowsHeight = true,
+): { bench: Bench; boundaries: BlastBoundary[]; holes: Hole[] } {
+  const old = blast.bench;
+  const onTerrain = old.topographyId !== undefined;
+  const bench: Bench = { ...old };
+  if (change.height !== undefined) bench.height = change.height;
+  const dH = bench.height - old.height;
+  let boundaries = blast.boundaries;
+  const floor = change.floor;
+  if (floor !== undefined) {
+    if (change.boundaryId)
+      boundaries = boundaries.map((b) =>
+        b.id === change.boundaryId ? { ...b, floorElevation: floor } : b,
+      );
+    else bench.floorElevation = floor;
+  } else if (onTerrain && dH !== 0 && floorFollowsHeight) {
+    bench.floorElevation -= dH;
+    boundaries = boundaries.map((b) =>
+      b.floorElevation === undefined ? b : { ...b, floorElevation: b.floorElevation - dH },
+    );
+  }
+  const after = { ...blast, bench, boundaries };
+  const holes: Hole[] = [];
+  for (const h of blast.holes) {
+    const was = holeBench(blast, h);
+    const now = holeBench(after, h);
+    const shift = onTerrain
+      ? 0
+      : now.floorElevation + now.height - (was.floorElevation + was.height);
+    const z = h.collar.z + shift;
+    const length = lengthToFloor(
+      z,
+      now.floorElevation,
+      h.subdrill,
+      h.inclination,
+      blast.calcParams.subdrillConvention,
+    );
+    if (shift === 0 && Math.abs(length - h.length) < 1e-9) continue;
+    // La carga sigue al nuevo largo: el taco queda igual y la columna llega al fondo nuevo.
+    holes.push({ ...h, collar: { ...h.collar, z }, length, ...fitChargeToLength(h, length) });
+  }
+  return { bench, boundaries, holes };
+}
+
+/**
+ * Cambia la altura de banco y/o la cota de piso; con `updateHoles`, también los taladros
+ * existentes (ver `benchLevelsChange`), en un solo paso de deshacer.
+ */
+export function setBenchLevels(
+  doc: DocumentReader,
+  blastId: BlastId,
+  change: BenchLevels,
+  updateHoles: boolean,
+): Op[] {
+  const blast = doc.getBlast(blastId);
+  if (!blast) return [];
+  // Sin actualizar taladros solo cambia el valor pedido (el piso no acompaña a la altura).
+  const next = benchLevelsChange(blast, change, updateHoles);
+  const ops: Op[] = [
+    { type: 'blast/patch', blastId, patch: { bench: next.bench, boundaries: next.boundaries } },
+  ];
+  if (updateHoles && next.holes.length > 0)
+    ops.push({ type: 'holes/replace', blastId, holes: next.holes });
+  return ops;
+}
+
 /** Nombre libre "Perímetro N" para un perímetro nuevo. */
 export function nextBoundaryName(blast: Pick<Blast, 'boundaries'>): string {
   const used = new Set(blast.boundaries.map((b) => b.name));
@@ -382,12 +470,13 @@ export function applyChargeRule(
   doc: DocumentReader,
   ids: Iterable<HoleId>,
   rule: ChargeRule,
+  options: ChargeRuleOptions = {},
 ): Op[] {
   const library = doc.project.library;
   return [...groupByBlast(doc, ids)].map(([blastId, holes]) => ({
     type: 'holes/replace',
     blastId,
-    holes: holes.map((h) => ({ ...h, ...chargeRuleDecks(h, rule, library) })),
+    holes: holes.map((h) => ({ ...h, ...chargeRuleDecks(h, rule, library, options) })),
   }));
 }
 

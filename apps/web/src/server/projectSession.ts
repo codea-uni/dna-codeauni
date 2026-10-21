@@ -4,7 +4,14 @@ import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import type { MessageKey } from '../i18n';
 import { parseErrorText } from '../i18n/coreText';
-import { latestDraft, loadWithoutSaving, readVersion, setDraftBase } from '../persistence/autosave';
+import {
+  dismissDraftAt,
+  draftDismissed,
+  latestDraft,
+  loadWithoutSaving,
+  readVersion,
+  setDraftBase,
+} from '../persistence/autosave';
 import type { VersionInfo } from '../persistence/history';
 import { getCompute, session } from '../session';
 import { setRemoteAssetSource, storeEmbeddedAssets } from '../topography/session';
@@ -145,7 +152,12 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
       if (editable) {
         // Un borrador local posterior a la versión base: trabajo sin publicar de otra sesión.
         const draft = await latestDraft(projectId).catch(() => undefined);
-        if (draft && Date.parse(draft.savedAt) > Date.parse(base.createdAt)) set({ draft });
+        if (
+          draft &&
+          Date.parse(draft.savedAt) > Date.parse(base.createdAt) &&
+          !draftDismissed(projectId, draft.savedAt)
+        )
+          set({ draft });
       }
     } catch (err) {
       if (ticket === openTicket) set({ status: 'error', error: workspaceErrorKey(err) });
@@ -184,6 +196,8 @@ export const useProjectSession = create<ProjectSessionState>((set, get) => ({
   },
 
   dismissDraft: () => {
+    const { draft, current } = get();
+    if (draft && current) dismissDraftAt(current.projectId, draft.savedAt);
     set({ draft: null });
   },
 

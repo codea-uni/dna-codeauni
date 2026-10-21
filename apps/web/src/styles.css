@@ -671,6 +671,21 @@ tr.warn td,
   font-size: 15px;
 }
 
+/* Aviso con opciones dentro de la app (reemplaza window.confirm). */
+.modal.ask-dialog {
+  width: min(480px, calc(100vw - 32px));
+  outline: none;
+}
+
+.modal.ask-dialog p {
+  margin: 0.6rem 0;
+  line-height: 1.45;
+}
+
+.modal.ask-dialog footer {
+  flex-wrap: wrap;
+}
+
 .modal-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;

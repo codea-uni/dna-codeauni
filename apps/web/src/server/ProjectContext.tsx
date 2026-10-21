@@ -7,6 +7,7 @@ import { useProject } from '../hooks/useDocument';
 import { t as translate, useT } from '../i18n';
 import { mineToolPath } from '../product/product';
 import { useUiStore } from '../stores/uiStore';
+import { flushAutosave } from '../persistence/autosave';
 import { hasUnpublished, useProjectSession, useUnpublished } from './projectSession';
 
 /** Confirmación «Guardado como vN» junto a la versión, unos segundos después de guardar. */
@@ -122,7 +123,11 @@ export function ProjectActions() {
 
 /** Confirma salir del editor si hay cambios sin publicar (quedan como borrador local). */
 export function confirmLeave(): boolean {
-  return !hasUnpublished() || window.confirm(translate('history.unpublishedConfirm'));
+  if (!hasUnpublished()) return true;
+  if (!window.confirm(translate('history.unpublishedConfirm'))) return false;
+  // El borrador se escribe ya (no tras la pausa del autoguardado) para recuperarlo al volver.
+  flushAutosave();
+  return true;
 }
 
 /** Vuelve del editor a la mina del proyecto (o a las minas si no hay proyecto abierto). */

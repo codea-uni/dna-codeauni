@@ -7,7 +7,9 @@ import { generatePatternHoles } from '../patterns/pattern';
 import {
   applyChargeRule,
   deckIntervals,
+  fitChargeToLength,
   holeCharge,
+  holesLeftUncharged,
   indexLibrary,
   linearChargeDensity,
   unpricedProducts,
@@ -78,6 +80,61 @@ describe('carguío', () => {
     ]);
     const short = applyChargeRule(hole(3), rule, lib);
     expect(short.decks.map((d) => d.kind)).toEqual(['stemming']);
+    // Sin explosivo no hay prima ni detonador (ni tiempo de salida): no se inicia un taladro vacío.
+    expect(short.initiators).toEqual([]);
+    // Largo igual al taco: tampoco queda carga.
+    expect(applyChargeRule(hole(4), rule, lib).initiators).toEqual([]);
+  });
+
+  it('cambio de largo con la boca fija: el taco queda y la columna llega al fondo nuevo', () => {
+    // 16,5 m cargado con taco 4 m y booster a 0,5 m del fondo (prof. 16 m desde la boca).
+    const loaded: Hole = { ...hole(), ...applyChargeRule(hole(), rule, lib) };
+    const shorter = fitChargeToLength(loaded, 11);
+    expect(shorter.decks.map((d) => [d.kind, d.length])).toEqual([
+      ['explosive', 7],
+      ['stemming', 4],
+    ]);
+    expect(shorter.initiators[0]?.depth).toBeCloseTo(10.5, 9); // sigue a 0,5 m del fondo
+    const longer = fitChargeToLength(loaded, 18);
+    expect(longer.decks[0]?.length).toBeCloseTo(14, 9);
+    // Más corto que el taco: sin explosivo ni iniciadores.
+    const tooShort = fitChargeToLength(loaded, 3);
+    expect(tooShort.decks.map((d) => [d.kind, d.length])).toEqual([['stemming', 3]]);
+    expect(tooShort.initiators).toEqual([]);
+  });
+
+  it('taladros que la regla deja sin carga: largo ≤ taco + aire', () => {
+    const holes = [
+      { id: 'a' as never, length: 3 },
+      { id: 'b' as never, length: 4 },
+      { id: 'c' as never, length: 5 },
+    ];
+    expect(holesLeftUncharged(holes, rule)).toEqual(['a', 'b']);
+    expect(holesLeftUncharged(holes, { ...rule, airDeckLength: 1.5 })).toEqual(['a', 'b', 'c']);
+  });
+
+  it('conservar detonadores: cambiar el explosivo no borra detonador ni retardo', () => {
+    const det = lib.detonators[1] ?? lib.detonators[0]!; // eslint-disable-line @typescript-eslint/no-non-null-assertion
+    const loaded: Hole = { ...hole(), ...applyChargeRule(hole(), rule, lib) };
+    // Retardo programado a mano (electrónico) distinto del nominal.
+    const programmed: Hole = {
+      ...loaded,
+      initiators: loaded.initiators.map((i) => ({ ...i, detonatorId: det.id, delay: 0.042 })),
+    };
+    const noDetonator: ChargeRule = { ...rule, explosiveId: cartridge.id };
+    delete noDetonator.detonatorId;
+    const kept = applyChargeRule(programmed, noDetonator, lib, { keepInitiators: true });
+    expect(kept.decks[0]).toMatchObject({ kind: 'explosive', explosiveId: cartridge.id });
+    expect(kept.initiators).toHaveLength(1);
+    expect(kept.initiators[0]).toMatchObject({ detonatorId: det.id, delay: 0.042 });
+    expect(kept.initiators[0]?.id).toBe(programmed.initiators[0]?.id);
+    // Reubicado a 0,5 m del fondo de un taladro de 16,5 m.
+    expect(kept.initiators[0]?.depth).toBeCloseTo(16, 9);
+    // Sin conservar, la regla sin detonador los quita (por eso la interfaz avisa antes).
+    expect(applyChargeRule(programmed, noDetonator, lib).initiators).toEqual([]);
+    // Un taladro sin detonador previo recibe el de la regla aunque se pida conservar.
+    const fresh = applyChargeRule(hole(), rule, lib, { keepInitiators: true });
+    expect(fresh.initiators[0]?.detonatorId).toBe(rule.detonatorId);
   });
 });
 

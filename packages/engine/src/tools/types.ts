@@ -72,6 +72,8 @@ export interface ToolContext {
   setSection(a: Vec2, b: Vec2): void;
   /** Perímetro activo (resaltado; destino de la generación de mallas). */
   setActiveBoundary(id: BoundaryId | null): void;
+  /** Se cerró un perímetro dibujado (la web avisa y vuelve a Seleccionar). */
+  boundaryCreated(id: BoundaryId): void;
   showPolyline(points: readonly Vec2[] | null): void;
   showPolygon(points: readonly Vec2[] | null): void;
   showSnapMarker(point: SnapResult | null): void;

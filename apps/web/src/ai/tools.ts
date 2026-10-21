@@ -720,6 +720,8 @@ async function generatePattern(args: z.infer<typeof patternSchema>) {
     ...(risk.charged > 0 || risk.tied > 0
       ? { deleted: { holes: risk.holes, charged_holes: risk.charged, tied_holes: risk.tied } }
       : {}),
+    ...(result.belowFloor > 0 ? { points_below_floor_not_created: result.belowFloor } : {}),
+    ...(result.shortHoles.length > 0 ? { short_holes: result.shortHoles.length } : {}),
     note:
       result.replacedHoles > 0
         ? 'The previous holes were deleted and the new ones have NO charge and NO tie-up: say so explicitly (how many holes, charge and tie-up lost) and offer to re-apply them.'

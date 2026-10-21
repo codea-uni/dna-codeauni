@@ -63,7 +63,7 @@ export const es = {
   'history.unpublishedHint':
     'Hay cambios que todavía no se guardaron en la mina: quedan como borrador solo en este navegador. Usa «Guardar versión».',
   'history.unpublishedConfirm':
-    'Hay cambios sin guardar en la mina. Quedan como borrador solo en este navegador. ¿Salir igual?',
+    'Hay cambios sin guardar. Quedan como borrador en este navegador: al volver a abrir el proyecto aquí podrás recuperarlos. ¿Salir igual?',
   'history.title': 'Historial del proyecto',
   'history.titleHint':
     'Cada versión es inmutable. Restaurar crea una versión nueva; no se borra ninguna.',
@@ -82,7 +82,7 @@ export const es = {
   'history.viewingOld': 'Consultando la v{n} (solo lectura)',
   'history.backToLatest': 'Volver a la última (v{n})',
   'history.draftFound':
-    'Hay un borrador de este proyecto en este navegador del {date}, sin guardar en la mina.',
+    'Tienes cambios sin guardar del {date}, guardados en este navegador. ¿Recuperarlos?',
   'history.recoverDraft': 'Recuperar',
   'history.dismissDraft': 'Descartar',
   'history.error.conflict': 'Otra persona guardó una versión más nueva.',
@@ -193,7 +193,7 @@ export const en = {
   'history.unpublishedHint':
     'There are changes not yet saved to the mine: they stay as a draft only in this browser. Use "Save version".',
   'history.unpublishedConfirm':
-    'There are unpublished changes. They stay as a draft in this browser. Leave anyway?',
+    'There are unpublished changes. They are kept as a draft in this browser: when you open the project here again you can recover them. Leave anyway?',
   'history.title': 'Project history',
   'history.titleHint':
     'Every version is immutable. Restoring creates a new version; none is deleted.',
@@ -212,7 +212,7 @@ export const en = {
   'history.viewingOld': 'Viewing v{n} (read-only)',
   'history.backToLatest': 'Back to the latest (v{n})',
   'history.draftFound':
-    'There is an unpublished draft of this project saved in this browser on {date}.',
+    'You have unpublished changes from {date}, saved in this browser. Recover them?',
   'history.recoverDraft': 'Recover',
   'history.dismissDraft': 'Dismiss',
   'history.error.conflict': 'Someone else saved a newer version.',

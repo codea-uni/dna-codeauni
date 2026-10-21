@@ -10,6 +10,7 @@ import {
 } from '@cronos/core';
 import { boundaryColorCss } from '@cronos/engine';
 import { Mountain, Pentagon } from 'lucide-react';
+import * as actions from '../actions';
 import { NumberCell, TextCell } from '../components/CellInput';
 import { IconButton } from '../components/IconButton';
 import { NumberField } from '../components/NumberField';
@@ -61,8 +62,7 @@ export function BlastPanel() {
           unit={len.unit}
           value={len.show(blast.bench.floorElevation)}
           onCommit={(raw) => {
-            const v = len.parse(raw);
-            setBench({ floorElevation: v }, t('blast.floor'));
+            void actions.setBenchLevels({ floor: len.parse(raw) });
           }}
         />
         <NumberField
@@ -71,8 +71,7 @@ export function BlastPanel() {
           min={0.1}
           value={len.show(blast.bench.height)}
           onCommit={(raw) => {
-            const v = len.parse(raw);
-            setBench({ height: v }, t('blast.benchHeight'));
+            void actions.setBenchLevels({ height: len.parse(raw) });
           }}
         />
         <NumberField

@@ -35,6 +35,9 @@ vi.mock('../actions', async (original) => ({
       replacedHoles: 250,
       hasFreeFace: true,
       outside: 0,
+      belowFloor: 0,
+      shortHoles: [],
+      floor: 0,
     }),
   ),
 }));

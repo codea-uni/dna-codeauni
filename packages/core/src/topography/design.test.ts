@@ -7,7 +7,7 @@ import {
 } from '../model/factories';
 import type { LineSetData } from './asset';
 import { DocumentStore } from '../document/DocumentStore';
-import { addHoles, moveHoles, setBoundaryFloor } from '../document/commands';
+import { addHoles, moveHoles, setBenchLevels, setBoundaryFloor } from '../document/commands';
 import { boundaryBench, holeBench, holeBoundary } from '../geometry/boundary';
 import { createEmptyProject } from '../model/factories';
 import {
@@ -15,6 +15,7 @@ import {
   benchFloorFor,
   benchOffTopography,
   holesOffBench,
+  holesByCollarHeight,
   drapeHoles,
   medianVertexElevation,
   freeFaceEdgesFromLines,
@@ -247,5 +248,66 @@ describe('perímetros en bancos distintos', () => {
   it('el banco efectivo de un perímetro sin piso propio es el de la voladura', () => {
     expect(boundaryBench(bench, undefined)).toBe(bench);
     expect(boundaryBench(bench, { floorElevation: 10 }).floorElevation).toBe(10);
+  });
+});
+
+describe('altura de banco y piso con taladros existentes', () => {
+  // Banco de 15 m con piso en 100 m: superficie plana a 115 m, taladros verticales con 1 m de
+  // sobreperforación → largo 16 m (15 + 1). Valores leídos de la geometría (largo = boca − piso + J).
+  const template = { ...DEFAULT_HOLE_TEMPLATE, inclination: 0, subdrill: 1 };
+  const setup = (topographyId?: string) => {
+    const project = createEmptyProject('P');
+    const blast = project.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    blast.bench = { ...DEFAULT_BENCH, floorElevation: 100, height: 15 };
+    if (topographyId) blast.bench.topographyId = topographyId as never;
+    const store = new DocumentStore(project);
+    const hole = createHole({
+      position: { x: 0, y: 0 },
+      template,
+      bench: blast.bench,
+      label: '1',
+      collarZ: 115,
+    });
+    store.dispatch(addHoles(blast.id, [hole]), 'Agregar');
+    const get = () => store.findHole(hole.id)?.hole;
+    return { store, blastId: blast.id, get };
+  };
+
+  it('sin topografía: cambiar la altura mueve la boca con la superficie y recalcula el largo', () => {
+    const { store, blastId, get } = setup();
+    expect(get()?.length).toBeCloseTo(16, 9);
+    store.dispatch(setBenchLevels(store, blastId, { height: 10 }, true), 'Banco');
+    expect(get()?.collar.z).toBeCloseTo(110, 9); // piso 100 + banco 10
+    expect(get()?.length).toBeCloseTo(11, 9); // 10 + 1
+    store.undo();
+    expect(get()?.length).toBeCloseTo(16, 9);
+  });
+
+  it('con topografía: la boca queda en el terreno y el piso acompaña a la altura', () => {
+    const { store, blastId, get } = setup('topo');
+    store.dispatch(setBenchLevels(store, blastId, { height: 10 }, true), 'Banco');
+    expect(store.getBlast(blastId)?.bench.floorElevation).toBeCloseTo(105, 9); // 115 − 10
+    expect(get()?.collar.z).toBe(115);
+    expect(get()?.length).toBeCloseTo(11, 9);
+  });
+
+  it('cambiar el piso recalcula el largo; «solo el valor» no toca los taladros', () => {
+    const { store, blastId, get } = setup('topo');
+    store.dispatch(setBenchLevels(store, blastId, { floor: 103 }, true), 'Piso');
+    expect(get()?.length).toBeCloseTo(13, 9); // 115 − 103 + 1
+    store.dispatch(setBenchLevels(store, blastId, { height: 8 }, false), 'Banco');
+    const blast = store.getBlast(blastId);
+    expect(blast?.bench.height).toBe(8);
+    expect(blast?.bench.floorElevation).toBe(103);
+    expect(get()?.length).toBeCloseTo(13, 9);
+  });
+
+  it('clasifica bocas bajo el piso y taladros cortos (menos de medio banco)', () => {
+    const at = (id: string, z: number) => ({ id: id as never, collar: { x: 0, y: 0, z } });
+    // Piso 100, banco 15: umbral de corto = 107,5 m.
+    const r = holesByCollarHeight([at('a', 99), at('b', 100), at('c', 104), at('d', 112)], 100, 15);
+    expect(r.below).toEqual(['a', 'b']);
+    expect(r.short).toEqual(['c']);
   });
 });

@@ -5,6 +5,7 @@ import * as ai from './ns/ai';
 import * as app from './ns/app';
 import * as auth from './ns/auth';
 import * as core from './ns/core';
+import * as designFlow from './ns/designFlow';
 import * as history from './ns/history';
 import * as knowledge from './ns/knowledge';
 import * as methods from './ns/methods';
@@ -29,6 +30,7 @@ export const en = {
   ...app.en,
   ...auth.en,
   ...core.en,
+  ...designFlow.en,
   ...history.en,
   ...knowledge.en,
   ...methods.en,
@@ -166,7 +168,7 @@ export const en = {
   'burden.applySubdrill': 'Apply to template',
   'pattern.equilateral': 'Equilateral (S = 2B/√3)',
   'pattern.noFreeFace':
-    'Pattern generated without a free face: burden is not measured from a face. Mark the boundary free face with tool C.',
+    'Pattern generated without a free face: burden is not measured from the slope. Mark it with the «Free face (slope)» button (key C) on the boundary edge facing the slope.',
   'scenarios.title': 'Scenarios',
   'scenarios.hint':
     'A scenario is a complete design variant (pattern, charges, tie-up, delays and parameters). Save the current design, change it and compare the indicators side by side.',
