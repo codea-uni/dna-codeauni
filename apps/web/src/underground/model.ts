@@ -89,6 +89,10 @@ export interface RingForm {
   stopeBottom: number;
   stopeTop: number;
   stopeOffset: number;
+  /** Buzamiento del tajeo en el plano del anillo [rad]: π/2 = paredes verticales. */
+  stopeDip: number;
+  /** Hacia dónde se corre el techo del tajeo al subir. */
+  stopeLeanSide: 'left' | 'right';
   pivotHeight: number;
   pivotOffset: number;
   mode: 'toeSpacing' | 'angle';
@@ -114,6 +118,8 @@ export const DEFAULT_RING: RingForm = {
   stopeBottom: -3,
   stopeTop: 20,
   stopeOffset: 0,
+  stopeDip: Math.PI / 2,
+  stopeLeanSide: 'right',
   pivotHeight: 1.6,
   pivotOffset: 0,
   mode: 'toeSpacing',
@@ -248,20 +254,30 @@ export function buildDriveProfile(form: Pick<RingForm, 'driveWidth' | 'driveHeig
   });
 }
 
-/** Contorno rectangular del tajeo en el plano del anillo (antihorario). */
+/**
+ * Contorno del tajeo en el plano del anillo (antihorario): rectángulo si es vertical; si buza, un
+ * paralelogramo cuyas paredes se corren con la altura (el ancho y el desplazamiento se miden al
+ * nivel del piso de la galería).
+ */
 export function stopeBoundary(form: RingForm): UV[] {
   const l = form.stopeOffset - form.stopeWidth / 2;
   const r = form.stopeOffset + form.stopeWidth / 2;
+  const dip = form.stopeDip;
+  const lean =
+    dip < Math.PI / 2 - 1e-6 ? (form.stopeLeanSide === 'left' ? -1 : 1) / Math.tan(dip) : 0;
+  const at = (u: number, v: number) => ({ u: u + lean * v, v });
   return [
-    { u: l, v: form.stopeBottom },
-    { u: r, v: form.stopeBottom },
-    { u: r, v: form.stopeTop },
-    { u: l, v: form.stopeTop },
+    at(l, form.stopeBottom),
+    at(r, form.stopeBottom),
+    at(r, form.stopeTop),
+    at(l, form.stopeTop),
   ];
 }
 
 export function computeRing(form: RingForm, explosive: Explosive): RingComputation {
   if (!(form.stopeWidth > 0) || !(form.stopeTop > form.stopeBottom)) throw new InputError('stope');
+  const dip = form.stopeDip;
+  if (!(dip >= 20 * DEG && dip <= 90 * DEG + 1e-9)) throw new InputError('20° ≤ buzamiento ≤ 90°');
   if (!(form.holeDiameter > 0) || !(form.burden > 0)) throw new InputError('d, B > 0');
   if (form.mode === 'angle' ? !(form.angleStep >= DEG / 2) : !(form.toeSpacing >= 0.2))
     throw new InputError('S, Δθ');

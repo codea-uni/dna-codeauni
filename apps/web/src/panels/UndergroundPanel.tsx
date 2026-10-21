@@ -782,6 +782,32 @@ function RingTab() {
         {lenField('stopeBottom', 'ug.stopeBottom')}
         {lenField('stopeTop', 'ug.stopeTop')}
         {lenField('stopeOffset', 'ug.stopeOffset')}
+        <NumberField
+          label={t('ug.stopeDip')}
+          unit="°"
+          decimals={1}
+          min={20}
+          max={90}
+          value={(form.stopeDip * 180) / Math.PI}
+          onCommit={(v) => {
+            patch({ stopeDip: (Math.min(90, Math.max(20, v)) * Math.PI) / 180 });
+          }}
+        />
+        {form.stopeDip < Math.PI / 2 - 1e-6 && (
+          <label className="field">
+            <span className="field-label">{t('ug.stopeLeanSide')}</span>
+            <select
+              value={form.stopeLeanSide}
+              onChange={(e) => {
+                patch({ stopeLeanSide: e.target.value === 'left' ? 'left' : 'right' });
+              }}
+            >
+              <option value="left">{t('ug.side.left')}</option>
+              <option value="right">{t('ug.side.right')}</option>
+            </select>
+          </label>
+        )}
+        <p className="hint">{t('ug.stopeDipHint')}</p>
         {lenField('pivotHeight', 'ug.pivotHeight', 0.1)}
         {lenField('pivotOffset', 'ug.pivotOffset')}
         <label className="field">

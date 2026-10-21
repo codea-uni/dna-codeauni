@@ -443,6 +443,18 @@ const ringSchema = z.object({
     .max(100)
     .optional()
     .describe('Stope center offset to the right of the drive axis [m].'),
+  stope_dip_deg: z
+    .number()
+    .min(20)
+    .max(90)
+    .optional()
+    .describe(
+      'Apparent stope dip in the ring plane (90 = vertical walls). Filled automatically when the ring is placed on an imported stope.',
+    ),
+  stope_lean: z
+    .enum(['left', 'right'])
+    .optional()
+    .describe('Side the stope roof shifts to when it dips (looking along the advance).'),
   pivot_height_m: z
     .number()
     .min(0)
@@ -488,6 +500,7 @@ function designRings(args: z.infer<typeof ringSchema>) {
     ['stope_bottom_m', 'stopeBottom', 1],
     ['stope_top_m', 'stopeTop', 1],
     ['stope_offset_m', 'stopeOffset', 1],
+    ['stope_dip_deg', 'stopeDip', DEG],
     ['pivot_height_m', 'pivotHeight', 1],
     ['toe_spacing_m', 'toeSpacing', 1],
     ['angle_step_deg', 'angleStep', DEG],
@@ -506,6 +519,7 @@ function designRings(args: z.infer<typeof ringSchema>) {
     if (typeof v === 'number') patch[key] = v * f;
   }
   if (args.mode) patch.mode = args.mode;
+  if (args.stope_lean) patch.stopeLeanSide = args.stope_lean;
   const explosiveId = explosiveByName(lib, args.explosive);
   if (explosiveId) patch.explosiveId = explosiveId;
   const form = { ...store.ring, ...patch } as RingForm;
@@ -989,6 +1003,8 @@ function undergroundState() {
       stope_bottom_m: g.stopeBottom,
       stope_top_m: g.stopeTop,
       stope_offset_m: g.stopeOffset,
+      stope_dip_deg: r(g.stopeDip / DEG, 1),
+      stope_lean: g.stopeLeanSide,
       pivot_height_m: g.pivotHeight,
       mode: g.mode,
       toe_spacing_m: g.toeSpacing,

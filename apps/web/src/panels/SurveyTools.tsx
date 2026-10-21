@@ -24,6 +24,7 @@ import {
   setMovePreview,
   setWorkingKindHidden,
   surveyElevation,
+  surveyWorkingDips,
   surveyWorkingKinds,
   topographyTin,
   WORKING_KIND_COLORS,
@@ -529,6 +530,10 @@ function CloudSurfaceForm({ survey, onClose }: { survey: TopographySurvey; onClo
 
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 
+/** Rumbo en 8 puntos (N, NE, E…) de un azimut en radianes. */
+const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+const compass = (az: number) => COMPASS[Math.round(((az * 180) / Math.PI / 45 + 8) % 8) % 8] ?? 'N';
+
 function WorkingKindsList({ survey }: { survey: TopographySurvey }) {
   const t = useT();
   const fmt = useFormat();
@@ -536,6 +541,7 @@ function WorkingKindsList({ survey }: { survey: TopographySurvey }) {
   const [filter, setFilter] = useState('');
   const [, setHiddenVersion] = useState(0);
   const kinds = surveyWorkingKinds(survey.id);
+  const dips = surveyWorkingDips(survey.id);
   const workings = loadedParts(survey.id)?.workings;
   const rows = useMemo(
     () =>
@@ -605,7 +611,18 @@ function WorkingKindsList({ survey }: { survey: TopographySurvey }) {
               <span className="working-kind-name" title={r.name}>
                 {r.name}
               </span>
-              <span className="muted">{fmt(r.length, 0)} m</span>
+              <span className="muted">
+                {fmt(r.length, 0)} m
+                {kind === 'stope' && dips[r.i] && (
+                  <>
+                    {' · '}
+                    {t('topo.kind.dip', {
+                      deg: fmt(((dips[r.i]?.dip ?? 0) * 180) / Math.PI, 0),
+                      dir: compass(dips[r.i]?.dipAzimuth ?? 0),
+                    })}
+                  </>
+                )}
+              </span>
               <select
                 aria-label={t('topo.kind.of', { name: r.name })}
                 value={kind}

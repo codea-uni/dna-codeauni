@@ -49,6 +49,7 @@ export const es = {
   'topo.kind.access': 'Acceso',
   'topo.kind.other': 'Otro',
   'topo.kind.summary': 'Tipo de cada labor ({n} · {stopes} tajeos)',
+  'topo.kind.dip': 'buz. {deg}° al {dir}',
   'topo.kind.hint':
     'Marca los tajeos (donde se carga explosivo para extraer mineral): se resaltan en 3D y se ofrecen primero para los abanicos. El tipo inicial sale del nombre de la capa o de la pendiente.',
   'topo.kind.filter': 'Buscar labor…',
@@ -140,6 +141,7 @@ export const en = {
   'topo.kind.access': 'Access',
   'topo.kind.other': 'Other',
   'topo.kind.summary': 'Type of each working ({n} · {stopes} stopes)',
+  'topo.kind.dip': 'dip {deg}° to {dir}',
   'topo.kind.hint':
     'Mark the stopes (where explosive is loaded to extract ore): they are highlighted in 3D and offered first for rings. The initial type comes from the layer name or the gradient.',
   'topo.kind.filter': 'Find working…',

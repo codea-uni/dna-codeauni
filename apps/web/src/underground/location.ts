@@ -10,6 +10,7 @@ import {
   type Vec3,
   type WorkingProfileSpec,
   type WorkingsData,
+  type WorkingDip,
   type WorkingKind,
   workingKinds,
   WORKING_KINDS,
@@ -17,7 +18,7 @@ import {
 import { t } from '../i18n';
 import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
-import { loadedWorkings } from '../topography/session';
+import { loadedWorkings, surveyWorkingDips } from '../topography/session';
 import type { FaceForm, RingForm } from './model';
 import { defaultPlacements, frameOf, type Placement } from './send';
 import { useUndergroundStore, type UndergroundTab, type WorkingLocation } from './store';
@@ -43,6 +44,8 @@ export interface WorkingTarget {
   estimated?: boolean;
   /** Tipo de labor importada (galería, tajeo…); falta en las galerías de un diseño. */
   kind?: WorkingKind;
+  /** Buzamiento medido en el sólido (tajeos importados). */
+  dip?: WorkingDip;
   mesh: { vertices: ArrayLike<number>; triangles: ArrayLike<number> } | null;
 }
 
@@ -117,6 +120,7 @@ export function workingTargets(project: Project = session.document.project): Wor
   for (const { survey, workings } of loadedWorkings()) {
     const axes = axesOf(workings);
     const kinds = workingKinds(workings, survey.workingKinds);
+    const dips = surveyWorkingDips(survey.id);
     workings.axes.forEach((meta, i) => {
       const points = axes[i] ?? [];
       if (points.length < 2) return;
@@ -129,6 +133,7 @@ export function workingTargets(project: Project = session.document.project): Wor
         ...(meta.profile ? { profile: meta.profile } : {}),
         ...(meta.estimated ? { estimated: true } : {}),
         kind: kinds[i] ?? 'other',
+        ...(dips[i] ? { dip: dips[i] } : {}),
         mesh: { vertices: workings.vertices, triangles: workings.triangles },
       });
     });
@@ -167,6 +172,8 @@ export function profilePatch(
 ): Partial<FaceForm> | Partial<RingForm> | null {
   const p = target.profile;
   if (!p || !(p.width > 0) || !(p.height > 0)) return null;
+  // La sección medida en un tajeo es la del tajeo, no la de la galería de perforación.
+  if (tab === 'ring' && target.kind === 'stope') return null;
   const width = Math.round(p.width * 100) / 100;
   const height = Math.round(p.height * 100) / 100;
   if (tab === 'ring') return { driveWidth: width, driveHeight: height };
@@ -195,7 +202,30 @@ export function applyLocation(
     if (patch && tab === 'face') store.patchFace(patch);
     if (patch && tab === 'ring') store.patchRing(patch);
   }
+  // Abanico en un tajeo inclinado: su buzamiento aparente en el plano del anillo.
+  if (tab === 'ring' && target.dip) store.patchRing(stopeLeanFor(target.dip, placement.azimuthDeg));
   return placement;
+}
+
+/**
+ * Buzamiento aparente de un tajeo en el plano de un anillo de azimut `azimuthDeg` (el plano lo
+ * forman la vertical y la derecha del avance) y hacia qué lado se corre el techo.
+ */
+export function stopeLeanFor(
+  dip: WorkingDip,
+  azimuthDeg: number,
+): Pick<RingForm, 'stopeDip' | 'stopeLeanSide'> {
+  const a = (azimuthDeg * Math.PI) / 180;
+  // El techo se corre hacia arriba del buzamiento: −(dirección de buzamiento) · derecha.
+  const across = -(Math.sin(dip.dipAzimuth) * Math.cos(a) - Math.cos(dip.dipAzimuth) * Math.sin(a));
+  // Casi paralelo al rumbo, las paredes laterales del anillo son las cabeceras: verticales.
+  if (!(Math.abs(across) > 0.3) || dip.dip > Math.PI / 2 - 1e-3)
+    return { stopeDip: Math.PI / 2, stopeLeanSide: 'right' };
+  // Buzamiento aparente en un corte vertical: tan(aparente) = tan(real) · cos(ángulo al buzamiento).
+  return {
+    stopeDip: Math.max(20 * (Math.PI / 180), Math.atan(Math.tan(dip.dip) * Math.abs(across))),
+    stopeLeanSide: across > 0 ? 'right' : 'left',
+  };
 }
 
 /** Contorno real de la labor en el plano del frente: segmentos (u, v) y en coordenadas de obra. */

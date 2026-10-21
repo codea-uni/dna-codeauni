@@ -1,5 +1,7 @@
 import {
   projectKind,
+  workingDips,
+  type WorkingDip,
   benchFloorFor,
   boundaryBench,
   holeBoundary,
@@ -213,6 +215,19 @@ function ownersOf(w: WorkingsData): Int32Array {
     ownersCache.set(w, o);
   }
   return o;
+}
+
+/** Buzamiento de cada labor de un levantamiento (solo las que vienen de un sólido). */
+const dipsCache = new WeakMap<WorkingsData, (WorkingDip | null)[]>();
+export function surveyWorkingDips(surveyId: string): (WorkingDip | null)[] {
+  const w = loaded.get(surveyId)?.workings;
+  if (!w) return [];
+  let d = dipsCache.get(w);
+  if (!d) {
+    d = workingDips(w, ownersOf(w));
+    dipsCache.set(w, d);
+  }
+  return d;
 }
 
 /** Tipo de cada labor de un levantamiento: el guardado o el de por defecto (nombre, pendiente). */

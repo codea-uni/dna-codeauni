@@ -1,4 +1,4 @@
-import type { Vec3, WorkingKind } from '../model/types';
+import type { Radians, Vec3, WorkingKind } from '../model/types';
 import type { WorkingsData } from '../topography/asset';
 import { workingAxisPoints } from './workings';
 
@@ -178,4 +178,79 @@ export function workingTrianglesByKind(
   const out = new Map<WorkingKind | null, Uint32Array>();
   for (const [k, l] of lists) out.set(k, Uint32Array.from(l));
   return out;
+}
+
+/** Buzamiento de una labor sólida (tajeo): ángulo con la horizontal y hacia dónde baja. */
+export interface WorkingDip {
+  /** 90° = vertical [rad]. */
+  dip: Radians;
+  /** Azimut hacia donde baja (dirección de buzamiento), desde el Norte horario [rad]. */
+  dipAzimuth: Radians;
+}
+
+/**
+ * Buzamiento de un sólido: recta entre el centro de su base (20 % inferior de la altura) y el de
+ * su techo (20 % superior). Sirve para tajeos con forma de prisma o paralelepípedo, como los que
+ * exporta el planeamiento; null si el sólido es casi plano (< 1 m de alto).
+ */
+export function solidDip(
+  vertices: ArrayLike<number>,
+  triangles: ArrayLike<number>,
+): WorkingDip | null {
+  const used = new Set<number>();
+  for (const i of Array.from(triangles)) used.add(i);
+  let zMin = Infinity;
+  let zMax = -Infinity;
+  for (const v of used) {
+    const z = vertices[v * 3 + 2] ?? 0;
+    zMin = Math.min(zMin, z);
+    zMax = Math.max(zMax, z);
+  }
+  const h = zMax - zMin;
+  if (!(h >= 1)) return null;
+  const centre = (pick: (z: number) => boolean) => {
+    let x = 0;
+    let y = 0;
+    let z = 0;
+    let n = 0;
+    for (const v of used) {
+      const vz = vertices[v * 3 + 2] ?? 0;
+      if (!pick(vz)) continue;
+      x += vertices[v * 3] ?? 0;
+      y += vertices[v * 3 + 1] ?? 0;
+      z += vz;
+      n++;
+    }
+    return { x: x / n, y: y / n, z: z / n };
+  };
+  const base = centre((z) => z <= zMin + 0.2 * h);
+  const top = centre((z) => z >= zMax - 0.2 * h);
+  const dx = top.x - base.x;
+  const dy = top.y - base.y;
+  const horizontal = Math.hypot(dx, dy);
+  if (horizontal < 1e-6) return { dip: Math.PI / 2, dipAzimuth: 0 };
+  // Baja hacia el lado opuesto al que se corre el techo.
+  const az = Math.atan2(-dx, -dy);
+  return {
+    dip: Math.atan2(top.z - base.z, horizontal),
+    dipAzimuth: az < 0 ? az + 2 * Math.PI : az,
+  };
+}
+
+/** Buzamiento de cada labor que viene de un sólido (los ejes generados no tienen: null). */
+export function workingDips(
+  w: WorkingsData,
+  owners: Int32Array = workingTriangleOwners(w),
+): (WorkingDip | null)[] {
+  const lists: number[][] = w.axes.map(() => []);
+  for (let t = 0; t < owners.length; t++) {
+    const o = owners[t] ?? -1;
+    if (o < 0 || w.axes[o]?.source !== 'solid') continue;
+    lists[o]?.push(
+      w.triangles[t * 3] ?? 0,
+      w.triangles[t * 3 + 1] ?? 0,
+      w.triangles[t * 3 + 2] ?? 0,
+    );
+  }
+  return lists.map((l) => (l.length > 0 ? solidDip(w.vertices, l) : null));
 }
