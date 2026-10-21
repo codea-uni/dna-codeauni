@@ -495,8 +495,9 @@ export async function applyPresetSteps(steps: readonly PresetStep[], perimeter?:
       ].includes(s.tool)
     )
       args.perimeter = b.name;
-    // El preset ya lo eligió el usuario: el amarre se aplica, no se vuelve a proponer.
-    if (s.tool === 'set_tie_up') args.confirmed = true;
+    // El preset ya lo eligió el usuario: el amarre se aplica, no se vuelve a proponer, y la malla
+    // reemplaza la del perímetro sin preguntar (el preset trae su propia carga y amarre).
+    if (s.tool === 'set_tie_up' || s.tool === 'generate_pattern') args.confirmed = true;
     if (s.tool === 'set_charge') args.target = { ...(args.target as object), perimeter: b.name };
     const out = await runTool(s.tool, args);
     done.push(out.ok ? { tool: s.tool, ok: true } : { tool: s.tool, ok: false, error: out.error });

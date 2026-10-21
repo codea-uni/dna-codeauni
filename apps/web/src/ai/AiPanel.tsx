@@ -1,4 +1,4 @@
-import { Bot, Mic, MicOff, RotateCcw, Send, Square } from 'lucide-react';
+import { Bot, Mic, MicOff, RotateCcw, Send, Square, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocale, useT, type MessageKey } from '../i18n';
 import { serverMode } from '../server/api';
@@ -97,6 +97,23 @@ function Entry({ entry }: { entry: ChatEntry }) {
   }
 }
 
+/** Preferencia «leer las respuestas en voz alta» de este navegador. */
+const READ_ALOUD_KEY = 'cronos.ai.readAloud';
+
+/**
+ * En la web de escritorio el asistente responde solo con texto (en una oficina la voz molesta): se
+ * activa con el botón de voz. En el navegador del visor arranca activada (manos libres).
+ */
+function initialReadAloud(): boolean {
+  try {
+    const saved = localStorage.getItem(READ_ALOUD_KEY);
+    if (saved !== null) return saved === '1';
+  } catch {
+    // Sin almacenamiento: el valor por defecto.
+  }
+  return IS_HEADSET;
+}
+
 /** Sección del asistente de IA: conversación por texto o por voz. */
 export default function AiPanel() {
   const t = useT();
@@ -107,7 +124,7 @@ export default function AiPanel() {
   const push = useAiStore((s) => s.push);
   const [text, setText] = useState('');
   const [listening, setListening] = useState(false);
-  const [readAloud, setReadAloud] = useState(true);
+  const [readAloud, setReadAloud] = useState(initialReadAloud);
   const recognition = useRef<Recognition | null>(null);
   const recording = useRef<Recording | null>(null);
   const stopRecording = useRef<(() => Promise<void>) | null>(null);
@@ -129,11 +146,12 @@ export default function AiPanel() {
     [],
   );
 
-  const send = async (message: string, byVoice: boolean) => {
+  const send = async (message: string) => {
     if (!message.trim() || busy) return;
     setText('');
     const answer = await sendToAssistant(message);
-    if (byVoice && readAloud) speak(answer, lang);
+    // Con la voz activada se leen todas las respuestas; si no, solo texto (también al dictar).
+    if (readAloud) speak(answer, lang);
   };
 
   const voiceError = (e: unknown) => {
@@ -233,7 +251,7 @@ export default function AiPanel() {
       setListening(false);
       recognition.current = null;
       if (fallback) void record();
-      else if (finalText.trim()) void send(finalText, true);
+      else if (finalText.trim()) void send(finalText);
     };
     recognition.current = rec;
     setListening(true);
@@ -262,7 +280,7 @@ export default function AiPanel() {
                 type="button"
                 className="ai-example"
                 disabled={busy || !serverMode}
-                onClick={() => void send(t(key), false)}
+                onClick={() => void send(t(key))}
               >
                 {t(key)}
               </button>
@@ -278,7 +296,7 @@ export default function AiPanel() {
         className="ai-input"
         onSubmit={(e) => {
           e.preventDefault();
-          void send(text, false);
+          void send(text);
         }}
       >
         <textarea
@@ -293,7 +311,7 @@ export default function AiPanel() {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              void send(text, false);
+              void send(text);
             }
           }}
         />
@@ -333,16 +351,25 @@ export default function AiPanel() {
         </div>
       </form>
       <div className="ai-options">
-        <label>
-          <input
-            type="checkbox"
-            checked={readAloud}
-            onChange={(e) => {
-              setReadAloud(e.target.checked);
-            }}
-          />
-          {t('ai.speak')}
-        </label>
+        <button
+          type="button"
+          className={`link ai-read-aloud${readAloud ? ' active' : ''}`}
+          aria-pressed={readAloud}
+          title={t('ai.speak')}
+          onClick={() => {
+            const next = !readAloud;
+            setReadAloud(next);
+            if (!next && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+            try {
+              localStorage.setItem(READ_ALOUD_KEY, next ? '1' : '0');
+            } catch {
+              // Solo dura esta sesión.
+            }
+          }}
+        >
+          {readAloud ? <Volume2 size={13} aria-hidden /> : <VolumeX size={13} aria-hidden />}{' '}
+          {t(readAloud ? 'ai.speakOn' : 'ai.speakOff')}
+        </button>
         <button
           type="button"
           className="link"

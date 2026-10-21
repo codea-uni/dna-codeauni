@@ -2025,6 +2025,14 @@ button.link {
   align-items: center;
   gap: 6px;
 }
+.ai-options .ai-read-aloud {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ai-options .ai-read-aloud.active {
+  color: var(--accent);
+}
 
 /* ------------------------------------------------------------------ Marca CODEa UNI */
 
