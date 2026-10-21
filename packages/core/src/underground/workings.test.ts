@@ -527,3 +527,34 @@ describe('DXF de labores: MESH y elección de capas', () => {
     expect(src.axes.map((a) => a.name).sort()).toEqual(['EJE_GALERIA', 'HASTIALES', 'TOPO_CURVAS']);
   });
 });
+
+describe('eje estimado de un tajeo de 8 esquinas', () => {
+  it('el piso sigue la cara inferior: no salta entre base y techo', () => {
+    const v = [
+      [120, -100, 1895],
+      [142, -100, 1895],
+      [142, -75, 1895],
+      [120, -75, 1895],
+      [106, -100, 1925],
+      [128, -100, 1925],
+      [128, -75, 1925],
+      [106, -75, 1925],
+    ].flat();
+    const faces = [
+      [0, 3, 2, 1],
+      [4, 5, 6, 7],
+      [0, 1, 5, 4],
+      [1, 2, 6, 5],
+      [2, 3, 7, 6],
+      [3, 0, 4, 7],
+    ];
+    const tris = faces.flatMap((f) => [f[0], f[1], f[2], f[0], f[2], f[3]] as number[]);
+    const est = estimateSolidAxis(v, tris);
+    const zs = est?.points.map((p) => p.z) ?? [];
+    // Baja de forma monótona (sin zigzag) y nunca por debajo de la base.
+    for (let i = 1; i < zs.length; i++)
+      expect(zs[i] ?? 0).toBeLessThanOrEqual((zs[i - 1] ?? 0) + 1e-9);
+    expect(Math.min(...zs)).toBeCloseTo(1895, 6);
+    expect(axisLength(est?.points ?? [])).toBeLessThan(60);
+  });
+});

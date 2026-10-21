@@ -580,6 +580,42 @@ export function estimateSolidAxis(
     b.zMax = Math.max(b.zMax, p.z);
     b.n++;
   }
+  // Cortes del sólido por el centro de cada tramo: con mallas de pocos vértices (cajas de 8
+  // esquinas) los tramos del medio no tienen vértices y el piso saltaría entre base y techo.
+  const local = new Map<number, { t: number; s: number; z: number }>();
+  used.forEach((v, i) => {
+    const p = pts[i];
+    if (p) local.set(v, p);
+  });
+  for (let i = 0; i + 2 < tris.length; i += 3) {
+    const tri = [
+      local.get(tris[i] ?? -1),
+      local.get(tris[i + 1] ?? -1),
+      local.get(tris[i + 2] ?? -1),
+    ];
+    if (!tri[0] || !tri[1] || !tri[2]) continue;
+    const ts = tri.map((p) => p?.t ?? 0);
+    const k0 = Math.max(0, Math.ceil((Math.min(...ts) - tMin) / step - 0.5));
+    const k1 = Math.min(bins - 1, Math.floor((Math.max(...ts) - tMin) / step - 0.5));
+    for (let k = k0; k <= k1; k++) {
+      const tc = tMin + (k + 0.5) * step;
+      const b = acc[k];
+      if (!b) continue;
+      for (let e = 0; e < 3; e++) {
+        const p = tri[e];
+        const q = tri[(e + 1) % 3];
+        if (!p || !q || (p.t - tc) * (q.t - tc) > 0 || p.t === q.t) continue;
+        const f = (tc - p.t) / (q.t - p.t);
+        const sv = p.s + f * (q.s - p.s);
+        const zv = p.z + f * (q.z - p.z);
+        b.sMin = Math.min(b.sMin, sv);
+        b.sMax = Math.max(b.sMax, sv);
+        b.zMin = Math.min(b.zMin, zv);
+        b.zMax = Math.max(b.zMax, zv);
+        b.n++;
+      }
+    }
+  }
   const points: Vec3[] = [];
   const widths: number[] = [];
   const heights: number[] = [];
