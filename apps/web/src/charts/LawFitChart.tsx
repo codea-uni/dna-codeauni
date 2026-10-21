@@ -47,7 +47,11 @@ export default function LawFitChart({ fit }: { fit: VibrationFit }) {
     const hi = fit.sdMax * 1.5;
     // Etiquetas de los ejes log con el formato del idioma (sin «1.6329931618554523» en los extremos).
     const tick = (v: number) =>
-      formatNumber(v, v >= 10 ? 0 : v >= 1 ? 1 : v >= 0.1 ? 2 : 3, locale);
+      formatNumber(
+        v,
+        v >= 1 ? (Number.isInteger(v) ? 0 : 1) : Math.min(3, Math.ceil(-Math.log10(v) - 1e-9)),
+        locale,
+      );
     const line = (k: number) =>
       [lo, hi].map((sd) => [Number(sd.toPrecision(4)), mm(k * Math.pow(sd, -fit.beta))]);
     chart.current?.setOption(

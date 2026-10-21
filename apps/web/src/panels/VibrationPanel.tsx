@@ -235,109 +235,112 @@ export function VibrationPanel() {
         {(project.monitoringPoints ?? []).length === 0 ? (
           <p className="hint">{t('vib.noPoints')}</p>
         ) : (
-          <table className="grid-table compact">
-            <thead>
-              <tr>
-                {/* Anchos fijos: el nombre y el tipo se leen completos y nada se sale de la ventana. */}
-                <th style={{ width: '24%' }}>{t('vib.point')}</th>
-                <th style={{ width: '20%' }}>{t('mv.kind')}</th>
-                <th className="num" title={t('mv.distance3dTitle')}>
-                  R [{len.unit}]
-                </th>
-                <th className="num" title={t('mv.chargeTitle')}>
-                  kg
-                </th>
-                <th className="num">mm/s</th>
-                <th className="num" title={t('vib.limitTitle')}>
-                  {t('vib.limit')}
-                </th>
-                <th style={{ width: 16 }} />
-                <th className="num" title={t('vib.admissibleTitle')}>
-                  {t('vib.admissible')}
-                </th>
-                <th className="num">dB</th>
-                <th style={{ width: canShare ? 52 : 28 }} />
-              </tr>
-            </thead>
-            <tbody>
-              {(project.monitoringPoints ?? []).map((p) => {
-                const rec = v?.receivers.find((x) => x.id === p.id);
-                return (
-                  <tr key={p.id} className={rec?.exceeds ? 'warn' : undefined}>
-                    <td>
-                      <TextCell
-                        value={p.name}
-                        onCommit={(name) => {
-                          session.document.dispatch(
-                            commands.updateMonitoringPoint(session.document, p.id, { name }),
-                            t('vib.renamePoint'),
-                          );
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <KindSelect
-                        value={p.kind}
-                        onChange={(kind) => {
-                          session.document.dispatch(
-                            commands.updateMonitoringPoint(session.document, p.id, { kind }),
-                            t('mv.undoKind'),
-                          );
-                        }}
-                      />
-                    </td>
-                    <td className="num">{rec ? fmt(len.show(rec.distance)) : '—'}</td>
-                    <td className="num">{rec ? fmt(rec.charge, 1) : '—'}</td>
-                    <td
-                      className="num"
-                      title={
-                        rec?.centroid
-                          ? t('vib.centroid', { v: fmt(rec.centroid.ppv * 1000, 1) })
-                          : undefined
-                      }
-                    >
-                      {rec ? fmt(rec.ppv * 1000, 1) : '—'}
-                    </td>
-                    <td className="num" title={rec?.limit?.source}>
-                      {rec?.limit ? fmt(rec.limit.ppvMax * 1000, 0) : '—'}
-                    </td>
-                    <td>
-                      <Semaphore rec={rec} />
-                    </td>
-                    <td className="num">
-                      {rec?.admissibleCharge != null ? fmt(rec.admissibleCharge) : '—'}
-                    </td>
-                    <td className="num">{rec ? fmt(rec.airblastDb, 0) : '—'}</td>
-                    <td className="row-actions" style={{ whiteSpace: 'nowrap' }}>
-                      {canShare && (
+          // En ventanas angostas la tabla se desplaza sola en vez de cortar nombres y tipos.
+          <div style={{ overflowX: 'auto' }}>
+            <table className="grid-table compact" style={{ minWidth: 540 }}>
+              <thead>
+                <tr>
+                  {/* Anchos fijos: el nombre y el tipo se leen completos y nada se sale de la ventana. */}
+                  <th style={{ width: '24%' }}>{t('vib.point')}</th>
+                  <th style={{ width: '20%' }}>{t('mv.kind')}</th>
+                  <th className="num" title={t('mv.distance3dTitle')}>
+                    R [{len.unit}]
+                  </th>
+                  <th className="num" title={t('mv.chargeTitle')}>
+                    kg
+                  </th>
+                  <th className="num">mm/s</th>
+                  <th className="num" title={t('vib.limitTitle')}>
+                    {t('vib.limit')}
+                  </th>
+                  <th style={{ width: 16 }} />
+                  <th className="num" title={t('vib.admissibleTitle')}>
+                    {t('vib.admissible')}
+                  </th>
+                  <th className="num">dB</th>
+                  <th style={{ width: canShare ? 52 : 28 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {(project.monitoringPoints ?? []).map((p) => {
+                  const rec = v?.receivers.find((x) => x.id === p.id);
+                  return (
+                    <tr key={p.id} className={rec?.exceeds ? 'warn' : undefined}>
+                      <td>
+                        <TextCell
+                          value={p.name}
+                          onCommit={(name) => {
+                            session.document.dispatch(
+                              commands.updateMonitoringPoint(session.document, p.id, { name }),
+                              t('vib.renamePoint'),
+                            );
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <KindSelect
+                          value={p.kind}
+                          onChange={(kind) => {
+                            session.document.dispatch(
+                              commands.updateMonitoringPoint(session.document, p.id, { kind }),
+                              t('mv.undoKind'),
+                            );
+                          }}
+                        />
+                      </td>
+                      <td className="num">{rec ? fmt(len.show(rec.distance)) : '—'}</td>
+                      <td className="num">{rec ? fmt(rec.charge, 1) : '—'}</td>
+                      <td
+                        className="num"
+                        title={
+                          rec?.centroid
+                            ? t('vib.centroid', { v: fmt(rec.centroid.ppv * 1000, 1) })
+                            : undefined
+                        }
+                      >
+                        {rec ? fmt(rec.ppv * 1000, 1) : '—'}
+                      </td>
+                      <td className="num" title={rec?.limit?.source}>
+                        {rec?.limit ? fmt(rec.limit.ppvMax * 1000, 0) : '—'}
+                      </td>
+                      <td>
+                        <Semaphore rec={rec} />
+                      </td>
+                      <td className="num">
+                        {rec?.admissibleCharge != null ? fmt(rec.admissibleCharge) : '—'}
+                      </td>
+                      <td className="num">{rec ? fmt(rec.airblastDb, 0) : '—'}</td>
+                      <td className="row-actions" style={{ whiteSpace: 'nowrap' }}>
+                        {canShare && (
+                          <button
+                            className={`icon${sharedIds.has(p.id) ? ' active' : ''}`}
+                            title={t(sharedIds.has(p.id) ? 'mv.updateShared' : 'mv.share')}
+                            onClick={() => {
+                              share(p);
+                            }}
+                          >
+                            <Share2 size={13} aria-hidden />
+                          </button>
+                        )}
                         <button
-                          className={`icon${sharedIds.has(p.id) ? ' active' : ''}`}
-                          title={t(sharedIds.has(p.id) ? 'mv.updateShared' : 'mv.share')}
+                          className="icon danger"
+                          title={t('vib.removePoint')}
                           onClick={() => {
-                            share(p);
+                            session.document.dispatch(
+                              commands.removeMonitoringPoint(session.document, p.id),
+                              t('vib.removeNamed', { name: p.name }),
+                            );
                           }}
                         >
-                          <Share2 size={13} aria-hidden />
+                          <Trash2 size={13} aria-hidden />
                         </button>
-                      )}
-                      <button
-                        className="icon danger"
-                        title={t('vib.removePoint')}
-                        onClick={() => {
-                          session.document.dispatch(
-                            commands.removeMonitoringPoint(session.document, p.id),
-                            t('vib.removeNamed', { name: p.name }),
-                          );
-                        }}
-                      >
-                        <Trash2 size={13} aria-hidden />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
         {v && <CrossingWarnings receivers={v.receivers} underground={v.underground} />}
         <p className="hint">{t('mv.hint3d')}</p>

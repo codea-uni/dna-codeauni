@@ -334,7 +334,8 @@ function GroupTable({ charge: c }: { charge: BlastAnalysis['charge'] }) {
           <tr>
             <th>{t('results.group')}</th>
             <th>{t('results.holes')}</th>
-            <th>kg</th>
+            {/* Incluye las primas (base del factor de carga): no es el «Explosivo» del resumen. */}
+            <th title={t('results.kgWithPrimersTitle')}>{t('results.kgWithPrimers')}</th>
             <th>{t('results.kgm3Design')}</th>
           </tr>
         </thead>

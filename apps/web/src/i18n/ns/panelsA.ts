@@ -98,6 +98,9 @@ export const es = {
   'results.energy': 'Energía',
   'results.cost': 'Costo de productos',
   'results.unpriced': 'precio sin cargar',
+  'results.kgWithPrimers': 'kg con primas',
+  'results.kgWithPrimersTitle':
+    'Explosivo más primas del grupo (la base del factor de carga); el «Explosivo» del resumen no incluye las primas.',
   'results.unpricedHint':
     'Sin precio en Librería: {names}. El costo no es real (parcial: {partial}) hasta cargar sus precios.',
   'results.drillingCost': 'Costo de perforación',
@@ -308,7 +311,7 @@ export const es = {
   'vib.undoBeta': 'β del punto',
   'vib.limits': 'Límites de PPV',
   'vib.limitsHint':
-    'Valores por tipo de estructura y distancia, con su fuente. Perú no tiene una norma nacional de PPV para voladura: usa los del instrumento ambiental (EIA) de la operación (P-12).',
+    'Valores por tipo de estructura y distancia, con su fuente. Perú no tiene una norma nacional de PPV para voladura: usa los del instrumento ambiental (EIA) de la operación.',
   'vib.from': 'Desde [m]',
   'vib.to': 'Hasta [m]',
   'vib.source': 'Fuente',
@@ -415,6 +418,9 @@ export const en = {
   'results.energy': 'Energy',
   'results.cost': 'Product cost',
   'results.unpriced': 'price not entered',
+  'results.kgWithPrimers': 'kg incl. primers',
+  'results.kgWithPrimersTitle':
+    'Explosive plus primers of the group (the basis of the loading factor); the summary «Explosive» excludes primers.',
   'results.unpricedHint':
     'No price in Library: {names}. The cost is not real (partial: {partial}) until their prices are entered.',
   'results.drillingCost': 'Drilling cost',
@@ -622,7 +628,7 @@ export const en = {
   'vib.undoBeta': 'Point β',
   'vib.limits': 'PPV limits',
   'vib.limitsHint':
-    "Values by structure type and distance, with their source. Peru has no national PPV standard for blasting: use those of the operation's environmental permit (EIA) (P-12).",
+    "Values by structure type and distance, with their source. Peru has no national PPV standard for blasting: use those of the operation's environmental permit (EIA).",
   'vib.from': 'From [m]',
   'vib.to': 'To [m]',
   'vib.source': 'Source',

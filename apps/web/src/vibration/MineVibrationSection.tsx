@@ -111,11 +111,11 @@ function MinePoints() {
         <table className="grid-table compact">
           <thead>
             <tr>
-              <th>{t('vib.point')}</th>
-              <th>{t('mv.kind')}</th>
-              <th>Z</th>
-              <th>mm/s</th>
-              <th>{t('vib.limit')}</th>
+              <th style={{ width: '30%' }}>{t('vib.point')}</th>
+              <th style={{ width: '22%' }}>{t('mv.kind')}</th>
+              <th className="num">Z</th>
+              <th className="num">mm/s</th>
+              <th className="num">{t('vib.limit')}</th>
               <th />
               <th />
             </tr>
@@ -256,86 +256,92 @@ function Calibration() {
       {fits.length === 0 ? (
         <p className="muted small">{t('mv.noRecords')}</p>
       ) : (
-        <table className="grid-table compact">
-          <thead>
-            <tr>
-              <th>{t('mv.zone')}</th>
-              <th className="num">n</th>
-              <th className="num" title={t('mv.k50Title')}>
-                K50
-              </th>
-              <th className="num">β</th>
-              <th className="num">R²</th>
-              <th className="num" title={t('mv.k95Title')}>
-                K95
-              </th>
-              <th style={{ width: 150 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {fits.map((f) => {
-              const fit = fitOf(f);
-              const k = keyOf(f);
-              return (
-                <tr
-                  key={k}
-                  className={k === (current ? keyOf(current) : '') ? 'selected' : undefined}
-                  onClick={() => {
-                    setSelected(k);
-                  }}
-                >
-                  <td>
-                    {f.zone || t('mv.allZones')}
-                    <span className="muted small"> · {t(contextKey(f.context))}</span>
-                    {k === activeKey && active && (
-                      <span
-                        className="small"
-                        style={{ color: 'var(--accent)', fontWeight: 600 }}
-                        title={active.name}
-                      >
-                        {' '}
-                        {t('mv.inUse', { level: Math.round((active.confidence ?? 0.5) * 100) })}
-                      </span>
-                    )}
-                  </td>
-                  <td className="num">{f.n}</td>
-                  <td className="num">{fit ? fmt(fit.k * 1000, 0) : '—'}</td>
-                  <td className="num">{fit ? fmt(fit.beta, 2) : '—'}</td>
-                  <td className="num">{fit ? fmt(fit.r2, 2) : '—'}</td>
-                  <td className="num">{fit ? fmt(fit.k95 * 1000, 0) : '—'}</td>
-                  <td>
-                    {fit && (
-                      <span className="row-actions" style={{ display: 'flex', gap: 4 }}>
-                        <button
+        // En ventanas angostas la tabla se desplaza sola (los botones «Usar» no se cortan).
+        <div style={{ overflowX: 'auto' }}>
+          <table className="grid-table compact" style={{ minWidth: 440 }}>
+            <thead>
+              <tr>
+                <th style={{ width: '30%' }}>{t('mv.zone')}</th>
+                <th className="num">n</th>
+                <th className="num" title={t('mv.k50Title')}>
+                  K50
+                </th>
+                <th className="num">β</th>
+                <th className="num">R²</th>
+                <th className="num" title={t('mv.k95Title')}>
+                  K95
+                </th>
+                <th style={{ width: 'min(150px, 30%)' }} />
+              </tr>
+            </thead>
+            <tbody>
+              {fits.map((f) => {
+                const fit = fitOf(f);
+                const k = keyOf(f);
+                return (
+                  <tr
+                    key={k}
+                    className={k === (current ? keyOf(current) : '') ? 'selected' : undefined}
+                    onClick={() => {
+                      setSelected(k);
+                    }}
+                  >
+                    <td>
+                      {f.zone || t('mv.allZones')}
+                      <span className="muted small"> · {t(contextKey(f.context))}</span>
+                      {k === activeKey && active && (
+                        <span
                           className="small"
-                          title={t('mv.useLawTitle', { level: 95 })}
-                          disabled={session.document.readOnly}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            applyLaw(f, fit, 95);
-                          }}
+                          style={{ color: 'var(--accent)', fontWeight: 600 }}
+                          title={active.name}
                         >
-                          {t('mv.useLaw95')}
-                        </button>
-                        <button
-                          className="small"
-                          title={t('mv.useLawTitle', { level: 50 })}
-                          disabled={session.document.readOnly}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            applyLaw(f, fit, 50);
-                          }}
+                          {' '}
+                          {t('mv.inUse', { level: Math.round((active.confidence ?? 0.5) * 100) })}
+                        </span>
+                      )}
+                    </td>
+                    <td className="num">{f.n}</td>
+                    <td className="num">{fit ? fmt(fit.k * 1000, 0) : '—'}</td>
+                    <td className="num">{fit ? fmt(fit.beta, 2) : '—'}</td>
+                    <td className="num">{fit ? fmt(fit.r2, 2) : '—'}</td>
+                    <td className="num">{fit ? fmt(fit.k95 * 1000, 0) : '—'}</td>
+                    <td>
+                      {fit && (
+                        <span
+                          className="row-actions"
+                          style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}
                         >
-                          50 %
-                        </button>
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                          <button
+                            className="small"
+                            title={t('mv.useLawTitle', { level: 95 })}
+                            disabled={session.document.readOnly}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              applyLaw(f, fit, 95);
+                            }}
+                          >
+                            {t('mv.useLaw95')}
+                          </button>
+                          <button
+                            className="small"
+                            title={t('mv.useLawTitle', { level: 50 })}
+                            disabled={session.document.readOnly}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              applyLaw(f, fit, 50);
+                            }}
+                          >
+                            50 %
+                          </button>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
       {shown && (
         <Suspense fallback={<div className="chart tall muted">…</div>}>
@@ -382,7 +388,7 @@ function Calibration() {
             <tr>
               <th>{t('mv.date')}</th>
               <th>{t('mv.zone')}</th>
-              <th>{t('mv.type')}</th>
+              <th style={{ width: '16%' }}>{t('mv.type')}</th>
               <th>kg/ret.</th>
               <th>R [m]</th>
               <th>mm/s</th>
