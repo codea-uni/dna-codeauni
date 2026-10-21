@@ -4,18 +4,22 @@ import {
   DEFAULT_ANALYSIS_OPTIONS,
   DEFAULT_VIBRATION_OPTIONS,
   fragmentation,
+  holeCharge,
   holeToe,
   indexLibrary,
+  isUndergroundBlast,
   kuzRamInputsFromBlast,
   outwardNormal,
   polygonEdge,
   turboRgb,
   type BlastId,
+  type MonitoringPoint,
   type Project,
+  type VibrationLaw,
 } from '@cronos/core';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
 import { fitPlan, scaleBarLength } from './planLayout';
-import { fmtNumber, toWinAnsi } from './pdfText';
+import { fmtNumber, stripInternalCodes, toWinAnsi } from './pdfText';
 import { REPORT_TEXT, type ReportLanguage } from './reportText';
 
 export interface ReportOptions {
@@ -23,6 +27,15 @@ export interface ReportOptions {
   date: string;
   appVersion: string;
   author?: string;
+  /** Empresa, mina y versión publicada del proyecto («v2»; con cambios sin publicar, se aclara). */
+  company?: string;
+  mine?: string;
+  version?: string;
+  /**
+   * Puntos de control de la mina (compartidos entre proyectos) que la pantalla suma al cálculo:
+   * el informe evalúa los mismos para que sus PPV coincidan con los del panel.
+   */
+  extraPoints?: readonly MonitoringPoint[];
   /** Incluir la tabla de taladros (puede ocupar varias páginas). */
   holeTable: boolean;
   /** Idioma de todos los textos y del formato de números (por omisión 'es'). */
@@ -160,11 +173,28 @@ export async function buildReport(
   };
   const fragInputs = kuzRamInputsFromBlast(blast, project.library, charge, rock);
   const frag = fragInputs ? fragmentation(fragInputs, { oversizeSize: 1, finesSize: 0.01 }) : null;
-  const vib = computeVibration(project, blast, { ...DEFAULT_VIBRATION_OPTIONS, skipGrid: true });
+  // Misma ley (la elegida para el proyecto) y mismos puntos que la pantalla.
+  const vib = computeVibration(project, blast, {
+    ...DEFAULT_VIBRATION_OPTIONS,
+    skipGrid: true,
+    ...(options.extraPoints ? { extraPoints: options.extraPoints } : {}),
+  });
+  const underground = isUndergroundBlast(blast);
 
   const lang = options.language ?? 'es';
   const T = REPORT_TEXT[lang];
   const fmt = (v: number, decimals = 0) => fmtNumber(v, decimals, lang);
+  /** Nombre de la ley con su origen: zona, % de confianza, n y R², o «sin calibrar». */
+  const lawText = (law: VibrationLaw) => {
+    const kb = `K = ${fmt(law.k * 1000)} mm/s, beta = ${fmt(law.beta, 2)}`;
+    return law.fit
+      ? `${law.name} (n = ${String(law.fit.n)}, R² = ${fmt(law.fit.r2, 2)}): ${kb}`
+      : `${law.name}, ${T.notCalibrated}: ${kb}`;
+  };
+  const costText = (cost: number) =>
+    charge.unpriced.length > 0
+      ? `${T.unpriced} (${T.partial} ${fmt(cost)} ${project.currency})`
+      : `${fmt(cost)} ${project.currency}`;
 
   const doc = await PDFDocument.create();
   doc.setTitle(toWinAnsi(T.docTitle(blast.name)));
@@ -182,34 +212,59 @@ export async function buildReport(
   // ---------------------------------------------------------------- Página 1: resumen + plano
   let s = newSheet();
   s.text(T.title, M, s.y - 18, 18, { bold: true });
-  s.text(`${project.name} · ${blast.name}`, M, s.y - 34, 10, { color: MUTED });
+  s.text(
+    [options.company, options.mine, project.name].filter(Boolean).join(' · '),
+    M,
+    s.y - 34,
+    10,
+    { color: MUTED },
+  );
   s.text(date, A4[0] - M, s.y - 18, 9, { align: 'right', color: MUTED });
-  s.y -= 46;
+  s.y -= 40;
+  // Ficha del informe: quién, qué y cuándo (empresa, mina, proyecto, versión, autor y fecha).
+  s.keyValues(
+    (
+      [
+        [T.company, options.company],
+        [T.mine, options.mine],
+        [T.project, project.name],
+        [T.blast, blast.name],
+        [T.version, options.version],
+        [T.author, options.author],
+        [T.date, date],
+      ] as [string, string | undefined][]
+    ).filter((kv): kv is [string, string] => !!kv[1]),
+  );
   s.heading(T.summary);
   const diameters = [...new Set(blast.holes.map((h) => Math.round(h.diameter * 1000)))].sort(
     (a, b) => a - b,
   );
+  // Bajo tierra no hay banco: sin altura de banco, cubicación de banco ni flyrock (Lundborg).
+  const bench = (pairs: [string, string][]) => (underground ? [] : pairs);
   s.keyValues([
     [T.holes, T.holesValue(blast.holes.length, charge.loadedHoles)],
     [T.drilled, `${fmt(charge.drilledLength, 1)} m`],
     [T.diameter, diameters.length ? `${diameters.join(' / ')} mm` : '-'],
-    [T.benchHeight, `${fmt(blast.bench.height, 1)} m`],
+    ...bench([[T.benchHeight, `${fmt(blast.bench.height, 1)} m`]]),
+    // Los mismos kg que el panel de resultados (explosivo sin primas; las primas aparte).
     [T.explosive, `${fmt(charge.totalExplosive)} kg`],
     [T.primers, `${fmt(charge.totalPrimers, 1)} kg`],
-    [T.volume, `${fmt(charge.volume)} m³`],
-    [T.tonnage, `${fmt(charge.tonnage / 1000)} t`],
-    [
-      T.loadingFactor,
-      `${fmt(charge.loadingFactor, 3)} kg/m³ · ${fmt(charge.powderFactor * 1000, 3)} kg/t`,
-    ],
-    [
-      T.designFactor,
-      charge.nominal.volume > 0
-        ? `${fmt(charge.nominal.explosive / charge.nominal.volume, 3)} kg/m³`
-        : '-',
-    ],
+    ...bench([
+      [T.volume, `${fmt(charge.volume)} m³`],
+      [T.tonnage, `${fmt(charge.tonnage / 1000)} t`],
+      [
+        T.loadingFactor,
+        `${fmt(charge.loadingFactor, 3)} kg/m³ · ${fmt(charge.powderFactor * 1000, 3)} kg/t`,
+      ],
+      [
+        T.designFactor,
+        charge.nominal.volume > 0
+          ? `${fmt(charge.nominal.explosive / charge.nominal.volume, 3)} kg/m³`
+          : '-',
+      ],
+    ]),
     [T.energy, `${fmt(charge.totalEnergy / 1e6)} MJ`],
-    [T.cost, `${fmt(charge.cost)} ${project.currency}`],
+    [T.cost, costText(charge.cost)],
     [T.duration, hasTimes ? `${fmt((timing.lastTime - timing.firstTime) * 1000)} ms` : T.noTimes],
     [
       T.maxPerDelay(fmt(blast.calcParams.micWindow * 1000)),
@@ -220,7 +275,7 @@ export async function buildReport(
       'P50 / P80 (Swebrec)',
       frag ? `${fmt(frag.p50.swebrec * 100, 1)} / ${fmt(frag.p80.swebrec * 100, 1)} cm` : '-',
     ],
-    [T.flyrock, `${fmt(vib.flyrock.range)} m`],
+    ...bench([[T.flyrock, `${fmt(vib.flyrock.range)} m`]]),
   ]);
 
   s.heading(hasTimes ? T.planByTime : T.plan);
@@ -356,7 +411,6 @@ export async function buildReport(
       align: 'right',
     });
   }
-  s.text(`Cronos ${options.appVersion} · ${date}`, M, M - 4, 7, { color: MUTED });
 
   // ---------------------------------------------------------------- Página 2: carguío, fragmentación, vibración
   s = newSheet();
@@ -365,20 +419,19 @@ export async function buildReport(
   const perProduct = new Map<string, { kg: number; holes: number }>();
   blast.holes.forEach((h) => {
     const used = new Set<string>();
-    for (const d of h.decks) {
-      if (d.kind !== 'explosive') continue;
+    // Masa de cada tramo con el mismo cálculo del carguío (asentamiento, cartuchos, densidad), para
+    // que la suma de la tabla sea el «Explosivo» del resumen y del panel.
+    const masses = holeCharge(h, lib).deckMasses;
+    h.decks.forEach((d, k) => {
+      if (d.kind !== 'explosive') return;
       const e = lib.explosives.get(d.explosiveId);
-      if (!e) continue;
-      const q =
-        e.form === 'packaged' && e.cartridge
-          ? e.cartridge.mass / e.cartridge.length
-          : ((d.densityOverride ?? e.density) * Math.PI * h.diameter * h.diameter) / 4;
+      if (!e) return;
       const entry = perProduct.get(e.name) ?? { kg: 0, holes: 0 };
-      entry.kg += q * d.length;
+      entry.kg += masses[k] ?? 0;
       if (!used.has(e.name)) entry.holes++;
       used.add(e.name);
       perProduct.set(e.name, entry);
-    }
+    });
   });
   s.table(
     [T.explosive, T.holes, 'kg'],
@@ -387,6 +440,8 @@ export async function buildReport(
       : [[T.noCharge, '-', '-']],
     [300, 100, 115],
   );
+  if (charge.unpriced.length > 0)
+    s.paragraph(T.unpricedNote(charge.unpriced.join(', ')), 8.5, ACCENT);
 
   s.heading(T.fragTitle);
   if (!frag || !fragInputs) {
@@ -463,10 +518,7 @@ export async function buildReport(
   const law = vib.law;
   s.keyValues(
     [
-      [
-        T.ppvLaw,
-        law ? `${law.name}: K = ${fmt(law.k * 1000)} mm/s, beta = ${fmt(law.beta, 2)}` : '-',
-      ],
+      [T.ppvLaw, law ? lawText(law) : '-'],
       [T.mic, `${fmt(vib.mic)} kg`],
       [
         T.micExtended,
@@ -516,7 +568,7 @@ export async function buildReport(
     s.table(
       [T.observation, T.level, T.holes],
       checks.map((c) => [
-        T.checks[c.id] ?? c.title,
+        stripInternalCodes(T.checks[c.id] ?? c.title),
         T.severity[c.severity],
         String(c.holes.length),
       ]),
@@ -526,29 +578,39 @@ export async function buildReport(
   const cp = blast.calcParams;
   const generic = project.library.explosives.filter((e) => e.source?.includes('genérico'));
   const limits = project.ppvLimits ?? [];
+  // Fuente de un límite en lenguaje claro: sin rutas ni códigos internos; los valores de curso se
+  // rotulan como orientativos.
+  const sourceText = (src: string) =>
+    /material de curso|course material/i.test(src) ? T.courseSource : stripInternalCodes(src);
+  // Bajo tierra no aplican el volumen de banco (B·S·H), la profundidad escalada de enterramiento
+  // (cráter hacia el banco) ni el flyrock de Lundborg.
   const notes = [
     T.notes.units,
     T.notes.deckCharge,
-    T.notes.volume(cp.subdrillConvention === 'lopezJimeno'),
+    underground ? null : T.notes.volume(cp.subdrillConvention === 'lopezJimeno'),
     T.notes.timing(fmt(cp.micWindow * 1000)),
-    T.notes.burden(fmt(cp.reliefRate * 1000, 1)),
-    T.notes.sdob(fmt(cp.checks.sdob.severe, 2), fmt(cp.checks.sdob.safe, 2)),
-    T.notes.ppv(law ? ` (${fmt(law.k * 1000)} mm/s, ${fmt(law.beta, 2)})` : ''),
+    underground ? null : T.notes.burden(fmt(cp.reliefRate * 1000, 1)),
+    underground ? null : T.notes.sdob(fmt(cp.checks.sdob.severe, 2), fmt(cp.checks.sdob.safe, 2)),
+    T.notes.ppv(law?.scaling ?? 'square-root', law ? lawText(law) : '-'),
     T.notes.limits(
       limits
         .map(
           (l) =>
-            `${l.structure ?? T.allStructures} ${fmt(l.from)}–${l.to === undefined ? '∞' : fmt(l.to)} m: ${fmt(l.ppvMax * 1000, 1)} mm/s (${l.source})`,
+            `${l.structure ?? T.allStructures} ${l.to === undefined ? `> ${fmt(l.from)}` : `${fmt(l.from)}–${fmt(l.to)}`} m: ${fmt(l.ppvMax * 1000, 1)} mm/s (${sourceText(l.source)})`,
         )
         .join('; '),
     ),
-    T.notes.airblast,
+    underground ? T.notes.airblastUnderground : T.notes.airblast,
     T.notes.frag,
+    charge.unpriced.length ? T.unpricedNote(charge.unpriced.join(', ')) : null,
     generic.length
       ? T.notes.generic(generic.length, generic.map((e) => e.name).join(', '))
       : T.notes.allCited,
     T.notes.rules,
-  ];
+  ]
+    .filter((n): n is string => n !== null)
+    // Red de seguridad: ningún código ni ruta interna llega al PDF.
+    .map(stripInternalCodes);
   for (const n of notes) {
     if (!s.paragraph(`· ${n}`)) {
       s = newSheet();
@@ -585,7 +647,20 @@ export async function buildReport(
 
   // Numeración de páginas
   const pages = doc.getPages();
+  const footer = toWinAnsi(
+    [
+      options.company,
+      options.mine,
+      project.name,
+      options.version,
+      date,
+      `Cronos ${options.appVersion}`,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+  );
   pages.forEach((page, i) => {
+    page.drawText(footer, { x: M, y: M - 4, size: 7, font, color: MUTED });
     page.drawText(`${i + 1} / ${pages.length}`, {
       x: A4[0] - M - 20,
       y: M - 4,

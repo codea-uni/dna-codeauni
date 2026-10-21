@@ -1,10 +1,25 @@
-import type { CheckSeverity } from '@cronos/core';
+import type { CheckSeverity, VibrationScaling } from '@cronos/core';
+
+/** Fórmula de la ley de PPV según la distancia escalada, en texto plano. */
+const ppvFormula = (scaling: VibrationScaling) =>
+  scaling === 'cube-root'
+    ? 'PPV = K·(R/Q^(1/3))^(-beta)'
+    : scaling === 'langefors'
+      ? 'PPV = K·(Q^(1/2)/R^(3/4))^beta'
+      : 'PPV = K·(R/Q^(1/2))^(-beta)';
 
 export type ReportLanguage = 'es' | 'en';
 
 const es = {
   docTitle: (blast: string) => `Informe de voladura · ${blast}`,
   title: 'Informe de voladura',
+  company: 'Empresa',
+  mine: 'Mina',
+  project: 'Proyecto',
+  blast: 'Voladura',
+  version: 'Versión',
+  author: 'Autor',
+  date: 'Fecha',
   summary: 'Resumen',
   holes: 'Taladros',
   holesValue: (total: number, loaded: number) => `${total} (${loaded} cargados)`,
@@ -19,6 +34,10 @@ const es = {
   designFactor: 'Factor de carga de diseño (B·S·H)',
   energy: 'Energía',
   cost: 'Costo de productos',
+  unpriced: 'precio sin cargar',
+  partial: 'parcial',
+  unpricedNote: (names: string) =>
+    `Costo de productos incompleto: sin precio en la librería para ${names}. El costo no es real hasta cargar sus precios.`,
   duration: 'Duración de la secuencia',
   noTimes: 'sin tiempos',
   maxPerDelay: (windowMs: string) => `Máx. kg por retardo (${windowMs} ms)`,
@@ -36,8 +55,10 @@ const es = {
   oversize: 'Sobretamaño (> 100 cm)',
   vibTitle: 'Vibración y sobrepresión',
   ppvLaw: 'Ley de PPV',
+  notCalibrated: 'sin calibrar con mediciones de la mina',
+  courseSource: 'valor orientativo; confirmar con el EIA de la operación o la norma vigente',
   mic: 'Carga máx. por retardo',
-  micExtended: 'Con ventana ampliada (pirotécnicos, P-10)',
+  micExtended: 'Con ventana ampliada (dispersión de pirotécnicos)',
   electronicOnly: '- (solo electrónicos)',
   monitoringPoint: 'Punto de control',
   limit: 'Límite',
@@ -75,28 +96,30 @@ const es = {
   holeRange: (from: number, to: number, total: number) => `Taladros (${from}–${to} de ${total})`,
   notes: {
     units:
-      'Unidades SI internas; los resultados se recalculan desde el diseño y no se guardan como fuente de verdad.',
+      'Los resultados se recalculan desde el diseño (unidades del sistema internacional) con el mismo cálculo que muestra la pantalla.',
     deckCharge:
-      'Carga por tramo con π/4 exacto: DCL = (π/4)·Ø²·ρ; masa = DCL·(largo − esponjamiento) (docs/theory/02 §2).',
+      'Carga de cada tramo: masa = (pi/4)·Ø²·densidad·largo cargado, descontando el asentamiento del producto; los cartuchos usan su masa por metro.',
     volume: (lopezJimeno: boolean) =>
-      `Volumen de diseño B·S·H con H vertical (P-06); volumen real por áreas de influencia recortadas al perímetro. Sobreperforación: ${lopezJimeno ? 'López Jimeno, L = H/cos α + (1 − α/100)·J' : 'vertical bajo el piso, L = (H + J)/cos α'} (P-05).`,
+      `Volumen de diseño B·S·H con la altura de banco vertical; volumen real por el área de influencia de cada taladro recortada al perímetro. Sobreperforación: ${lopezJimeno ? 'López Jimeno, L = H/cos alfa + (1 - alfa/100)·J' : 'vertical bajo el piso, L = (H + J)/cos alfa'}.`,
     timing: (windowMs: string) =>
-      `Tiempos: Dijkstra sobre el amarre + retardo de fondo. Carga máxima por retardo con ventana semiabierta [t, t + ${windowMs} ms) (P-10).`,
+      `Tiempos de salida: camino más corto por el amarre (Dijkstra) más el retardo de fondo. La carga máxima por retardo suma los taladros que salen dentro de ${windowMs} ms.`,
     burden: (reliefMs: string) =>
-      `Burden efectivo: distancia a la superficie libre más cercana al detonar; un taladro previo alivia si salió al menos ${reliefMs} ms por metro de burden antes y está delante (P-02, P-16).`,
+      `Burden efectivo: distancia a la cara libre más cercana al momento de salir; un taladro anterior da alivio si salió al menos ${reliefMs} ms por metro de burden antes y está delante.`,
     sdob: (severe: string, safe: string) =>
-      `Profundidad escalada de enterramiento (Chiappetta): carga superior, primeros 10·Ø, D solo con material confinante (P-01, P-14); avisos < ${severe} (severa) y < ${safe} m/kg^(1/3), rangos de fuente secundaria.`,
-    ppv: (law: string) =>
-      `PPV = K·(R/√Q)^(−β) en campo lejano con la distancia al taladro más cercano de la ventana (P-07); K y β del sitio${law} o del punto; son constantes de sitio, no universales.`,
+      `Profundidad escalada de enterramiento (Chiappetta): carga superior, primeros 10 diámetros; avisos bajo ${severe} (severa) y bajo ${safe} m/kg^(1/3), rangos orientativos de bibliografía.`,
+    ppv: (scaling: VibrationScaling, law: string) =>
+      `Vibración en campo lejano: ${ppvFormula(scaling)}, con R la distancia al taladro más cercano del grupo que sale junto y Q la carga máxima por retardo (Duvall y Fogelson, 1962). Ley usada: ${law}. K y beta son propios de cada sitio y se calibran con sismógrafos.`,
     limits: (list: string) => `Límites de PPV: ${list || 'sin tabla'}.`,
     airblast:
-      'Sobrepresión P = k·(R/W^(1/3))^(−β) y alcance de proyecciones de Lundborg: modelos empíricos, informativos.',
-    frag: 'Fragmentación: Kuz-Ram (Cunningham 1987, n) con RWS y Swebrec; regresión hasta validar con un ejemplo publicado (P-08).',
+      'Sobrepresión P = k·(R/W^(1/3))^(-beta) (Siskind et al., 1980) y alcance de proyecciones (Lundborg): modelos empíricos, informativos.',
+    airblastUnderground:
+      'Sobrepresión P = k·(R/W^(1/3))^(-beta) (Siskind et al., 1980): modelo empírico, informativo.',
+    frag: 'Fragmentación: Kuz-Ram (Cunningham, 1987) con la curva Swebrec (Ouchterlony, 2005); estimación a validar con mediciones del sitio.',
     generic: (count: number, names: string) =>
       `Atención: ${count} explosivo(s) con valores genéricos sin ficha técnica (${names}); reemplazar por la ficha del fabricante.`,
     allCited: 'Todos los explosivos citan su ficha técnica.',
     rules:
-      'Las reglas por debajo del estado R3 (docs/RULES.md) solo avisan; no bloquean el diseño.',
+      'Las observaciones de la revisión son avisos para el criterio del ingeniero; no bloquean el diseño.',
   },
   /** Títulos de observaciones por `check.id`; el núcleo ya los da en español. */
   checks: {} as Record<string, string>,
@@ -105,6 +128,13 @@ const es = {
 const en = {
   docTitle: (blast: string) => `Blast report · ${blast}`,
   title: 'Blast report',
+  company: 'Company',
+  mine: 'Mine',
+  project: 'Project',
+  blast: 'Blast',
+  version: 'Version',
+  author: 'Author',
+  date: 'Date',
   summary: 'Summary',
   holes: 'Holes',
   holesValue: (total: number, loaded: number) => `${total} (${loaded} loaded)`,
@@ -119,6 +149,10 @@ const en = {
   designFactor: 'Design factor (B·S·H)',
   energy: 'Energy',
   cost: 'Product cost',
+  unpriced: 'price not entered',
+  partial: 'partial',
+  unpricedNote: (names: string) =>
+    `Product cost incomplete: no price in the library for ${names}. The cost is not real until their prices are entered.`,
   duration: 'Sequence duration',
   noTimes: 'no times',
   maxPerDelay: (windowMs: string) => `Max. charge per delay (${windowMs} ms)`,
@@ -136,8 +170,10 @@ const en = {
   oversize: 'Oversize (> 100 cm)',
   vibTitle: 'Vibration and airblast',
   ppvLaw: 'PPV law',
+  notCalibrated: 'not calibrated with mine records',
+  courseSource: 'indicative value; confirm with the operation permit or the applicable standard',
   mic: 'Max. charge per delay',
-  micExtended: 'With extended window (pyrotechnic, P-10)',
+  micExtended: 'With extended window (pyrotechnic scatter)',
   electronicOnly: '- (electronic only)',
   monitoringPoint: 'Monitoring point',
   limit: 'Limit',
@@ -161,27 +197,30 @@ const en = {
   holeRange: (from: number, to: number, total: number) => `Holes (${from}–${to} of ${total})`,
   notes: {
     units:
-      'SI units internally; results are recomputed from the design and are not stored as a source of truth.',
+      'Results are recomputed from the design (SI units) with the same calculation shown on screen.',
     deckCharge:
-      'Deck charge with exact pi/4: linear charge = (pi/4)·Ø²·rho; mass = linear charge·(length - slumping) (docs/theory/02 §2).',
+      'Deck charge: mass = (pi/4)·Ø²·density·charged length, less product slumping; cartridges use their mass per metre.',
     volume: (lopezJimeno: boolean) =>
-      `Design volume B·S·H with vertical H (P-06); actual volume from influence areas clipped to the boundary. Subdrill: ${lopezJimeno ? 'López Jimeno, L = H/cos alpha + (1 - alpha/100)·J' : 'vertical below the floor, L = (H + J)/cos alpha'} (P-05).`,
+      `Design volume B·S·H with vertical bench height; actual volume from each hole's influence area clipped to the boundary. Subdrill: ${lopezJimeno ? 'López Jimeno, L = H/cos alpha + (1 - alpha/100)·J' : 'vertical below the floor, L = (H + J)/cos alpha'}.`,
     timing: (windowMs: string) =>
-      `Timing: Dijkstra over the tie-up + downhole delay. Max. charge per delay with half-open window [t, t + ${windowMs} ms) (P-10).`,
+      `Firing times: shortest path over the tie-up (Dijkstra) plus the downhole delay. Max. charge per delay sums the holes firing within ${windowMs} ms.`,
     burden: (reliefMs: string) =>
-      `Effective burden: distance to the nearest free face at firing time; an earlier hole provides relief if it fired at least ${reliefMs} ms per metre of burden before and lies in front (P-02, P-16).`,
+      `Effective burden: distance to the nearest free face at firing time; an earlier hole provides relief if it fired at least ${reliefMs} ms per metre of burden before and lies in front.`,
     sdob: (severe: string, safe: string) =>
-      `Scaled depth of burial (Chiappetta): top charge, first 10·Ø, D only with confining material (P-01, P-14); warnings < ${severe} (severe) and < ${safe} m/kg^(1/3), ranges from a secondary source.`,
-    ppv: (law: string) =>
-      `PPV = K·(R/sqrt(Q))^(-beta) in the far field with the distance to the nearest hole in the window (P-07); site K and beta${law} or per point; they are site constants, not universal.`,
+      `Scaled depth of burial (Chiappetta): top charge, first 10 diameters; warnings below ${severe} (severe) and below ${safe} m/kg^(1/3), indicative ranges from the literature.`,
+    ppv: (scaling: VibrationScaling, law: string) =>
+      `Far-field vibration: ${ppvFormula(scaling)}, with R the distance to the nearest hole of the group firing together and Q the max. charge per delay (Duvall and Fogelson, 1962). Law used: ${law}. K and beta are site constants calibrated with seismographs.`,
     limits: (list: string) => `PPV limits: ${list || 'no table'}.`,
     airblast:
-      'Airblast P = k·(R/W^(1/3))^(-beta) and Lundborg flyrock range: empirical models, for information only.',
-    frag: 'Fragmentation: Kuz-Ram (Cunningham 1987, n) with RWS and Swebrec; regression until validated against a published example (P-08).',
+      'Airblast P = k·(R/W^(1/3))^(-beta) (Siskind et al., 1980) and flyrock range (Lundborg): empirical models, for information only.',
+    airblastUnderground:
+      'Airblast P = k·(R/W^(1/3))^(-beta) (Siskind et al., 1980): empirical model, for information only.',
+    frag: 'Fragmentation: Kuz-Ram (Cunningham, 1987) with the Swebrec curve (Ouchterlony, 2005); estimate to be validated with site measurements.',
     generic: (count: number, names: string) =>
       `Warning: ${count} explosive(s) with generic values and no datasheet (${names}); replace with the manufacturer's datasheet.`,
     allCited: 'All explosives cite their datasheet.',
-    rules: 'Rules below status R3 (docs/RULES.md) only warn; they do not block the design.',
+    rules:
+      "Review findings are warnings for the engineer's judgement; they do not block the design.",
   },
   checks: {
     // diagnostics/designChecks.ts
@@ -213,6 +252,7 @@ const en = {
     invertedOrder: 'Firing order inverted relative to the free face',
     closeRelief: 'Relief too close',
     delayGuide: 'Delay outside the per-metre guideline',
+    unpricedProducts: 'Products without price',
   } as Record<string, string>,
 } satisfies typeof es;
 

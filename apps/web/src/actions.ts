@@ -34,6 +34,7 @@ import { listVersions, loadWithoutSaving, readVersion } from './persistence/auto
 import { useUiStore } from './stores/uiStore';
 import { collectAssets, drapeNewHoles, storeEmbeddedAssets } from './topography/session';
 import { putAsset } from './persistence/assets';
+import { reportContext } from './server/reportContext';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
 
@@ -779,6 +780,8 @@ export async function exportReport(): Promise<void> {
       appVersion: APP_VERSION,
       holeTable: true,
       language: useLocale.getState().locale,
+      // Ficha (empresa, mina, versión, autor) y los mismos puntos de la mina que la pantalla.
+      ...reportContext(),
     });
     download(bytes, `${baseName()}-${t('actions.file.report')}.pdf`, 'application/pdf');
     notify(t('actions.reportGenerated'));

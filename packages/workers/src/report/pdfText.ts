@@ -53,3 +53,36 @@ export function fmtNumber(v: number, decimals = 0, language: 'es' | 'en' = 'es')
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, thousands);
   return `${neg ? '-' : ''}${grouped}${dec ? `${point}${dec}` : ''}`;
 }
+
+/**
+ * Quita del texto del informe los códigos y rutas internas del desarrollo (P-10, RM-05, H-702,
+ * «docs/theory/02 §2», «docs/RULES.md», «confianza R3»…): el informe lo lee un ingeniero, no el
+ * equipo de desarrollo. Las referencias bibliográficas (autor, año) se conservan.
+ */
+export function stripInternalCodes(text: string): string {
+  const code = String.raw`\b(?:H|P|RM|DF|FC|CR|CK|CT|D|R)-\d+\b`;
+  const docs = String.raw`docs\/[\w./-]*(?:\s*§\s*[\d.]+)?`;
+  return (
+    text
+      // Paréntesis que solo contienen códigos o rutas: «(P-05)», «(P-01, P-14)», «(docs/theory/02 §2)».
+      .replace(
+        new RegExp(
+          String.raw`\s*\((?:\s*(?:${code}|${docs}|R[0-4]|cierre de tramos, R3)\s*[,;]?)+\)`,
+          'g',
+        ),
+        '',
+      )
+      // Dentro de un paréntesis con más texto: «(cráter violento, R1 F12; configurable)».
+      .replace(
+        new RegExp(String.raw`[,;]?\s*(?:${code}|${docs}|\bR\d\s+F\d+\b|\bR\d\b(?=\s*[;,)]))`, 'g'),
+        '',
+      )
+      .replace(/\b(?:confianza|estado|status|confidence)\s+R[0-4]\b/gi, '')
+      .replace(/\(\s*[;,]\s*/g, '(')
+      .replace(/\s*[;,]\s*\)/g, ')')
+      .replace(/\(\s*\)/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\s+([.,;:])/g, '$1')
+      .trim()
+  );
+}
