@@ -34,7 +34,8 @@ function workingName(tag: string): string | null {
   const tab = tag === FACE_TAG ? 'face' : tag === RING_TAG ? 'ring' : null;
   if (!tab) return null;
   const loc = useUndergroundStore.getState().locations[tab];
-  const target = loc ? findTarget(loc.targetId) : undefined;
+  // Abanicos en un tajeo: el nombre del tajeo, no el de la galería desde la que se perfora.
+  const target = loc ? findTarget(loc.stopeId ?? loc.targetId) : undefined;
   return target && !target.id.startsWith('exc:') ? target.name : null;
 }
 

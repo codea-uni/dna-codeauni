@@ -17,7 +17,7 @@ import {
   stopeRingSetup,
   WORKING_KINDS,
 } from '@cronos/core';
-import { t } from '../i18n';
+import { formatNumber, t } from '../i18n';
 import { getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { loadedWorkings, surveyWorkingDips } from '../topography/session';
@@ -283,7 +283,9 @@ function placeRingsInStope(target: WorkingTarget): Placement | null {
     });
   if (target.dip) store.patchRing(stopeLeanFor(target.dip, placement.azimuthDeg));
   const ui = useUiStore.getState();
-  const size = sec ? { w: r1(sec.width).toFixed(1), h: r1(sec.top - sec.bottom).toFixed(1) } : null;
+  const size = sec
+    ? { w: formatNumber(sec.width, 1), h: formatNumber(sec.top - sec.bottom, 1) }
+    : null;
   if (drive)
     ui.notify(
       t('ug.loc.stopeDrive', {

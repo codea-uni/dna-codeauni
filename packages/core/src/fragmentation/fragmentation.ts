@@ -1,6 +1,7 @@
 import { deckIntervals } from '../charging/charge';
 import type { ChargeResult } from '../charging/chargeAnalysis';
 import type { Blast, Meters, ProductLibrary, RockMass } from '../model/types';
+import { undergroundVolumes } from '../underground/analysis';
 import { isUndergroundHole } from '../underground/toHoles';
 
 /**
@@ -284,9 +285,15 @@ export function kuzRamInputsFromBlast(
   const ringBurden = underground
     ? blast.excavations?.find((e) => e.kind === 'stope' && (e.burden ?? 0) > 0)?.burden
     : undefined;
+  // Bajo tierra el factor de carga es el de la cubicación subterránea (sección × avance o anillo ×
+  // burden), no el del área de influencia en planta × altura de banco.
+  const ugVolumes = underground ? undergroundVolumes(blast, library, rock.density) : [];
+  const ugVolume = ugVolumes.reduce((s, v) => s + v.volume, 0);
+  const loadingFactor =
+    ugVolume > 0 ? ugVolumes.reduce((s, v) => s + v.explosive, 0) / ugVolume : charge.loadingFactor;
   // Sin malla, B = S = √(V/H) con el volumen que da el factor de carga.
-  if (!usePattern && charge.loadingFactor <= 0) return null;
-  const volumePerHole = kg / n / charge.loadingFactor;
+  if (!usePattern && loadingFactor <= 0) return null;
+  const volumePerHole = kg / n / loadingFactor;
   const spacingGuess = ringBurden
     ? volumePerHole / (ringBurden * height)
     : Math.sqrt(volumePerHole / height);
@@ -297,7 +304,7 @@ export function kuzRamInputsFromBlast(
       0.01 * usePattern.spacing;
   return {
     rockFactor: rockFactor(rock),
-    loadingFactor: charge.loadingFactor,
+    loadingFactor,
     chargePerHole: kg / n,
     rws: massForRws > 0 ? rwsMass / massForRws : 1,
     burden: usePattern?.burden ?? burdenGuess,

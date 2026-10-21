@@ -68,9 +68,17 @@ const SizeCurve = lazy(() => import('../charts/SizeCurve'));
 
 const DEFAULT_ROCK_DENSITY = 2650;
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <details className="ug-fold" open>
+    <details className={className ? `ug-fold ${className}` : 'ug-fold'} open>
       <summary>{title}</summary>
       {children}
     </details>
@@ -311,7 +319,8 @@ function enterSimulationBar(): void {
   const win = ui.floating.find((f) => f.id === UG_WINDOW);
   if (!win || s.compact) return;
   const w = Math.min(760, window.innerWidth - 24);
-  const h = 132;
+  // Alto para los controles, la leyenda de los bloques y el tiempo (dos o tres líneas).
+  const h = 168;
   s.set({ compact: true, savedWindow: { x: win.x, y: win.y, w: win.w, h: win.h } });
   ui.updateFloating(UG_WINDOW, {
     w,
@@ -701,6 +710,7 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
             style={{ flex: 1, minWidth: 120 }}
           />
         )}
+        {s.showPile && muckpile && isUndergroundPile(muckpile) && <PileLegend pile={muckpile} />}
         <span className="muted">
           {seqTime === null
             ? t('uga.allFired')
@@ -711,7 +721,6 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
               })}
         </span>
       </div>
-      {s.showPile && muckpile && isUndergroundPile(muckpile) && <PileLegend pile={muckpile} />}
       <p className="hint">{t('uga.halosHint')}</p>
       <MethodDetail id="simulation.visual" />
     </>
@@ -1316,7 +1325,8 @@ export function UndergroundAnalysis() {
       {blast && hasUg && (
         <>
           <ShotPicker />
-          <Section title={t('uga.section.halos')}>
+          {/* Simulando, la ventana queda solo con los controles de esta sección (ver styles.css). */}
+          <Section title={t('uga.section.halos')} className="ug-sim-fold">
             <HaloSection blast={blast} project={project} />
           </Section>
           <Section title={t('uga.section.pile')}>

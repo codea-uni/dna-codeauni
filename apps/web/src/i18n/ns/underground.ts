@@ -203,6 +203,9 @@ export const es = {
   'ug.loc.steep':
     'Pendiente de {g} %: una galería de perforación de abanicos suele ser casi horizontal (≤ 20 %). Los anillos quedarán inclinados; revise la labor elegida o ajuste la pendiente.',
   'ug.preview': 'Vista previa en 3D',
+  'ug.ringOverlap':
+    'Los anillos se solapan: cada anillo dura {span} ms ({n} taladros) y el siguiente sale a los {ring} ms, así que taladros de anillos distintos salen juntos (acoplados).',
+  'ug.ringOverlapFix': 'Usar {min} ms',
   'ug.import.byKind':
     'El perfil de arriba es para galerías, cruceros, rampas y accesos. Chimeneas y piques (por el nombre de la capa o por ser casi verticales) se importan con su perfil típico, centrado en el eje:',
   'ug.import.raise': 'Chimeneas',
@@ -411,6 +414,9 @@ export const en = {
   'ug.loc.steep':
     'Gradient {g} %: a ring drilling drive is usually nearly horizontal (≤ 20 %). The rings will be tilted; check the chosen working or adjust the gradient.',
   'ug.preview': 'Preview in 3D',
+  'ug.ringOverlap':
+    'The rings overlap: each ring lasts {span} ms ({n} holes) and the next one fires at {ring} ms, so holes of different rings fire together (coupled).',
+  'ug.ringOverlapFix': 'Use {min} ms',
   'ug.import.byKind':
     'The profile above is for drifts, crosscuts, ramps and accesses. Raises and shafts (by layer name or because they are nearly vertical) are imported with their typical profile, centred on the axis:',
   'ug.import.raise': 'Raises',

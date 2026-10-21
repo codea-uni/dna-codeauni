@@ -782,12 +782,12 @@ function SendBox({
       </div>
       {previous > 0 && <p className="hint">{t('ug.sendReplace', { n: previous })}</p>}
       {preview && (
-        <div className="row">
+        <>
           <button className={preview.on ? 'active' : undefined} onClick={preview.toggle}>
             {preview.on ? t('ug.previewOff') : t('ug.preview')}
           </button>
-          <span className="hint">{t('ug.previewHint')}</span>
-        </div>
+          <p className="hint">{t('ug.previewHint')}</p>
+        </>
       )}
       <button
         className="primary"
@@ -837,6 +837,16 @@ function RingTab() {
   const n = Math.max(1, form.rings);
   const previous = taggedHoles(blast, RING_TAG).length;
   const truncated = ring?.ring.holes.filter((h) => h.truncated).length ?? 0;
+  // Anillos que se solapan en el tiempo: el siguiente sale antes de que termine el anterior y
+  // quedan taladros de anillos distintos acoplados (A8: 52 grupos con 41 taladros × 25 ms y 500 ms).
+  const ringOverlap = (() => {
+    const holes = ring?.ring.holes.length ?? 0;
+    if (form.rings < 2 || holes < 2) return null;
+    const span = (holes - 1) * form.holeInterval;
+    const step = 0.025;
+    const min = Math.ceil((span + step) / step - 1e-9) * step;
+    return form.ringInterval < span + 0.008 ? { holes, span, min } : null;
+  })();
   // Vista previa en 3D de los anillos antes de llevarlos al diseño (A9).
   const [preview, setPreview] = useState(false);
   const previewSegments = useMemo(
@@ -1011,6 +1021,23 @@ function RingTab() {
             patch({ ringInterval: v / 1000 });
           }}
         />
+        {ringOverlap && (
+          <div className="hint warn">
+            {t('ug.ringOverlap', {
+              span: fmt(ringOverlap.span * 1000, 0),
+              n: ringOverlap.holes,
+              ring: fmt(form.ringInterval * 1000, 0),
+              min: fmt(ringOverlap.min * 1000, 0),
+            })}{' '}
+            <button
+              onClick={() => {
+                patch({ ringInterval: ringOverlap.min });
+              }}
+            >
+              {t('ug.ringOverlapFix', { min: fmt(ringOverlap.min * 1000, 0) })}
+            </button>
+          </div>
+        )}
         <SendBox
           previous={previous}
           disabled={!ring || ring.ring.holes.length === 0}
