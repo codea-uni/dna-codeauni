@@ -1,6 +1,10 @@
 import { Activity } from 'lucide-react';
 import { useFormat, useT } from '../i18n';
-import { lawSummary, openVibrationCalibration, useVibrationLawStatus } from '../vibration/lawStatus';
+import {
+  lawSummary,
+  openVibrationCalibration,
+  useVibrationLawStatus,
+} from '../vibration/lawStatus';
 
 /**
  * Ley de PPV en uso, siempre a la vista en la barra de estado: verde si viene de sismógrafos de la

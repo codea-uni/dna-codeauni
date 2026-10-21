@@ -52,7 +52,7 @@ export function StatusBar() {
         </span>
       )}
       <span>{tr('status.holes', { n: holeCount })}</span>
-      <span>{tr('status.selected', { n: selected.size })}</span>
+      <span className="status-selected">{tr('status.selected', { n: selected.size })}</span>
       {hoverLabel !== undefined && <span>{tr('status.hole', { label: hoverLabel })}</span>}
       {tabAvailable('charged', workflow) && <VibrationLawChip />}
       <span className="grow muted">

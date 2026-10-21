@@ -404,6 +404,24 @@ button.danger:hover:not(:disabled) {
   color: var(--amber);
 }
 
+/* En celular la barra no cabe: sin coordenadas, fps ni seleccionados; la ley de vibración queda. */
+@media (max-width: 640px) {
+  .statusbar {
+    gap: 0.75rem;
+  }
+
+  .statusbar .mono,
+  .statusbar .status-selected {
+    display: none;
+  }
+
+  .statusbar .status-law {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .tabs {
   position: sticky;
   top: 0;
