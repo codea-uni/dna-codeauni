@@ -19,7 +19,7 @@ export const es = {
     'La imagen se muestra debajo del diseño. No se reproyecta: debe estar en el sistema del proyecto.',
   'topo.import.demTolerance': 'Error vertical máximo del DEM',
   'topo.import.demToleranceHint':
-    'El DEM se simplifica a una malla de triángulos que no se aparta más que esto del original (S-17).',
+    'El DEM se simplifica a una malla de triángulos que no se aparta más que esto del original.',
   'topo.import.dem': 'Modelo de elevación de {w} × {h} píxeles.',
   'topo.import.ortho': 'Ortofoto de {w} × {h} píxeles.',
   'topo.import.worldFile': 'La georreferencia sale del archivo de mundo.',
@@ -99,7 +99,7 @@ export const es = {
   'topo.geotech.mapColumns': 'Mapear columnas…',
   'topo.geotech.hideMapping': 'Ocultar mapeo',
   'topo.geotech.mappingHint':
-    'Qué columna del CSV da cada propiedad. Unidades: densidad t/m³, UCS y tracción MPa, módulo GPa, Vp m/s, RQD % (kg/m³, Pa o fracciones se convierten solas). Lo que falte se estima (docs/RULES.md §6).',
+    'Qué columna del CSV da cada propiedad. Unidades: densidad t/m³, UCS y tracción MPa, módulo GPa, Vp m/s, RQD % (kg/m³, Pa o fracciones se convierten solas). Lo que falte se estima con correlaciones publicadas.',
   'topo.geotech.none': '(ninguna)',
   'topo.geotech.field.density': 'Densidad',
   'topo.geotech.field.ucs': 'UCS',
@@ -190,9 +190,9 @@ export const es = {
   'topo.import.options': 'Opciones',
   'topo.import.maxEdge': 'Arista máxima (× la típica)',
   'topo.import.maxEdgeHint':
-    'Se descartan triángulos con aristas más largas: evita tapar huecos del levantamiento (S-13).',
+    'Se descartan triángulos con aristas más largas: evita tapar huecos del levantamiento.',
   'topo.import.cell': 'Reducir la nube a una celda de',
-  'topo.import.cellHint': '0 = sin reducir. Conserva la cota mínima de cada celda (S-14).',
+  'topo.import.cellHint': '0 = sin reducir. Conserva la cota mínima de cada celda.',
 
   'topo.import.name': 'Nombre',
   'topo.import.date': 'Fecha del levantamiento',
@@ -319,7 +319,7 @@ export const en = {
     'The image is shown under the design. It is not reprojected: it must be in the project system.',
   'topo.import.demTolerance': 'DEM maximum vertical error',
   'topo.import.demToleranceHint':
-    'The DEM is simplified to a triangle mesh that departs from the original by no more than this (S-17).',
+    'The DEM is simplified to a triangle mesh that departs from the original by no more than this.',
   'topo.import.dem': 'Elevation model of {w} × {h} pixels.',
   'topo.import.ortho': 'Orthophoto of {w} × {h} pixels.',
   'topo.import.worldFile': 'The georeference comes from the world file.',
@@ -397,7 +397,7 @@ export const en = {
   'topo.geotech.mapColumns': 'Map columns…',
   'topo.geotech.hideMapping': 'Hide mapping',
   'topo.geotech.mappingHint':
-    'Which CSV column gives each property. Units: density t/m³, UCS and tensile MPa, modulus GPa, Vp m/s, RQD % (kg/m³, Pa or fractions are converted automatically). Missing values are estimated (docs/RULES.md §6).',
+    'Which CSV column gives each property. Units: density t/m³, UCS and tensile MPa, modulus GPa, Vp m/s, RQD % (kg/m³, Pa or fractions are converted automatically). Missing values are estimated from published correlations.',
   'topo.geotech.none': '(none)',
   'topo.geotech.field.density': 'Density',
   'topo.geotech.field.ucs': 'UCS',
@@ -487,9 +487,9 @@ export const en = {
   'topo.import.options': 'Options',
   'topo.import.maxEdge': 'Maximum edge (× typical)',
   'topo.import.maxEdgeHint':
-    'Triangles with longer edges are dropped so survey gaps are not bridged (S-13).',
+    'Triangles with longer edges are dropped so survey gaps are not bridged.',
   'topo.import.cell': 'Thin the cloud to a cell of',
-  'topo.import.cellHint': '0 = no thinning. Keeps the lowest elevation in each cell (S-14).',
+  'topo.import.cellHint': '0 = no thinning. Keeps the lowest elevation in each cell.',
 
   'topo.import.name': 'Name',
   'topo.import.date': 'Survey date',

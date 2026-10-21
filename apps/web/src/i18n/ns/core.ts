@@ -12,7 +12,7 @@ export const es = {
   // Revisión del diseño (packages/core/src/diagnostics, timing/timingChecks.ts)
   'check.noFreeFace.title': 'Sin cara libre definida',
   'check.noFreeFace.detail':
-    'Solo queda la superficie del banco como cara libre: voladura confinada, más vibración y peor fragmentación (RM-06). Marca la cara libre en el perímetro (herramienta C).',
+    'Solo queda la superficie del banco como cara libre: voladura confinada, más vibración y peor fragmentación. Marca la cara libre en el perímetro (herramienta C).',
   'check.lowStiffness.title': 'Rigidez del burden baja',
   'check.lowStiffness.detail':
     'H/B ≤ {value} (tabla de Konya: mala distribución de energía, más proyección y vibración).',
@@ -23,13 +23,13 @@ export const es = {
   'check.unloaded.title': 'Taladros sin carga',
   'check.unloaded.detail': 'No tienen explosivo asignado.',
   'check.overcharged.title': 'Columna más larga que el taladro',
-  'check.overcharged.detail': 'La suma de decks supera la longitud del taladro.',
+  'check.overcharged.detail': 'La suma de las cubiertas (decks) supera la longitud del taladro.',
   'check.noStemming.title': 'Sin taco',
   'check.noStemming.detail':
-    'Explosivo hasta la boca: alto riesgo de proyecciones y sobrepresión (P-04). Confirma que es intencional (alivio o prueba).',
+    'Explosivo hasta la boca: alto riesgo de proyecciones y sobrepresión. Confirma que es intencional (alivio o prueba).',
   'check.shortStemming.title': 'Taco corto',
   'check.shortStemming.detail':
-    'Taco menor que {ratio} × burden (sin malla: {diameters} × Ø); riesgo de proyecciones (P-04).',
+    'Taco menor que {ratio} × burden (sin malla: {diameters} × Ø); riesgo de proyecciones.',
   'check.longStemming.title': 'Taco largo',
   'check.longStemming.detail': 'Taco mayor que {ratio} × burden: roca sin fragmentar en el collar.',
   'check.stemmingDiameter.title': 'Taco fuera del rango en diámetros',
@@ -48,52 +48,52 @@ export const es = {
   'check.outside.detail': 'Taladros que no caen dentro de ningún perímetro.',
   'check.openColumn.title': 'Columna que no cierra',
   'check.openColumn.detail':
-    'La suma de tramos es menor que la longitud del taladro: completa con taco o aire (cierre de tramos, R3).',
+    'La suma de tramos es menor que la longitud del taladro: completa con taco o aire (cierre de tramos).',
   'check.noBooster.title': 'Agente de voladura sin booster',
   'check.noBooster.detail':
-    'Una carga (tramo continuo de explosivo) con agente de voladura no tiene booster dentro: puede no detonar (tiro fallado) o deflagrar (RM-05).',
+    'Una carga (tramo continuo de explosivo) con agente de voladura no tiene booster dentro: puede no detonar (tiro fallado) o deflagrar.',
   'check.waterIncompatible.title': 'Explosivo no apto para el agua del taladro',
   'check.waterIncompatible.detail':
-    'Agua estática: sin ANFO (emulsión o ANFO pesado con alta emulsión, o ANFO con funda y bombeo). Agua dinámica: solo emulsión (P-09).',
+    'Agua estática: sin ANFO (emulsión o ANFO pesado con alta emulsión, o ANFO con funda y bombeo). Agua dinámica: solo emulsión.',
   'check.belowCriticalDiameter.title': 'Diámetro de carga menor que el crítico',
   'check.belowCriticalDiameter.detail':
-    'Por debajo del diámetro crítico el explosivo no detona de forma estable (CK-09).',
+    'Por debajo del diámetro crítico el explosivo no detona de forma estable.',
   'check.sdobSevere.title': 'Confinamiento insuficiente (SDOB severa)',
   'check.sdobSevere.detail':
-    'Profundidad escalada de enterramiento < {value} m/kg^⅓: proyección y onda aérea severas (cráter violento, R1 F12; configurable).',
+    'Profundidad escalada de enterramiento < {value} m/kg^⅓: proyección y onda aérea severas (cráter violento; configurable).',
   'check.sdobLow.title': 'Confinamiento bajo (SDOB)',
   'check.sdobLow.detail':
-    'Profundidad escalada de enterramiento < {value} m/kg^⅓: energía incontrolada, posible proyección desde el collar (R1 F12; configurable).',
+    'Profundidad escalada de enterramiento < {value} m/kg^⅓: energía incontrolada, posible proyección desde el collar (configurable).',
   'check.tieCycle.title': 'Amarre con ciclos',
   'check.tieCycle.detail':
-    'Hay conexiones que forman un circuito cerrado: revisa el sentido del amarre (H-504).',
+    'Hay conexiones que forman un circuito cerrado: revisa el sentido del amarre.',
   'check.unrelievedBurden.title': 'Cara libre no despejada',
   'check.unrelievedBurden.detail':
-    'Burden efectivo ≥ {value} × nominal al detonar: la cara hacia la que sale todavía no se abrió (RM-07, CR-05).',
+    'Burden efectivo ≥ {value} × nominal al detonar: la cara hacia la que sale todavía no se abrió.',
   'check.partialRelief.title': 'Alivio insuficiente',
   'check.partialRelief.detail':
-    'Burden efectivo ≥ {value} × nominal al detonar: sale con más burden que el de diseño (P-16).',
+    'Burden efectivo ≥ {value} × nominal al detonar: sale con más burden que el de diseño.',
   'check.invertedOrder.title': 'Orden invertido respecto de la cara libre',
   'check.invertedOrder.detail':
-    'Detonan antes que un vecino que está más cerca de la cara libre: salen contra roca sin alivio (CK-10).',
+    'Detonan antes que un vecino que está más cerca de la cara libre: salen contra roca sin alivio.',
   'check.presplitPressure.title': 'Precorte con Pb mayor que la UCS',
   'check.presplitPressure.detail':
-    'Pb = 110·f^n·ρ·VOD² supera la UCS: tritura la pared en vez de abrir el plano (R1 F26). Desacopla más la carga.',
+    'Pb = 110·f^n·ρ·VOD² supera la UCS: tritura la pared en vez de abrir el plano. Desacopla más la carga.',
   'check.presplitSpacing.title': 'Precorte con espaciamiento mayor que el máximo',
   'check.presplitSpacing.detail':
-    'El vecino más cercano está más lejos que E = D·(Pb + RT)/RT: la grieta no une los taladros (R1 F26).',
+    'El vecino más cercano está más lejos que E = D·(Pb + RT)/RT: la grieta no une los taladros.',
   'check.presplitLead.title': 'Precorte sin adelanto suficiente',
   'check.presplitLead.detail':
-    'El precorte debe salir al menos {value} ms antes que el resto de la voladura (R1 F26).',
+    'El precorte debe salir al menos {value} ms antes que el resto de la voladura.',
   'check.stemmingEjection.title': 'Intervalo corto con la fila de adelante',
   'check.stemmingEjection.detail':
-    'La fila de adelante detonó hace menos de {value} ms: riesgo de eyección del taco (R1 F27).',
+    'La fila de adelante detonó hace menos de {value} ms: riesgo de eyección del taco.',
   'check.closeRelief.title': 'Alivio muy cercano',
   'check.closeRelief.detail':
     'Burden efectivo < {value} × nominal: el alivio viene de un taladro muy próximo.',
   'check.delayGuide.title': 'Retardo fuera de la guía por metro',
   'check.delayGuide.detail':
-    'Entre taladros {holeMin}–{holeMax} ms/m de espaciamiento y entre filas {rowMin}–{rowMax} ms/m de burden (guía de diseño, P-11; configurable).',
+    'Entre taladros {holeMin}–{holeMax} ms/m de espaciamiento y entre filas {rowMin}–{rowMax} ms/m de burden (guía de diseño; configurable).',
 
   // Avisos de importación (ImportWarning)
   'import.warn.noZ': '{count} taladros sin cota: se usó la superficie del banco.',
@@ -137,17 +137,18 @@ export const es = {
   // Proyectos de ejemplo (packages/core/src/examples/examples.ts)
   'example.production.name': 'Producción estándar (2D)',
   'example.production.description':
-    'Banco plano completo · producción y buffer · salida en V · 2 escenarios',
+    'Banco plano completo · producción y amortiguación · salida en V · 2 escenarios',
   'example.topoMine.name': 'Mina sobre levantamiento DXF',
   'example.topoMine.description': 'Tajo real (TIN de un DXF) · pared Norte, banco 3465',
   'example.topoSector.name': 'Banco con ortofoto',
-  'example.topoSector.description': 'Talud de tres bancos con vuelo de dron · producción y buffer',
+  'example.topoSector.description':
+    'Talud de tres bancos con vuelo de dron · producción y amortiguación',
   'example.topoPit.name': 'Tajo con topografía',
   'example.topoPit.description': 'Tajo de 8 bancos · voladura en el banco 3385',
   'example.electronic.name': 'Cantera en ladera',
   'example.electronic.description': 'Electrónicos taladro a taladro · planta a 170 m',
   'example.inclined.name': 'Talud final',
-  'example.inclined.description': 'Inclinados 15° · buffer junto a la pared final',
+  'example.inclined.description': 'Inclinados 15° · amortiguación junto a la pared final',
   'example.muckpile.name': 'Pila sobre el banco inferior',
   'example.muckpile.description': 'Banco de 10 m · el material cae al banco de abajo',
 
@@ -176,7 +177,7 @@ export const en = {
 
   'check.noFreeFace.title': 'No free face defined',
   'check.noFreeFace.detail':
-    'Only the bench top is left as a free face: confined blast, more vibration and poorer fragmentation (RM-06). Mark the free face on the boundary (tool C).',
+    'Only the bench top is left as a free face: confined blast, more vibration and poorer fragmentation. Mark the free face on the boundary (tool C).',
   'check.lowStiffness.title': 'Low burden stiffness',
   'check.lowStiffness.detail':
     'H/B ≤ {value} (Konya table: poor energy distribution, more flyrock and vibration).',
@@ -190,10 +191,10 @@ export const en = {
   'check.overcharged.detail': 'The sum of the decks exceeds the hole length.',
   'check.noStemming.title': 'No stemming',
   'check.noStemming.detail':
-    'Explosive up to the collar: high risk of flyrock and airblast (P-04). Confirm it is intentional (relief or test hole).',
+    'Explosive up to the collar: high risk of flyrock and airblast. Confirm it is intentional (relief or test hole).',
   'check.shortStemming.title': 'Short stemming',
   'check.shortStemming.detail':
-    'Stemming shorter than {ratio} × burden (no pattern: {diameters} × Ø); flyrock risk (P-04).',
+    'Stemming shorter than {ratio} × burden (no pattern: {diameters} × Ø); flyrock risk.',
   'check.longStemming.title': 'Long stemming',
   'check.longStemming.detail':
     'Stemming longer than {ratio} × burden: unbroken rock in the collar zone.',
@@ -214,52 +215,52 @@ export const en = {
   'check.outside.detail': 'Holes that do not fall inside any boundary.',
   'check.openColumn.title': 'Column does not close',
   'check.openColumn.detail':
-    'The sum of the decks is shorter than the hole length: fill with stemming or air (deck closure, R3).',
+    'The sum of the decks is shorter than the hole length: fill with stemming or air (deck closure).',
   'check.noBooster.title': 'Blasting agent without booster',
   'check.noBooster.detail':
-    'A charge (continuous explosive column) with a blasting agent has no booster inside: it may fail to detonate (misfire) or deflagrate (RM-05).',
+    'A charge (continuous explosive column) with a blasting agent has no booster inside: it may fail to detonate (misfire) or deflagrate.',
   'check.waterIncompatible.title': 'Explosive not suitable for the water in the hole',
   'check.waterIncompatible.detail':
-    'Static water: no ANFO (emulsion or heavy ANFO with high emulsion content, or lined and dewatered ANFO). Dynamic water: emulsion only (P-09).',
+    'Static water: no ANFO (emulsion or heavy ANFO with high emulsion content, or lined and dewatered ANFO). Dynamic water: emulsion only.',
   'check.belowCriticalDiameter.title': 'Charge diameter below critical',
   'check.belowCriticalDiameter.detail':
-    'Below the critical diameter the explosive does not detonate steadily (CK-09).',
+    'Below the critical diameter the explosive does not detonate steadily.',
   'check.sdobSevere.title': 'Insufficient confinement (severe SDOB)',
   'check.sdobSevere.detail':
-    'Scaled depth of burial < {value} m/kg^⅓: violent cratering (R1 F12; configurable).',
+    'Scaled depth of burial < {value} m/kg^⅓: violent cratering (configurable).',
   'check.sdobLow.title': 'Low confinement (SDOB)',
   'check.sdobLow.detail':
-    'Scaled depth of burial < {value} m/kg^⅓: uncontrolled energy, possible flyrock from the collar (R1 F12; configurable).',
+    'Scaled depth of burial < {value} m/kg^⅓: uncontrolled energy, possible flyrock from the collar (configurable).',
   'check.tieCycle.title': 'Tie-up with loops',
   'check.tieCycle.detail':
-    'Some connections form a closed loop: check the direction of the tie-up (H-504).',
+    'Some connections form a closed loop: check the direction of the tie-up.',
   'check.unrelievedBurden.title': 'Free face not cleared',
   'check.unrelievedBurden.detail':
-    'Effective burden ≥ {value} × nominal at firing: the face it moves toward has not opened yet (RM-07, CR-05).',
+    'Effective burden ≥ {value} × nominal at firing: the face it moves toward has not opened yet.',
   'check.partialRelief.title': 'Insufficient relief',
   'check.partialRelief.detail':
-    'Effective burden ≥ {value} × nominal at firing: the hole fires with more burden than designed (P-16).',
+    'Effective burden ≥ {value} × nominal at firing: the hole fires with more burden than designed.',
   'check.invertedOrder.title': 'Firing order reversed relative to the free face',
   'check.invertedOrder.detail':
-    'They fire before a neighbour closer to the free face: they break against unrelieved rock (CK-10).',
+    'They fire before a neighbour closer to the free face: they break against unrelieved rock.',
   'check.presplitPressure.title': 'Presplit Pb above the UCS',
   'check.presplitPressure.detail':
-    'Pb = 110·f^n·ρ·VOD² exceeds the UCS: it crushes the wall instead of opening the plane (R1 F26). Decouple the charge further.',
+    'Pb = 110·f^n·ρ·VOD² exceeds the UCS: it crushes the wall instead of opening the plane. Decouple the charge further.',
   'check.presplitSpacing.title': 'Presplit spacing above the maximum',
   'check.presplitSpacing.detail':
-    'The nearest neighbour is farther than E = D·(Pb + T)/T: the crack does not join the holes (R1 F26).',
+    'The nearest neighbour is farther than E = D·(Pb + T)/T: the crack does not join the holes.',
   'check.presplitLead.title': 'Presplit fires too late',
   'check.presplitLead.detail':
-    'The presplit must fire at least {value} ms before the rest of the blast (R1 F26).',
+    'The presplit must fire at least {value} ms before the rest of the blast.',
   'check.stemmingEjection.title': 'Short interval to the row ahead',
   'check.stemmingEjection.detail':
-    'The row ahead fired less than {value} ms earlier: risk of stemming ejection (R1 F27).',
+    'The row ahead fired less than {value} ms earlier: risk of stemming ejection.',
   'check.closeRelief.title': 'Relief too close',
   'check.closeRelief.detail':
     'Effective burden < {value} × nominal: relief comes from a very close hole.',
   'check.delayGuide.title': 'Delay outside the per-metre guide',
   'check.delayGuide.detail':
-    'Hole-to-hole {holeMin}–{holeMax} ms/m of spacing and row-to-row {rowMin}–{rowMax} ms/m of burden (design guide, P-11; configurable).',
+    'Hole-to-hole {holeMin}–{holeMax} ms/m of spacing and row-to-row {rowMin}–{rowMax} ms/m of burden (design guide; configurable).',
 
   'import.warn.noZ': '{count} holes without collar elevation: the bench top was used.',
   'import.warn.zeroZ': '{count} holes with elevation 0: check whether the elevation is missing.',

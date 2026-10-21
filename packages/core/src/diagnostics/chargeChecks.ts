@@ -116,7 +116,7 @@ export function chargeChecks(
       severity: 'error',
       title: 'Columna que no cierra',
       detail:
-        'La suma de tramos es menor que la longitud del taladro: completa con taco o aire (cierre de tramos, R3).',
+        'La suma de tramos es menor que la longitud del taladro: completa con taco o aire (cierre de tramos).',
       holes: openColumn,
     },
     {
@@ -124,7 +124,7 @@ export function chargeChecks(
       severity: 'warning',
       title: 'Agente de voladura sin booster',
       detail:
-        'Una carga (tramo continuo de explosivo) con agente de voladura no tiene booster dentro: puede no detonar (tiro fallado) o deflagrar (RM-05).',
+        'Una carga (tramo continuo de explosivo) con agente de voladura no tiene booster dentro: puede no detonar (tiro fallado) o deflagrar.',
       holes: noBooster,
     },
     {
@@ -132,14 +132,14 @@ export function chargeChecks(
       severity: 'warning',
       title: 'Explosivo no apto para el agua del taladro',
       detail:
-        'Agua estática: sin ANFO (emulsión o ANFO pesado con alta emulsión, o ANFO con funda y bombeo). Agua dinámica: solo emulsión (P-09).',
+        'Agua estática: sin ANFO (emulsión o ANFO pesado con alta emulsión, o ANFO con funda y bombeo). Agua dinámica: solo emulsión.',
       holes: water,
     },
     {
       id: 'belowCriticalDiameter',
       severity: 'warning',
       title: 'Diámetro de carga menor que el crítico',
-      detail: 'Por debajo del diámetro crítico el explosivo no detona de forma estable (CK-09).',
+      detail: 'Por debajo del diámetro crítico el explosivo no detona de forma estable.',
       holes: critical,
     },
     {
@@ -154,7 +154,7 @@ export function chargeChecks(
       id: 'sdobSevere',
       severity: 'warning',
       title: 'Confinamiento insuficiente (SDOB severa)',
-      detail: `Profundidad escalada de enterramiento < ${String(options.sdob.severe)} m/kg^⅓: proyección y onda aérea severas (cráter violento, R1 F12; configurable).`,
+      detail: `Profundidad escalada de enterramiento < ${String(options.sdob.severe)} m/kg^⅓: proyección y onda aérea severas (cráter violento; configurable).`,
       params: { value: options.sdob.severe },
       holes: sdobSevere,
     },
@@ -162,7 +162,7 @@ export function chargeChecks(
       id: 'sdobLow',
       severity: 'info',
       title: 'Confinamiento bajo (SDOB)',
-      detail: `Profundidad escalada de enterramiento < ${String(options.sdob.safe)} m/kg^⅓: energía incontrolada, posible proyección desde el collar (R1 F12; configurable).`,
+      detail: `Profundidad escalada de enterramiento < ${String(options.sdob.safe)} m/kg^⅓: energía incontrolada, posible proyección desde el collar (configurable).`,
       params: { value: options.sdob.safe },
       holes: sdobLow,
     },

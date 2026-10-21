@@ -236,7 +236,7 @@ export function presplitChecks(
     severity: 'warning',
     title: 'Precorte con Pb mayor que la UCS',
     detail:
-      'Pb = 110·f^n·ρ·VOD² supera la UCS: tritura la pared en vez de abrir el plano (R1 F26). Desacopla más la carga.',
+      'Pb = 110·f^n·ρ·VOD² supera la UCS: tritura la pared en vez de abrir el plano. Desacopla más la carga.',
     holes: highPressure,
   });
   add({
@@ -244,14 +244,14 @@ export function presplitChecks(
     severity: 'warning',
     title: 'Precorte con espaciamiento mayor que el máximo',
     detail:
-      'El vecino más cercano está más lejos que E = D·(Pb + RT)/RT: la grieta no une los taladros (R1 F26).',
+      'El vecino más cercano está más lejos que E = D·(Pb + RT)/RT: la grieta no une los taladros.',
     holes: wideSpacing,
   });
   add({
     id: 'presplitLead',
     severity: 'warning',
     title: 'Precorte sin adelanto suficiente',
-    detail: `El precorte debe salir al menos ${String(options.presplitLead * 1000)} ms antes que el resto de la voladura (R1 F26).`,
+    detail: `El precorte debe salir al menos ${String(options.presplitLead * 1000)} ms antes que el resto de la voladura.`,
     params: { value: options.presplitLead * 1000 },
     holes: lateLead ? members.map((h) => h.id) : [],
   });

@@ -13,11 +13,11 @@ export const es = {
   'muckpile.model.scaledBurden': 'Ley de potencia k·(Q^⅓/B)^n',
   'muckpile.model.richardsMoore': 'Velocidad de cara k·(√m/B)^n (Richards y Moore 2004)',
   'muckpile.model.zhang.hint':
-    'La misma velocidad del desplazamiento por taladro (FC-36, R3) con el burden efectivo según la secuencia; c_B y θ en Vista.',
+    'La misma velocidad del desplazamiento por taladro con el burden efectivo según la secuencia; c_B y θ en Vista.',
   'muckpile.model.scaledBurden.hint':
     'Q = kg por taladro, B = burden efectivo. k y n no tienen fuente publicada (R0): calíbralos con un levantamiento.',
   'muckpile.model.richardsMoore.hint':
-    'm = kg por metro de carga. k = 13,5 en roca competente blanda y 27 en dura; n = 1,3 (FC-45). Se calibró para proyecciones: es un caso peor.',
+    'm = kg por metro de carga. k = 13,5 en roca competente blanda y 27 en dura; n = 1,3. Se calibró para proyecciones: es un caso peor.',
   'muckpile.launchFromFace': 'Lanzamiento según la cara libre (90° − β)',
   'muckpile.launchFromFaceHint':
     'Ángulo medio {mid}° (normal a la cara del banco; cada perímetro usa la suya) y {spread}° de diferencia entre pie y cresta.',
@@ -32,7 +32,7 @@ export const es = {
   'muckpile.blockSize': 'Tamaño de bloque',
   'muckpile.advanced': 'Atenuaciones (calibración)',
   'muckpile.advancedHint':
-    'Sin fuente numérica (supuesto S-21): multiplican la velocidad de cada bloque.',
+    'Sin fuente numérica (supuesto): multiplican la velocidad de cada bloque.',
   'muckpile.stemmingFactor': 'Factor en la zona del taco',
   'muckpile.floorFactor': 'Factor en la capa del piso',
   'muckpile.distanceDecay': 'Atenuación por distancia λ (e^(−λ·r/B))',
@@ -63,7 +63,7 @@ export const es = {
   'muckpile.noDomains': 'Sin dominios: dibújalos abajo y vuelve a calcular.',
   'muckpile.sizeClasses': 'Fragmentación en la pila',
   'muckpile.sizeClassesHint':
-    'Kuz-Ram de cada taladro repartido entre sus bloques: lo más fino junto a la carga, lo más grueso en el taco (supuesto S-22). % del volumen.',
+    'Kuz-Ram de cada taladro repartido entre sus bloques: lo más fino junto a la carga, lo más grueso en el taco (supuesto). % del volumen.',
   'muckpile.class': 'Fracción',
   'muckpile.cumulative': 'Acum. %',
   'muckpile.layers': 'Capas',
@@ -163,11 +163,11 @@ export const en = {
   'muckpile.model.scaledBurden': 'Power law k·(Q^⅓/B)^n',
   'muckpile.model.richardsMoore': 'Face velocity k·(√m/B)^n (Richards and Moore 2004)',
   'muckpile.model.zhang.hint':
-    'Same per-hole displacement velocity (FC-36, R3) with the effective burden from the sequence; c_B and θ in View.',
+    'Same per-hole displacement velocity with the effective burden from the sequence; c_B and θ in View.',
   'muckpile.model.scaledBurden.hint':
     'Q = kg per hole, B = effective burden. k and n have no published source (R0): calibrate them with a survey.',
   'muckpile.model.richardsMoore.hint':
-    'm = kg per metre of charge. k = 13.5 in soft competent rock and 27 in hard rock; n = 1.3 (FC-45). Calibrated for flyrock: a worst case.',
+    'm = kg per metre of charge. k = 13.5 in soft competent rock and 27 in hard rock; n = 1.3. Calibrated for flyrock: a worst case.',
   'muckpile.launchFromFace': 'Launch according to the free face (90° − β)',
   'muckpile.launchFromFaceHint':
     'Mean angle {mid}° (normal to the bench face; each boundary uses its own) and {spread}° difference between toe and crest.',
@@ -181,7 +181,7 @@ export const en = {
   'muckpile.repose': 'Angle of repose',
   'muckpile.blockSize': 'Block size',
   'muckpile.advanced': 'Attenuations (calibration)',
-  'muckpile.advancedHint': 'No numeric source (assumption S-21): they scale each block’s velocity.',
+  'muckpile.advancedHint': 'No numeric source (assumption): they scale each block’s velocity.',
   'muckpile.stemmingFactor': 'Factor in the stemming zone',
   'muckpile.floorFactor': 'Factor in the floor layer',
   'muckpile.distanceDecay': 'Distance attenuation λ (e^(−λ·r/B))',
@@ -212,7 +212,7 @@ export const en = {
   'muckpile.noDomains': 'No domains: draw them below and compute again.',
   'muckpile.sizeClasses': 'Fragmentation in the muckpile',
   'muckpile.sizeClassesHint':
-    'Each hole’s Kuz-Ram curve shared among its blocks: finest next to the charge, coarsest in the stemming (assumption S-22). % of volume.',
+    'Each hole’s Kuz-Ram curve shared among its blocks: finest next to the charge, coarsest in the stemming (assumption). % of volume.',
   'muckpile.class': 'Fraction',
   'muckpile.cumulative': 'Cum. %',
   'muckpile.layers': 'Layers',

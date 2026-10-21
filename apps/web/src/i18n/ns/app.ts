@@ -43,8 +43,7 @@ export const es = {
     '¿Generar igual? (corte, rampa o primera voladura del banco: malla más cerrada, más carga o fila de alivio)',
   'actions.generatingPattern': 'Generando malla…',
   'actions.generatePatternUndo': 'Generar {name} ({n} taladros)',
-  'actions.patternSummary':
-    '{name}: {n} taladros (worker {worker} ms, documento + render {render} ms)',
+  'actions.patternSummary': '{name}: {n} taladros generados',
   'actions.noRowCol': 'El patrón no tiene taladros con fila/columna',
   'actions.tieUpEchelon': 'Amarre en escalón',
   'actions.tieUpRows': 'Amarre por filas',
@@ -276,7 +275,7 @@ export const en = {
     'Generate anyway? (cut, ramp or first blast of the bench: tighter pattern, more charge or a relief row)',
   'actions.generatingPattern': 'Generating pattern…',
   'actions.generatePatternUndo': 'Generate {name} ({n} holes)',
-  'actions.patternSummary': '{name}: {n} holes (worker {worker} ms, document + render {render} ms)',
+  'actions.patternSummary': '{name}: {n} holes generated',
   'actions.noRowCol': 'The pattern has no holes with row/column',
   'actions.tieUpEchelon': 'Echelon tie-up',
   'actions.tieUpRows': 'Row-by-row tie-up',

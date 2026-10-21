@@ -23,7 +23,7 @@ export const es = {
   'lib.bulk': 'A granel',
   'lib.waterTitle': 'Agua, iniciación y origen',
   'lib.waterHint':
-    'Resistencia al agua para filtrar por el estado del taladro (P-09), diámetro crítico, necesidad de cebo (RM-05) y la ficha técnica de origen con su versión (DF-22).',
+    'Resistencia al agua para filtrar por el estado del taladro, diámetro crítico, necesidad de cebo y la ficha técnica de origen con su versión.',
   'lib.water': 'Agua',
   'lib.criticalDiameterTitle': 'Diámetro crítico [mm]',
   'lib.criticalDiameter': 'Ø crít.',
@@ -38,7 +38,8 @@ export const es = {
   'lib.exportCatalog': 'Exportar catálogo CSV',
   'lib.importCatalog': 'Importar catálogo CSV…',
   'lib.toCompany': 'Subir al catálogo de la empresa',
-  'lib.toCompanyHint': 'Copia las fichas de explosivos de este proyecto al catálogo de la empresa (las que ya están no cambian).',
+  'lib.toCompanyHint':
+    'Copia las fichas de explosivos de este proyecto al catálogo de la empresa (las que ya están no cambian).',
   'lib.toCompanyDone': '{n} explosivos agregados al catálogo de la empresa.',
   'lib.newExplosive': 'Nuevo explosivo',
   'lib.addExplosive': '+ Explosivo',
@@ -103,7 +104,7 @@ export const es = {
   'props.water.static': 'Agua estática',
   'props.water.dynamic': 'Agua dinámica',
   'props.waterHint':
-    'P-09: con agua estática no ANFO; con agua dinámica solo emulsión. Se avisa en la revisión.',
+    'Con agua estática no ANFO; con agua dinámica solo emulsión. Se avisa en la revisión.',
   'props.firesAt': 'Sale a {t} ms del primero',
   'props.effectiveBurden': 'burden efectivo {b}',
   'props.noFreeFace': 'sin cara libre al detonar',
@@ -121,13 +122,13 @@ export const es = {
   'deck.unknownExplosive': '¿explosivo?',
   'deck.detonator': 'Detonador',
   'deck.title': 'Columna de carga',
-  'deck.edit': 'Editar deck',
-  'deck.add': 'Agregar deck',
-  'deck.remove': 'Quitar deck',
+  'deck.edit': 'Editar cubierta (deck)',
+  'deck.add': 'Agregar cubierta (deck)',
+  'deck.remove': 'Quitar cubierta (deck)',
   'deck.summary': '{kg} kg · carga {charge} · taco {stemming}',
   'deck.unassigned': '{length} sin asignar',
   'deck.sdobTitle':
-    'Profundidad escalada de enterramiento (Chiappetta, P-01): carga superior, primeros 10·Ø; D solo con material confinante, sin aire (P-14)',
+    'Profundidad escalada de enterramiento (Chiappetta): carga superior, primeros 10·Ø; D solo con material confinante, sin aire',
   'deck.sdob': 'SDOB {sdob} m/kg^⅓ (D {d}, W {w} kg)',
   'deck.sdobCollar': 'desde el collar {v} (informativa: el aire no confina)',
   'deck.sdobStemming': 'taco para SD = {sd}: {t}',
@@ -140,9 +141,9 @@ export const es = {
   'deck.swell': 'Esp.',
   'deck.effectiveDiameterTitle': 'Diámetro efectivo de la carga [{unit}] (cartuchos aplastados)',
   'deck.effectiveDiameter': 'Ø ef.',
-  'deck.addButton': '+ Deck (sobre el último)',
+  'deck.addButton': '+ Cubierta (sobre la última)',
   'deck.hint':
-    'Los decks se apilan desde el fondo; el primero de la tabla es el más cercano a la boca.',
+    'Las cubiertas (decks) se apilan desde el fondo; la primera de la tabla es la más cercana a la boca.',
   'deck.editInitiator': 'Editar iniciador',
   'deck.addInitiator': 'Agregar iniciador',
   'deck.removeInitiator': 'Quitar iniciador',
@@ -223,7 +224,7 @@ export const es = {
   'blast.convention.vertical': 'Vertical bajo el piso: L = (H + J)/cos α',
   'blast.convention.lopezJimeno': 'López Jimeno: L = H/cos α + (1 − α/100)·J',
   'blast.benchHint':
-    'El banco y la convención (P-05) se aplican a los taladros nuevos o editados. La geométrica es la exacta; López Jimeno reduce J con la inclinación (criterio empírico).',
+    'El banco y la convención se aplican a los taladros nuevos o editados. La geométrica es la exacta; López Jimeno reduce J con la inclinación (criterio empírico).',
   'blast.boundaries': 'Perímetros',
   'blast.noBoundaries': 'Sin perímetros. Dibuja uno con la herramienta Perímetro (B).',
   'blast.activate': 'Activar',
@@ -304,7 +305,7 @@ export const en = {
   'lib.bulk': 'Bulk',
   'lib.waterTitle': 'Water, initiation and source',
   'lib.waterHint':
-    'Water resistance to filter by the hole water state (P-09), critical diameter, need for a primer (RM-05) and the source data sheet with its version (DF-22).',
+    'Water resistance to filter by the hole water state, critical diameter, need for a primer and the source data sheet with its version.',
   'lib.water': 'Water',
   'lib.criticalDiameterTitle': 'Critical diameter [mm]',
   'lib.criticalDiameter': 'Crit. Ø',
@@ -319,7 +320,8 @@ export const en = {
   'lib.exportCatalog': 'Export catalog CSV',
   'lib.importCatalog': 'Import catalog CSV…',
   'lib.toCompany': 'Upload to the company catalog',
-  'lib.toCompanyHint': 'Copies this project explosive data sheets to the company catalog (existing ones are kept).',
+  'lib.toCompanyHint':
+    'Copies this project explosive data sheets to the company catalog (existing ones are kept).',
   'lib.toCompanyDone': '{n} explosives added to the company catalog.',
   'lib.newExplosive': 'New explosive',
   'lib.addExplosive': '+ Explosive',
@@ -383,7 +385,7 @@ export const en = {
   'props.water.static': 'Static water',
   'props.water.dynamic': 'Dynamic water',
   'props.waterHint':
-    'P-09: no ANFO with static water; only emulsion with dynamic water. Flagged in the review.',
+    'No ANFO with static water; only emulsion with dynamic water. Flagged in the review.',
   'props.firesAt': 'Fires {t} ms after the first',
   'props.effectiveBurden': 'effective burden {b}',
   'props.noFreeFace': 'no free face when firing',
@@ -406,7 +408,7 @@ export const en = {
   'deck.summary': '{kg} kg · charge {charge} · stemming {stemming}',
   'deck.unassigned': '{length} unassigned',
   'deck.sdobTitle':
-    'Scaled depth of burial (Chiappetta, P-01): top charge, first 10·Ø; D counts confining material only, no air (P-14)',
+    'Scaled depth of burial (Chiappetta): top charge, first 10·Ø; D counts confining material only, no air',
   'deck.sdob': 'SDOB {sdob} m/kg^⅓ (D {d}, W {w} kg)',
   'deck.sdobCollar': 'from the collar {v} (informative: air does not confine)',
   'deck.sdobStemming': 'stemming for SD = {sd}: {t}',
@@ -498,7 +500,7 @@ export const en = {
   'blast.convention.vertical': 'Vertical below the floor: L = (H + J)/cos α',
   'blast.convention.lopezJimeno': 'López Jimeno: L = H/cos α + (1 − α/100)·J',
   'blast.benchHint':
-    'The bench and the convention (P-05) apply to new or edited holes. The geometric one is exact; López Jimeno reduces J with inclination (empirical criterion).',
+    'The bench and the convention apply to new or edited holes. The geometric one is exact; López Jimeno reduces J with inclination (empirical criterion).',
   'blast.boundaries': 'Boundaries',
   'blast.noBoundaries': 'No boundaries. Draw one with the Boundary tool (B).',
   'blast.activate': 'Activate',
