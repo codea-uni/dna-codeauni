@@ -208,6 +208,26 @@ export function blastHolesOffBench(
   return [...groups.values()].some((g) => holesOffBench(g.bench, g.z));
 }
 
+/**
+ * Taladros según la altura de su boca sobre el piso: `below` = boca en el piso o bajo él (solo
+ * quedaría la sobreperforación: no se crean), `short` = boca a menos de media altura de banco
+ * sobre el piso (terreno en pendiente o piso mal puesto; mismo umbral que S-18).
+ */
+export function holesByCollarHeight(
+  holes: readonly Pick<Hole, 'id' | 'collar'>[],
+  floorElevation: number,
+  benchHeight: number,
+): { below: HoleId[]; short: HoleId[] } {
+  const below: HoleId[] = [];
+  const short: HoleId[] = [];
+  for (const h of holes) {
+    const above = h.collar.z - floorElevation;
+    if (above <= 1e-6) below.push(h.id);
+    else if (above < benchHeight / 2) short.push(h.id);
+  }
+  return { below, short };
+}
+
 /** Piso del banco para bocas a estas cotas: su mediana menos la altura del banco. */
 export function benchFloorFor(collarZ: readonly number[], height: number): number | null {
   const z = medianOf(collarZ);

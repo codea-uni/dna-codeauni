@@ -159,15 +159,27 @@ export function holeCharge(hole: Hole, lib: ProductIndex): HoleCharge {
   };
 }
 
+/** Opciones de `applyChargeRule`. */
+export interface ChargeRuleOptions {
+  /**
+   * Conserva el detonador (y su retardo) que el taladro ya tiene; la regla solo lo reubica a
+   * `primerOffsetFromToe` del fondo y cambia la prima si trae una. Sin iniciadores previos se
+   * usa el detonador de la regla. Así cambiar el explosivo no borra los tiempos programados.
+   */
+  keepInitiators?: boolean;
+}
+
 /**
  * Aplica una regla de carga: de fondo a boca, explosivo · aire (opcional) · taco.
- * Si taco + aire superan el largo, el explosivo queda en 0 m y el taco se recorta.
+ * Si taco + aire superan el largo, el explosivo queda en 0 m y el taco se recorta: ese taladro
+ * queda sin carga y, por lo tanto, sin prima ni detonador (no se inicia un taladro vacío).
  * El iniciador (si hay detonador) se ubica a `primerOffsetFromToe` del fondo.
  */
 export function applyChargeRule(
   hole: Hole,
   rule: ChargeRule,
   library: ProductLibrary,
+  options: ChargeRuleOptions = {},
 ): Pick<Hole, 'decks' | 'initiators'> {
   const L = hole.length;
   const stemming = Math.min(rule.stemmingLength, L);
@@ -191,16 +203,83 @@ export function applyChargeRule(
     });
 
   const initiators: InHoleInitiator[] = [];
+  if (charge <= 0) return { decks, initiators };
+  const depth = Math.max(0, L - Math.min(rule.primerOffsetFromToe, charge));
+  if (options.keepInitiators && hole.initiators.length > 0) {
+    // El principal (el más profundo) va a la nueva posición; los demás quedan dentro de la carga.
+    const deepest = hole.initiators.reduce((a, b) => (b.depth > a.depth ? b : a));
+    for (const init of hole.initiators) {
+      const next: InHoleInitiator = {
+        ...init,
+        depth: init === deepest ? depth : Math.min(Math.max(init.depth, L - charge), L),
+      };
+      if (rule.primerId) next.primerId = rule.primerId;
+      initiators.push(next);
+    }
+    return { decks, initiators };
+  }
   if (rule.detonatorId) {
     const det = library.detonators.find((d) => d.id === rule.detonatorId);
     const init: InHoleInitiator = {
       id: newId<'InHoleInitiator'>(),
       detonatorId: rule.detonatorId,
-      depth: Math.max(0, L - Math.min(rule.primerOffsetFromToe, charge)),
+      depth,
       delay: det?.nominalDelay ?? 0,
     };
     if (rule.primerId) init.primerId = rule.primerId;
     initiators.push(init);
   }
   return { decks, initiators };
+}
+
+/**
+ * Ajusta la columna de carga cuando cambia el largo del taladro con la boca fija (p. ej. otro
+ * piso o altura de banco): el taco y lo de arriba quedan iguales, el cambio se toma desde el
+ * fondo (el deck más profundo se alarga o se acorta; si se acaba, sigue con el de arriba) y los
+ * iniciadores se mueven con el fondo. Sin explosivo, sin iniciadores.
+ */
+export function fitChargeToLength(
+  hole: Pick<Hole, 'length' | 'decks' | 'initiators'>,
+  length: number,
+): Pick<Hole, 'decks' | 'initiators'> {
+  if (hole.decks.length === 0) return { decks: hole.decks, initiators: hole.initiators };
+  const used = hole.decks.reduce((sum, d) => sum + d.length, 0);
+  // El vacío que hubiera en el fondo se conserva; la columna llega hasta él.
+  const gap = Math.max(0, hole.length - used);
+  const delta = Math.max(0, length - gap) - used;
+  const decks = hole.decks.map((d) => ({ ...d }));
+  if (delta > 0) {
+    const first = decks[0];
+    if (first) first.length += delta;
+  } else {
+    let cut = -delta;
+    while (cut > 1e-12 && decks.length > 0) {
+      const first = decks[0];
+      if (!first) break;
+      if (first.length > cut) {
+        first.length -= cut;
+        cut = 0;
+      } else {
+        cut -= first.length;
+        decks.shift();
+      }
+    }
+  }
+  const shift = length - hole.length;
+  const initiators = decks.some((d) => d.kind === 'explosive')
+    ? hole.initiators.map((i) => ({ ...i, depth: Math.min(length, Math.max(0, i.depth + shift)) }))
+    : [];
+  return { decks, initiators };
+}
+
+/**
+ * Taladros que una regla dejaría sin carga: su largo no supera taco + aire (p. ej. taladros de
+ * boca baja en un terreno en pendiente). La interfaz los informa y permite seleccionarlos.
+ */
+export function holesLeftUncharged(
+  holes: readonly Pick<Hole, 'id' | 'length'>[],
+  rule: Pick<ChargeRule, 'stemmingLength' | 'airDeckLength'>,
+): Hole['id'][] {
+  const used = rule.stemmingLength + (rule.airDeckLength ?? 0);
+  return holes.filter((h) => h.length - used <= 0).map((h) => h.id);
 }
