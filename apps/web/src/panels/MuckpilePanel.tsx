@@ -26,7 +26,7 @@ import { NumberField } from '../components/NumberField';
 import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useUnits } from '../hooks/useUnits';
-import { useFormat, useT, type MessageKey } from '../i18n';
+import { formatDay, useFormat, useT, type MessageKey } from '../i18n';
 import { getEngine, session } from '../session';
 import { useAnalysisStore, type MuckpileColorBy } from '../stores/analysisStore';
 import { onTopographyChange, topographyTin } from '../topography/session';
@@ -811,7 +811,7 @@ function CalibrationSection({ blast }: { blast: Blast }) {
             >
               {surveys.map((x) => (
                 <option key={x.id} value={x.id}>
-                  {x.name} · {x.surveyDate}
+                  {x.name} · {formatDay(x.surveyDate)}
                 </option>
               ))}
             </select>

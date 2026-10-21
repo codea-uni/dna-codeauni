@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import * as actions from '../actions';
-import { useT } from '../i18n';
+import { formatDateTime, useT } from '../i18n';
 import { listVersions } from '../persistence/autosave';
 import type { VersionInfo } from '../persistence/history';
 
@@ -44,7 +44,7 @@ export function VersionsDialog({ onClose }: { onClose: () => void }) {
             <tbody>
               {versions.map((v) => (
                 <tr key={v.id}>
-                  <td>{new Date(v.savedAt).toLocaleString()}</td>
+                  <td>{formatDateTime(v.savedAt)}</td>
                   <td>{v.name}</td>
                   <td>{t('versions.holes', { n: v.holes })}</td>
                   <td>

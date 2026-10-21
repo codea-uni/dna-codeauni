@@ -1,11 +1,13 @@
 import { X } from 'lucide-react';
 import { TOOLS } from '../components/Toolbar';
 import { useT, type MessageKey } from '../i18n';
+import { serverMode } from '../server/api';
 
 /** [tecla (texto o clave si se traduce), acción]. */
 const GENERAL: [string | { key: MessageKey }, MessageKey][] = [
   ['Ctrl+Z / Ctrl+Shift+Z', 'shortcuts.undoRedo'],
-  ['Ctrl+S', 'toolbar.saveProject'],
+  // En la mina Ctrl+S guarda una versión; sin servidor descarga la copia.
+  ['Ctrl+S', serverMode ? 'save.version' : 'save.downloadCopy'],
   ['Ctrl+A', 'shortcuts.selectAll'],
   [{ key: 'shortcuts.key.delete' }, 'shortcuts.deleteSelection'],
   ['Esc', 'shortcuts.cancel'],

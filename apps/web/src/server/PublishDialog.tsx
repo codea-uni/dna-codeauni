@@ -9,6 +9,7 @@ import { APP_VERSION, getCompute, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { workspaceErrorKey } from '../stores/workspaceStore';
 import { api } from './api';
+import { flashSaved } from './ProjectContext';
 import { useProjectSession } from './projectSession';
 import { summaryParts } from './summaryText';
 import { uploadMissingAssets } from './topographyAssets';
@@ -62,7 +63,8 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
         text,
       );
       published(version, project);
-      useUiStore.getState().notify(t('history.published', { n: version.number }));
+      useUiStore.getState().notify(t('save.savedAs', { n: version.number }));
+      flashSaved(version.number);
       onClose();
     } catch (err) {
       if (err instanceof ApiError && err.code === 'version_conflict') {

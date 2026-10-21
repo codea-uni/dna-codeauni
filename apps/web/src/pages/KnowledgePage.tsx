@@ -388,7 +388,11 @@ function AddDoc(props: {
             });
           }}
         />
-        <button className="primary" type="submit" disabled={busy || !title.trim() || !content.trim()}>
+        <button
+          className="primary"
+          type="submit"
+          disabled={busy || !title.trim() || !content.trim()}
+        >
           <Plus size={15} aria-hidden /> {t('kb.add')}
         </button>
       </div>
@@ -396,7 +400,7 @@ function AddDoc(props: {
   );
 }
 
-function Explosives({ orgId }: { orgId: string }) {
+export function Explosives({ orgId }: { orgId: string }) {
   const t = useT();
   const fmt = useFormat();
   const role = useAuth((s) => s.organization?.role ?? null);

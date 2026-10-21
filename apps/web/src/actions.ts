@@ -28,12 +28,13 @@ import {
 } from '@cronos/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
 import { useAnalysisStore } from './stores/analysisStore';
-import { formatNumber, t, useLocale } from './i18n';
+import { formatDateTime, formatNumber, t, useLocale } from './i18n';
 import { importErrorText, importWarningText, parseErrorText } from './i18n/coreText';
 import { listVersions, loadWithoutSaving, readVersion } from './persistence/autosave';
 import { useUiStore } from './stores/uiStore';
 import { collectAssets, drapeNewHoles, storeEmbeddedAssets } from './topography/session';
 import { putAsset } from './persistence/assets';
+import { useCrsPrompt } from './dialogs/CrsPromptDialog';
 
 /** Acciones de la aplicación. Todo cálculo pesado va al worker de cómputo. */
 
@@ -145,7 +146,7 @@ export async function openProject(file: File): Promise<void> {
 export async function restoreVersion(id: number, confirm = false): Promise<void> {
   const version = await readVersion(id);
   if (!version) return;
-  const date = new Date(version.savedAt).toLocaleString();
+  const date = formatDateTime(version.savedAt);
   if (confirm && document.canUndo && !window.confirm(t('versions.confirm', { date }))) return;
   const result = await getCompute().api.parseProject(version.text);
   if (!result.ok) {
@@ -484,13 +485,18 @@ export function clearConnections(onlySelection: boolean): void {
 
 /** Lee el archivo y pide la vista previa al worker; abre el diálogo de importación. */
 /**
- * H-101: sin CRS (EPSG) declarado no se importa. Abre los ajustes del proyecto si falta.
- * Devuelve true si se puede importar.
+ * H-101: sin sistema de coordenadas no se importa. Si falta, se pide en un diálogo y la
+ * importación (`then`) sigue sola al elegirlo, sin volver a empezar.
  */
+export function withCrs(then: () => void): void {
+  if (document.project.coordinateSystem.epsg !== undefined) then();
+  else useCrsPrompt.setState({ pending: then });
+}
+
+/** Como `withCrs` sin continuación: true si ya hay sistema; si no, lo pide y devuelve false. */
 export function requireCrs(): boolean {
   if (document.project.coordinateSystem.epsg !== undefined) return true;
-  notify(t('import.needsCrs'), 'error');
-  useUiStore.getState().setSettingsOpen(true);
+  useCrsPrompt.setState({ pending: () => undefined });
   return false;
 }
 

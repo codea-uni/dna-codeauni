@@ -81,7 +81,27 @@ export function useFormat(): (v: number, decimals?: number) => string {
 export function formatDateTime(iso: string, locale: Locale = useLocale.getState().locale): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString(NUMBER_LOCALE[locale], { dateStyle: 'short', timeStyle: 'short' });
+  // Año con cuatro cifras: DD/MM/AAAA en español (el «short» de es-ES lo da con dos).
+  return d.toLocaleString(NUMBER_LOCALE[locale], {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Día de calendario («2026-10-21», sin hora) en el idioma activo: DD/MM/AAAA en español. Se arma
+ * a mano para que la zona horaria no lo corra un día. Si no es una fecha, se muestra tal cual.
+ */
+export function formatDay(day: string, locale: Locale = useLocale.getState().locale): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(day);
+  if (!m) return day;
+  const [, y, mo, d] = m;
+  return locale === 'en'
+    ? `${mo ?? ''}/${d ?? ''}/${y ?? ''}`
+    : `${d ?? ''}/${mo ?? ''}/${y ?? ''}`;
 }
 
 /** `formatDateTime` para componentes: se vuelven a renderizar al cambiar el idioma. */

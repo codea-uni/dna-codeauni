@@ -4,7 +4,9 @@ import {
   DEFAULT_TIN_OPTIONS,
   fitLocalGrid,
   isKnownCrs,
+  isWorkingsLayerName,
   parseNumber,
+  splitPointsRow,
   type AssembleOptions,
   type AssembleResult,
   type Bounds3,
@@ -23,6 +25,8 @@ import { es } from '../i18n/es';
 import { useProjectKind } from '../product/product';
 import { getCompute, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { importWorkingsFiles } from '../topography/workings';
+import { useUndergroundStore } from '../underground/store';
 import {
   clearTopographyPreview,
   createSurveyOps,
@@ -195,6 +199,29 @@ export function TopographyImportDialog({
     ),
   );
 
+  // Cabecera del archivo de puntos: las columnas se muestran con su nombre («Columna 2 · ESTE»).
+  const headerLine = inspection.points?.hasHeader
+    ? (inspection.points.sample.find((l) => l.trim() !== '' && !l.trim().startsWith('#')) ?? '')
+    : '';
+  const headerCells = headerLine ? splitPointsRow(headerLine) : [];
+  // Capas de un DXF con nombre de labor (GALERIA, RAMPA, TAJEO…): se ofrece importarlas como labores.
+  const workingsLayers =
+    format === 'dxf'
+      ? (inspection.layers ?? []).filter((l) => isWorkingsLayerName(l.name)).map((l) => l.name)
+      : [];
+  const importAsWorkings = () => {
+    const face = useUndergroundStore.getState().face;
+    onClose();
+    void importWorkingsFiles(
+      files.map((f) => new File([f.bytes.slice()], f.name)),
+      {
+        profile: { kind: face.profile, width: face.width, height: face.height },
+        axisAt: 'floor',
+        layers: workingsLayers,
+      },
+    );
+  };
+
   const transformText = (): string | undefined => {
     if (source === 'local' && grid && 't' in grid)
       return `${tr('topo.import.localGrid')} → ${crsName(projectEpsg ?? 0)}`;
@@ -363,6 +390,19 @@ export function TopographyImportDialog({
           </div>
         )}
 
+        {workingsLayers.length > 0 && (
+          <div className="hint-box row" role="status">
+            <span>
+              {tr('topo.import.workingsLayers', {
+                layers: workingsLayers.map((l) => `«${l}»`).join(', '),
+              })}
+            </span>
+            <button className="primary-inline" onClick={importAsWorkings}>
+              {tr('topo.import.workingsLayersAction')}
+            </button>
+          </div>
+        )}
+
         <div className="modal-cols">
           <section>
             <h3>{tr('topo.import.crs')}</h3>
@@ -437,8 +477,8 @@ export function TopographyImportDialog({
               </label>
             )}
             {!isImage && format !== 'geotiff' && (
-              <label className="field" title={tr('topo.import.maxEdgeHint')}>
-                <span className="field-label">{tr('topo.import.maxEdge')}</span>
+              <label className="field" title={tr('topo.import.maxEdgeTextHint')}>
+                <span className="field-label">{tr('topo.import.maxEdgeText')}</span>
                 <span className="field-input">
                   <input
                     type="number"
@@ -525,7 +565,9 @@ export function TopographyImportDialog({
                     >
                       {Array.from({ length: columnCount }, (_, i) => (
                         <option key={i} value={i}>
-                          {tr('topo.import.column', { n: i + 1 })}
+                          {headerCells[i]
+                            ? tr('topo.import.columnNamed', { n: i + 1, name: headerCells[i] })
+                            : tr('topo.import.column', { n: i + 1 })}
                         </option>
                       ))}
                     </select>

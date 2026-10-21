@@ -15,7 +15,7 @@ import { FileDown, Move3d, Waypoints } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { NumberField } from '../components/NumberField';
 import { useProject } from '../hooks/useDocument';
-import { useFormat, useT } from '../i18n';
+import { formatDay, useFormat, useT } from '../i18n';
 import { useUiStore } from '../stores/uiStore';
 import {
   isTopographyLoaded,
@@ -95,7 +95,9 @@ export function SurveyTools({ survey }: { survey: TopographySurvey }) {
         <div className="muted small">
           {t('topo.xform.history', {
             n: survey.transforms.length,
-            date: survey.transforms[survey.transforms.length - 1]?.date.slice(0, 10) ?? '',
+            date: formatDay(
+              survey.transforms[survey.transforms.length - 1]?.date.slice(0, 10) ?? '',
+            ),
           })}
         </div>
       )}

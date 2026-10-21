@@ -8,6 +8,7 @@ import { topoWarningText } from '../dialogs/TopographyImportDialog';
 import { formatNumber, t } from '../i18n';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { warnIfFarFromLayers } from './models3d';
 import { createSurveyOps, isTopographyLoaded, onTopographyChange } from './session';
 
 /** Extensiones del importador de labores subterráneas. */
@@ -76,6 +77,7 @@ export async function importWorkingsFiles(
       }),
     );
     ui.notify(t('topo.kind.review', { name }));
+    warnIfFarFromLayers(survey);
     reviewKindsOf = survey.id;
     if (useUiStore.getState().viewMode !== '3d') useUiStore.getState().setViewMode('3d');
     // Las labores vienen en coordenadas de la mina, lejos del diseño: ir a verlas cuando se carguen.

@@ -45,20 +45,19 @@ export function ScenariosPanel() {
   const kpis = useUiStore((s) => s.scenarioKpis);
   const setKpis = useUiStore((s) => s.setScenarioKpis);
   const [busy, setBusy] = useState(false);
+  // Nombre del escenario a guardar: en la misma ventana, no con el diálogo nativo del navegador.
+  const [naming, setNaming] = useState<string | null>(null);
   if (!blast) return null;
   const scenarios = project.scenarios ?? [];
 
-  const save = () => {
-    const name = window.prompt(
-      t('scenarios.namePrompt'),
-      t('scenarios.defaultName', { n: scenarios.length + 1 }),
-    );
-    if (!name?.trim()) return;
+  const save = (name: string) => {
+    if (!name.trim()) return;
     session.document.dispatch(
       commands.saveScenario(session.document, blast.id, name.trim()),
       t('scenarios.save'),
     );
     setKpis(null);
+    setNaming(null);
   };
 
   const compare = async () => {
@@ -74,9 +73,52 @@ export function ScenariosPanel() {
     <section className="panel">
       <Floatable id="scenarios" title={t('scenarios.title')} width={820}>
         <p className="hint">{t('scenarios.hint')}</p>
-        <button className="primary" onClick={save}>
-          {t('scenarios.save')}
-        </button>
+        {naming === null ? (
+          <button
+            className="primary"
+            onClick={() => {
+              setNaming(t('scenarios.defaultName', { n: scenarios.length + 1 }));
+            }}
+          >
+            {t('scenarios.save')}
+          </button>
+        ) : (
+          <form
+            className="row scenario-name"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save(naming);
+            }}
+          >
+            <label className="field">
+              <span className="field-label">{t('scenarios.nameLabel')}</span>
+              <input
+                autoFocus
+                value={naming}
+                onFocus={(e) => {
+                  e.target.select();
+                }}
+                onChange={(e) => {
+                  setNaming(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setNaming(null);
+                }}
+              />
+            </label>
+            <button className="primary" type="submit" disabled={naming.trim() === ''}>
+              {t('scenarios.save')}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNaming(null);
+              }}
+            >
+              {t('common.cancel')}
+            </button>
+          </form>
+        )}
         {scenarios.length === 0 ? (
           <p className="muted">{t('scenarios.none')}</p>
         ) : (

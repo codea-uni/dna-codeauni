@@ -1,6 +1,7 @@
 import type { WorkingProfileSpec, WorkingsLayerInfo } from '@cronos/core';
 import { Spline } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { create } from 'zustand';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
 import { useUnits } from '../hooks/useUnits';
@@ -9,6 +10,14 @@ import { getCompute } from '../session';
 import { importWorkingsFiles, WORKINGS_ACCEPT } from '../topography/workings';
 import { PROFILE_CHOICES } from '../underground/model';
 import { useUndergroundStore } from '../underground/store';
+
+/** Formulario de labores abierto (también desde Inicio › Importar, con la ventana Topografía). */
+const useWorkingsImportOpen = create<{ open: boolean }>(() => ({ open: false }));
+
+/** Abre el formulario de importación de labores (la ventana Topografía la abre quien llama). */
+export function openWorkingsImport(): void {
+  useWorkingsImportOpen.setState({ open: true });
+}
 
 /**
  * Importar labores subterráneas (DXF/Surpac): primero el perfil con el que los ejes se convierten
@@ -21,7 +30,15 @@ export function WorkingsImport() {
   const { len } = useUnits();
   const input = useRef<HTMLInputElement>(null);
   const face = useUndergroundStore((s) => s.face);
-  const [open, setOpen] = useState(false);
+  const open = useWorkingsImportOpen((s) => s.open);
+  const setOpen = (value: boolean) => {
+    useWorkingsImportOpen.setState({ open: value });
+  };
+  const form = useRef<HTMLDivElement>(null);
+  // Abierto desde el menú Importar: el formulario queda a la vista dentro de la ventana.
+  useEffect(() => {
+    if (open) form.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [open]);
   const [profile, setProfile] = useState<WorkingProfileSpec>({
     kind: face.profile,
     width: face.width,
@@ -46,8 +63,11 @@ export function WorkingsImport() {
         title={t('topo.workings.importHint')}
         aria-expanded={open}
         onClick={() => {
-          if (!open && !actions.requireCrs()) return;
-          setOpen(!open);
+          if (open) setOpen(false);
+          else
+            actions.withCrs(() => {
+              setOpen(true);
+            });
         }}
       >
         <Spline size={18} aria-hidden />
@@ -55,7 +75,7 @@ export function WorkingsImport() {
         <small>{t('topo.importHint.workings')}</small>
       </button>
       {open && (
-        <div className="model3d-controls small">
+        <div className="model3d-controls small" ref={form}>
           <p className="hint">{t('topo.workings.importHint')}</p>
           <label className="field">
             <span className="field-label">{t('topo.workings.profile')}</span>

@@ -1,12 +1,24 @@
 import { permissions } from '@cronos/api';
-import { Building2, CloudUpload, Eye, History } from 'lucide-react';
+import { Building2, Check, CloudUpload, Eye, History } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { create } from 'zustand';
 import { IconButton } from '../components/IconButton';
 import { useProject } from '../hooks/useDocument';
 import { t as translate, useT } from '../i18n';
 import { mineToolPath } from '../product/product';
+import { useUiStore } from '../stores/uiStore';
 import { hasUnpublished, useProjectSession, useUnpublished } from './projectSession';
+
+/** Confirmación «Guardado como vN» junto a la versión, unos segundos después de guardar. */
+export const useSavedFlash = create<{ n: number | null }>(() => ({ n: null }));
+let flashTimer: ReturnType<typeof setTimeout> | undefined;
+export function flashSaved(n: number): void {
+  clearTimeout(flashTimer);
+  useSavedFlash.setState({ n });
+  flashTimer = setTimeout(() => {
+    useSavedFlash.setState({ n: null });
+  }, 6000);
+}
 
 /** Diálogos del modo servidor dentro del editor. */
 export const useServerDialogs = create<{
@@ -19,13 +31,31 @@ export const useServerDialogs = create<{
   },
 }));
 
+/**
+ * Ctrl+S en la mina: abre «Guardar versión» (o avisa que no hay nada que guardar). Devuelve false
+ * fuera del modo servidor, donde Ctrl+S descarga la copia del proyecto.
+ */
+export function saveVersionShortcut(): boolean {
+  const current = useProjectSession.getState().current;
+  if (!current) return false;
+  const notify = useUiStore.getState().notify;
+  if (!permissions.editDesign(current.role) || current.viewingOld)
+    notify(translate('projects.readOnlyHint'), 'error');
+  else if (!hasUnpublished()) notify(translate('save.nothing', { n: current.base.number }));
+  else useServerDialogs.getState().show('publish');
+  return true;
+}
+
 /** Mina, proyecto y versión en la barra del editor, con avisos de solo lectura y sin publicar. */
 export function ProjectContext() {
   const t = useT();
   const current = useProjectSession((s) => s.current);
   const project = useProject();
   const unpublished = useUnpublished();
+  const show = useServerDialogs((s) => s.show);
+  const saved = useSavedFlash((s) => s.n);
   if (!current) return null;
+  const canPublish = permissions.editDesign(current.role) && !current.viewingOld;
   return (
     <div className="toolbar-context">
       <span className="crumbs" title={`${current.mine.name} / ${project.name}`}>
@@ -41,41 +71,48 @@ export function ProjectContext() {
           <Eye size={12} aria-hidden /> {t('projects.readOnly')}
         </span>
       ) : (
-        unpublished && <span className="badge unpublished">{t('history.unpublished')}</span>
+        !unpublished &&
+        saved !== null && (
+          <span className="badge saved" role="status">
+            <Check size={12} aria-hidden /> {t('save.savedAs', { n: saved })}
+          </span>
+        )
+      )}
+      {!current.viewingOld && current.role !== 'reviewer' && unpublished && (
+        <>
+          <span className="badge unpublished">{t('history.unpublished')}</span>
+          {canPublish && (
+            // «Guardar versión» con texto junto al aviso: es el guardado real en la mina.
+            <button
+              className="save-version"
+              title={t('save.versionHint')}
+              onClick={() => {
+                show('publish');
+              }}
+            >
+              <CloudUpload size={14} aria-hidden /> {t('save.version')}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-/** Historial del proyecto y «Guardar versión» (solo quien puede editar y sobre la última). */
+/** Historial del proyecto (guardar versión está junto al aviso de cambios sin publicar). */
 export function ProjectActions() {
   const t = useT();
   const current = useProjectSession((s) => s.current);
-  const unpublished = useUnpublished();
   const show = useServerDialogs((s) => s.show);
   if (!current) return null;
-  const canPublish = permissions.editDesign(current.role) && !current.viewingOld;
   return (
-    <>
-      <IconButton
-        icon={History}
-        label={t('history.title')}
-        onClick={() => {
-          show('history');
-        }}
-      />
-      {canPublish && (
-        <IconButton
-          icon={CloudUpload}
-          label={t('history.publish')}
-          active={unpublished}
-          disabled={!unpublished}
-          onClick={() => {
-            show('publish');
-          }}
-        />
-      )}
-    </>
+    <IconButton
+      icon={History}
+      label={t('history.title')}
+      onClick={() => {
+        show('history');
+      }}
+    />
   );
 }
 

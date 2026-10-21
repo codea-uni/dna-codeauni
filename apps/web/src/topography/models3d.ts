@@ -1,4 +1,9 @@
-import { detectMapping, type GeotechField } from '@cronos/core';
+import {
+  detectMapping,
+  farFromLayers,
+  type GeotechField,
+  type TopographySurvey,
+} from '@cronos/core';
 import { formatNumber, t } from '../i18n';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
@@ -6,6 +11,24 @@ import { createSurveyOps } from './session';
 
 /** Extensiones de nubes de puntos y modelos de bloques (se ven en 3D, no se triangulan). */
 export const MODEL3D_ACCEPT = '.ibpc,.xyz,.txt,.csv,.pts';
+
+/**
+ * Avisa si la capa recién cargada cae lejos de las demás de la mina (p. ej. un modelo de bloques
+ * en otra zona UTM que la topografía): casi siempre es el sistema de coordenadas.
+ */
+export function warnIfFarFromLayers(survey: TopographySurvey): void {
+  const others = session.document.project.topography
+    .filter((s) => s.id !== survey.id)
+    .map((s) => s.bounds);
+  const gap = farFromLayers(survey.bounds, others);
+  if (gap !== null)
+    useUiStore
+      .getState()
+      .notify(
+        t('import.farFromLayers', { name: survey.name, km: formatNumber(gap / 1000) }),
+        'error',
+      );
+}
 
 const baseName = (name: string) => name.replace(/\.[^.]+$/, '');
 const today = () => new Date().toISOString().slice(0, 10);
@@ -64,6 +87,7 @@ export async function importModel3dFiles(files: readonly File[]): Promise<void> 
           }),
         );
       for (const w of r.warnings) ui.notify(w);
+      warnIfFarFromLayers(survey);
       if (useUiStore.getState().viewMode !== '3d') useUiStore.getState().setViewMode('3d');
       // Las nubes y bloques vienen en UTM, lejos del diseño: ir a verlos.
       requestAnimationFrame(() => getEngine()?.frameModels3d(survey.id));
