@@ -1,3 +1,4 @@
+import { projectKind } from '@cronos/core';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { topographyTin, benchOnSurveyOps } from '../topography/session';
@@ -169,6 +170,8 @@ export function startDesignWatch(): () => void {
       if (surveys.has(s.id)) continue;
       surveys.add(s.id);
       if (blast?.bench.topographyId === s.id) continue;
+      // Bajo tierra la superficie es contexto: no se ofrece como terreno del banco.
+      if (projectKind(project) === 'underground') continue;
       // Nubes y modelos de bloques se ven en 3D; no sirven de terreno del banco.
       if (!s.assets.tin) continue;
       if (useAiStore.getState().busy || useLiveStore.getState().tool || liveActive()) continue;
