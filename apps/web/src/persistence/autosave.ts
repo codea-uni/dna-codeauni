@@ -122,6 +122,32 @@ export function suspendAutosave(): () => void {
     suspended--;
   };
 }
+/** Guarda ya el trabajo pendiente (al salir del editor, para que el borrador quede completo). */
+export function flushAutosave(): void {
+  for (const flush of flushers) flush();
+}
+
+/**
+ * Borrador descartado a mano: no se vuelve a ofrecer (sí uno posterior). Se recuerda por proyecto
+ * en este navegador.
+ */
+export function dismissDraftAt(projectId: string, savedAt: string): void {
+  try {
+    localStorage.setItem(`cronos.draftDismissed.${projectId}`, savedAt);
+  } catch {
+    // Sin almacenamiento: se volverá a ofrecer, que es lo seguro.
+  }
+}
+
+export function draftDismissed(projectId: string, savedAt: string): boolean {
+  try {
+    const at = localStorage.getItem(`cronos.draftDismissed.${projectId}`);
+    return at !== null && savedAt <= at;
+  } catch {
+    return false;
+  }
+}
+
 /** Carga un proyecto sin volver a guardarlo como versión nueva. */
 export function loadWithoutSaving(project: Project): void {
   skipVersion = session.document.version + 1;

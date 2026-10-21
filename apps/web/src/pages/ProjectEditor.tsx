@@ -129,7 +129,7 @@ export function ProjectEditor() {
   );
 }
 
-/** Aviso flotante: consulta de una versión anterior, o borrador local sin publicar. */
+/** Aviso: consulta de una versión anterior, o borrador local sin publicar (¿recuperarlo?). */
 function EditorBanner() {
   const t = useT();
   const fmtDate = useFormatDate();
@@ -148,13 +148,23 @@ function EditorBanner() {
       </div>
     );
   if (!draft || isCrossView(current)) return null;
+  // Aviso en el centro (no una franja que se pierde detrás de las ventanas): hay que elegir.
   return (
-    <div className="editor-banner" role="status">
-      {t('history.draftFound', { date: fmtDate(draft.savedAt) })}
-      <button className="primary-inline" onClick={() => void recover()}>
-        {t('history.recoverDraft')}
-      </button>
-      <button onClick={dismiss}>{t('history.dismissDraft')}</button>
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="modal ask-dialog">
+        <header>
+          <h2>{t('history.draftTitle')}</h2>
+        </header>
+        <p>{t('history.draftFound', { date: fmtDate(draft.savedAt) })}</p>
+        <footer>
+          <button className="danger" onClick={dismiss}>
+            {t('history.dismissDraft')}
+          </button>
+          <button className="primary-inline" autoFocus onClick={() => void recover()}>
+            {t('history.recoverDraft')}
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }
