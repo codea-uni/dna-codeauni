@@ -2,7 +2,7 @@ import { ApiError } from '@cronos/api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from '@cronos/api';
 import { resetAssistant, sendToAssistant, useAiStore } from './agent';
-import { runTool } from './tools';
+import { designChangeNote, markDesignSeen, runTool } from './tools';
 
 const { generate } = vi.hoisted(() => ({ generate: vi.fn<ApiClient['aiGenerate']>() }));
 vi.mock('../server/api', () => ({ api: { aiGenerate: generate }, serverMode: true }));
@@ -11,6 +11,8 @@ vi.mock('./tools', () => ({
   READ_ONLY_TOOLS: new Set(['get_design']),
   orderToolCalls: <T>(calls: T[]) => calls,
   designSummary: () => ({ holes: 0 }),
+  designChangeNote: vi.fn(() => null),
+  markDesignSeen: vi.fn(),
   runTool: vi.fn(() => Promise.resolve({ ok: true, result: { holes: 120, kind: 'square' } })),
 }));
 
@@ -95,5 +97,19 @@ describe('bucle del asistente', () => {
     expect(generate.mock.calls[1]?.[0].contents).toEqual([
       { role: 'user', parts: [{ text: 'de nuevo' }] },
     ]);
+  });
+
+  it('si el diseño cambió fuera del asistente, el mensaje lleva antes el estado real', async () => {
+    vi.mocked(designChangeNote).mockReturnValueOnce('[context] the user undid «IA: malla»');
+    generate.mockResolvedValueOnce({
+      content: { role: 'model', parts: [{ text: 'Ya tienen carga.' }] },
+      finishReason: 'STOP',
+    });
+    await sendToAssistant('¿tienen carga?');
+    const first = generate.mock.calls[0]?.[0].contents[0];
+    expect(first?.parts[0]?.text).toBe('[context] the user undid «IA: malla»\n¿tienen carga?');
+    // El chat muestra solo lo que escribió el usuario; al terminar se marca lo visto.
+    expect(useAiStore.getState().entries[0]).toEqual({ kind: 'user', text: '¿tienen carga?' });
+    expect(markDesignSeen).toHaveBeenCalled();
   });
 });

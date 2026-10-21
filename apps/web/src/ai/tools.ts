@@ -18,6 +18,7 @@ import {
   withDownholeDetonator,
   computeTiming,
   rowTieUp,
+  MINING_METHODS,
   type Blast,
   type BlastBoundary,
   type Deck,
@@ -35,6 +36,7 @@ import {
   type StemmingMaterialId,
 } from '@cronos/core';
 import { z } from 'zod';
+import { t } from '../i18n';
 import { isCrossView, useProjectSession } from '../server/projectSession';
 import { showHoleDetail } from './holeDetail';
 import { perimeterArg, targetSchema } from './targetSchema';
@@ -56,6 +58,7 @@ import { GEOTECH_READ_ONLY, GEOTECH_TOOLS } from './geotechTools';
 import { VIBRATION_READ_ONLY, VIBRATION_TOOLS } from './vibrationTools';
 import { SURVEY_READ_ONLY, SURVEY_TOOLS } from './surveyTools';
 import { recordStep } from './steps';
+import { confirmedArg, holesAtRisk, needsConfirmation } from './confirm';
 import { logTool } from './transcript';
 import { cardFromTool, closeCard, pushCard, type AgentCard } from './cards';
 import { analysisReady } from '../demo/runtime';
@@ -414,6 +417,14 @@ function patternInfo(p: Pattern, blast: Blast) {
 }
 
 /** Resumen corto del diseño: va en cada turno dentro de la instrucción de sistema. */
+/** Nombre para el usuario de un diseño subterráneo por su marca (`ug-face`, `ug-ring`, `ug-…`). */
+export function ugDesignName(tag: string): string {
+  if (tag === 'ug-face') return t('ug.tab.face');
+  if (tag === 'ug-ring') return t('ug.tab.ring');
+  const m = MINING_METHODS.find((x) => x.tag === tag);
+  return m ? t(`ugm.m.${m.id}.name`) : tag;
+}
+
 export function designSummary() {
   const blast = document.project.blasts[0];
   if (!blast) return { blast: null };
@@ -424,10 +435,8 @@ export function designSummary() {
     for (const tag of h.tags ?? [])
       if (tag.startsWith('ug-') && tag !== 'ug-relief')
         ugCounts.set(tag, (ugCounts.get(tag) ?? 0) + 1);
-  const underground = [...ugCounts].map(
-    ([tag, count]) =>
-      [tag === 'ug-face' ? 'tunnel_face' : tag === 'ug-ring' ? 'stope_rings' : tag, count] as const,
-  );
+  // Con su nombre en español (el modelo repetía «ug-face» o «ug-ring 3» al usuario).
+  const underground = [...ugCounts].map(([tag, count]) => [ugDesignName(tag), count] as const);
   return {
     project: document.project.name,
     blast: blast.name,
@@ -467,6 +476,36 @@ export function designSummary() {
       downhole_detonators: document.project.library.detonators.map((d) => d.name),
     },
   };
+}
+
+/** Versión del documento que el asistente ya conoce (al terminar su último turno). */
+let seenVersion: number | null = null;
+
+/** El asistente terminó su turno: lo que hay ahora es lo que vio (sus herramientas incluidas). */
+export function markDesignSeen(): void {
+  seenVersion = document.version;
+}
+
+/**
+ * Nota para el próximo mensaje si el diseño cambió fuera del asistente desde su última respuesta
+ * (deshacer o rehacer, edición a mano, otro equipo): sin ella seguía creyendo lo que dijeron sus
+ * herramientas antes («aún no tienen carga ni amarre» después de un Deshacer).
+ */
+export function designChangeNote(): string | null {
+  if (seenVersion === null || document.version === seenVersion) return null;
+  const blast = document.project.blasts[0];
+  const undone = document.canRedo ? document.redoLabel : undefined;
+  const now = blast
+    ? {
+        holes: blast.holes.length,
+        charged_holes: blast.holes.filter((h) => h.decks.some((d) => d.kind === 'explosive'))
+          .length,
+        surface_connections: blast.initiation.connections.length,
+        patterns: blast.patterns.map((p) => p.name),
+        perimeters: blast.boundaries.map((b) => b.name),
+      }
+    : null;
+  return `[context] Since your last answer the design changed on screen${undone ? ` (the user undid «${undone}»)` : ' (undo/redo, a manual edit or another device)'}: earlier tool results in this conversation may be outdated. CURRENT state: ${JSON.stringify(now)}. Trust this and the design summary, not earlier results; do not mention this note unless it matters for the answer.`;
 }
 
 function getDesign() {
@@ -592,13 +631,49 @@ const patternSchema = z.object({
     .optional()
     .describe('Distance from the free face to row 1 [m]. Default: current or burden/2.'),
   perimeter: perimeterArg.optional(),
+  confirmed: confirmedArg,
 });
+
+/** Diámetro en pulgadas para hablar con el usuario (6,5″ y no 165 mm). */
+const inches = (m: number) => r(m / 0.0254, 2);
 
 async function generatePattern(args: z.infer<typeof patternSchema>) {
   readOnlyGuard();
   const blast = blastOrFail();
   const boundary = resolvePerimeter(blast, args.perimeter);
   const current = blast.patterns.find((p) => p.boundaryId === boundary.id);
+  // Reemplazar una malla ya cargada o amarrada borra ese trabajo: primero se pregunta.
+  const mine = new Set(blast.patterns.filter((p) => p.boundaryId === boundary.id).map((p) => p.id));
+  const old = blast.holes.filter((h) => h.patternId !== undefined && mine.has(h.patternId));
+  const risk = holesAtRisk(blast, old, document.project.library);
+  if (!args.confirmed && (risk.charged > 0 || risk.tied > 0)) {
+    const both = risk.charged > 0 && risk.tied > 0;
+    const what = both ? 'carga y amarre' : risk.charged > 0 ? 'carga' : 'amarre';
+    const lost = both
+      ? 'se pierden la carga y el amarre'
+      : risk.charged > 0
+        ? 'se pierde la carga'
+        : 'se pierde el amarre';
+    const d = old[0]?.diameter;
+    return needsConfirmation({
+      key: `pattern:${boundary.id}`,
+      question: `Ya hay una malla de ${String(risk.holes)} taladros con ${what} en ${boundary.name}: ¿la reemplazo (${lost}) o la ajusto?`,
+      existing: {
+        perimeter: boundary.name,
+        pattern: current?.name,
+        kind: current?.kind,
+        burden: current ? r(current.burden) : undefined,
+        spacing: current ? r(current.spacing) : undefined,
+        diameter_mm: d !== undefined ? r(d * 1000, 0) : undefined,
+        diameter_in: d !== undefined ? inches(d) : undefined,
+        holes: risk.holes,
+        charged_holes: risk.charged,
+        tied_holes: risk.tied,
+      },
+      options: ['Reemplazar la malla', 'Ajustar la actual (conserva carga y amarre)', 'Cancelar'],
+      next: 'Reemplazar → call generate_pattern again with the same arguments and confirmed true, then say that the previous holes, their charge and tie-up were deleted and offer to load and tie up the new pattern again. Ajustar → keep the pattern: if only diameter, subdrill, inclination or azimuth change use edit_holes on these holes (charge and tie-up stay); if burden/spacing/kind change, say it needs a new pattern and ask again. Cancelar → change nothing.',
+    });
+  }
   const burden = args.burden ?? current?.burden;
   if (burden === undefined) throw new ToolError('Ask the user for the burden (m).');
   const spacing = args.kind === 'square' ? burden : (args.spacing ?? current?.spacing);
@@ -642,9 +717,12 @@ async function generatePattern(args: z.infer<typeof patternSchema>) {
     replaced_holes: result.replacedHoles,
     free_face: result.hasFreeFace,
     holes_outside_topography: result.outside,
+    ...(risk.charged > 0 || risk.tied > 0
+      ? { deleted: { holes: risk.holes, charged_holes: risk.charged, tied_holes: risk.tied } }
+      : {}),
     note:
       result.replacedHoles > 0
-        ? 'The new holes have no charge or tie-up: re-apply them if the user wants the previous ones.'
+        ? 'The previous holes were deleted and the new ones have NO charge and NO tie-up: say so explicitly (how many holes, charge and tie-up lost) and offer to re-apply them.'
         : undefined,
   };
 }
@@ -1754,8 +1832,11 @@ export async function runTool(
   // Lo aplicado se puede guardar como preset (malla, carga, amarre, condiciones).
   const proposal = out.ok && (out.result as { applied?: unknown } | null)?.applied === false;
   if (out.ok && !proposal) recordStep(name, parsed.data);
-  // Lo que el agente consulta o aplica aparece como tarjeta de reporte (web y visor).
-  if (out.ok) {
+  // Lo que el agente consulta o aplica aparece como tarjeta de reporte (web y visor); si pidió
+  // confirmación no se aplicó nada y la tarjeta es la de la pregunta.
+  const asks =
+    out.ok && (out.result as { needs_confirmation?: unknown } | null)?.needs_confirmation === true;
+  if (out.ok && !asks) {
     const card = cardFromTool(name, args, out.result);
     if (card) pushCard(card);
   }

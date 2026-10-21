@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as actions from '../actions';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
-import { AI_FUNCTION_DECLARATIONS, runTool } from './tools';
+import { useCardStore } from './cards';
+import { AI_FUNCTION_DECLARATIONS, designChangeNote, markDesignSeen, runTool } from './tools';
 
 vi.mock('../session', async () => {
   const { createEditorSession } = await import('@cronos/core');
@@ -66,8 +67,74 @@ describe('herramientas del asistente de IA', () => {
     expect(actions.generatePattern).not.toHaveBeenCalled();
   });
 
+  it('malla con carga o amarre: pregunta antes de reemplazarla y no cambia nada', async () => {
+    useCardStore.setState({ cards: [] });
+    const before = blast().holes;
+    const r = await ok('generate_pattern', { kind: 'square', burden: 5, diameter_mm: 165 });
+    expect(r).toMatchObject({ applied: false, needs_confirmation: true });
+    expect(r.question).toMatch(/Ya hay una malla de \d+ taladros con carga/);
+    expect(r.question).toContain('¿la reemplazo');
+    const existing = r.existing as Record<string, number>;
+    expect(existing.holes).toBe(before.length);
+    expect(existing.charged_holes).toBeGreaterThan(0);
+    expect(actions.generatePattern).not.toHaveBeenCalled();
+    expect(blast().holes).toBe(before);
+    // La pregunta queda en pantalla con las opciones (y no una tarjeta de «malla aplicada»).
+    const card = useCardStore.getState().cards[0];
+    expect(card?.id.startsWith('ask:pattern:')).toBe(true);
+    expect(card?.choices?.map((c) => c.label)).toEqual([
+      'Reemplazar la malla',
+      'Ajustar la actual (conserva carga y amarre)',
+      'Cancelar',
+    ]);
+  });
+
+  it('con la confirmación reemplaza la malla y dice lo que se borró', async () => {
+    const charged = blast().holes.filter((h) => h.decks.some((d) => d.kind === 'explosive'));
+    const r = await ok('generate_pattern', { kind: 'square', burden: 5, confirmed: true });
+    expect(actions.generatePattern).toHaveBeenCalledOnce();
+    expect(r.deleted).toMatchObject({ charged_holes: charged.length });
+    expect(r.note).toContain('NO charge');
+  });
+
+  it('una malla sin carga ni amarre se reemplaza sin preguntar', async () => {
+    const b = blast();
+    document.load({
+      ...document.project,
+      blasts: [
+        {
+          ...b,
+          holes: b.holes.map((h) => ({
+            ...h,
+            decks: h.decks.filter((d) => d.kind !== 'explosive'),
+            initiators: [],
+          })),
+          initiation: { ...b.initiation, connections: [], initiationPoints: [] },
+        },
+      ],
+    });
+    const r = await ok('generate_pattern', { kind: 'square', burden: 5 });
+    expect(r.needs_confirmation).toBeUndefined();
+    expect(actions.generatePattern).toHaveBeenCalledOnce();
+  });
+
+  it('tras un deshacer fuera del asistente, el próximo mensaje lleva el estado real', async () => {
+    markDesignSeen();
+    expect(designChangeNote()).toBeNull();
+    await ok('clear_charge', { target: { all: true } });
+    markDesignSeen();
+    expect(designChangeNote()).toBeNull();
+    // El usuario deshace con el botón: el asistente debe saber que la carga volvió.
+    document.undo();
+    const note = designChangeNote();
+    expect(note).toContain('the user undid');
+    const charged = blast().holes.filter((h) => h.decks.some((d) => d.kind === 'explosive')).length;
+    expect(charged).toBeGreaterThan(0);
+    expect(note).toContain(`"charged_holes":${String(charged)}`);
+  });
+
   it('malla cuadrada sobre el perímetro existente: conserva el burden y la plantilla', async () => {
-    const r = await ok('generate_pattern', { kind: 'square', diameter_mm: 165 });
+    const r = await ok('generate_pattern', { kind: 'square', diameter_mm: 165, confirmed: true });
     const [form, options] = vi.mocked(actions.generatePattern).mock.calls[0] ?? [];
     const boundary = blast().boundaries[0];
     // Pedido: cuadrada; burden y espaciamiento salen de la malla actual (6 m), Ø nuevo 165 mm.
@@ -203,7 +270,12 @@ describe('herramientas del asistente de IA', () => {
   });
 
   it('amarre en V de 17/42 ms: un solo árbol que une todos los taladros desde el centro de la fila 1', async () => {
-    const r = await ok('set_tie_up', { mode: 'v', inter_hole: 17, inter_row: '42', confirmed: true });
+    const r = await ok('set_tie_up', {
+      mode: 'v',
+      inter_hole: 17,
+      inter_row: '42',
+      confirmed: true,
+    });
     const holes = blast().holes.filter((h) => h.patternId === blast().patterns[0]?.id);
     // Un amarre por filas conecta n taladros con n − 1 conexiones (una red sin ciclos).
     expect(blast().initiation.connections).toHaveLength(holes.length - 1);

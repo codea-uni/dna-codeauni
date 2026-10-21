@@ -4,7 +4,14 @@ import { create } from 'zustand';
 import { api } from '../server/api';
 import { loadKnowledge } from './knowledge';
 import { textSystemInstruction } from './prompts';
-import { AI_FUNCTION_DECLARATIONS, orderToolCalls, READ_ONLY_TOOLS, runTool } from './tools';
+import {
+  AI_FUNCTION_DECLARATIONS,
+  designChangeNote,
+  markDesignSeen,
+  orderToolCalls,
+  READ_ONLY_TOOLS,
+  runTool,
+} from './tools';
 
 /**
  * Asistente de IA (Gemini con function calling). La conversación vive aquí; el servidor solo
@@ -105,11 +112,14 @@ export async function sendToAssistant(text: string, audio?: VoiceAudio): Promise
   const signal = controller.signal;
   history = trimmed(history);
   const mark = history.length;
+  // Si el diseño cambió fuera del asistente (deshacer, edición a mano), va el estado real antes.
+  const changed = designChangeNote();
+  const message = changed ? `${changed}\n${text.trim()}` : text.trim();
   history.push({
     role: 'user',
     parts: audio
-      ? [{ text: `${text.trim()}\n${AUDIO_NOTE}`.trim() }, { inlineData: audio }]
-      : [{ text: text.trim() }],
+      ? [{ text: `${message}\n${AUDIO_NOTE}`.trim() }, { inlineData: audio }]
+      : [{ text: message }],
   });
   try {
     // Capas de conocimiento del proyecto (empresa, sitio, proyecto) para el contexto del turno.
@@ -181,6 +191,7 @@ export async function sendToAssistant(text: string, audio?: VoiceAudio): Promise
       if (turn) history[mark] = { ...turn, parts: turn.parts.filter((p) => !('inlineData' in p)) };
     }
     controller = null;
+    markDesignSeen();
     useAiStore.setState({ busy: false });
   }
 }

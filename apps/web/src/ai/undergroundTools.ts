@@ -44,6 +44,7 @@ import {
 } from '../underground/send';
 import {
   applyLocation,
+  placementOn,
   profilePatch,
   workingTargets,
   type WorkingTarget,
@@ -58,6 +59,7 @@ import { useMethodStore } from '../underground/methodStore';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
 import { pushCard } from './cards';
+import { confirmedArg, holesAtRisk, needsConfirmation } from './confirm';
 import { useUgAnalysisStore } from '../underground/analysisStore';
 import { currentUgPile, ugPileSummary } from '../underground/pileView';
 import { useAnalysisStore } from '../stores/analysisStore';
@@ -116,9 +118,12 @@ const placementFields = {
     .describe(
       'true (default) = put the holes in the 3D design (replaces the previous ones of this kind, undoable); false = only compute and show it in the Subterránea panel.',
     ),
+  confirmed: confirmedArg,
 };
 
 interface PlacementArgs {
+  confirmed?: boolean | undefined;
+  send?: boolean | undefined;
   working?: string | undefined;
   station_m?: number | undefined;
   reverse?: boolean | undefined;
@@ -206,6 +211,119 @@ function placementFor(tab: UndergroundTab, a: PlacementArgs): Placement {
   return p;
 }
 
+/** Más que esto entre la ubicación vieja y la nueva es «otro lugar» (no un ajuste) [m]. */
+const MOVE_TOLERANCE = 5;
+/** Ídem contra el centro de los taladros, cuando no se sabe dónde se ubicó el diseño [m]. */
+const CENTER_TOLERANCE = 25;
+
+/** Cómo se nombra el diseño al preguntar (masculino singular o plural). */
+interface DesignWords {
+  /** «un frente», «abanicos», «una chimenea»… */
+  name: string;
+  plural: boolean;
+}
+const FACE_WORDS: DesignWords = { name: 'un frente', plural: false };
+const RING_WORDS: DesignWords = { name: 'abanicos', plural: true };
+
+/**
+ * Antes de llevar un diseño ya puesto en 3D a OTRA labor o lugar (se borran los taladros de
+ * antes): pregunta si se reemplaza o se agrega uno nuevo. Ajustar en el mismo lugar no pregunta.
+ */
+function moveConfirmation(
+  key: string,
+  what: DesignWords,
+  tag: string,
+  prev: Place,
+  next: Place & { at: Placement },
+  addHint: string,
+  a: PlacementArgs,
+) {
+  if (a.confirmed === true || a.send === false) return null;
+  const blast = document.project.blasts[0];
+  const holes = taggedHoles(blast, tag);
+  if (!blast || holes.length === 0) return null;
+  // Misma labor (se corre a lo largo de ella) o casi el mismo punto: es un ajuste. Sin ubicación
+  // guardada (proyecto recién abierto) se compara con el centro de los taladros, con más holgura.
+  const n = holes.length;
+  const center = holes.reduce((c, h) => ({ x: c.x + h.collar.x / n, y: c.y + h.collar.y / n }), {
+    x: 0,
+    y: 0,
+  });
+  const from = prev.at ?? center;
+  const tolerance = prev.at ? MOVE_TOLERANCE : CENTER_TOLERANCE;
+  const samePlace =
+    (prev.working !== undefined && prev.working === next.working) ||
+    Math.hypot(from.x - next.at.x, from.y - next.at.y) <= tolerance;
+  if (samePlace) return null;
+  const was = prev.place || coords(center);
+  const risk = holesAtRisk(blast, holes, document.project.library);
+  const [it, other, old, gone, fresh] = what.plural
+    ? ['los', 'otros', 'los de', 'se borran', 'otros nuevos']
+    : ['lo', 'uno', 'el de', 'se borra', 'uno nuevo'];
+  return needsConfirmation({
+    key,
+    question: `Ya hay ${what.name} de ${String(holes.length)} taladros en ${was}: ¿${it} reemplazo por ${other} en ${next.place} (${old} ${was} ${gone}) o agrego ${fresh}?`,
+    existing: {
+      design: what.name,
+      at: was,
+      holes: holes.length,
+      charged_holes: risk.charged,
+      tied_holes: risk.tied,
+      new_place: next.place,
+    },
+    options: [
+      `Reemplazar (mover a ${next.place})`,
+      `Agregar ${fresh} en ${next.place}`,
+      'Cancelar',
+    ],
+    next: `Reemplazar → call the same tool again with the same arguments and confirmed true, then say that the one at ${was} was deleted. Agregar → ${addHint} Cancelar → change nothing.`,
+  });
+}
+
+/** Lugar de un diseño: nombre para el usuario, labor (si está sobre una) y origen. */
+interface Place {
+  place: string;
+  working?: string | undefined;
+  at: Placement | undefined;
+}
+
+const coords = (p: { x: number; y: number }) => `(${String(r(p.x, 0))}, ${String(r(p.y, 0))})`;
+
+/** Dónde está hoy el diseño de la pestaña (labor, o coordenadas). */
+function currentPlace(tab: UndergroundTab): Place {
+  const loc = locationOut(tab);
+  const at = useUndergroundStore.getState().placements?.[tab];
+  return {
+    place: loc ? loc.working : at ? coords(at) : '',
+    working: loc?.working,
+    at,
+  };
+}
+
+/** Adónde iría con estos argumentos, sin tocar el formulario ni la ubicación guardada. */
+function nextPlace(tab: UndergroundTab, a: PlacementArgs): (Place & { at: Placement }) | null {
+  const store = useUndergroundStore.getState();
+  const base = (store.placements ?? defaultPlacements(document.project))[tab];
+  if (a.working !== undefined) {
+    const target = workingByName(a.working);
+    const prev = store.locations[tab];
+    const same = prev?.targetId === target.id;
+    const station = a.station_m ?? (same ? prev.station : tab === 'face' ? target.length : 0);
+    return {
+      place: target.name,
+      working: target.name,
+      at: placementOn(target, {
+        targetId: target.id,
+        station: Math.max(0, Math.min(target.length, station)),
+        reverse: a.reverse ?? (same ? prev.reverse : false),
+      }),
+    };
+  }
+  if ([a.x, a.y, a.z].every((v) => v === undefined)) return null;
+  const at = { ...base, x: a.x ?? base.x, y: a.y ?? base.y, z: a.z ?? base.z };
+  return { place: coords(at), at };
+}
+
 function explosiveByName(lib: ProductLibrary, name: string | undefined): string | undefined {
   if (name === undefined) return undefined;
   const found = findByName(lib.explosives, name);
@@ -216,17 +334,25 @@ function explosiveByName(lib: ProductLibrary, name: string | undefined): string 
   return found.id;
 }
 
-function openPanel(tab: UndergroundTab | 'methods'): void {
+/**
+ * Deja el panel «Subterránea» en la pestaña del diseño. Solo se abre si el diseño quedó solo ahí
+ * (`send` false): lo puesto en 3D ya se ve en la escena y en la tarjeta, y abrir la ventana tapaba
+ * el chat del asistente. Si ya está abierta, cambia de pestaña sin traerla adelante.
+ */
+function openPanel(tab: UndergroundTab | 'methods', show: boolean): void {
   if (tab === 'methods') useMethodStore.getState().setActive(true);
   else {
     useMethodStore.getState().setActive(false);
     useUndergroundStore.getState().setTab(tab);
   }
-  // Como `openWorkspacePanel('underground')`, sin importar las ventanas (ciclo de módulos).
   const ui = useUiStore.getState();
   const id = 'workspace.underground';
-  if (ui.floating.some((w) => w.id === id)) ui.raiseFloating(id);
-  else ui.floatPanel(id, 980);
+  if (ui.floating.some((w) => w.id === id) || !show) return;
+  // Se cerró mientras simulaba: sin esto se abría grande con solo la barra de simulación.
+  if (useUgAnalysisStore.getState().compact)
+    useUgAnalysisStore.getState().set({ compact: false, savedWindow: null });
+  // Como `openWorkspacePanel('underground')`, sin importar las ventanas (ciclo de módulos).
+  ui.floatPanel(id, 980);
 }
 
 const mm = (m: number) => r(m * 1000, 0);
@@ -302,6 +428,19 @@ const faceSchema = z.object({
 
 function designFace(args: z.infer<typeof faceSchema>) {
   const lib = document.project.library;
+  const target = nextPlace('face', args);
+  if (target) {
+    const ask = moveConfirmation(
+      'ug-move:face',
+      FACE_WORDS,
+      FACE_TAG,
+      currentPlace('face'),
+      target,
+      'call design_by_method with method driftMechanized (or driftConventional for jackleg) on that working (working + station_m), with the same section and hole diameter: it is a separate design and the current face stays.',
+      args,
+    );
+    if (ask) return ask;
+  }
   const located = locate('face', args);
   const store = useUndergroundStore.getState();
   const patch: Partial<FaceForm> = {
@@ -350,8 +489,8 @@ function designFace(args: z.infer<typeof faceSchema>) {
   }
   store.patchFace(patch);
   const placement = placementFor('face', args);
-  openPanel('face');
   const send = args.send ?? true;
+  openPanel('face', !send);
   let sent = 0;
   if (send) {
     readOnlyGuard();
@@ -372,7 +511,8 @@ function designFace(args: z.infer<typeof faceSchema>) {
       }),
     );
   const result = {
-    section: `${form.profile} ${r(form.width)} × ${r(form.height)} m`,
+    // En español: el modelo repite lo que lee («arched 4.5 × 4 m» llegaba al usuario).
+    section: `${t(`ug.profile.${form.profile}`)} ${formatNumber(form.width, 1)} × ${formatNumber(form.height, 1)} m`,
     area_m2: r(face.profile.area, 1),
     explosive: explosive.name,
     charge:
@@ -491,6 +631,19 @@ const ringSchema = z.object({
 
 function designRings(args: z.infer<typeof ringSchema>) {
   const lib = document.project.library;
+  const target = nextPlace('ring', args);
+  if (target) {
+    const ask = moveConfirmation(
+      'ug-move:ring',
+      RING_WORDS,
+      RING_TAG,
+      currentPlace('ring'),
+      target,
+      'call design_by_method with method longholeFan on that working (working + station_m): it is a separate design and the current rings stay.',
+      args,
+    );
+    if (ask) return ask;
+  }
   const located = locate('ring', args);
   const store = useUndergroundStore.getState();
   const map: [keyof typeof args, keyof RingForm, number][] = [
@@ -538,8 +691,8 @@ function designRings(args: z.infer<typeof ringSchema>) {
     );
   store.patchRing(patch as Partial<RingForm>);
   const placement = placementFor('ring', args);
-  openPanel('ring');
   const send = args.send ?? true;
+  openPanel('ring', !send);
   let sent = 0;
   if (send) {
     readOnlyGuard();
@@ -751,21 +904,43 @@ function designMethod(args: z.infer<typeof methodSchema>) {
   } catch (e) {
     throw new ToolError(`Invalid data for ${id}: ${e instanceof Error ? e.message : String(e)}`);
   }
+  const saved = store.placements[id];
+  const base = saved ?? defaultMethodPlacement(document.project, id);
+  // Sobre una labor: origen, azimut y pendiente de su eje (el avance al final, lo demás al inicio).
+  const on = args.working !== undefined ? workingByName(args.working) : undefined;
+  const placement: Placement = on
+    ? placementOn(on, {
+        targetId: on.id,
+        station: Math.max(
+          0,
+          Math.min(on.length, args.station_m ?? (m.group === 'development' ? on.length : 0)),
+        ),
+        reverse: args.reverse ?? false,
+      })
+    : {
+        ...base,
+        ...(args.x !== undefined ? { x: args.x } : {}),
+        ...(args.y !== undefined ? { y: args.y } : {}),
+        ...(args.z !== undefined ? { z: args.z } : {}),
+        ...(args.azimuth_deg !== undefined ? { azimuthDeg: args.azimuth_deg % 360 } : {}),
+        ...(args.gradient_pct !== undefined ? { gradientPct: args.gradient_pct } : {}),
+      };
+  const ask = moveConfirmation(
+    `ug-move:${id}`,
+    { name: `un diseño «${t(`ugm.m.${id}.name`)}»`, plural: false },
+    m.tag,
+    { place: saved ? coords(saved) : '', at: saved },
+    { place: on ? on.name : coords(placement), working: on?.name, at: placement },
+    'each template keeps one design at a time: to keep both, use another template of the same group (list_mining_methods) on the new place; if there is none, say so and ask again.',
+    args,
+  );
+  if (ask) return ask;
   store.patch(id, patch);
   if (args.explosive !== undefined) store.setExplosive(id, explosive.id);
-  const base = store.placements[id] ?? defaultMethodPlacement(document.project, id);
-  const placement: Placement = {
-    ...base,
-    ...(args.x !== undefined ? { x: args.x } : {}),
-    ...(args.y !== undefined ? { y: args.y } : {}),
-    ...(args.z !== undefined ? { z: args.z } : {}),
-    ...(args.azimuth_deg !== undefined ? { azimuthDeg: args.azimuth_deg % 360 } : {}),
-    ...(args.gradient_pct !== undefined ? { gradientPct: args.gradient_pct } : {}),
-  };
   store.setPlacement(id, placement);
   store.choose(id);
-  openPanel('methods');
   const send = args.send ?? true;
+  openPanel('methods', !send);
   let sent = 0;
   if (send) {
     readOnlyGuard();
@@ -979,6 +1154,7 @@ function undergroundState() {
   return {
     face: {
       profile: f.profile,
+      profile_name: t(`ug.profile.${f.profile}`),
       width_m: f.width,
       height_m: f.height,
       hole_diameter_mm: mm(f.holeDiameter),
@@ -1038,6 +1214,13 @@ function undergroundState() {
 
 // ------------------------------------------------------------------ Labores
 
+/** Nombre en español de una sección de labor (las del formulario tienen traducción). */
+function profileName(kind: string): string {
+  return (PROFILE_CHOICES as readonly string[]).includes(kind)
+    ? t(`ug.profile.${kind as (typeof PROFILE_CHOICES)[number]}`)
+    : kind;
+}
+
 function listWorkings() {
   const workings = workingTargets().map((x) => {
     const a = x.points[0];
@@ -1050,7 +1233,7 @@ function listWorkings() {
       length_m: r(x.length, 1),
       ...(x.profile
         ? {
-            section: `${x.estimated ? 'measured' : x.profile.kind} ${r(x.profile.width)} × ${r(x.profile.height)} m`,
+            section: `${x.estimated ? 'medida' : profileName(x.profile.kind)} ${formatNumber(x.profile.width, 1)} × ${formatNumber(x.profile.height, 1)} m`,
           }
         : {}),
       start: xyz(a),
@@ -1075,13 +1258,13 @@ export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
   },
   design_tunnel_face: {
     description:
-      'UNDERGROUND: design the blast round of a drift/tunnel face with the Swedish method (Holmberg): parallel-hole cut with relief hole(s), stoping, walls, roof/contour (smooth blasting) and lifters, charges and electronic delays; opens the Subterránea panel with the face drawing and, unless send is false, puts the holes in 3D inside the excavated drive. Omitted values keep the current form (underground_state). Returns holes, advance, kg, powder factor, empirical hole count and warnings.',
+      'UNDERGROUND: design the blast round of a drift/tunnel face with the Swedish method (Holmberg): parallel-hole cut with relief hole(s), stoping, walls, roof/contour (smooth blasting) and lifters, charges and electronic delays; unless send is false, puts the holes in 3D inside the excavated drive (the face drawing stays in the Subterránea panel; it opens by itself only with send false). Moving an existing face to another working asks first (needs_confirmation). Omitted values keep the current form (underground_state). Returns holes, advance, kg, powder factor, empirical hole count and warnings.',
     schema: faceSchema,
     run: designFace,
   },
   design_stope_rings: {
     description:
-      'UNDERGROUND: design long-hole fan rings (abanicos) for a stope from a drilling drive: fan from the rig pivot to the stope limits by toe spacing or angle, alternating uncharged collars, N rings at the given burden, electronic timing; opens the panel and, unless send is false, puts them in 3D with the drive and the stope. Omitted values keep the current form. Returns holes per ring, kg, tonnes and kg/t.',
+      'UNDERGROUND: design long-hole fan rings (abanicos) for a stope from a drilling drive: fan from the rig pivot to the stope limits by toe spacing or angle, alternating uncharged collars, N rings at the given burden, electronic timing; unless send is false, puts them in 3D with the drive and the stope (moving existing rings to another working asks first). Omitted values keep the current form. Returns holes per ring, kg, tonnes and kg/t.',
     schema: ringSchema,
     run: designRings,
   },
@@ -1093,7 +1276,7 @@ export const UNDERGROUND_TOOLS: Record<string, ToolDef> = {
   },
   design_by_method: {
     description:
-      'UNDERGROUND: design a working with a mining-method template (one per stope/raise/heading): fills the template defaults, applies the given values (omitted values keep the last ones used for that template), computes holes, charges (column, lift or spherical crater charges, alternating ring collars), delays, kg, powder factor vs target, Langefors burden check and warnings; opens the panel tab «Método de minado» with the drawings and, unless send is false, puts the holes in 3D with their own tag (other templates and the face/rings tabs are kept).',
+      'UNDERGROUND: design a working with a mining-method template (one per stope/raise/heading): fills the template defaults, applies the given values (omitted values keep the last ones used for that template), computes holes, charges (column, lift or spherical crater charges, alternating ring collars), delays, kg, powder factor vs target, Langefors burden check and warnings; the drawings are in the Subterránea panel tab «Método de minado»; unless send is false, puts the holes in 3D (working + station_m place it on a loaded working; other templates and the face/rings tabs are kept; moving the existing design of this template to another place asks first).',
     schema: methodSchema,
     run: designMethod,
   },
