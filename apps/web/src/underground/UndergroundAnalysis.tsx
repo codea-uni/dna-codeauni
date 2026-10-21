@@ -25,6 +25,7 @@ import {
   type EnergyResult,
   type Hole,
   type HoleId,
+  type MuckpileResult,
   type Project,
   type UgFragmentationZone,
   type UgMuckpileWarning,
@@ -38,7 +39,9 @@ import {
   METHOD_CHOICES,
 } from '@cronos/core';
 import { requestMuckpile } from '../analysis/muckpileActions';
-import { isUndergroundPile, sequenceTimes } from '../analysis/visualize';
+import { isUndergroundPile, pileBlockColorBy, sequenceTimes } from '../analysis/visualize';
+import { muckpileRange } from '../analysis/muckpileColors';
+import { turboCss } from '@cronos/engine';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { NumberField } from '../components/NumberField';
 import { MethodDetail } from '../methods/MethodDetail';
@@ -708,9 +711,45 @@ function HaloSection({ blast, project }: { blast: Blast; project: Project }) {
               })}
         </span>
       </div>
+      {s.showPile && muckpile && isUndergroundPile(muckpile) && <PileLegend pile={muckpile} />}
       <p className="hint">{t('uga.halosHint')}</p>
       <MethodDetail id="simulation.visual" />
     </>
+  );
+}
+
+/**
+ * Leyenda de los bloques de roca de la simulación: color por tiempo de salida (turbo sin su
+ * extremo oscuro, como `ugBlockColors`) o por desplazamiento.
+ */
+function PileLegend({ pile }: { pile: MuckpileResult }) {
+  const t = useT();
+  const fmt = useFormat();
+  const colorBy = useAnalysisStore((a) => a.muckpileColorBy);
+  const mode = pileBlockColorBy(pile, colorBy);
+  const [lo, hi] = muckpileRange(pile, mode);
+  const stops = [0, 0.25, 0.5, 0.75, 1].map((x) =>
+    turboCss(mode === 'launch' ? 0.12 + 0.88 * x : x),
+  );
+  const label = (v: number) =>
+    mode === 'launch' ? `${fmt((v - lo) * 1000, 0)} ms` : `${fmt(v, 1)} m`;
+  return (
+    <div className="ug-legend" aria-label={t('uga.pile.legend')}>
+      <span>{t(mode === 'launch' ? 'uga.pile.legendLaunch' : 'uga.pile.legendDisp')}</span>
+      <span>
+        {label(lo)}
+        <i
+          style={{
+            display: 'inline-block',
+            width: 90,
+            height: 8,
+            borderRadius: 2,
+            background: `linear-gradient(to right, ${stops.join(',')})`,
+          }}
+        />
+        {label(hi)}
+      </span>
+    </div>
   );
 }
 

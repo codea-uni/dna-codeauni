@@ -361,6 +361,44 @@ export interface BuildWorkingsOptions {
   axisAt?: 'floor' | 'center';
   /** Separar cada sólido en sus partes conexas (una labor por parte). Por defecto, sí. */
   splitSolids?: boolean;
+  /**
+   * Perfil por tipo de labor (por el nombre de la capa): chimeneas y piques no son de 4,5 × 4 m.
+   * Lo que no está aquí usa `profile`. Ver `TYPICAL_WORKING_PROFILES`.
+   */
+  profiles?: Partial<Record<WorkingProfileGroup, WorkingProfileSpec>>;
+}
+
+/** Grupos de labores con perfil propio al importar ejes: chimeneas y piques (pozos). */
+export type WorkingProfileGroup = 'raise' | 'shaft';
+
+/**
+ * Perfiles típicos editables (supuesto R0, valores de partida que el usuario ajusta al importar):
+ * chimenea convencional 1,5 × 1,5 m rectangular; pique (pozo) circular de 5 m de diámetro.
+ */
+export const TYPICAL_WORKING_PROFILES: Record<WorkingProfileGroup, WorkingProfileSpec> = {
+  raise: { kind: 'rectangular', width: 1.5, height: 1.5 },
+  shaft: { kind: 'circular', width: 5, height: 5 },
+};
+
+const SHAFT_NAME = /(^|[^a-z])(piques?|pozos?|shafts?)([^a-z]|$)/i;
+const RAISE_NAME = /(^|[^a-z])(chimeneas?|chim|raises?|echaderos?|ore ?pass|ch(?=[-_ .]?\d))/i;
+
+/** Grupo de perfil de un eje por su nombre (capa) o, si sube más de lo que avanza, chimenea. */
+export function workingProfileGroup(
+  name: string,
+  points: readonly Vec3[],
+): WorkingProfileGroup | null {
+  if (SHAFT_NAME.test(name)) return 'shaft';
+  if (RAISE_NAME.test(name)) return 'raise';
+  let horizontal = 0;
+  let vertical = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as Vec3;
+    const b = points[i] as Vec3;
+    horizontal += Math.hypot(b.x - a.x, b.y - a.y);
+    vertical += Math.abs(b.z - a.z);
+  }
+  return vertical > horizontal && vertical > 0 ? 'raise' : null;
 }
 
 /** Une sólidos y túneles generados en una sola malla con sus ejes al nivel del piso. */
@@ -380,16 +418,23 @@ export function buildWorkings(src: WorkingsSource, options: BuildWorkingsOptions
     axisOffsets.push(axisCoords.length / 3);
     axes.push(meta);
   };
-  const profile = workingProfile(options.profile);
-  const drop = options.axisAt === 'center' ? profile.height / 2 : 0;
   src.axes.forEach((a) => {
+    const group = workingProfileGroup(a.name, a.points);
+    const spec = (group ? options.profiles?.[group] : undefined) ?? options.profile;
+    const profile = workingProfile(spec);
+    // Chimeneas y piques: el eje es el centro de la sección (casi vertical, no hay piso).
+    const centered = group !== null;
+    const drop = !centered && options.axisAt === 'center' ? profile.height / 2 : 0;
     const pts = a.points.map((p) => ({ x: p.x, y: p.y, z: p.z - drop }));
-    const mesh = tunnelMesh(pts, profile.points);
+    const shape = centered
+      ? profile.points.map((q) => ({ u: q.u, v: q.v - profile.height / 2 }))
+      : profile.points;
+    const mesh = tunnelMesh(pts, shape);
     addMesh(mesh.vertices, mesh.triangles);
     // Varias líneas con el mismo nombre (capa) se numeran.
     const same = src.axes.filter((b) => b.name === a.name);
     const name = same.length > 1 ? `${a.name} ${String(same.indexOf(a) + 1)}` : a.name;
-    addAxis({ name, source: 'axis', profile: { ...options.profile } }, pts);
+    addAxis({ name, source: 'axis', profile: { ...spec } }, pts);
   });
   let n = 0;
   for (const s of src.solids) {

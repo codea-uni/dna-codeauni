@@ -207,7 +207,9 @@ export function MinePage() {
               {mine?.length === 0 && (
                 <div className="empty">
                   <strong>{t('product.empty', { tool: toolName })}</strong>
-                  {canEdit ? t('projects.emptyHint') : t('projects.emptyReviewer')}
+                  {canEdit
+                    ? t(tool === 'underground' ? 'projects.emptyHintUg' : 'projects.emptyHint')
+                    : t('projects.emptyReviewer')}
                 </div>
               )}
               {mine && mine.length > 0 && (

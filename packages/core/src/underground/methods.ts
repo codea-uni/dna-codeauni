@@ -970,7 +970,8 @@ export const MINING_METHODS: readonly MiningMethod[] = [
   },
   {
     id: 'shrinkage',
-    code: 'UG-16',
+    // UG-16 del informe agrupa realce y shrinkage; aquí cada plantilla tiene su código.
+    code: 'UG-20',
     group: 'stope',
     generator: 'grid',
     orientation: 'up',

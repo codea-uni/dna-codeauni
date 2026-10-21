@@ -169,6 +169,77 @@ export function pickFaceExplosive(
   );
 }
 
+/** El cartucho de catálogo entra en el taladro (los productos a granel siempre). */
+export function cartridgeFits(holeDiameter: number, explosive: Explosive): boolean {
+  return !explosive.cartridge || explosive.cartridge.diameter < holeDiameter;
+}
+
+/**
+ * Explosivos ordenados para el selector del frente: primero los que entran en el taladro (a
+ * granel y cartuchos de menor a mayor), luego los cartuchos más gruesos que la broca.
+ */
+export function explosivesForHole(
+  lib: ProductLibrary,
+  holeDiameter: number,
+): { fits: Explosive[]; tooLarge: Explosive[] } {
+  const byDiameter = (a: Explosive, b: Explosive) =>
+    (a.cartridge?.diameter ?? 0) - (b.cartridge?.diameter ?? 0);
+  const fits = lib.explosives.filter((e) => cartridgeFits(holeDiameter, e)).sort(byDiameter);
+  const tooLarge = lib.explosives.filter((e) => !cartridgeFits(holeDiameter, e)).sort(byDiameter);
+  return { fits, tooLarge };
+}
+
+/** Diámetro del cartucho genérico de frentes: 1¼″ (31,75 mm). */
+const SMALL_CARTRIDGE = 1.25 * 0.0254;
+/** Largo del cartucho genérico: 8″ (203,2 mm). */
+const SMALL_CARTRIDGE_LENGTH = 8 * 0.0254;
+
+/**
+ * Emulsión encartuchada 1¼″ × 8″ genérica (densidad, VOD y potencia de la encartuchada genérica de
+ * la biblioteca), para ofrecerla cuando la biblioteca no tiene un cartucho que entre en la broca.
+ */
+export function genericSmallCartridge(
+  base: Explosive | undefined,
+): Omit<Explosive, 'id'> & { cartridge: NonNullable<Explosive['cartridge']> } {
+  const density = base?.density ?? 1150;
+  const mass = (density * Math.PI * SMALL_CARTRIDGE * SMALL_CARTRIDGE * SMALL_CARTRIDGE_LENGTH) / 4;
+  return {
+    source:
+      'Valor genérico de ejemplo, sin ficha técnica: reemplazar por la del fabricante (CT-01)',
+    version: 'Cronos 0.1',
+    name: 'Emulsión encartuchada 1¼″ × 8″ (genérica)',
+    family: 'emulsion',
+    form: 'packaged',
+    density,
+    vod: base?.vod ?? 5000,
+    energy: base?.energy ?? 3.0e6,
+    rws: base?.rws ?? 0.81,
+    waterResistance: 'high',
+    cartridge: { diameter: SMALL_CARTRIDGE, length: SMALL_CARTRIDGE_LENGTH, mass },
+    ...(base?.costPerKg !== undefined ? { costPerKg: base.costPerKg } : {}),
+  };
+}
+
+/**
+ * Cambio de explosivo principal del frente: el campo cartucho toma el del catálogo (0 = a granel)
+ * y el contorno queda con el que tenía (si seguía al principal, se fija en el anterior).
+ */
+export function mainExplosivePatch(
+  form: Pick<FaceForm, 'contourExplosiveId' | 'cartridgeDiameter'>,
+  previous: Explosive | null,
+  next: Explosive,
+): Partial<FaceForm> {
+  return {
+    explosiveId: next.id,
+    contourExplosiveId: form.contourExplosiveId ?? previous?.id ?? null,
+    cartridgeDiameter: next.cartridge
+      ? next.cartridge.diameter
+      : next.form === 'bulk'
+        ? 0
+        : form.cartridgeDiameter,
+  };
+}
+
 /** Aviso si el cartucho de catálogo del explosivo no entra en el taladro. */
 export function cartridgeTooLarge(
   form: Pick<FaceForm, 'holeDiameter'>,
@@ -301,4 +372,21 @@ export function computeRing(form: RingForm, explosive: Explosive): RingComputati
     delayInterval: form.holeInterval,
   });
   return { drive, boundary, pivot, ring };
+}
+
+/** Pie internacional [m]. */
+const FOOT = 0.3048;
+
+/**
+ * Largo de barra escrito como en mina: en metros («4,2», «4.2 m») o en pies («14'», «14 ft»,
+ * «14 pies»). Sin unidad se toma la de presentación (`plain`). Devuelve metros o null.
+ */
+export function parseRodLength(text: string, plain: 'm' | 'ft' = 'm'): number | null {
+  const m = /^\s*(\d+(?:[.,]\d+)?)\s*(m|mts?|metros?|'|’|ft|pies?|feet|foot)?\s*$/i.exec(text);
+  if (!m?.[1]) return null;
+  const n = Number(m[1].replace(',', '.'));
+  if (!Number.isFinite(n)) return null;
+  const unit = (m[2] ?? '').toLowerCase();
+  const feet = unit === '' ? plain === 'ft' : !unit.startsWith('m');
+  return feet ? n * FOOT : n;
 }

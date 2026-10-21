@@ -10,6 +10,8 @@ export interface WorkingLocation {
   station: number;
   /** El frente avanza hacia el inicio del eje. */
   reverse: boolean;
+  /** Abanicos: tajeo elegido (la labor es la galería de perforación junto a él). */
+  stopeId?: string;
 }
 
 /** Estado de la herramienta subterránea (preferencias de la sesión; no es parte del proyecto). */

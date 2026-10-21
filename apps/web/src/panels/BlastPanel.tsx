@@ -18,6 +18,7 @@ import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { useUnits } from '../hooks/useUnits';
 import { useFormat, useT } from '../i18n';
+import { useProjectKind } from '../product/product';
 import { getCompute } from '../session';
 import { topographyTin } from '../topography/session';
 import { useAnalysisStore } from '../stores/analysisStore';
@@ -29,6 +30,7 @@ export function BlastPanel() {
   const setTool = useUiStore((s) => s.setTool);
   const activeBoundaryId = useUiStore((s) => s.activeBoundaryId);
   const setActiveBoundary = useUiStore((s) => s.setActiveBoundary);
+  const underground = useProjectKind() === 'underground';
   if (!blast) return null;
 
   const setBench = (patch: Partial<typeof blast.bench>, label: string) => {
@@ -65,27 +67,32 @@ export function BlastPanel() {
             setBench({ floorElevation: v }, t('blast.floor'));
           }}
         />
-        <NumberField
-          label={t('blast.benchHeight')}
-          unit={len.unit}
-          min={0.1}
-          value={len.show(blast.bench.height)}
-          onCommit={(raw) => {
-            const v = len.parse(raw);
-            setBench({ height: v }, t('blast.benchHeight'));
-          }}
-        />
-        <NumberField
-          label={t('blast.faceAngle')}
-          unit="°"
-          decimals={1}
-          min={1}
-          max={90}
-          value={radToDeg(blast.bench.faceAngle)}
-          onCommit={(deg) => {
-            setBench({ faceAngle: degToRad(deg) }, t('blast.faceAngle'));
-          }}
-        />
+        {/* Bajo tierra no hay banco: ni altura de banco ni ángulo de cara. */}
+        {!underground && (
+          <>
+            <NumberField
+              label={t('blast.benchHeight')}
+              unit={len.unit}
+              min={0.1}
+              value={len.show(blast.bench.height)}
+              onCommit={(raw) => {
+                const v = len.parse(raw);
+                setBench({ height: v }, t('blast.benchHeight'));
+              }}
+            />
+            <NumberField
+              label={t('blast.faceAngle')}
+              unit="°"
+              decimals={1}
+              min={1}
+              max={90}
+              value={radToDeg(blast.bench.faceAngle)}
+              onCommit={(deg) => {
+                setBench({ faceAngle: degToRad(deg) }, t('blast.faceAngle'));
+              }}
+            />
+          </>
+        )}
         <label className="field">
           <span className="field-label">{t('blast.subdrillConvention')}</span>
           <select

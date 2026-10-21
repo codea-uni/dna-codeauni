@@ -70,7 +70,7 @@ export const es = {
   'ugm.warn.stemmingTooLong': '{count} taladros quedan sin carga: el taco es mayor que el taladro.',
 
   'ugm.p.profile': 'Perfil',
-  'ugm.p.profile.arched': 'Arco (D)',
+  'ugm.p.profile.arched': 'Baúl (arco)',
   'ugm.p.profile.rectangular': 'Rectangular',
   'ugm.p.width': 'Ancho W',
   'ugm.p.height': 'Alto H',
@@ -79,7 +79,7 @@ export const es = {
   'ugm.p.reliefDiameter': 'Diámetro del alivio φ0',
   'ugm.p.reliefCount': 'Alivios',
   'ugm.p.cartridgeDiameter': 'Cartucho (0 = a granel)',
-  'ugm.p.length': 'Largo del taladro / viga',
+  'ugm.p.length': 'Largo del taladro / barra',
   'ugm.p.dip': 'Inclinación (desde la horizontal)',
   'ugm.p.subdrill': 'Sobreperforación',
   'ugm.p.burden': 'Burden B (0 = Langefors)',

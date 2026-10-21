@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
-import { EMPIRICAL_HOLE_COUNT, type ProductLibrary } from '@cronos/core';
+import {
+  EMPIRICAL_HOLE_COUNT,
+  MAX_RING_DRIVE_GRADE,
+  newId,
+  offsetFrame,
+  type ProductLibrary,
+  type Vec3,
+} from '@cronos/core';
 import { NumberField } from '../components/NumberField';
 import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
@@ -18,12 +25,19 @@ import {
   pickExplosive,
   pickFaceExplosive,
   cartridgeTooLarge,
+  explosivesForHole,
+  genericSmallCartridge,
+  mainExplosivePatch,
+  parseRodLength,
   PROFILE_CHOICES,
   type FaceComputation,
   type RingComputation,
 } from '../underground/model';
 import {
   defaultPlacements,
+  fly,
+  frameOf,
+  ringPreviewSegments,
   FACE_TAG,
   RING_TAG,
   sendFace,
@@ -43,6 +57,7 @@ import {
   type WorkingTarget,
 } from '../underground/location';
 import { onTopographyChange } from '../topography/session';
+import { session } from '../session';
 import { useUndergroundStore, type UndergroundTab } from '../underground/store';
 import { faceWarningText } from '../underground/warnings';
 import { useUgAnalysisStore } from '../underground/analysisStore';
@@ -131,32 +146,77 @@ export function UndergroundPanel() {
   );
 }
 
+/** Opción del selector que agrega a la biblioteca la emulsión encartuchada 1¼″ genérica. */
+const ADD_GENERIC = '__generic-1-1/4';
+
 function ExplosiveSelect({
   label,
   library,
   value,
   onChange,
+  holeDiameter,
 }: {
   label: string;
   library: ProductLibrary;
   value: string | null;
   onChange: (id: string) => void;
+  /** Frente: los cartuchos que entran en la broca primero; los más gruesos, aparte. */
+  holeDiameter?: number;
 }) {
+  const t = useT();
+  const fmt = useFormat();
   const current = pickExplosive(library, value);
+  const groups = holeDiameter !== undefined ? explosivesForHole(library, holeDiameter) : null;
+  // Sin un cartucho que entre en la broca, se ofrece el genérico 1¼″ × 8″ (32 mm).
+  const offerGeneric =
+    groups !== null &&
+    holeDiameter !== undefined &&
+    holeDiameter > 0.034 &&
+    !groups.fits.some((e) => e.form === 'packaged');
+  const option = (e: ProductLibrary['explosives'][number], disabled = false) => (
+    <option key={e.id} value={e.id} disabled={disabled && e.id !== current?.id}>
+      {e.name}
+    </option>
+  );
   return (
     <label className="field">
       <span className="field-label">{label}</span>
       <select
         value={current?.id ?? ''}
         onChange={(e) => {
-          onChange(e.target.value);
+          if (e.target.value !== ADD_GENERIC) {
+            onChange(e.target.value);
+            return;
+          }
+          const base = library.explosives.find(
+            (x) => x.family === 'emulsion' && x.form === 'packaged',
+          );
+          const generic = { id: newId<'Explosive'>(), ...genericSmallCartridge(base) };
+          session.document.dispatch(
+            {
+              type: 'project/patch',
+              patch: { library: { ...library, explosives: [...library.explosives, generic] } },
+            },
+            generic.name,
+          );
+          onChange(generic.id);
         }}
       >
-        {library.explosives.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.name}
-          </option>
-        ))}
+        {groups ? (
+          <>
+            <optgroup label={t('ug.cartridge.fits', { d: fmt((holeDiameter ?? 0) * 1000, 0) })}>
+              {groups.fits.map((e) => option(e))}
+              {offerGeneric && <option value={ADD_GENERIC}>{t('ug.cartridge.addGeneric')}</option>}
+            </optgroup>
+            {groups.tooLarge.length > 0 && (
+              <optgroup label={t('ug.cartridge.tooLarge')}>
+                {groups.tooLarge.map((e) => option(e, true))}
+              </optgroup>
+            )}
+          </>
+        ) : (
+          library.explosives.map((e) => option(e))
+        )}
       </select>
     </label>
   );
@@ -294,10 +354,15 @@ function FaceTab() {
           decimals={2}
           min={0.5}
           value={len.show(form.maxDrill)}
+          parseText={(text) => {
+            const m = parseRodLength(text, len.unit === 'ft' ? 'ft' : 'm');
+            return m === null ? null : len.show(m);
+          }}
           onCommit={(v) => {
             patch({ maxDrill: len.parse(v) });
           }}
         />
+        <p className="hint">{t('ug.maxDrillHint')}</p>
         <NumberField
           label={t('ug.rockConstant')}
           unit="kg/m³"
@@ -318,11 +383,24 @@ function FaceTab() {
             <ExplosiveSelect
               label={t('ug.explosive')}
               library={library}
+              holeDiameter={form.holeDiameter}
               value={form.explosiveId ?? explosive?.id ?? null}
               onChange={(explosiveId) => {
-                patch({ explosiveId });
+                // Al leer: la genérica 1¼″ recién agregada ya está en la biblioteca.
+                const lib = session.document.project.library;
+                const next = lib.explosives.find((e) => e.id === explosiveId);
+                if (next) patch(mainExplosivePatch(form, explosive, next));
               }}
             />
+            {tooLarge && explosive.cartridge && (
+              <p className="hint warn">
+                {t('ug.warn.cartridgeTooLarge', {
+                  name: explosive.name,
+                  cartridge: fmt(explosive.cartridge.diameter * 1000, 0),
+                  hole: fmt(form.holeDiameter * 1000, 0),
+                })}
+              </p>
+            )}
             <NumberField
               label={t('ug.cartridge')}
               unit={dia.unit}
@@ -358,6 +436,7 @@ function FaceTab() {
               <ExplosiveSelect
                 label={t('ug.contourExplosive')}
                 library={library}
+                holeDiameter={form.holeDiameter}
                 value={form.contourExplosiveId ?? explosive?.id ?? null}
                 onChange={(contourExplosiveId) => {
                   patch({ contourExplosiveId });
@@ -513,17 +592,8 @@ function FaceTab() {
                 design: k.chargedHoles,
               }}
             />
-            {(design.warnings.length > 0 || tooLarge) && (
+            {design.warnings.length > 0 && (
               <ul className="ug-warnings">
-                {tooLarge && explosive.cartridge && (
-                  <li className="warn">
-                    {t('ug.warn.cartridgeTooLarge', {
-                      name: explosive.name,
-                      cartridge: fmt(explosive.cartridge.diameter * 1000, 0),
-                      hole: fmt(form.holeDiameter * 1000, 0),
-                    })}
-                  </li>
-                )}
                 {design.warnings.map((w, i) => (
                   <li key={`${w.code}${String(i)}`} className="warn">
                     {faceWarningText(w, t, fmt)}
@@ -641,12 +711,15 @@ function SendBox({
   previous,
   disabled,
   onSend,
+  preview = null,
 }: {
   which: UndergroundTab;
   placement: Placement | null;
   previous: number;
   disabled: boolean;
   onSend: (p: Placement) => void;
+  /** Vista previa en 3D (abanicos): dibuja los taladros sin llevarlos al diseño. */
+  preview?: { on: boolean; toggle: () => void } | null;
 }) {
   const t = useT();
   const { len } = useUnits();
@@ -708,6 +781,14 @@ function SendBox({
         </button>
       </div>
       {previous > 0 && <p className="hint">{t('ug.sendReplace', { n: previous })}</p>}
+      {preview && (
+        <div className="row">
+          <button className={preview.on ? 'active' : undefined} onClick={preview.toggle}>
+            {preview.on ? t('ug.previewOff') : t('ug.preview')}
+          </button>
+          <span className="hint">{t('ug.previewHint')}</span>
+        </div>
+      )}
       <button
         className="primary"
         disabled={disabled}
@@ -756,7 +837,18 @@ function RingTab() {
   const n = Math.max(1, form.rings);
   const previous = taggedHoles(blast, RING_TAG).length;
   const truncated = ring?.ring.holes.filter((h) => h.truncated).length ?? 0;
-  useWorkingSection('ring', placement, Math.max(form.driveWidth, form.driveHeight));
+  // Vista previa en 3D de los anillos antes de llevarlos al diseño (A9).
+  const [preview, setPreview] = useState(false);
+  const previewSegments = useMemo(
+    () => (preview && ring && placement ? ringPreviewSegments(form, ring, placement) : null),
+    [preview, ring, placement, form],
+  );
+  useWorkingSection(
+    'ring',
+    placement,
+    Math.max(form.driveWidth, form.driveHeight),
+    previewSegments,
+  );
   const ms = (s: number) => fmt(s * 1000, 0);
   const lenField = (key: RingLengthKey, label: MessageKey, min?: number) => (
     <NumberField
@@ -868,6 +960,7 @@ function RingTab() {
           <ExplosiveSelect
             label={t('ug.explosive')}
             library={library}
+            holeDiameter={form.holeDiameter}
             value={form.explosiveId}
             onChange={(explosiveId) => {
               patch({ explosiveId });
@@ -921,7 +1014,29 @@ function RingTab() {
         <SendBox
           previous={previous}
           disabled={!ring || ring.ring.holes.length === 0}
+          preview={
+            placement && ring
+              ? {
+                  on: preview,
+                  toggle: () => {
+                    const next = !preview;
+                    setPreview(next);
+                    if (next) {
+                      const height = form.stopeTop - form.stopeBottom;
+                      fly(
+                        offsetFrame(frameOf(placement), ((form.rings - 1) * form.burden) / 2),
+                        { u: form.stopeOffset, v: (form.stopeTop + form.stopeBottom) / 2 },
+                        0,
+                        Math.max(form.stopeWidth, height) * 1.4,
+                        placement.azimuthDeg,
+                      );
+                    }
+                  },
+                }
+              : null
+          }
           onSend={(p) => {
+            setPreview(false);
             if (ring) sendRings(form, ring, p);
           }}
           which="ring"
@@ -1068,7 +1183,12 @@ function useWorkingTargets(): WorkingTarget[] {
  * Contorno real de la labor elegida en el plano del frente: se marca en el visor mientras el panel
  * está abierto y se devuelve en (u, v) para el dibujo.
  */
-function useWorkingSection(which: UndergroundTab, placement: Placement | null, size: number) {
+function useWorkingSection(
+  which: UndergroundTab,
+  placement: Placement | null,
+  size: number,
+  extra: readonly Vec3[] | null = null,
+) {
   const targets = useWorkingTargets();
   const loc = useUndergroundStore((s) => s.locations[which]);
   const target = loc ? targets.find((x) => x.id === loc.targetId) : undefined;
@@ -1077,8 +1197,8 @@ function useWorkingSection(which: UndergroundTab, placement: Placement | null, s
     [target, placement, size],
   );
   useEffect(() => {
-    showSection(section?.world ?? null);
-  }, [section]);
+    showSection(extra ? [...(section?.world ?? []), ...extra] : (section?.world ?? null));
+  }, [section, extra]);
   useEffect(
     () => () => {
       showSection(null);
@@ -1100,6 +1220,9 @@ function LocationBox({ which, placement }: { which: UndergroundTab; placement: P
   const ring = useUndergroundStore((s) => s.ring);
   const [picking, setPicking] = useState(false);
   const target = loc ? targets.find((x) => x.id === loc.targetId) : undefined;
+  const stope = loc?.stopeId ? targets.find((x) => x.id === loc.stopeId) : undefined;
+  // Una galería de perforación muy empinada deja anillos inclinados (A9: −143 % sin aviso).
+  const steep = Math.abs(placement.gradientPct) > MAX_RING_DRIVE_GRADE * 100;
   const groups = groupTargets(targets, which);
   const manySurveys = new Set(targets.filter((x) => x.kind).map((x) => x.group)).size > 1;
   const dims =
@@ -1113,7 +1236,9 @@ function LocationBox({ which, placement }: { which: UndergroundTab; placement: P
   return (
     <div className="ug-location">
       <label className="field">
-        <span className="field-label">{t('ug.loc.title')}</span>
+        <span className="field-label">
+          {t(which === 'ring' ? 'ug.loc.titleRing' : 'ug.loc.title')}
+        </span>
         <select
           value={target ? target.id : ''}
           onChange={(e) => {
@@ -1147,6 +1272,9 @@ function LocationBox({ which, placement }: { which: UndergroundTab; placement: P
         </select>
       </label>
       {targets.length === 0 && <p className="hint">{t('ug.loc.none')}</p>}
+      {which === 'ring' && steep && (
+        <p className="hint warn">{t('ug.loc.steep', { g: fmt(placement.gradientPct, 0) })}</p>
+      )}
       {target && loc && (
         <>
           <label className="field ug-station">
@@ -1197,6 +1325,15 @@ function LocationBox({ which, placement }: { which: UndergroundTab; placement: P
                 height: fmt(target.profile.height, 2),
               })}`}
           </p>
+          {which === 'ring' && stope && (
+            <p className="hint">
+              {t('ug.loc.stopeInfo', {
+                stope: stope.name,
+                w: fmt(ring.stopeWidth, 1),
+                h: fmt(ring.stopeTop - ring.stopeBottom, 1),
+              })}
+            </p>
+          )}
         </>
       )}
       <div className="row">

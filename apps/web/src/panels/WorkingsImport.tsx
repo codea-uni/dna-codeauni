@@ -1,4 +1,9 @@
-import type { WorkingProfileSpec, WorkingsLayerInfo } from '@cronos/core';
+import {
+  TYPICAL_WORKING_PROFILES,
+  type WorkingProfileGroup,
+  type WorkingProfileSpec,
+  type WorkingsLayerInfo,
+} from '@cronos/core';
 import { Spline } from 'lucide-react';
 import { useRef, useState } from 'react';
 import * as actions from '../actions';
@@ -27,6 +32,9 @@ export function WorkingsImport() {
     width: face.width,
     height: face.height,
   });
+  // Chimeneas y piques con su perfil típico (editable), no el de la galería (A9).
+  const [profiles, setProfiles] =
+    useState<Record<WorkingProfileGroup, WorkingProfileSpec>>(TYPICAL_WORKING_PROFILES);
   const [axisAt, setAxisAt] = useState<'floor' | 'center'>('floor');
   const fmt = useFormat();
   const [pending, setPending] = useState<{
@@ -37,7 +45,12 @@ export function WorkingsImport() {
   const finish = (files: File[], layers?: string[]) => {
     setOpen(false);
     setPending(null);
-    void importWorkingsFiles(files, { profile, axisAt, ...(layers ? { layers } : {}) });
+    void importWorkingsFiles(files, {
+      profile,
+      profiles,
+      axisAt,
+      ...(layers ? { layers } : {}),
+    });
   };
   return (
     <>
@@ -93,6 +106,46 @@ export function WorkingsImport() {
               setProfile({ ...profile, height: len.parse(v) });
             }}
           />
+          <p className="hint">{t('ug.import.byKind')}</p>
+          {(['raise', 'shaft'] as const).map((g) => (
+            <div key={g} className="row" style={{ flexWrap: 'wrap', gap: '0.3rem' }}>
+              <strong className="small">{t(`ug.import.${g}`)}</strong>
+              <select
+                aria-label={t('topo.workings.profile')}
+                value={profiles[g].kind}
+                onChange={(e) => {
+                  const kind = PROFILE_CHOICES.find((p) => p === e.target.value);
+                  if (kind) setProfiles({ ...profiles, [g]: { ...profiles[g], kind } });
+                }}
+              >
+                {PROFILE_CHOICES.map((p) => (
+                  <option key={p} value={p}>
+                    {t(`ug.profile.${p}`)}
+                  </option>
+                ))}
+              </select>
+              <NumberField
+                label={t('topo.workings.width')}
+                unit={len.unit}
+                decimals={2}
+                min={0.5}
+                value={len.show(profiles[g].width)}
+                onCommit={(v) => {
+                  setProfiles({ ...profiles, [g]: { ...profiles[g], width: len.parse(v) } });
+                }}
+              />
+              <NumberField
+                label={t('topo.workings.height')}
+                unit={len.unit}
+                decimals={2}
+                min={0.5}
+                value={len.show(profiles[g].height)}
+                onCommit={(v) => {
+                  setProfiles({ ...profiles, [g]: { ...profiles[g], height: len.parse(v) } });
+                }}
+              />
+            </div>
+          ))}
           <label className="field">
             <span className="field-label">{t('topo.workings.axisAt')}</span>
             <select

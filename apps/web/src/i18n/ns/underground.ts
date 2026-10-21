@@ -17,7 +17,7 @@ export const es = {
   'ug.section.send': 'Llevar al diseño 3D',
 
   'ug.profile': 'Perfil',
-  'ug.profile.arched': 'Arco (D)',
+  'ug.profile.arched': 'Baúl (arco)',
   'ug.profile.horseshoe': 'Herradura (bóveda rebajada)',
   'ug.profile.rectangular': 'Rectangular',
   'ug.profile.roundedShoulders': 'Hombros redondeados',
@@ -28,11 +28,15 @@ export const es = {
   'ug.drillDiameter': 'Diámetro de perforación d',
   'ug.reliefDiameter': 'Diámetro del alivio φ0',
   'ug.reliefCount': 'Taladros de alivio',
-  'ug.maxDrill': 'Largo máximo de la viga',
+  'ug.maxDrill': 'Largo de barra',
+  'ug.maxDrillHint': "Escriba metros o pies: 14' = 4,27 m.",
   'ug.rockConstant': 'Constante de roca c',
   'ug.explosive': 'Explosivo',
   'ug.contourExplosive': 'Explosivo del contorno',
   'ug.cartridge': 'Diámetro del cartucho (0 = a granel)',
+  'ug.cartridge.fits': 'Entran en la broca de {d} mm',
+  'ug.cartridge.tooLarge': 'Cartucho más grueso que la broca (no entra)',
+  'ug.cartridge.addGeneric': '+ Emulsión encartuchada 1¼″ × 8″ (32 mm, genérica)',
   'ug.cartridgeHint':
     'Con cartuchos desacoplados baja la carga lineal: burdens menores y más taladros (método sueco).',
   'ug.smooth': 'Voladura suave en el contorno',
@@ -97,7 +101,7 @@ export const es = {
   'ug.warn.cutBurdenLimited':
     'La sección {square} del arranque quedó limitada a burden = 2·abertura (deformación plástica).',
   'ug.warn.depthLimited':
-    'El alivio permite {relief} m pero la viga limita la profundidad a {depth} m.',
+    'El alivio permite {relief} m pero la barra limita la profundidad a {depth} m.',
   'ug.warn.lifterBurdenOver06L':
     'El burden de zapateras ({burden} m) supera 0,6·H ({limit} m): sube la carga o reduce el burden.',
   'ug.warn.holesOutsideProfile': '{count} taladros quedaban fuera del perfil y se descartaron.',
@@ -168,6 +172,7 @@ export const es = {
   'ug.role.guide': 'Guía (vacío)',
   'ug.kpi.holesDetailGuides': '{charged} cargados + {relief} alivio + {guides} guía',
   'ug.loc.title': 'Ubicación del frente',
+  'ug.loc.titleRing': 'Ubicación del anillo/abanico',
   'ug.loc.manual': 'Coordenadas a mano',
   'ug.loc.none':
     'Importa las labores en Topografía («Labores subterráneas») para ubicar el frente sobre ellas.',
@@ -188,6 +193,22 @@ export const es = {
   'ug.loc.contour': 'Contorno real de la labor',
   'ug.loc.designed': 'Diseño enviado',
   'ug.loc.driveFace': 'Galería del frente',
+  'ug.loc.stopeDrive':
+    'Abanicos del tajeo «{stope}»: se perforan desde «{drive}», con anillos verticales perpendiculares a ella{size}. Revise la vista previa antes de llevarlos al 3D.',
+  'ug.loc.stopeSize': '; tajeo de {w} × {h} m medido en el sólido',
+  'ug.loc.stopeNoDrive':
+    'No hay una galería de perforación cerca del tajeo «{stope}»: los anillos se ubicaron en su base con pendiente 0. Ajuste el origen y el azimut a mano.',
+  'ug.loc.stopeInfo':
+    'Tajeo «{stope}» ({w} × {h} m, medido en el sólido): se perfora desde esta labor.',
+  'ug.loc.steep':
+    'Pendiente de {g} %: una galería de perforación de abanicos suele ser casi horizontal (≤ 20 %). Los anillos quedarán inclinados; revise la labor elegida o ajuste la pendiente.',
+  'ug.preview': 'Vista previa en 3D',
+  'ug.import.byKind':
+    'El perfil de arriba es para galerías, cruceros, rampas y accesos. Chimeneas y piques (por el nombre de la capa o por ser casi verticales) se importan con su perfil típico, centrado en el eje:',
+  'ug.import.raise': 'Chimeneas',
+  'ug.import.shaft': 'Piques / pozos',
+  'ug.previewOff': 'Quitar la vista previa',
+  'ug.previewHint': 'Se dibujan los taladros en el visor sin llevarlos al diseño.',
   'ug.loc.driveRing': 'Galería de perforación (abanicos)',
 };
 
@@ -205,7 +226,7 @@ export const en = {
   'ug.section.send': 'Send to the 3D design',
 
   'ug.profile': 'Profile',
-  'ug.profile.arched': 'Arched (D)',
+  'ug.profile.arched': 'Arched (D-shaped)',
   'ug.profile.horseshoe': 'Horseshoe (segmental arch)',
   'ug.profile.rectangular': 'Rectangular',
   'ug.profile.roundedShoulders': 'Rounded shoulders',
@@ -216,11 +237,15 @@ export const en = {
   'ug.drillDiameter': 'Drill diameter d',
   'ug.reliefDiameter': 'Relief hole diameter φ0',
   'ug.reliefCount': 'Relief holes',
-  'ug.maxDrill': 'Maximum feed length',
+  'ug.maxDrill': 'Drill rod length',
+  'ug.maxDrillHint': "Type metres or feet: 14' = 4.27 m.",
   'ug.rockConstant': 'Rock constant c',
   'ug.explosive': 'Explosive',
   'ug.contourExplosive': 'Contour explosive',
   'ug.cartridge': 'Cartridge diameter (0 = bulk)',
+  'ug.cartridge.fits': 'Fit the {d} mm bit',
+  'ug.cartridge.tooLarge': 'Cartridge wider than the bit (does not fit)',
+  'ug.cartridge.addGeneric': '+ Packaged emulsion 1¼″ × 8″ (32 mm, generic)',
   'ug.cartridgeHint':
     'Decoupled cartridges lower the linear charge: smaller burdens and more holes (Swedish method).',
   'ug.smooth': 'Smooth blasting on the contour',
@@ -355,6 +380,7 @@ export const en = {
   'ug.role.guide': 'Guide (empty)',
   'ug.kpi.holesDetailGuides': '{charged} charged + {relief} relief + {guides} guide',
   'ug.loc.title': 'Face location',
+  'ug.loc.titleRing': 'Ring/fan location',
   'ug.loc.manual': 'Manual coordinates',
   'ug.loc.none':
     'Import the workings in Topography («Underground workings») to place the face on them.',
@@ -375,5 +401,21 @@ export const en = {
   'ug.loc.contour': 'Actual outline of the working',
   'ug.loc.designed': 'Sent design',
   'ug.loc.driveFace': 'Face drive',
+  'ug.loc.stopeDrive':
+    'Rings of stope «{stope}»: drilled from «{drive}», with vertical rings perpendicular to it{size}. Check the preview before sending them to 3D.',
+  'ug.loc.stopeSize': '; {w} × {h} m stope measured on the solid',
+  'ug.loc.stopeNoDrive':
+    'No drilling drive near stope «{stope}»: the rings were placed at its base with 0 gradient. Adjust the origin and azimuth by hand.',
+  'ug.loc.stopeInfo':
+    'Stope «{stope}» ({w} × {h} m, measured on the solid): drilled from this working.',
+  'ug.loc.steep':
+    'Gradient {g} %: a ring drilling drive is usually nearly horizontal (≤ 20 %). The rings will be tilted; check the chosen working or adjust the gradient.',
+  'ug.preview': 'Preview in 3D',
+  'ug.import.byKind':
+    'The profile above is for drifts, crosscuts, ramps and accesses. Raises and shafts (by layer name or because they are nearly vertical) are imported with their typical profile, centred on the axis:',
+  'ug.import.raise': 'Raises',
+  'ug.import.shaft': 'Shafts',
+  'ug.previewOff': 'Remove the preview',
+  'ug.previewHint': 'The holes are drawn in the viewer without sending them to the design.',
   'ug.loc.driveRing': 'Drilling drive (rings)',
 } satisfies Record<keyof typeof es, string>;
