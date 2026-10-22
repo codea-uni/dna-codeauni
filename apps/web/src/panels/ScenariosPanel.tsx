@@ -10,6 +10,8 @@ import * as actions from '../actions';
 import { Floatable } from '../components/Floatable';
 
 const fmt = (v: number | null, d = 0) => (v === null ? '—' : formatNumber(v, d));
+/** Factor con volumen cubicado (diseño sin malla): se marca con * y se explica bajo la tabla. */
+const cubed = (k: ScenarioKpis, v: string) => (k.factorBasis === 'cubed' ? `${v} *` : v);
 
 /** Filas de la comparación: etiqueta y valor presentado. */
 const ROWS: [MessageKey, (k: ScenarioKpis) => string][] = [
@@ -21,14 +23,14 @@ const ROWS: [MessageKey, (k: ScenarioKpis) => string][] = [
     (k) => (k.unpriced.length > 0 ? translate('results.unpriced') : fmt(k.cost)),
   ],
   ['scenarios.kpi.drilled', (k) => fmt(k.drilledLength)],
-  ['scenarios.kpi.loadingFactor', (k) => fmt(k.loadingFactor, 3)],
+  ['scenarios.kpi.loadingFactor', (k) => cubed(k, fmt(k.loadingFactor, 3))],
   [
     'scenarios.kpi.powderFactor',
-    (k) => fmt(k.powderFactor === null ? null : k.powderFactor * 1000, 3),
+    (k) => cubed(k, fmt(k.powderFactor === null ? null : k.powderFactor * 1000, 3)),
   ],
   [
     'scenarios.kpi.energyFactor',
-    (k) => fmt(k.energyFactor === null ? null : k.energyFactor / 1000, 3),
+    (k) => cubed(k, fmt(k.energyFactor === null ? null : k.energyFactor / 1000, 3)),
   ],
   ['scenarios.kpi.duration', (k) => fmt(k.duration === null ? null : k.duration * 1000)],
   ['scenarios.kpi.mic', (k) => fmt(k.mic)],
@@ -215,6 +217,9 @@ export function ScenariosPanel() {
               </tbody>
             </table>
           </div>
+        )}
+        {kpis?.some((k) => k.factorBasis === 'cubed') && (
+          <p className="hint">{t('scenarios.cubedNote')}</p>
         )}
       </Floatable>
     </section>

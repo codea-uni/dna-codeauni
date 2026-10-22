@@ -40,6 +40,8 @@ export const es = {
     'Descarga un archivo .cronos.json con el proyecto (respaldo o para abrirlo en otro equipo). No guarda en la mina.',
   // Escenarios
   'scenarios.nameLabel': 'Nombre del escenario',
+  'scenarios.cubedNote':
+    '* Sin malla (taladros importados o a mano) no hay burden × espaciamiento: el factor usa el volumen cubicado (área de influencia × altura de banco).',
   'units.diameterUnit': 'Unidad del diámetro',
   'units.inches': 'pulg',
   // Respaldo de un método de cálculo (el código R0–R4 queda en el detalle técnico)
@@ -116,6 +118,8 @@ export const en = {
   'save.downloadCopyHint':
     'Downloads a .cronos.json file with the project (backup or to open it elsewhere). It does not save to the mine.',
   'scenarios.nameLabel': 'Scenario name',
+  'scenarios.cubedNote':
+    '* Without a pattern (imported or hand-placed holes) there is no burden × spacing: the factor uses the cubed volume (influence area × bench height).',
   'units.diameterUnit': 'Diameter unit',
   'units.inches': 'in',
   'md.level.R0': 'Hypothesis (no source)',
