@@ -354,7 +354,15 @@ const siteModels: z.ZodType<M.SiteModels> = z.object({
     }),
   ),
   activeVibrationLawId: id<'VibrationLaw'>().exactOptional(),
-  nearField: z.object({ k: pos, alpha: pos, beta: pos }).exactOptional(),
+  nearField: z
+    .object({
+      k: pos,
+      alpha: pos,
+      beta: pos,
+      model: z.enum(['holmbergPersson', 'nioshModified']).exactOptional(),
+      damageCriterion: z.enum(['vppcMultiples', 'bauerCalder']).exactOptional(),
+    })
+    .exactOptional(),
   airblast: z.object({ k: pos, beta: pos }),
   flyrock: z.object({ k: pos, safetyFactor: pos }),
 });

@@ -1,6 +1,6 @@
 import {
   criticalPpv,
-  DAMAGE_MULTIPLES,
+  damageLevels,
   DEFAULT_ENERGY_OPTIONS,
   DEFAULT_NEAR_FIELD,
   DEFAULT_VIBRATION_OPTIONS,
@@ -77,7 +77,11 @@ function energyOptions(): EnergyOptions | null {
   const toSi = s.energyMetric === 'nearFieldPpv' ? 1 / 1000 : 1; // mm/s → m/s
   const rock = session.document.project.rockMasses.find((r) => r.id === blast.rockMassId);
   const vppc = criticalPpv(rock);
-  const damage = s.energyDamage && s.energyMetric === 'nearFieldPpv' && vppc;
+  // Bandas de daño del criterio elegido (Bauer–Calder no necesita VPPc).
+  const damage =
+    s.energyDamage && s.energyMetric === 'nearFieldPpv'
+      ? damageLevels(nearField.damageCriterion ?? 'vppcMultiples', vppc?.value ?? null)
+      : null;
   return {
     ...DEFAULT_ENERGY_OPTIONS,
     metric: s.energyMetric,
@@ -86,9 +90,7 @@ function energyOptions(): EnergyOptions | null {
     cellSize: s.energyCellSize,
     cutoff: s.energyCutoff,
     sigma: s.energySigma,
-    levels: damage
-      ? DAMAGE_MULTIPLES.map((m) => m * damage.value)
-      : s.energyLevels.map((l) => l * toSi),
+    levels: damage ?? s.energyLevels.map((l) => l * toSi),
     nearField,
   };
 }

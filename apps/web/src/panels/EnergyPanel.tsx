@@ -1,8 +1,13 @@
 import {
+  BAUER_CALDER_LEVELS,
+  choiceModel,
   commands,
   criticalPpv,
   DEFAULT_NEAR_FIELD,
+  METHOD_CHOICES,
+  type DamageCriterion,
   type EnergyMetric,
+  type NearFieldModel,
   type RockMass,
 } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
@@ -24,6 +29,12 @@ const DAMAGE_BANDS = [
   'energy.damage.band2',
   'energy.damage.band3',
 ] as const;
+
+/** Bandas de Bauer–Calder (254, 635 y 2540 mm/s). */
+const BAUER_CALDER_BANDS = ['energy.damage.bc0', 'energy.damage.bc1', 'energy.damage.bc2'] as const;
+
+/** NIOSH modificado: toda la carga W del taladro a la distancia media R̄ de la columna. */
+const NIOSH_TEX = String.raw`v = K\,\frac{W^{\alpha}}{\bar R^{\,\beta}},\qquad \bar R=\frac{1}{W}\sum_i q\,\Delta x_i\,d_i`;
 
 /** Holmberg–Persson: suma de los tramos de carga dx (q = carga lineal) a distancia d. */
 const HP_TEX = String.raw`v = K\left[\sum_i \frac{q\,\Delta x_i}{d_i^{\,\beta/\alpha}}\right]^{\alpha}`;
@@ -51,7 +62,12 @@ export function EnergyPanel() {
   const e = s.energy;
   const rock = project.rockMasses.find((r) => r.id === blast?.rockMassId);
   const vppc = criticalPpv(rock);
-  const damage = isPpv && s.energyDamage && vppc !== null;
+  const model: NearFieldModel = nf.model ?? 'holmbergPersson';
+  const criterion: DamageCriterion = nf.damageCriterion ?? 'vppcMultiples';
+  const bauer = criterion === 'bauerCalder';
+  const damage = isPpv && s.energyDamage && (bauer || vppc !== null);
+  const bands = bauer ? BAUER_CALDER_BANDS : DAMAGE_BANDS;
+  const readOnly = session.document.readOnly;
   const nfTypical =
     nf.k === DEFAULT_NEAR_FIELD.k &&
     nf.alpha === DEFAULT_NEAR_FIELD.alpha &&
@@ -185,12 +201,22 @@ export function EnergyPanel() {
           <>
             <h3>{t('energy.siteConstants')}</h3>
             <Formula
-              tex={HP_TEX}
+              tex={model === 'nioshModified' ? NIOSH_TEX : HP_TEX}
               label={t('energy.siteConstants')}
               className="method-detail-formula"
             />
             <MethodDetail
-              id="energy.holmbergPersson"
+              id={choiceModel('nearFieldModel', model)}
+              choice={{
+                label: t('energy.model'),
+                value: model,
+                options: METHOD_CHOICES.nearFieldModel,
+                disabled: readOnly,
+                onChange: (value) => {
+                  const next = METHOD_CHOICES.nearFieldModel.find((o) => o.value === value);
+                  if (next) setNearField({ model: next.value });
+                },
+              }}
               values={{
                 k: nf.k * 1000,
                 alpha: nf.alpha,
@@ -251,7 +277,17 @@ export function EnergyPanel() {
             )}
             <h3>{t('energy.damage.title')}</h3>
             <MethodDetail
-              id="energy.criticalPpv"
+              id={choiceModel('damageCriterion', criterion)}
+              choice={{
+                label: t('energy.damage.criterion'),
+                value: criterion,
+                options: METHOD_CHOICES.damageCriterion,
+                disabled: readOnly,
+                onChange: (value) => {
+                  const next = METHOD_CHOICES.damageCriterion.find((o) => o.value === value);
+                  if (next) setNearField({ damageCriterion: next.value });
+                },
+              }}
               values={{
                 st: rock?.tensileStrength !== undefined ? rock.tensileStrength / 1e6 : undefined,
                 vp: rock?.vp,
@@ -259,14 +295,22 @@ export function EnergyPanel() {
                 vppc: vppc ? vppc.value * 1000 : undefined,
               }}
             />
-            {vppcTex && (
+            {bauer && (
+              <div className="param-summary ok">
+                <span className="param-summary-values">
+                  {BAUER_CALDER_LEVELS.map((l) => fmt(l * 1000, 0)).join(' · ')} mm/s
+                </span>
+                <span className="param-summary-state">{t('energy.damage.fixed')}</span>
+              </div>
+            )}
+            {!bauer && vppcTex && (
               <Formula
                 tex={vppcTex}
                 label={t('energy.damage.title')}
                 className="method-detail-formula"
               />
             )}
-            {vppc !== null && (
+            {!bauer && vppc !== null && (
               <div className="param-summary ok">
                 <span className="param-summary-values">
                   {t('energy.damage.summary', { v: fmt(vppc.value * 1000, 0) })}
@@ -285,7 +329,7 @@ export function EnergyPanel() {
                 </button>
               </div>
             )}
-            {rock && (editRock || vppc === null) && (
+            {!bauer && rock && (editRock || vppc === null) && (
               <>
                 <NumberField
                   label={t('energy.damage.vp')}
@@ -335,7 +379,7 @@ export function EnergyPanel() {
             <label className="check">
               <input
                 type="checkbox"
-                disabled={vppc === null}
+                disabled={!bauer && vppc === null}
                 checked={damage}
                 onChange={(ev) => {
                   s.set({ energyDamage: ev.target.checked });
@@ -456,7 +500,8 @@ export function EnergyPanel() {
                     <tr key={l}>
                       <td>
                         {fmt(l * toUi, isPpv ? 0 : 3)}
-                        {damage && ` · ${t(DAMAGE_BANDS[i] ?? 'energy.damage.band3')}`}
+                        {damage &&
+                          ` · ${t(bands[i] ?? bands[bands.length - 1] ?? 'energy.damage.band3')}`}
                       </td>
                       <td className={l > e.max ? 'num muted' : 'num'}>
                         {l > e.max ? t('energy.notReached') : fmt(e.areaAbove[i] ?? 0)}

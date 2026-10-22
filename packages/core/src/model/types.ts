@@ -848,7 +848,15 @@ export interface SiteModels {
    */
   activeVibrationLawId?: VibrationLawId;
   /** Holmberg–Persson (campo cercano): v = k·[Σ q·dx / d^(β/α)]^α, v y k en m/s. Opcional: hay valores por defecto. */
-  nearField?: { k: number; alpha: number; beta: number };
+  nearField?: {
+    k: number;
+    alpha: number;
+    beta: number;
+    /** Modelo de campo cercano (`NearFieldModel`); sin él, Holmberg–Persson. */
+    model?: 'holmbergPersson' | 'nioshModified';
+    /** Criterio de bandas de daño (`DamageCriterion`); sin él, múltiplos de VPPc. */
+    damageCriterion?: 'vppcMultiples' | 'bauerCalder';
+  };
   airblast: AirblastLaw;
   flyrock: FlyrockParams;
 }

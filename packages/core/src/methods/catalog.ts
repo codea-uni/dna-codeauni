@@ -451,6 +451,48 @@ const MODELS_LIST = [
     ),
   },
   {
+    id: 'energy.nioshModified',
+    topic: 'energy',
+    name: t('NIOSH modificado (Hustrulid–Lu)', 'NIOSH-modified (Hustrulid–Lu)'),
+    authors: 'Hustrulid & Lu (2003); Iverson et al. (2008)',
+    reference:
+      'Iverson et al. (2008), NIOSH; ec. 4.41–4.42 en Gómez Mateos (2023), tesis doctoral UPM',
+    rules: ['FC-47'],
+    formulas: [
+      tex`PPV = K\,\frac{W^{\alpha}}{\bar R^{\,\beta}}`,
+      tex`\bar R=\frac{1}{W}\sum_i q\,\Delta x_i\,d_i`,
+    ],
+    variables: [
+      v('k', 'K', 'constante de campo cercano', 'near-field constant', 'mm/s', { decimals: 0 }),
+      v('alpha', String.raw`\alpha`, 'exponente de la carga', 'charge exponent', '', {
+        decimals: 3,
+      }),
+      v('beta', String.raw`\beta`, 'exponente de la distancia', 'distance exponent', '', {
+        decimals: 3,
+      }),
+      v('w', 'W', 'carga del taladro', 'hole charge', 'kg', { decimals: 1 }),
+      v('d', 'd_i', 'distancia del elemento de carga al punto', 'charge element to point', 'm'),
+      v('ppv', 'PPV', 'máximo del mapa', 'map maximum', 'mm/s', { decimals: 0, output: true }),
+    ],
+    confidence: '[V] forma · [CG] constantes',
+    assumptions: [
+      t(
+        'Toda la carga del taladro a su distancia media: cerca del eje da menos que Holmberg–Persson y el contorno es casi esférico (no sigue la columna).',
+        'The whole hole charge at its mean distance: near the axis it gives less than Holmberg–Persson and the contour is nearly spherical (it does not follow the column).',
+      ),
+      t(
+        'Usa las mismas K, α, β que Holmberg–Persson (para una carga puntual ambos coinciden). Calibrar con mediciones cercanas.',
+        'Uses the same K, α, β as Holmberg–Persson (both agree for a point charge). Calibrate with near-field measurements.',
+      ),
+      t(
+        'Máximo entre taladros, como Holmberg–Persson.',
+        'Maximum over holes, as Holmberg–Persson.',
+      ),
+    ],
+    status: 'implemented',
+    where: t('Análisis › Energía (métrica PPV)', 'Analysis › Energy (PPV metric)'),
+  },
+  {
     id: 'energy.criticalPpv',
     topic: 'energy',
     name: t('PPV crítico y bandas de daño', 'Critical PPV and damage bands'),
@@ -478,6 +520,29 @@ const MODELS_LIST = [
       t(
         '¼·PPVc: posible daño leve; 1×: fisuras nuevas; 4×: daño severo; 8×: rotura.',
         '¼·PPVc: possible minor damage; 1×: new cracks; 4×: severe damage; 8×: breakage.',
+      ),
+    ],
+    status: 'implemented',
+    where: t('Análisis › Energía › Daño', 'Analysis › Energy › Damage'),
+  },
+  {
+    id: 'energy.bauerCalder',
+    topic: 'energy',
+    name: t('Umbrales de Bauer–Calder', 'Bauer–Calder thresholds'),
+    authors: 'Bauer & Calder',
+    reference: 'Bauer & Calder, citado en revisiones de PPV crítico para roca intacta',
+    rules: ['FC-48'],
+    formulas: [tex`PPV_{1}=254,\quad PPV_{2}=635,\quad PPV_{3}=2540\ \text{mm/s}`],
+    variables: [],
+    confidence: '[CG]',
+    assumptions: [
+      t(
+        'Umbrales fijos para roca intacta: no usan la resistencia ni el módulo de la roca (con roca débil o fracturada el daño empieza antes).',
+        'Fixed thresholds for intact rock: they ignore rock strength and modulus (in weak or jointed rock damage starts earlier).',
+      ),
+      t(
+        'Bajo PPV₁ no hay fracturas en roca intacta; PPV₁–PPV₂ descostramiento leve; PPV₂–PPV₃ fracturas fuertes y algunas radiales; sobre PPV₃ rotura total.',
+        'Below PPV₁ no fracturing of intact rock; PPV₁–PPV₂ minor tensile slabbing; PPV₂–PPV₃ strong tensile and some radial cracking; above PPV₃ complete break-up.',
       ),
     ],
     status: 'implemented',
@@ -1370,6 +1435,14 @@ export const METHOD_CHOICES = {
   fragmentationCurve: [
     { value: 'swebrec', model: 'fragmentation.swebrec' },
     { value: 'rosinRammler', model: 'fragmentation.rosinRammler' },
+  ],
+  nearFieldModel: [
+    { value: 'holmbergPersson', model: 'energy.holmbergPersson' },
+    { value: 'nioshModified', model: 'energy.nioshModified' },
+  ],
+  damageCriterion: [
+    { value: 'vppcMultiples', model: 'energy.criticalPpv' },
+    { value: 'bauerCalder', model: 'energy.bauerCalder' },
   ],
   muckpileVelocity: [
     { value: 'zhang', model: 'muckpile.zhang' },

@@ -25,6 +25,33 @@ export interface NearFieldParams {
   k: number;
   alpha: number;
   beta: number;
+  /** Modelo de PPV de campo cercano; sin él, Holmberg–Persson. */
+  model?: NearFieldModel;
+  /** Criterio de las bandas de daño; sin él, múltiplos de VPPc (Persson–Holmberg–Lee). */
+  damageCriterion?: DamageCriterion;
+}
+
+/**
+ * `holmbergPerson`: integra Σ q·dx/d^(β/α) a lo largo de la carga (Holmberg & Persson 1979).
+ * `nioshModified`: la carga del taladro W a la distancia media R̄ a la columna (Hustrulid & Lu
+ * 2003; Iverson et al. 2008): PPV = K·W^α / R̄^β. Mismas constantes K, α, β (para un punto de
+ * carga ambos dan K·W^α/R^β); cerca del eje NIOSH da menos y la forma es casi esférica.
+ */
+export type NearFieldModel = 'holmbergPersson' | 'nioshModified';
+
+/**
+ * `vppcMultiples`: ¼, 1, 4 y 8 × VPPc (Persson–Holmberg–Lee; Forsyth 1993).
+ * `bauerCalder`: umbrales fijos 254, 635 y 2540 mm/s (Bauer & Calder; roca intacta).
+ */
+export type DamageCriterion = 'vppcMultiples' | 'bauerCalder';
+
+/** Umbrales de Bauer & Calder [m/s]: fisuras incipientes, fracturas fuertes, rotura total. */
+export const BAUER_CALDER_LEVELS = [0.254, 0.635, 2.54] as const;
+
+/** Niveles de las bandas de daño [m/s] del criterio; null si falta VPPc para calcularlos. */
+export function damageLevels(criterion: DamageCriterion, vppc: number | null): number[] | null {
+  if (criterion === 'bauerCalder') return [...BAUER_CALDER_LEVELS];
+  return vppc !== null && vppc > 0 ? DAMAGE_MULTIPLES.map((m) => m * vppc) : null;
 }
 
 export const DEFAULT_NEAR_FIELD: NearFieldParams = { k: 0.7, alpha: 0.7, beta: 1.5 };
@@ -203,9 +230,39 @@ interface ProfileTable {
 const N_RHO = 72;
 const S_STEP = 0.25;
 
+/** Valor acumulado S de un taladro en (ρ², s); el mapa toma el máximo y PPV = K·S^α. */
+type ProfileFn = (points: readonly ChargePoint[], rho2: number, s: number) => number;
+
+/** Suma de los elementos de carga con un núcleo de la distancia (H-P o densidad). */
+function kernelSum(kernel: (d2: number) => number): ProfileFn {
+  return (points, rho2, s) => {
+    let sum = 0;
+    for (const p of points) {
+      const ds = s - p.s;
+      sum += p.w * kernel(rho2 + ds * ds);
+    }
+    return sum;
+  };
+}
+
+/** NIOSH modificado: S = W / R̄^(β/α), con R̄ la distancia media ponderada por la carga. */
+function nioshProfile(nf: NearFieldParams): ProfileFn {
+  const e = nf.beta / nf.alpha;
+  return (points, rho2, s) => {
+    let w = 0;
+    let wd = 0;
+    for (const p of points) {
+      const ds = s - p.s;
+      w += p.w;
+      wd += p.w * Math.sqrt(rho2 + ds * ds);
+    }
+    return w > 0 && wd > 0 ? w / Math.pow(wd / w, e) : 0;
+  };
+}
+
 function buildProfile(
   points: readonly ChargePoint[],
-  kernel: (d2: number) => number,
+  value: ProfileFn,
   rhoMin: number,
   rhoMax: number,
   sMin: number,
@@ -218,12 +275,7 @@ function buildProfile(
     for (let ir = 0; ir < N_RHO; ir++) {
       const f = ir / (N_RHO - 1);
       const rho = rhoMin + (rhoMax - rhoMin) * f * f;
-      let sum = 0;
-      for (const p of points) {
-        const ds = s - p.s;
-        sum += p.w * kernel(rho * rho + ds * ds);
-      }
-      data[is * N_RHO + ir] = sum;
+      data[is * N_RHO + ir] = value(points, rho * rho, s);
     }
   }
   return { rhoMin, rhoMax, nRho: N_RHO, sMin, sStep: S_STEP, nS, data };
@@ -258,14 +310,9 @@ export function computeEnergyGrid(
   const t0 = performance.now();
   if (options.plane) return computePlaneEnergyGrid(blast, library, options, options.plane, t0);
   const lib = indexLibrary(library);
-  const nf = options.nearField;
   const isPpv = options.metric === 'nearFieldPpv';
-  const n = nf.beta / (2 * nf.alpha);
   const sigma = Math.max(0.1, options.sigma);
-  const gaussNorm = 1 / (Math.pow(2 * Math.PI, 1.5) * sigma * sigma * sigma);
-  const kernel = isPpv
-    ? (d2: number) => Math.pow(d2, -n)
-    : (d2: number) => gaussNorm * Math.exp(-d2 / (2 * sigma * sigma));
+  const profile = profileOf(options);
 
   // Espaciamiento típico para valores automáticos.
   let spacing = Infinity;
@@ -307,7 +354,7 @@ export function computeEnergyGrid(
       }
       const sMin = (pts[0]?.s ?? 0) - cutoff;
       const sMax = (pts.at(-1)?.s ?? 0) + cutoff;
-      table = buildProfile(pts, kernel, rhoMin, cutoff, sMin, sMax);
+      table = buildProfile(pts, profile, rhoMin, cutoff, sMin, sMax);
       profiles.set(key, table);
     }
     const h = azimuthToUnit(hole.azimuth);
@@ -558,16 +605,20 @@ function finishGrid(
   };
 }
 
-/** Núcleo de la métrica: Holmberg–Persson 1/d^(β/α) o gaussiana 3D normalizada (densidad). */
-function kernelOf(options: EnergyOptions): (d2: number) => number {
+/**
+ * Valor por taladro de la métrica: Holmberg–Persson Σ q·dx/d^(β/α), NIOSH modificado W/R̄^(β/α)
+ * o gaussiana 3D normalizada (densidad).
+ */
+function profileOf(options: EnergyOptions): ProfileFn {
   const nf = options.nearField;
   if (options.metric === 'nearFieldPpv') {
+    if (nf.model === 'nioshModified') return nioshProfile(nf);
     const n = nf.beta / (2 * nf.alpha);
-    return (d2: number) => Math.pow(d2, -n);
+    return kernelSum((d2: number) => Math.pow(d2, -n));
   }
   const sigma = Math.max(0.1, options.sigma);
   const gaussNorm = 1 / (Math.pow(2 * Math.PI, 1.5) * sigma * sigma * sigma);
-  return (d2: number) => gaussNorm * Math.exp(-d2 / (2 * sigma * sigma));
+  return kernelSum((d2: number) => gaussNorm * Math.exp(-d2 / (2 * sigma * sigma)));
 }
 
 /** Mediana de la distancia 3D de cada boca a la más cercana (espaciamiento típico sin malla). */
@@ -607,7 +658,7 @@ function computePlaneEnergyGrid(
 ): EnergyResult {
   const lib = indexLibrary(library);
   const isPpv = options.metric === 'nearFieldPpv';
-  const kernel = kernelOf(options);
+  const profile = profileOf(options);
   const loaded = blast.holes.filter((h) => h.decks.some((d) => d.kind === 'explosive'));
   const spacing = typicalSpacing(loaded);
   const sigma = Math.max(0.1, options.sigma);
@@ -651,7 +702,7 @@ function computePlaneEnergyGrid(
           ? null
           : buildProfile(
               pts,
-              kernel,
+              profile,
               Math.max(hole.diameter / 2, 0.01),
               cutoff,
               (pts[0]?.s ?? 0) - cutoff,

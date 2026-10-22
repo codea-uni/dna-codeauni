@@ -6,8 +6,10 @@ import { createDefaultLibrary } from '../model/library';
 import type { Blast, Explosive } from '../model/types';
 import { marchingSquares } from './contours';
 import {
+  BAUER_CALDER_LEVELS,
   computeEnergyGrid,
   criticalPpv,
+  damageLevels,
   DEFAULT_ENERGY_OPTIONS,
   holmbergPerssonPpv,
 } from './energy';
@@ -268,5 +270,55 @@ describe('energía solo en la roca (A7b)', () => {
     expect(at(clipped, x, crest + 1.8)).toBe(0); // aire: 1,8 m > 1,34 m
     expect(at(clipped, x, crest + 0.5)).toBeGreaterThan(0); // roca del talud
     expect(at(clipped, x, crest - 2)).toBe(at(open, x, crest - 2)); // dentro del perímetro, igual
+  });
+});
+
+describe('NIOSH modificado (FC-47)', () => {
+  const opts = {
+    ...DEFAULT_ENERGY_OPTIONS,
+    elevation: 4.75,
+    cellSize: 0.5,
+    cutoff: 30,
+  };
+  it('PPV = K·W^α / R̄^β con R̄ la distancia media a la columna (solución analítica)', () => {
+    // Carga de z = 11 a −1.5 (12,5 m); plano a la mitad → la columna va de −6,25 a +6,25 m.
+    const nearField = { k: 0.7, alpha: 0.7, beta: 1.5, model: 'nioshModified' as const };
+    const r = computeEnergyGrid(singleHoleBlast(), lib, { ...opts, nearField });
+    const q = linearChargeDensity(anfo, 0.2);
+    const W = q * 12.5;
+    // ∫ √(ρ² + z²) dz = (z/2)·√(ρ² + z²) + (ρ²/2)·asinh(z/ρ)
+    const meanR = (rho: number) => {
+      const z = 6.25;
+      return (2 / 12.5) * ((z / 2) * Math.hypot(rho, z) + ((rho * rho) / 2) * Math.asinh(z / rho));
+    };
+    for (const x of [1, 3, 6]) {
+      const { v, cx, cy } = cellAt(r, x, 0.1);
+      const expected = (0.7 * Math.pow(W, 0.7)) / Math.pow(meanR(Math.hypot(cx, cy)), 1.5);
+      expect(v / expected).toBeCloseTo(1, 2);
+    }
+  });
+  it('cerca del eje da menos que Holmberg–Persson; lejos se acercan', () => {
+    const hp = computeEnergyGrid(singleHoleBlast(), lib, {
+      ...opts,
+      nearField: { k: 0.7, alpha: 0.7, beta: 1.5 },
+    });
+    const ni = computeEnergyGrid(singleHoleBlast(), lib, {
+      ...opts,
+      nearField: { k: 0.7, alpha: 0.7, beta: 1.5, model: 'nioshModified' },
+    });
+    const ratio = (x: number) => cellAt(ni, x, 0.1).v / cellAt(hp, x, 0.1).v;
+    expect(ratio(1)).toBeLessThan(0.7);
+    expect(Math.abs(1 - ratio(6))).toBeLessThan(Math.abs(1 - ratio(1)));
+  });
+});
+
+describe('criterios de daño', () => {
+  it('múltiplos de VPPc: ¼, 1, 4 y 8 × VPPc; sin VPPc no hay bandas', () => {
+    expect(damageLevels('vppcMultiples', 0.8)).toEqual([0.2, 0.8, 3.2, 6.4]);
+    expect(damageLevels('vppcMultiples', null)).toBeNull();
+  });
+  it('Bauer–Calder: umbrales fijos 254, 635 y 2540 mm/s, con o sin VPPc', () => {
+    expect(damageLevels('bauerCalder', null)).toEqual([...BAUER_CALDER_LEVELS]);
+    expect(damageLevels('bauerCalder', 0.8)).toEqual([0.254, 0.635, 2.54]);
   });
 });
