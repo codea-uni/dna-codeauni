@@ -206,6 +206,11 @@ export const es = {
     'VPPc = RT·Vp/E = {v} mm/s (calculada, criterio de Persson–Holmberg–Lee).',
   'energy.damage.given': 'VPPc = {v} mm/s (dato de la roca).',
   'energy.damage.show': 'Contornos de daño',
+  'energy.notReached': 'no se alcanza',
+  'energy.notReachedHint':
+    'El máximo en este plano es {max} {unit}: los niveles más altos no se alcanzan aquí (no es un error).',
+  'energy.notReachedTerrain':
+    'Sobre el terreno se evalúa en la superficie (zona del taco), con máximo {max} {unit}. Las bandas altas (trituración) ocurren junto a la columna de carga: para verlas, en «Dónde se evalúa» elige «Plano horizontal a una cota» y pon la cota de la carga.',
   'energy.damage.band0': '¼ VPPc: se abren fracturas existentes',
   'energy.damage.band1': '1 VPPc: fracturas nuevas',
   'energy.damage.band2': '4 VPPc: daño visible',
@@ -535,6 +540,11 @@ export const en = {
   'energy.damage.computed': 'PPVc = T·Vp/E = {v} mm/s (computed, Persson–Holmberg–Lee criterion).',
   'energy.damage.given': 'PPVc = {v} mm/s (rock data).',
   'energy.damage.show': 'Damage contours',
+  'energy.notReached': 'not reached',
+  'energy.notReachedHint':
+    'The maximum on this plane is {max} {unit}: the higher levels are not reached here (not an error).',
+  'energy.notReachedTerrain':
+    'On the terrain the evaluation is at the surface (stemming zone), maximum {max} {unit}. The high bands (crushing) occur next to the charge column: to see them, under «Where it is evaluated» choose «Horizontal plane at an elevation» and enter the charge elevation.',
   'energy.damage.band0': '¼ PPVc: existing fractures open',
   'energy.damage.band1': '1 PPVc: new fractures',
   'energy.damage.band2': '4 PPVc: visible damage',

@@ -458,11 +458,23 @@ export function EnergyPanel() {
                         {fmt(l * toUi, isPpv ? 0 : 3)}
                         {damage && ` · ${t(DAMAGE_BANDS[i] ?? 'energy.damage.band3')}`}
                       </td>
-                      <td className="num">{fmt(e.areaAbove[i] ?? 0)}</td>
+                      <td className={l > e.max ? 'num muted' : 'num'}>
+                        {l > e.max ? t('energy.notReached') : fmt(e.areaAbove[i] ?? 0)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              {e.contourLevels.some((l) => l > e.max) && (
+                <p className="hint">
+                  {t(
+                    isPpv && blast?.bench.topographyId && s.energyOnTerrain
+                      ? 'energy.notReachedTerrain'
+                      : 'energy.notReachedHint',
+                    { max: fmt(e.max * toUi, isPpv ? 0 : 2), unit },
+                  )}
+                </p>
+              )}
               <label className="check">
                 <input
                   type="checkbox"
