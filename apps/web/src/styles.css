@@ -492,8 +492,20 @@ button.danger:hover:not(:disabled) {
   padding: 1px 2px;
 }
 
-/* Encabezado de una columna numérica alineado con sus valores (a la derecha). */
-.grid-table th.num {
+/* Encabezado de una columna numérica alineado con sus valores (a la derecha): explícito con
+   th.num o, si no, automático cuando la columna tiene celdas .num (antes «m²» quedaba a la
+   izquierda y su número a la derecha). */
+.grid-table th.num,
+table:has(tbody tr:first-child > td:nth-child(1).num) thead th:nth-child(1),
+table:has(tbody tr:first-child > td:nth-child(2).num) thead th:nth-child(2),
+table:has(tbody tr:first-child > td:nth-child(3).num) thead th:nth-child(3),
+table:has(tbody tr:first-child > td:nth-child(4).num) thead th:nth-child(4),
+table:has(tbody tr:first-child > td:nth-child(5).num) thead th:nth-child(5),
+table:has(tbody tr:first-child > td:nth-child(6).num) thead th:nth-child(6),
+table:has(tbody tr:first-child > td:nth-child(7).num) thead th:nth-child(7),
+table:has(tbody tr:first-child > td:nth-child(8).num) thead th:nth-child(8),
+table:has(tbody tr:first-child > td:nth-child(9).num) thead th:nth-child(9),
+table:has(tbody tr:first-child > td:nth-child(10).num) thead th:nth-child(10) {
   text-align: right;
 }
 
@@ -3187,4 +3199,16 @@ button.link {
   color: var(--muted);
   font-size: 12px;
   cursor: pointer;
+}
+
+/* Filas de resultados: línea tenue entre filas y resaltado al pasar, para seguir con la vista
+   la etiqueta hasta su valor (en ventanas anchas quedan lejos). */
+.kv tr + tr td,
+.grid-table tbody tr + tr td {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.kv tr:hover td,
+.grid-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--border) 35%, transparent);
 }

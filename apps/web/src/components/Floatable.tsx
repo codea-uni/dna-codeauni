@@ -90,8 +90,14 @@ export function FloatingWindow({
   const z = useUiStore((s) => 60 + s.floating.findIndex((f) => f.id === win.id));
   const { dockPanel, updateFloating, raiseFloating } = useUiStore.getState();
   const ref = useRef<HTMLDivElement>(null);
-  // Siempre visible aunque la pantalla se haya achicado desde la última vez.
-  const x = Math.min(Math.max(0, win.x), Math.max(0, window.innerWidth - 120));
+  // Siempre visible aunque la pantalla se haya achicado desde la última vez. En celular la ventana
+  // entra entera (antes quedaba la posición de la pantalla ancha y se cortaba a la derecha).
+  const narrow = window.innerWidth < 700;
+  const fitWidth = Math.min(win.w, window.innerWidth - 8);
+  const x = Math.min(
+    Math.max(0, win.x),
+    Math.max(0, narrow ? window.innerWidth - fitWidth - 4 : window.innerWidth - 120),
+  );
   const y = Math.min(Math.max(0, win.y), Math.max(0, window.innerHeight - 60));
 
   // Tamaño elegido por el usuario al redimensionar desde la esquina (CSS resize). Con
