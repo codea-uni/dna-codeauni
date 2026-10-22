@@ -75,6 +75,10 @@ export const es = {
   'card.predict.cutoffHoles': '{n} taladros',
   'card.predict.nox': 'Riesgo de gases NOx',
   'card.predict.noPoints': 'Sin puntos protegidos: agrega uno para ver la vibración.',
+  'card.predict.noTieUp': 'Falta el amarre: sin tiempos no hay carga por retardo ni vibración.',
+  'card.predict.partialTieUp':
+    '{n} taladros sin tiempo: la vibración puede quedar por debajo de la real. Completa el amarre.',
+  'card.predict.noVibration': 'Vibración sin calcular: falta carga o una ley de vibración.',
   'card.blocks.title': 'Movimiento de la pila',
   'card.blocks.sub': 'Bloques de {size} m',
   'card.blocks.count': 'Bloques operativos',
@@ -271,6 +275,11 @@ export const en = {
   'card.predict.cutoffHoles': '{n} holes',
   'card.predict.nox': 'NOx fumes risk',
   'card.predict.noPoints': 'No protected points: add one to see vibration.',
+  'card.predict.noTieUp':
+    'No tie-up yet: without firing times there is no charge per delay or vibration.',
+  'card.predict.partialTieUp':
+    '{n} holes without firing time: vibration may be underestimated. Finish the tie-up.',
+  'card.predict.noVibration': 'Vibration not computed: charge or a vibration law is missing.',
   'card.blocks.title': 'Muckpile movement',
   'card.blocks.sub': '{size} m blocks',
   'card.blocks.count': 'Operating blocks',

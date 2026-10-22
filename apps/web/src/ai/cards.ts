@@ -259,8 +259,18 @@ function predictCard(res: Obj): AgentCard | null {
     value: nox > 0 ? t('card.predict.cutoffHoles', { n: n(nox) }) : t('card.v.none'),
     tone: nox > 0 ? 'bad' : 'ok',
   });
+  const untimed = num(res.holes_without_tie_up) ?? 0;
+  if (untimed > 0)
+    c.notes.push({
+      text: t(untimed === num(res.holes) ? 'card.predict.noTieUp' : 'card.predict.partialTieUp', {
+        n: n(untimed),
+      }),
+      tone: 'bad',
+    });
   if (vib && arr(vib.protected_points).length === 0)
     c.notes.push({ text: t('card.predict.noPoints'), tone: 'warn' });
+  else if (typeof res.vibration === 'string')
+    c.notes.push({ text: t('card.predict.noVibration'), tone: 'warn' });
   for (const k of arr(res.checks).slice(0, 3)) {
     const o = obj(k);
     const title = str(o?.title);

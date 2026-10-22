@@ -35,6 +35,7 @@ import {
   type Op,
   type RockMass,
   type Vec2,
+  DEFAULT_VIBRATION_OPTIONS,
 } from '@cronos/core';
 import { z } from 'zod';
 import { analysisReady, pileReady, playDemoSequence } from '../demo/runtime';
@@ -44,10 +45,12 @@ import {
   playUndergroundPile,
   ugPileSummary,
 } from '../underground/pileView';
-import { getEngine, session } from '../session';
+import { getCompute, getEngine, session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUiStore } from '../stores/uiStore';
-import { loadedSurveys, topographyElevation } from '../topography/session';
+import { loadedSurveys, topographyElevation, topographyTin } from '../topography/session';
+import { shotProject } from '../underground/shots';
+import { minePointsForCalc } from '../vibration/mineStore';
 import {
   missingConditions,
   siteConditions,
@@ -568,7 +571,18 @@ async function predictResults() {
   if (!a) throw new ToolError('The analysis is not ready yet; try again.');
   const version = document.version;
   await until(() => store().frag !== null || !store().fragInputs, 6000);
-  await until(() => !store().vibComputing && store().vibration !== null, 8000);
+  // Vibración calculada aquí con el documento de ahora: la del mapa puede ser de antes del último
+  // cambio (p. ej. sin carga todavía) y salía «0 mm/s» con el P80 ya calculado.
+  const vib = await getCompute().api.computeVibration(
+    shotProject(document.project),
+    blast.id,
+    { ...DEFAULT_VIBRATION_OPTIONS, skipGrid: true, extraPoints: minePointsForCalc() },
+    blast.bench.topographyId ? (topographyTin(blast.bench.topographyId) ?? null) : null,
+  );
+  // Sin amarre no hay carga por retardo: el PPV no vale (no es 0) hasta dar tiempos.
+  const untimed = a.timing.notInitiated;
+  const noTieUp = a.timing.initiated === 0;
+  const charged = a.charge.totalExplosive > 0;
   const c = siteConditions();
   const s = store();
   const label = new Map(blast.holes.map((h) => [h.id, h.label]));
@@ -589,15 +603,15 @@ async function predictResults() {
 
   const frag = s.frag;
   const p80 = frag ? frag.p80.swebrec * 100 : null;
-  const vib = s.vibration;
   return {
     stale: document.version !== version,
     holes: blast.holes.length,
     total_explosive_kg: r(a.charge.totalExplosive, 0),
     powder_factor_kg_m3: r(a.charge.loadingFactor, 3),
     tonnage_t: r(a.charge.tonnage / 1000, 0),
-    firing_span_ms: r(sToMs(a.timing.lastTime - a.timing.firstTime), 0),
-    max_charge_per_8ms_kg: r(a.timing.maxChargePerWindow, 0),
+    firing_span_ms: noTieUp ? null : r(sToMs(a.timing.lastTime - a.timing.firstTime), 0),
+    max_charge_per_8ms_kg: noTieUp ? null : r(a.timing.maxChargePerWindow, 0),
+    holes_without_tie_up: untimed,
     fragmentation: frag
       ? {
           p80_cm: r(p80 ?? 0, 1),
@@ -615,28 +629,36 @@ async function predictResults() {
               : null,
         }
       : 'Fragmentation needs charged holes.',
-    vibration: vib
-      ? {
-          protected_points: vib.receivers.map((p) => {
-            const limit = (document.project.monitoringPoints ?? []).find(
-              (m) => m.id === p.id,
-            )?.ppvLimit;
-            return {
-              name: p.name,
-              distance_m: r(p.distance, 0),
-              ppv_mm_s: r(p.ppv * 1000, 1),
-              limit_mm_s: limit !== undefined ? r(limit * 1000, 1) : null,
-              over_limit: limit !== undefined ? p.ppv > limit : null,
-              airblast_db: r(p.airblastDb, 0),
-              governing_hole: p.governingHole ? (label.get(p.governingHole) ?? null) : null,
-            };
-          }),
-          flyrock_range_m: r(vib.flyrock.range, 0),
-          note: vib.receivers.length
-            ? undefined
-            : 'No protected points: add them with add_protected_point to get PPV.',
-        }
-      : 'Vibration not computed (no vibration law or no charge).',
+    vibration: !vib
+      ? 'Vibration not computed (no blast).'
+      : !charged
+        ? 'Vibration needs charged holes.'
+        : !vib.law
+          ? 'Vibration not computed: the project has no vibration law (add one in the Vibration window).'
+          : {
+              protected_points: vib.receivers.map((p) => {
+                const limit = (document.project.monitoringPoints ?? []).find(
+                  (m) => m.id === p.id,
+                )?.ppvLimit;
+                return {
+                  name: p.name,
+                  distance_m: r(p.distance, 0),
+                  ppv_mm_s: noTieUp ? null : r(p.ppv * 1000, 1),
+                  limit_mm_s: limit !== undefined ? r(limit * 1000, 1) : null,
+                  over_limit: limit !== undefined && !noTieUp ? p.ppv > limit : null,
+                  airblast_db: r(p.airblastDb, 0),
+                  governing_hole: p.governingHole ? (label.get(p.governingHole) ?? null) : null,
+                };
+              }),
+              flyrock_range_m: r(vib.flyrock.range, 0),
+              note: noTieUp
+                ? 'No tie-up yet: charge per delay and PPV are not valid until the holes get firing times. Do not report the vibration as 0.'
+                : untimed > 0
+                  ? `${String(untimed)} holes without firing time: PPV assumes each fires alone and may be underestimated; finish the tie-up.`
+                  : vib.receivers.length
+                    ? undefined
+                    : 'No protected points: add them with add_protected_point to get PPV.',
+            },
     cutoff_risk: {
       holes: cut.length,
       worst: cut
