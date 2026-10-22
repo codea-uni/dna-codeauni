@@ -55,6 +55,9 @@ function Select({
   );
 }
 
+/** Id del título «Macizo rocoso»: la ventana Energía abre Carguío justo ahí. */
+export const CHARGE_ROCK_ANCHOR = 'charge-rock';
+
 export function ChargePanel() {
   const t = useT();
   const { len } = useUnits();
@@ -376,7 +379,7 @@ export function ChargePanel() {
         </div>
       </section>
       <section className="panel">
-        <h2>{t('charge.rockMass')}</h2>
+        <h2 id={CHARGE_ROCK_ANCHOR}>{t('charge.rockMass')}</h2>
         {rock && (
           <>
             <NumberField

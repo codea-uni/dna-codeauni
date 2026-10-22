@@ -7,7 +7,7 @@ import {
   type ZoneFit,
 } from '@cronos/core';
 import { useMemo } from 'react';
-import { openWorkspacePanel } from '../components/WorkspaceWindows';
+import { openWorkspacePanelAt } from '../components/WorkspaceWindows';
 import { useProject } from '../hooks/useDocument';
 import type { useFormat, useT } from '../i18n';
 import { useMineVibration } from './mineStore';
@@ -42,15 +42,7 @@ export const CALIBRATION_ANCHOR = 'vib-calibration';
 
 /** Abre la ventana Vibración y lleva la vista a «Calibración de la ley». */
 export function openVibrationCalibration(): void {
-  openWorkspacePanel('vibration');
-  // La ventana se monta en el próximo cuadro; el título aparece cuando ya está en el DOM.
-  let tries = 0;
-  const scroll = () => {
-    const el = document.getElementById(CALIBRATION_ANCHOR);
-    if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    else if (++tries < 20) requestAnimationFrame(scroll);
-  };
-  requestAnimationFrame(scroll);
+  openWorkspacePanelAt('vibration', CALIBRATION_ANCHOR);
 }
 
 /** «Tajo Norte · 95 % (n = 12, R² = 0,99) · K = 1.505 mm/s, β = 1,58» o «Genérica (USBM), sin calibrar». */

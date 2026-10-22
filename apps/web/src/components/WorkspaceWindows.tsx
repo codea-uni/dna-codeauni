@@ -132,6 +132,19 @@ export function openWorkspacePanel(id: string) {
     );
 }
 
+/** Abre una ventana y lleva la vista al elemento `anchorId` cuando ya está montado. */
+export function openWorkspacePanelAt(id: string, anchorId: string) {
+  openWorkspacePanel(id);
+  // La ventana se monta en el próximo cuadro; el ancla aparece cuando ya está en el DOM.
+  let tries = 0;
+  const scroll = () => {
+    const el = document.getElementById(anchorId);
+    if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    else if (++tries < 20) requestAnimationFrame(scroll);
+  };
+  requestAnimationFrame(scroll);
+}
+
 export function WorkspaceWindows() {
   const t = useT();
   const floating = useUiStore((s) => s.floating);

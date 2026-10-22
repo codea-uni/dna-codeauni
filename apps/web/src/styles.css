@@ -3144,3 +3144,47 @@ button.link {
 .drill-table tbody tr {
   cursor: pointer;
 }
+
+/* Resumen de parámetros ya configurados (verde = del sitio, ámbar = típicos) con «Editar». */
+.param-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.6rem;
+  margin: 0.4rem 0;
+  padding: 0.35rem 0.55rem;
+  border-left: 3px solid currentColor;
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+.param-summary.ok {
+  color: var(--brand-green);
+}
+
+.param-summary.warn {
+  color: var(--amber);
+}
+
+.param-summary-values {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.param-summary-state {
+  font-size: 12px;
+}
+
+.param-summary button.link {
+  margin-left: auto;
+}
+
+.panel-advanced {
+  margin: 0.5rem 0;
+}
+
+.panel-advanced > summary {
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}

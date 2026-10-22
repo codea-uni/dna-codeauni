@@ -7,13 +7,16 @@ import {
 } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { useState } from 'react';
+import { Formula } from '../components/Formula';
 import { NumberField } from '../components/NumberField';
+import { openWorkspacePanelAt } from '../components/WorkspaceWindows';
 import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
 import { session } from '../session';
 import { useAnalysisStore } from '../stores/analysisStore';
 import { useUnits } from '../hooks/useUnits';
+import { CHARGE_ROCK_ANCHOR } from './ChargePanel';
 
 const DAMAGE_BANDS = [
   'energy.damage.band0',
@@ -21,6 +24,12 @@ const DAMAGE_BANDS = [
   'energy.damage.band2',
   'energy.damage.band3',
 ] as const;
+
+/** Holmberg–Persson: suma de los tramos de carga dx (q = carga lineal) a distancia d. */
+const HP_TEX = String.raw`v = K\left[\sum_i \frac{q\,\Delta x_i}{d_i^{\,\beta/\alpha}}\right]^{\alpha}`;
+
+/** Número con formato local dentro de TeX: la coma decimal sin espacio extra («0{,}7»). */
+const texNum = (s: string) => s.replace(/,/g, '{,}');
 
 /** Energía: PPV de campo cercano (Holmberg–Persson) o densidad de carga en un plano horizontal. */
 export function EnergyPanel() {
@@ -36,10 +45,27 @@ export function EnergyPanel() {
   const toUi = isPpv ? 1000 : 1;
   const midBench = blast ? blast.bench.floorElevation + blast.bench.height / 2 : 0;
   const [levelsText, setLevelsText] = useState(s.energyLevels.join('; '));
+  // Ya configuradas, las constantes se ven en una línea; «Editar» abre los campos.
+  const [editNf, setEditNf] = useState(false);
+  const [editRock, setEditRock] = useState(false);
   const e = s.energy;
   const rock = project.rockMasses.find((r) => r.id === blast?.rockMassId);
   const vppc = criticalPpv(rock);
   const damage = isPpv && s.energyDamage && vppc !== null;
+  const nfTypical =
+    nf.k === DEFAULT_NEAR_FIELD.k &&
+    nf.alpha === DEFAULT_NEAR_FIELD.alpha &&
+    nf.beta === DEFAULT_NEAR_FIELD.beta;
+  const sym = t('energy.vppcSymbol');
+  const vppcTex =
+    vppc?.computed && rock?.tensileStrength && rock.vp
+      ? `\\begin{aligned}${sym}&=\\frac{RT\\,V_p}{E}\\\\&=\\frac{${texNum(fmt(rock.tensileStrength / 1e6, 1))}\\ \\text{MPa}\\cdot ${texNum(fmt(rock.vp, 0))}\\ \\text{m/s}}{${texNum(fmt(rock.youngModulus / 1e9, 1))}\\ \\text{GPa}}=${texNum(fmt(vppc.value * 1000, 0))}\\ \\text{mm/s}\\end{aligned}`
+      : null;
+  const openRockInCharge = () => {
+    openWorkspacePanelAt('charge', CHARGE_ROCK_ANCHOR);
+  };
+  const autoOr = (v: number) =>
+    v > 0 ? `${fmt(len.show(v), 2)} ${len.unit}` : t('energy.advanced.auto');
   const setRock = (next: RockMass, label: string) => {
     session.document.dispatch(
       commands.setRockMasses(project.rockMasses.map((r) => (r.id === next.id ? next : r))),
@@ -124,33 +150,45 @@ export function EnergyPanel() {
         >
           {t('energy.midBench', { v: fmt(len.show(midBench), 1), unit: len.unit })}
         </button>
-        <NumberField
-          label={t('energy.cellSize')}
-          unit={len.unit}
-          decimals={2}
-          min={0}
-          value={len.show(s.energyCellSize)}
-          onCommit={(raw) => {
-            const v = len.parse(raw);
-            s.set({ energyCellSize: v });
-          }}
-        />
-        <NumberField
-          label={t('energy.cutoff')}
-          unit={len.unit}
-          decimals={1}
-          min={0}
-          value={len.show(s.energyCutoff)}
-          onCommit={(raw) => {
-            const v = len.parse(raw);
-            s.set({ energyCutoff: v });
-          }}
-        />
-        <p className="hint">{t('energy.autoHint')}</p>
+        <details className="panel-advanced">
+          <summary>
+            {t('energy.advanced', {
+              cell: autoOr(s.energyCellSize),
+              radius: autoOr(s.energyCutoff),
+            })}
+          </summary>
+          <NumberField
+            label={t('energy.cellSize')}
+            unit={len.unit}
+            decimals={2}
+            min={0}
+            value={len.show(s.energyCellSize)}
+            onCommit={(raw) => {
+              const v = len.parse(raw);
+              s.set({ energyCellSize: v });
+            }}
+          />
+          <NumberField
+            label={t('energy.cutoff')}
+            unit={len.unit}
+            decimals={1}
+            min={0}
+            value={len.show(s.energyCutoff)}
+            onCommit={(raw) => {
+              const v = len.parse(raw);
+              s.set({ energyCutoff: v });
+            }}
+          />
+          <p className="hint">{t('energy.autoHint')}</p>
+        </details>
         {isPpv ? (
           <>
             <h3>{t('energy.siteConstants')}</h3>
-            <p className="hint">{t('energy.formulaHint')}</p>
+            <Formula
+              tex={HP_TEX}
+              label={t('energy.siteConstants')}
+              className="method-detail-formula"
+            />
             <MethodDetail
               id="energy.holmbergPersson"
               values={{
@@ -160,35 +198,57 @@ export function EnergyPanel() {
                 ppv: e && e.nx > 0 ? e.max * 1000 : undefined,
               }}
             />
-            <NumberField
-              label="K"
-              unit="mm/s"
-              decimals={0}
-              min={1}
-              value={nf.k * 1000}
-              onCommit={(v) => {
-                setNearField({ k: v / 1000 });
-              }}
-            />
-            <NumberField
-              label="α"
-              decimals={3}
-              min={0.01}
-              value={nf.alpha}
-              onCommit={(v) => {
-                setNearField({ alpha: v });
-              }}
-            />
-            <NumberField
-              label="β"
-              decimals={3}
-              min={0.01}
-              value={nf.beta}
-              onCommit={(v) => {
-                setNearField({ beta: v });
-              }}
-            />
-            <p className="hint">{t('energy.validityHint')}</p>
+            <div className={`param-summary ${nfTypical ? 'warn' : 'ok'}`}>
+              <span className="param-summary-values">
+                K = {fmt(nf.k * 1000, 0)} mm/s · α = {fmt(nf.alpha, 2)} · β = {fmt(nf.beta, 2)}
+              </span>
+              <span className="param-summary-state">
+                {t(nfTypical ? 'energy.nf.typical' : 'energy.nf.custom')}
+              </span>
+              <button
+                className="link"
+                aria-expanded={editNf}
+                onClick={() => {
+                  setEditNf(!editNf);
+                }}
+              >
+                {t(editNf ? 'energy.editDone' : 'energy.edit')}
+              </button>
+            </div>
+            {editNf && (
+              <>
+                <NumberField
+                  label="K"
+                  unit="mm/s"
+                  decimals={0}
+                  min={1}
+                  value={nf.k * 1000}
+                  onCommit={(v) => {
+                    setNearField({ k: v / 1000 });
+                  }}
+                />
+                <NumberField
+                  label="α"
+                  decimals={3}
+                  min={0.01}
+                  value={nf.alpha}
+                  onCommit={(v) => {
+                    setNearField({ alpha: v });
+                  }}
+                />
+                <NumberField
+                  label="β"
+                  decimals={3}
+                  min={0.01}
+                  value={nf.beta}
+                  onCommit={(v) => {
+                    setNearField({ beta: v });
+                  }}
+                />
+                <p className="hint">{t('energy.typicalHint')}</p>
+                <p className="hint">{t('energy.validityHint')}</p>
+              </>
+            )}
             <h3>{t('energy.damage.title')}</h3>
             <MethodDetail
               id="energy.criticalPpv"
@@ -199,7 +259,33 @@ export function EnergyPanel() {
                 vppc: vppc ? vppc.value * 1000 : undefined,
               }}
             />
-            {rock && (
+            {vppcTex && (
+              <Formula
+                tex={vppcTex}
+                label={t('energy.damage.title')}
+                className="method-detail-formula"
+              />
+            )}
+            {vppc !== null && (
+              <div className="param-summary ok">
+                <span className="param-summary-values">
+                  {t('energy.damage.summary', { v: fmt(vppc.value * 1000, 0) })}
+                </span>
+                <span className="param-summary-state">
+                  {t(vppc.computed ? 'energy.damage.fromRock' : 'energy.damage.measured')}
+                </span>
+                <button
+                  className="link"
+                  aria-expanded={editRock}
+                  onClick={() => {
+                    setEditRock(!editRock);
+                  }}
+                >
+                  {t(editRock ? 'energy.editDone' : 'energy.edit')}
+                </button>
+              </div>
+            )}
+            {rock && (editRock || vppc === null) && (
               <>
                 <NumberField
                   label={t('energy.damage.vp')}
@@ -225,15 +311,27 @@ export function EnergyPanel() {
                     setRock(next, t('energy.damage.vppc'));
                   }}
                 />
+                <p className="hint">
+                  {t('energy.damage.rockValues', {
+                    rt:
+                      rock.tensileStrength !== undefined
+                        ? `${fmt(rock.tensileStrength / 1e6, 1)} MPa`
+                        : '—',
+                    e: `${fmt(rock.youngModulus / 1e9, 1)} GPa`,
+                  })}{' '}
+                  <button className="link" onClick={openRockInCharge}>
+                    {t('energy.damage.editInCharge')}
+                  </button>
+                </p>
+                <p className="hint">
+                  {vppc === null
+                    ? t('energy.damage.none')
+                    : t(vppc.computed ? 'energy.damage.computed' : 'energy.damage.given', {
+                        v: fmt(vppc.value * 1000, 0),
+                      })}
+                </p>
               </>
             )}
-            <p className="hint">
-              {vppc === null
-                ? t('energy.damage.none')
-                : t(vppc.computed ? 'energy.damage.computed' : 'energy.damage.given', {
-                    v: fmt(vppc.value * 1000, 0),
-                  })}
-            </p>
             <label className="check">
               <input
                 type="checkbox"
