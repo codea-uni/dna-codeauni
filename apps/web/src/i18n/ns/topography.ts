@@ -242,6 +242,30 @@ export const es = {
   'topo.mine.empty':
     'Todavía no hay levantamientos. Se agregan desde el editor (Importar → Topografía) y quedan para todos los proyectos de la mina.',
   'topo.mine.uploaded': 'Subido el {date} por {author}',
+  'topo.mine.surveysTitle': 'Historial de topografías',
+  'topo.mine.surveysHint': 'Levantamientos de la mina, del más nuevo al más viejo.',
+  'topo.mine.latest': 'Más reciente',
+  'topo.mine.perimetersOn': '{n} perímetros dibujados aquí',
+  'topo.mine.perimetersOnOne': '1 perímetro dibujado aquí',
+  'topo.mine.perimetersTitle': 'Historial de perímetros',
+  'topo.mine.perimetersHint':
+    'De todos los proyectos de la mina. Son contornos en planta: toman la cota de la topografía donde se usan.',
+  'topo.mine.perimetersEmpty':
+    'Todavía no hay perímetros. Se dibujan en el editor (Diseño → Perímetro) y se pueden reutilizar en otros proyectos.',
+  'topo.mine.filterAll': 'Todas las topografías',
+  'topo.mine.filterNone': 'Sin topografía',
+  'topo.mine.filterLabel': 'Ver perímetros dibujados sobre',
+  'topo.mine.drawnOn': 'Sobre {name} ({date})',
+  'topo.mine.drawnOnNone': 'Sin topografía (banco plano)',
+  'topo.mine.olderSurvey':
+    'Hay una topografía más nueva en esta zona ({name}, {date}): el terreno pudo cambiar; revisa el perímetro si lo usas sobre ella.',
+  'topo.mine.inProject': 'en',
+  'topo.mine.olderShort': 'hay una más nueva en esta zona',
+  'topo.mine.area': '{area} m²',
+  'topo.mine.floor': 'piso {z} m',
+  'topo.mine.showAll': 'Ver todos ({n})',
+  'topo.mine.showLess': 'Ver menos',
+  'topo.mine.loading': 'Cargando…',
 
   // Errores del servidor (D-16)
   'topo.error.missingAssets':
@@ -536,6 +560,30 @@ export const en = {
   'topo.mine.empty':
     'No surveys yet. Add them from the editor (Import → Topography); every project of the mine can use them.',
   'topo.mine.uploaded': 'Uploaded {date} by {author}',
+  'topo.mine.surveysTitle': 'Topography history',
+  'topo.mine.surveysHint': 'Mine surveys, newest first.',
+  'topo.mine.latest': 'Latest',
+  'topo.mine.perimetersOn': '{n} perimeters drawn here',
+  'topo.mine.perimetersOnOne': '1 perimeter drawn here',
+  'topo.mine.perimetersTitle': 'Perimeter history',
+  'topo.mine.perimetersHint':
+    'From every project of the mine. They are plan outlines: they take their elevation from the topography where they are used.',
+  'topo.mine.perimetersEmpty':
+    'No perimeters yet. Draw them in the editor (Design → Perimeter); they can be reused in other projects.',
+  'topo.mine.filterAll': 'All topographies',
+  'topo.mine.filterNone': 'No topography',
+  'topo.mine.filterLabel': 'Show perimeters drawn on',
+  'topo.mine.drawnOn': 'On {name} ({date})',
+  'topo.mine.drawnOnNone': 'No topography (flat bench)',
+  'topo.mine.olderSurvey':
+    'There is a newer topography of this area ({name}, {date}): the ground may have changed; check the perimeter if you use it there.',
+  'topo.mine.inProject': 'in',
+  'topo.mine.olderShort': 'a newer one covers this area',
+  'topo.mine.area': '{area} m²',
+  'topo.mine.floor': 'floor {z} m',
+  'topo.mine.showAll': 'Show all ({n})',
+  'topo.mine.showLess': 'Show less',
+  'topo.mine.loading': 'Loading…',
 
   'topo.error.missingAssets':
     'A survey’s data is missing: open it in the browser where it was imported or import it again.',

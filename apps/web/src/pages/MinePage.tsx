@@ -1,6 +1,7 @@
 import {
   permissions,
   type MineDetail,
+  type MinePerimeter,
   type MineSurvey,
   type ProjectSummary,
   type ProjectVersion,
@@ -17,13 +18,14 @@ import {
   toolFromSearch,
   useProductChrome,
 } from '../product/product';
-import { formatDay, useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
+import { useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
 import { parseErrorText } from '../i18n/coreText';
 import { api } from '../server/api';
 import { summaryParts } from '../server/summaryText';
 import { APP_VERSION, getCompute } from '../session';
 import { workspaceErrorKey } from '../stores/workspaceStore';
 import { CrsPicker, crsDisplayName } from '../components/CrsPicker';
+import { MineSiteData } from './MineSiteData';
 import { PageShell } from './PageShell';
 import { roleKey } from './roles';
 
@@ -46,7 +48,11 @@ export function MinePage() {
   // El resultado guarda su mina: al cambiar de mina, lo anterior deja de mostrarse sin reiniciar
   // el estado dentro del efecto.
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [perimeterList, setPerimeters] = useState<{ mineId: string; list: MinePerimeter[] } | null>(
+    null,
+  );
   const current = loaded?.mineId === mineId ? loaded : null;
+  const perimeters = perimeterList?.mineId === mineId ? perimeterList.list : null;
   const detail = current?.detail ?? null;
   const projects = current?.projects ?? null;
   const [actionError, setActionError] = useState<string | null>(null);
@@ -82,6 +88,15 @@ export function MinePage() {
       },
       (err: unknown) => {
         if (alive) setLoaded({ mineId, error: workspaceErrorKey(err) });
+      },
+    );
+    // Los perímetros salen del contenido de cada proyecto: llegan aparte para no demorar la página.
+    api.perimeters(mineId).then(
+      (perimeters) => {
+        if (alive) setPerimeters({ mineId, list: perimeters });
+      },
+      () => {
+        if (alive) setPerimeters({ mineId, list: [] });
       },
     );
     return () => {
@@ -146,7 +161,7 @@ export function MinePage() {
   };
 
   return (
-    <PageShell tool={tool}>
+    <PageShell tool={tool} wide>
       <Link to="/" className="back-link">
         <ArrowLeft size={14} aria-hidden /> {t('workspace.backToMines')}
       </Link>
@@ -158,88 +173,70 @@ export function MinePage() {
       {!detail && !error && <p className="muted">{t('workspace.loading')}</p>}
       {detail && (
         <>
-          <header className="page-head">
-            <div className="page-head-row">
-              <h1>{detail.mine.name}</h1>
-              <Link className="button-link" to={`/mines/${mineId}/history`}>
-                <History size={15} aria-hidden /> {t('history.mineLink')}
-              </Link>
-            </div>
-            <ul className="chips">
-              <li title={detail.mine.epsg ? `EPSG ${String(detail.mine.epsg)}` : undefined}>
-                {detail.mine.epsg
-                  ? t('crs.mineChip', { name: crsDisplayName(detail.mine.epsg) })
-                  : t('crs.mineMissing')}
-                {!detail.mine.epsg && permissions.manageMines(detail.role) && (
-                  <>
-                    {' · '}
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => {
-                        setCrsOpen(true);
-                      }}
-                    >
-                      {t('crs.setForMine')}
-                    </button>
-                  </>
-                )}
-              </li>
-              <li>{t('workspace.yourRole', { role: t(roleKey(detail.role)) })}</li>
-            </ul>
-          </header>
+          <div className="mine-top">
+            <header className="page-head">
+              <div className="page-head-row">
+                <h1>{detail.mine.name}</h1>
+                <Link className="button-link" to={`/mines/${mineId}/history`}>
+                  <History size={15} aria-hidden /> {t('history.mineLink')}
+                </Link>
+              </div>
+              <ul className="chips">
+                <li title={detail.mine.epsg ? `EPSG ${String(detail.mine.epsg)}` : undefined}>
+                  {detail.mine.epsg
+                    ? t('crs.mineChip', { name: crsDisplayName(detail.mine.epsg) })
+                    : t('crs.mineMissing')}
+                  {!detail.mine.epsg && permissions.manageMines(detail.role) && (
+                    <>
+                      {' · '}
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => {
+                          setCrsOpen(true);
+                        }}
+                      >
+                        {t('crs.setForMine')}
+                      </button>
+                    </>
+                  )}
+                </li>
+                <li>{t('workspace.yourRole', { role: t(roleKey(detail.role)) })}</li>
+              </ul>
+            </header>
 
-          <div className="tool-entries" role="group" aria-label={t('product.shared')}>
-            {PROJECT_KINDS.map((kind) => {
-              const Icon = PRODUCT_ICON[kind];
-              return (
-                <button
-                  key={kind}
-                  type="button"
-                  className="tool-entry"
-                  data-kind={kind}
-                  aria-pressed={tool === kind}
-                  onClick={() => {
-                    chooseTool(kind);
-                  }}
-                >
-                  <span className="tool-entry-icon" aria-hidden>
-                    <Icon size={22} />
-                  </span>
-                  <strong translate="no">{t(`product.enter.${kind}`)}</strong>
-                  <span className="tool-entry-count">{projectCount(kind)}</span>
-                  <small>{t(`product.enterHint.${kind}`)}</small>
-                </button>
-              );
-            })}
+            <div className="tool-entries" role="group" aria-label={t('product.shared')}>
+              {PROJECT_KINDS.map((kind) => {
+                const Icon = PRODUCT_ICON[kind];
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    className="tool-entry"
+                    data-kind={kind}
+                    aria-pressed={tool === kind}
+                    onClick={() => {
+                      chooseTool(kind);
+                    }}
+                  >
+                    <span className="tool-entry-icon" aria-hidden>
+                      <Icon size={22} />
+                    </span>
+                    <strong translate="no">{t(`product.enter.${kind}`)}</strong>
+                    <span className="tool-entry-count">{projectCount(kind)}</span>
+                    <small>{t(`product.enterHint.${kind}`)}</small>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="mine-layout">
-            <section className="section" aria-labelledby="projects-title">
+          <div className="mine-grid">
+            <section className="section mine-projects" aria-labelledby="projects-title">
               <div className="section-head">
                 <h2 id="projects-title">{t('product.projectsOf', { tool: toolName })}</h2>
+                <p>{t('product.shared')}</p>
               </div>
-              <p className="muted">{t('product.shared')}</p>
-              {mine?.length === 0 && (
-                <div className="empty">
-                  <strong>{t('product.empty', { tool: toolName })}</strong>
-                  {canEdit
-                    ? t(tool === 'underground' ? 'projects.emptyHintUg' : 'projects.emptyHint')
-                    : t('projects.emptyReviewer')}
-                </div>
-              )}
-              {mine && mine.length > 0 && (
-                <ul className="rows">
-                  {mine.map((p) => (
-                    <ProjectRow key={p.id} project={p} tool={tool} />
-                  ))}
-                </ul>
-              )}
-              {actionError && (
-                <p className="form-error" role="alert">
-                  {actionError}
-                </p>
-              )}
               {canEdit && (
                 <form
                   className="new-project"
@@ -284,9 +281,32 @@ export function MinePage() {
                   />
                 </form>
               )}
+              {actionError && (
+                <p className="form-error" role="alert">
+                  {actionError}
+                </p>
+              )}
+              {mine?.length === 0 && (
+                <div className="empty">
+                  <strong>{t('product.empty', { tool: toolName })}</strong>
+                  {canEdit
+                    ? t(tool === 'underground' ? 'projects.emptyHintUg' : 'projects.emptyHint')
+                    : t('projects.emptyReviewer')}
+                </div>
+              )}
+              {mine && mine.length > 0 && (
+                <ul className="rows">
+                  {mine.map((p) => (
+                    <ProjectRow key={p.id} project={p} tool={tool} />
+                  ))}
+                </ul>
+              )}
 
-              <div className="tool-others">
-                <h3>{t('product.others', { tool: t(PRODUCT_NAME[otherTool]) })}</h3>
+              <details className="tool-others">
+                <summary>
+                  {t('product.others', { tool: t(PRODUCT_NAME[otherTool]) })}{' '}
+                  <span className="site-card-count">{others?.length ?? '…'}</span>
+                </summary>
                 {others?.length === 0 && (
                   <p className="muted">
                     {t('product.othersEmpty', { tool: t(PRODUCT_NAME[otherTool]) })}
@@ -299,13 +319,11 @@ export function MinePage() {
                     ))}
                   </ul>
                 )}
-              </div>
+              </details>
             </section>
 
-            <div className="mine-side">
-              <RecentActivity mineId={mineId} versions={current?.recent ?? []} />
-              <MineSurveys surveys={current?.surveys ?? []} />
-            </div>
+            <MineSiteData surveys={current?.surveys ?? []} perimeters={perimeters} tool={tool} />
+            <RecentActivity mineId={mineId} versions={current?.recent ?? []} />
           </div>
         </>
       )}
@@ -337,13 +355,11 @@ function ProjectRow({ project: p, tool }: { project: ProjectSummary; tool: Proje
         <span className="row-meta">{t('projects.holes', { n: fmt(p.latest.holeCount) })}</span>
       </span>
       <span className="latest">
-        <span>
-          <span className="version-tag">v{p.latest.number}</span>{' '}
-          <span className="row-meta">
-            {t('projects.by', { date: fmtDate(p.latest.createdAt), author: p.latest.authorName })}
-          </span>
-        </span>
-        <p title={p.latest.message}>{p.latest.message}</p>
+        <span className="version-tag">v{p.latest.number}</span>
+        <p title={p.latest.message}>{p.latest.message || t('history.initial')}</p>
+      </span>
+      <span className="row-meta project-by">
+        {t('projects.by', { date: fmtDate(p.latest.createdAt), author: p.latest.authorName })}
       </span>
       <Link className="button-link" to={projectPath(p.id, p.kind, tool)}>
         {p.kind === tool ? (
@@ -384,48 +400,6 @@ function RecentActivity({ mineId, versions }: { mineId: string; versions: Projec
         </ol>
       )}
       <Link to={`/mines/${mineId}/history`}>{t('history.seeAll')}</Link>
-    </aside>
-  );
-}
-
-/**
- * Levantamientos topográficos de la mina (D-16), del más nuevo al más viejo: los proyectos los
- * usan como referencia y se suben una sola vez.
- */
-function MineSurveys({ surveys }: { surveys: MineSurvey[] }) {
-  const t = useT();
-  const fmt = useFormat();
-  const fmtDate = useFormatDate();
-  return (
-    <aside className="activity" aria-labelledby="surveys-title">
-      <h2 id="surveys-title">{t('topo.section')}</h2>
-      {surveys.length === 0 ? (
-        <p className="muted">{t('topo.mine.empty')}</p>
-      ) : (
-        <ol>
-          {surveys.map(({ survey: s, createdAt, createdBy }) => (
-            <li key={s.id}>
-              <span>
-                <strong>{s.name}</strong>{' '}
-                <span className="row-meta">{formatDay(s.surveyDate)}</span>
-              </span>
-              <p className="muted">
-                {t('topo.panel.stats', {
-                  points: fmt(s.stats.points),
-                  triangles: fmt(s.stats.triangles),
-                  lines: fmt(s.stats.lines),
-                })}
-              </p>
-              <p className="muted">
-                {t('topo.mine.uploaded', {
-                  date: fmtDate(createdAt),
-                  author: createdBy?.name ?? '—',
-                })}
-              </p>
-            </li>
-          ))}
-        </ol>
-      )}
     </aside>
   );
 }

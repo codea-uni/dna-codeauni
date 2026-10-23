@@ -1,4 +1,9 @@
-import { mineSchema, mineSurveyListSchema, projectSummarySchema } from '@cronos/api';
+import {
+  minePerimeterListSchema,
+  mineSchema,
+  mineSurveyListSchema,
+  projectSummarySchema,
+} from '@cronos/api';
 import {
   buildSurvey,
   bytesToBase64,
@@ -184,6 +189,41 @@ describe.runIf(await databaseAvailable())('topografía de la mina (D-16)', () =>
     expect(list.surveys.map((x) => [x.survey.id, x.createdBy?.name])).toEqual([
       [tajo.survey.id, 'Luis'],
     ]);
+  });
+
+  it('lista los perímetros de la mina con la topografía sobre la que se dibujaron', async () => {
+    const p = projectWith(tajo.survey);
+    p.name = 'Banco con perímetro';
+    const blast = p.blasts[0];
+    if (!blast) throw new Error('sin voladura');
+    blast.bench.topographyId = tajo.survey.id;
+    blast.boundaries.push({
+      id: newId<'Boundary'>(),
+      name: 'Polígono 1',
+      polygon: [
+        { x: 0, y: 0 },
+        { x: 20, y: 0 },
+        { x: 20, y: 10 },
+        { x: 0, y: 10 },
+      ],
+      freeFaceEdges: [0],
+    });
+    const res = await call(designer, 'POST', `/mines/${cuajone}/projects`, {
+      file: toProjectFile(p, { appVersion: 'test' }),
+    });
+    expect(res.status).toBe(201);
+    const list = minePerimeterListSchema.parse(
+      (await call(reviewer, 'GET', `/mines/${cuajone}/perimeters`)).json(),
+    );
+    const found = list.perimeters.find((x) => x.name === 'Polígono 1');
+    expect(found).toMatchObject({
+      area: 200,
+      vertices: 4,
+      project: { name: 'Banco con perímetro', kind: 'surface' },
+      topography: { id: tajo.survey.id, name: tajo.survey.name },
+      authorName: 'Luis',
+    });
+    expect((await call(otherAdmin, 'GET', `/mines/${cuajone}/perimeters`)).status).toBe(404);
   });
 
   it('un levantamiento pertenece a una sola mina', async () => {

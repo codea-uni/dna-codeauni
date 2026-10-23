@@ -69,7 +69,9 @@ import {
   assetInfoSchema,
   missingAssetsResultSchema,
   mineSurveyListSchema,
+  minePerimeterListSchema,
   type AssetInfo,
+  type MinePerimeter,
   type MineSurvey,
 } from './topography';
 import {
@@ -440,6 +442,12 @@ export class ApiClient {
   /** Levantamientos de la mina, del más nuevo al más viejo. */
   async surveys(mineId: string): Promise<MineSurvey[]> {
     return (await this.request(`/mines/${enc(mineId)}/surveys`, mineSurveyListSchema)).surveys;
+  }
+
+  /** Perímetros de los proyectos de la mina (última versión de cada uno), del más nuevo al más viejo. */
+  async perimeters(mineId: string): Promise<MinePerimeter[]> {
+    return (await this.request(`/mines/${enc(mineId)}/perimeters`, minePerimeterListSchema))
+      .perimeters;
   }
 
   /** URL para descargar el `.cronos.json` de una versión (mismo origen: la cookie viaja sola). */

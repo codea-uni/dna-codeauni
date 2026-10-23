@@ -12,7 +12,7 @@ import type { Db } from '../db/db';
 import { sendError } from '../http/errors';
 import { requireUser } from '../http/session';
 import { visibleMine } from '../services/access';
-import { missingAssets, storeAsset } from '../services/topography';
+import { minePerimeters, missingAssets, storeAsset } from '../services/topography';
 
 export interface TopographyRouteDeps {
   auth: Auth;
@@ -126,5 +126,13 @@ export function topographyRoutes(app: FastifyInstance, deps: TopographyRouteDeps
       });
     }
     return reply.send({ surveys });
+  });
+
+  app.get('/mines/:mineId/perimeters', async (req: Req, reply) => {
+    const user = await requireUser(deps.auth, db, req, reply);
+    if (!user) return reply;
+    const found = await visibleMine(db, req.params.mineId ?? '', user.id);
+    if (!found) return sendError(reply, 404, 'not_found', 'Mine not found');
+    return reply.send({ perimeters: await minePerimeters(db, found.mine.id) });
   });
 }

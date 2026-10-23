@@ -1,17 +1,19 @@
 import { createHash } from 'node:crypto';
-import type { AssetInfo } from '@cronos/api';
+import type { AssetInfo, MinePerimeter } from '@cronos/api';
 import {
   base64ToBytes,
   decodeAsset,
   surveyAssetHashes,
   type ProjectFile,
   type TopographySurvey,
+  type Vec2,
 } from '@cronos/core';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/schema';
 import { HttpError } from '../http/errors';
 import type { MineRow } from './access';
 import { recordAudit } from './audit';
+import { decodeContent } from './versions';
 
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 
@@ -147,4 +149,104 @@ export async function syncProjectTopography(
     });
   }
   return rest;
+}
+
+/** Perímetros ya leídos por hash del contenido de la versión (no cambia nunca). */
+const perimeterCache = new Map<
+  string,
+  Omit<MinePerimeter, 'project' | 'version' | 'updatedAt' | 'authorName'>[]
+>();
+const PERIMETER_CACHE_MAX = 500;
+const OUTLINE_MAX = 48;
+
+function planArea(polygon: readonly Vec2[]): number {
+  let a = 0;
+  polygon.forEach((p, i) => {
+    const q = polygon[(i + 1) % polygon.length] ?? p;
+    a += p.x * q.y - q.x * p.y;
+  });
+  return Math.abs(a) / 2;
+}
+
+/** Perímetros de un ProjectFile con la topografía del banco de su voladura (si la tenía). */
+function perimetersOf(file: ProjectFile) {
+  const surveys = new Map(file.project.topography.map((s) => [s.id as string, s]));
+  return file.project.blasts.flatMap((blast) => {
+    const topo = blast.bench.topographyId ? surveys.get(blast.bench.topographyId) : undefined;
+    return blast.boundaries.map((b) => {
+      const step = Math.max(1, Math.ceil(b.polygon.length / OUTLINE_MAX));
+      return {
+        id: b.id,
+        name: b.name,
+        area: Math.round(planArea(b.polygon) * 10) / 10,
+        vertices: b.polygon.length,
+        outline: b.polygon
+          .filter((_, i) => i % step === 0)
+          .map(
+            (v) => [Math.round(v.x * 100) / 100, Math.round(v.y * 100) / 100] as [number, number],
+          ),
+        floorElevation: b.floorElevation ?? blast.bench.floorElevation,
+        topography: topo ? { id: topo.id, name: topo.name, surveyDate: topo.surveyDate } : null,
+      };
+    });
+  });
+}
+
+/**
+ * Perímetros de la mina: los de la última versión de cada proyecto, del cambio más nuevo al más
+ * viejo. Lee el contenido guardado (gzip) y recuerda el resultado por hash.
+ */
+export async function minePerimeters(
+  db: Kysely<Database>,
+  mineId: string,
+): Promise<MinePerimeter[]> {
+  const rows = await db
+    .selectFrom('project')
+    .innerJoin('project_version', (j) =>
+      j
+        .onRef('project_version.projectId', '=', 'project.id')
+        .onRef('project_version.number', '=', 'project.versionCount'),
+    )
+    .innerJoin('user', 'user.id', 'project_version.authorId')
+    .select([
+      'project.id',
+      'project.name',
+      'project.kind',
+      'project_version.number',
+      'project_version.createdAt',
+      'project_version.contentHash',
+      'user.name as authorName',
+    ])
+    .where('project.mineId', '=', mineId)
+    .orderBy('project_version.createdAt', 'desc')
+    .execute();
+  const out: MinePerimeter[] = [];
+  for (const r of rows) {
+    let list = perimeterCache.get(r.contentHash);
+    if (!list) {
+      const row = await db
+        .selectFrom('project_version')
+        .select('content')
+        .where('projectId', '=', r.id)
+        .where('number', '=', r.number)
+        .executeTakeFirst();
+      if (!row) continue;
+      try {
+        list = perimetersOf(JSON.parse(await decodeContent(row.content)) as ProjectFile);
+      } catch {
+        list = [];
+      }
+      if (perimeterCache.size >= PERIMETER_CACHE_MAX) perimeterCache.clear();
+      perimeterCache.set(r.contentHash, list);
+    }
+    for (const p of list)
+      out.push({
+        ...p,
+        project: { id: r.id, name: r.name, kind: r.kind },
+        version: r.number,
+        updatedAt: r.createdAt.toISOString(),
+        authorName: r.authorName,
+      });
+  }
+  return out;
 }

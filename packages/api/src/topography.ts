@@ -32,3 +32,26 @@ export const mineSurveySchema = z.object({
 });
 export type MineSurvey = z.infer<typeof mineSurveySchema>;
 export const mineSurveyListSchema = z.object({ surveys: z.array(mineSurveySchema) });
+
+/**
+ * Perímetro guardado en un proyecto de la mina (última versión de cada proyecto). Los perímetros
+ * son polígonos en planta: la cota la pone la topografía sobre la que se usan; `topography` es la
+ * del banco de su voladura cuando se guardó (sobre la que se dibujó), si tenía.
+ */
+export const minePerimeterSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  project: z.object({ id: z.string(), name: z.string(), kind: z.enum(['surface', 'underground']) }),
+  /** Área en planta [m²]. */
+  area: z.number().nonnegative(),
+  vertices: z.int().nonnegative(),
+  /** Contorno reducido (≤ 48 vértices) para la miniatura [m]. */
+  outline: z.array(z.tuple([z.number(), z.number()])),
+  floorElevation: z.number().nullable(),
+  topography: z.object({ id: z.string(), name: z.string(), surveyDate: z.string() }).nullable(),
+  version: z.int().positive(),
+  updatedAt: z.string(),
+  authorName: z.string(),
+});
+export type MinePerimeter = z.infer<typeof minePerimeterSchema>;
+export const minePerimeterListSchema = z.object({ perimeters: z.array(minePerimeterSchema) });

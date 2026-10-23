@@ -10,9 +10,18 @@ import { activeRole } from '../stores/workspaceStore';
 
 /**
  * Marco de las páginas fuera del editor: marca, empresa del usuario (fija, D-15), navegación y
- * cuenta. `children` va en una columna de contenido centrada.
+ * cuenta. `children` va en una columna de contenido centrada (o a todo el ancho con `wide`).
  */
-export function PageShell({ children, tool }: { children: ReactNode; tool?: ProjectKind }) {
+export function PageShell({
+  children,
+  tool,
+  wide = false,
+}: {
+  children: ReactNode;
+  tool?: ProjectKind;
+  /** Usa todo el ancho de la pantalla (páginas con varias columnas, como la mina). */
+  wide?: boolean;
+}) {
   const t = useT();
   const organization = useWorkspace((s) => s.organization);
   const role = useWorkspace(activeRole);
@@ -51,7 +60,7 @@ export function PageShell({ children, tool }: { children: ReactNode; tool?: Proj
         </div>
       </header>
       <main className="page-body">
-        <div className="page-content">{children}</div>
+        <div className={wide ? 'page-content page-content-wide' : 'page-content'}>{children}</div>
       </main>
     </div>
   );
