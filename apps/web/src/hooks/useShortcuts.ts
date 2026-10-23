@@ -6,6 +6,7 @@ import { fitsKind } from '../product/product';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { saveVersionShortcut } from '../server/ProjectContext';
+import { frameSelectionOrAll } from '../viewport/quickActions';
 
 function isEditable(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -26,6 +27,12 @@ export function useShortcuts(): void {
         if (!saveVersionShortcut()) void actions.saveProject();
         return;
       }
+      // Ctrl+K: buscador de acciones (también desde un campo, como en otras aplicaciones).
+      if (mod && !e.altKey && key === 'k') {
+        e.preventDefault();
+        useUiStore.getState().setPaletteOpen(!useUiStore.getState().paletteOpen);
+        return;
+      }
       if (isEditable(e.target)) return;
       if (mod && key === 'z') {
         if (e.shiftKey) actions.redo();
@@ -43,9 +50,13 @@ export function useShortcuts(): void {
         actions.deleteSelection();
       } else if (e.key === 'Escape') {
         if (useUiStore.getState().shortcutsOpen) useUiStore.getState().setShortcutsOpen(false);
-        else session.selection.clear();
+        else {
+          session.selection.clear();
+          useUiStore.getState().setPicked3d(null);
+        }
       } else if (!mod && !e.altKey && key === 'f') {
-        actions.zoomToFit();
+        // Como en Unity: F centra lo seleccionado; sin selección, encuadra todo.
+        frameSelectionOrAll();
       } else if (
         !mod &&
         !e.altKey &&

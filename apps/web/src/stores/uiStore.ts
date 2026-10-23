@@ -11,6 +11,7 @@ import {
   DEFAULT_DECORATIONS,
   type DecorationSettings,
   type FrameStats,
+  type Picked3d,
   type SnapSettings,
   type ToolName,
   type ViewMode,
@@ -120,6 +121,12 @@ interface UiState {
   /** Vista previa del CSV a importar (abre el diálogo). */
   csvPreview: CsvPreview | null;
   shortcutsOpen: boolean;
+  /** Buscador de acciones (Ctrl+K). */
+  paletteOpen: boolean;
+  setPaletteOpen: (open: boolean) => void;
+  /** Objeto elegido con un clic en la vista 3D (ficha flotante). */
+  picked3d: Picked3d | null;
+  setPicked3d: (picked: Picked3d | null) => void;
   settingsOpen: boolean;
   /** Comparación de escenarios mostrada en la pestaña Escenarios (también la usa la demo). */
   scenarioKpis: ScenarioKpis[] | null;
@@ -247,6 +254,14 @@ export const useUiStore = create<UiState>()((set) => ({
   activeBoundaryId: null,
   csvPreview: null,
   shortcutsOpen: false,
+  paletteOpen: false,
+  setPaletteOpen: (paletteOpen) => {
+    set({ paletteOpen });
+  },
+  picked3d: null,
+  setPicked3d: (picked3d) => {
+    set({ picked3d });
+  },
   settingsOpen: false,
   scenarioKpis: null,
   setScenarioKpis: (scenarioKpis) => {

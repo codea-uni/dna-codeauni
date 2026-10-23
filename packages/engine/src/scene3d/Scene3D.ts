@@ -128,6 +128,9 @@ export class Scene3D {
   private instancePaint = new Uint8Array(0);
   private baseColors = new Float32Array(0);
   private colorSource: ((id: HoleId) => Color | null) | null = null;
+  /** Taladros seleccionados: se pintan enteros con el color de selección. */
+  private highlight: ReadonlySet<HoleId> = new Set();
+  private readonly highlightColor = new Color(0xffd23f);
   /**
    * Pintado en vivo: por instancia, sus extremos y radio (render), su tramo [desde, hasta] medido
    * desde la boca, el largo del taladro y si es carga (sube desde el fondo) o perforación vacía.
@@ -540,13 +543,74 @@ export class Scene3D {
     this.refreshColors();
   }
 
+  /** Resalta los taladros seleccionados (clic en la vista 3D o selección en planta). */
+  setHighlight(ids: ReadonlySet<HoleId>): void {
+    if (ids.size === 0 && this.highlight.size === 0) return;
+    this.highlight = ids;
+    this.refreshColors();
+  }
+
+  /**
+   * Taladro que toca el rayo (coordenadas de render): el más cercano a la cámara cuyo tramo pasa
+   * a menos de su radio o de `tolerance(t)` metros (t = distancia por el rayo, ≈ unos píxeles).
+   */
+  pickHole(
+    origin: { x: number; y: number; z: number },
+    dir: { x: number; y: number; z: number },
+    tolerance: (t: number) => number,
+  ): HoleId | null {
+    let best: HoleId | null = null;
+    let bestT = Infinity;
+    const n = this.instanceHole.length;
+    for (let i = 0; i < n; i++) {
+      const ax = this.instFrom[i * 3] ?? 0;
+      const ay = this.instFrom[i * 3 + 1] ?? 0;
+      const az = this.instFrom[i * 3 + 2] ?? 0;
+      const ux = (this.instTo[i * 3] ?? 0) - ax;
+      const uy = (this.instTo[i * 3 + 1] ?? 0) - ay;
+      const uz = (this.instTo[i * 3 + 2] ?? 0) - az;
+      // Puntos más cercanos entre el rayo (o + t·d) y el tramo (a + s·u, s ∈ [0, 1]).
+      const wx = origin.x - ax;
+      const wy = origin.y - ay;
+      const wz = origin.z - az;
+      const b = dir.x * ux + dir.y * uy + dir.z * uz;
+      const c = ux * ux + uy * uy + uz * uz;
+      const d = dir.x * wx + dir.y * wy + dir.z * wz;
+      const e = ux * wx + uy * wy + uz * wz;
+      const den = c - b * b;
+      let sc = c > 0 ? (den > 1e-12 ? (e - b * d) / den : 0) : 0;
+      sc = Math.max(0, Math.min(1, sc));
+      // Con s fijo, el t óptimo del rayo.
+      const px = ax + ux * sc;
+      const py = ay + uy * sc;
+      const pz = az + uz * sc;
+      const t = (px - origin.x) * dir.x + (py - origin.y) * dir.y + (pz - origin.z) * dir.z;
+      if (t <= 0 || t >= bestT) continue;
+      const qx = origin.x + dir.x * t - px;
+      const qy = origin.y + dir.y * t - py;
+      const qz = origin.z + dir.z * t - pz;
+      const dist = Math.hypot(qx, qy, qz);
+      if (dist <= Math.max(this.instRadius[i] ?? 0, tolerance(t))) {
+        best = this.instanceHole[i] ?? null;
+        bestT = t;
+      }
+    }
+    return best;
+  }
+
   refreshColors(): void {
     const mesh = this.cylinders;
     const colors = mesh?.instanceColor?.array as Float32Array | undefined;
     if (!mesh || !colors) return;
     const source = this.colorSource;
+    const lit = this.highlight;
     for (let i = 0; i < this.instanceHole.length; i++) {
-      const c = source && this.instancePaint[i] ? source(this.instanceHole[i] as HoleId) : null;
+      const id = this.instanceHole[i] as HoleId;
+      const c = lit.has(id)
+        ? this.highlightColor
+        : source && this.instancePaint[i]
+          ? source(id)
+          : null;
       if (c) {
         colors[i * 3] = c.r;
         colors[i * 3 + 1] = c.g;

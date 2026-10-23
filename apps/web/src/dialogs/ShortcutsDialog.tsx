@@ -11,11 +11,15 @@ const GENERAL: [string | { key: MessageKey }, MessageKey][] = [
   ['Ctrl+A', 'shortcuts.selectAll'],
   [{ key: 'shortcuts.key.delete' }, 'shortcuts.deleteSelection'],
   ['Esc', 'shortcuts.cancel'],
-  ['F', 'tools.zoomFit'],
+  ['F', 'quick.fitHint'],
   ['3', 'shortcuts.toggle3d'],
   [{ key: 'shortcuts.key.spaceDrag' }, 'tools.pan'],
   [{ key: 'shortcuts.key.wheel' }, 'shortcuts.zoomCursor'],
   [{ key: 'shortcuts.key.modClick' }, 'shortcuts.addRemove'],
+  ['Ctrl+K', 'quick.searchHint'],
+  [{ key: 'shortcuts.key.rightDrag' }, 'quick.help.look'],
+  [{ key: 'shortcuts.key.fly' }, 'shortcuts.fly'],
+  [{ key: 'shortcuts.key.dblclick' }, 'shortcuts.center'],
 ];
 
 /** Referencia rápida de atajos (tecla ?). */

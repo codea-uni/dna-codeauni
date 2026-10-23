@@ -10,6 +10,9 @@ import { useUiStore } from '../stores/uiStore';
 import { AgentCards } from '../ai/AgentCards';
 import { BuildChip, bindBuild } from './BuildChip';
 import { Legend3D } from './Legend3D';
+import { PickCard } from './PickCard';
+import { QuickBar } from './QuickBar';
+import { ViewGizmo } from './ViewGizmo';
 import { bindXr } from '../xr/bindXr';
 import { XrFab } from '../xr/XrButtons';
 import { LiveFeedView } from '../xr/LiveFeedView';
@@ -95,6 +98,10 @@ export function Viewport() {
       engine.on('hover', (id) => {
         useUiStore.getState().setHover(id);
       }),
+      // Clic en 3D: la ficha muestra lo elegido (los taladros van además a la selección).
+      engine.on('picked3d', (picked) => {
+        useUiStore.getState().setPicked3d(picked);
+      }),
     ];
 
     return () => {
@@ -113,6 +120,9 @@ export function Viewport() {
   return (
     <>
       <canvas ref={canvasRef} className="viewport" />
+      <QuickBar />
+      <ViewGizmo />
+      <PickCard />
       <Legend3D />
       <BuildChip />
       <AgentCards />

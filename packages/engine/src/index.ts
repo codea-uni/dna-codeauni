@@ -1,6 +1,7 @@
 export {
   Engine,
   type EngineEvents,
+  type Picked3d,
   type ViewMode,
   type EngineLayer,
   type MuckpileView,

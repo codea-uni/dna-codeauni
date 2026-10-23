@@ -124,7 +124,7 @@ export const es = {
   'status.selected': '{n} seleccionados',
   'status.hole': 'Taladro {label}',
   'status.view3d':
-    'Vista 3D: arrastre orbita · Shift o botón derecho desplaza · rueda acerca · F encuadra · 3 vuelve a planta',
+    'Vista 3D: clic selecciona · arrastre gira · botón derecho + W A S D vuela · medio o Shift desplaza · rueda acerca al cursor · F centra · 3 vuelve a planta',
   'status.frameTitle': 'Medido durante la última interacción (el render es a demanda)',
   'status.law.calibrated': 'Vibración: {name} (n = {n})',
   'status.law.generic': 'Vibración: ley genérica, sin calibrar',
@@ -210,6 +210,11 @@ export const es = {
   'shortcuts.toggle3d': 'Alternar planta / 3D',
   'shortcuts.zoomCursor': 'Zoom al cursor',
   'shortcuts.addRemove': 'Agregar / quitar de la selección',
+  'shortcuts.key.rightDrag': 'Botón derecho (3D)',
+  'shortcuts.key.fly': 'Botón derecho + W A S D Q E',
+  'shortcuts.fly': 'Volar en 3D (Shift: más rápido; rueda: velocidad)',
+  'shortcuts.key.dblclick': 'Doble clic (3D)',
+  'shortcuts.center': 'Centrar la vista en ese punto',
   'shortcuts.key.delete': 'Supr',
   'shortcuts.key.spaceDrag': 'Espacio + arrastre',
   'shortcuts.key.wheel': 'Rueda',
@@ -235,7 +240,9 @@ export const es = {
   'legend.wheel': 'rueda',
   'legend.zoom': 'acercar',
   'legend.plan': 'planta',
-  'legend.fit': 'encuadrar',
+  'legend.fit': 'centrar',
+  'legend.fly': 'volar',
+  'legend.flyKey': 'der. + W A S D',
 };
 
 export const en = {
@@ -360,7 +367,7 @@ export const en = {
   'status.selected': '{n} selected',
   'status.hole': 'Hole {label}',
   'status.view3d':
-    '3D view: drag orbits · Shift or right button pans · wheel zooms · F fits · 3 returns to plan',
+    '3D view: click selects · drag orbits · right button + W A S D flies · middle or Shift pans · wheel zooms to cursor · F frames · 3 returns to plan',
   'status.frameTitle': 'Measured during the last interaction (rendering is on demand)',
   'status.law.calibrated': 'Vibration: {name} (n = {n})',
   'status.law.generic': 'Vibration: generic law, not calibrated',
@@ -446,6 +453,11 @@ export const en = {
   'shortcuts.toggle3d': 'Toggle plan / 3D',
   'shortcuts.zoomCursor': 'Zoom at cursor',
   'shortcuts.addRemove': 'Add to / remove from selection',
+  'shortcuts.key.rightDrag': 'Right button (3D)',
+  'shortcuts.key.fly': 'Right button + W A S D Q E',
+  'shortcuts.fly': 'Fly in 3D (Shift: faster; wheel: speed)',
+  'shortcuts.key.dblclick': 'Double-click (3D)',
+  'shortcuts.center': 'Center the view on that point',
   'shortcuts.key.delete': 'Del',
   'shortcuts.key.spaceDrag': 'Space + drag',
   'shortcuts.key.wheel': 'Wheel',
@@ -471,5 +483,7 @@ export const en = {
   'legend.wheel': 'wheel',
   'legend.zoom': 'zoom',
   'legend.plan': 'plan',
-  'legend.fit': 'fit',
+  'legend.fit': 'frame',
+  'legend.fly': 'fly',
+  'legend.flyKey': 'right + W A S D',
 } satisfies Record<keyof typeof es, string>;

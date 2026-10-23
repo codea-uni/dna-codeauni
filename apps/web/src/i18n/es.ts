@@ -26,6 +26,7 @@ import * as undergroundMethods from './ns/undergroundMethods';
 import * as workspace from './ns/workspace';
 import * as xr from './ns/xr';
 import * as ux from './ns/ux';
+import * as quick from './ns/quick';
 
 export const es = {
   ...ai.es,
@@ -52,6 +53,7 @@ export const es = {
   ...workspace.es,
   ...xr.es,
   ...ux.es,
+  ...quick.es,
   'toolbar.documentation': 'Documentación',
   'workspace.loading': 'Cargando…',
   'toolbar.newProject': 'Proyecto nuevo',

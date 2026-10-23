@@ -3212,3 +3212,371 @@ button.link {
 .grid-table tbody tr:hover td {
   background: color-mix(in srgb, var(--border) 35%, transparent);
 }
+
+/* ------------------------------------------------------------------ Acciones rápidas del visor */
+
+/* Barra tipo Unity sobre el visor: planta/3D, simular, capas, encuadrar y buscador. */
+.quick-bar {
+  position: absolute;
+  top: 28px;
+  left: 32px;
+  z-index: 7;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+  max-width: calc(100% - 120px);
+  pointer-events: none;
+}
+
+.quick-bar > *,
+.view-gizmo,
+.pick-card {
+  pointer-events: auto;
+}
+
+.quick-bar button {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  height: 30px;
+  padding: 0 0.65rem;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text);
+  white-space: nowrap;
+  background: #0d1117e6;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.quick-bar button:hover {
+  border-color: var(--muted);
+}
+
+.quick-bar button.on {
+  color: var(--accent-ink);
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+.quick-seg {
+  display: inline-flex;
+}
+
+.quick-seg > button:not(:first-child) {
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.quick-seg > button:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.quick-bar button.quick-play:not(.on) {
+  color: #b9f18c;
+  border-color: #72ad3a99;
+}
+
+.quick-bar button.quick-play.on {
+  color: #08151f;
+  background: #9bd462;
+  border-color: #9bd462;
+}
+
+.quick-bar kbd {
+  padding: 0 0.3rem;
+  font: inherit;
+  font-size: 10.5px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.quick-pop {
+  position: relative;
+}
+
+.quick-pop-panel {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  z-index: 10;
+  display: grid;
+  gap: 0.6rem;
+  min-width: 240px;
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  padding: 0.7rem 0.8rem;
+  background: #0d1117f5;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #0008;
+}
+
+.quick-layers {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quick-layers legend {
+  margin-bottom: 0.2rem;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quick-layers .check {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.quick-help {
+  display: grid;
+  gap: 0.35rem;
+  width: 340px;
+  max-width: 80vw;
+  margin: 0;
+  padding: 0 0 0 1rem;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* Cubo de vistas (3D), debajo de la brújula. */
+.view-gizmo {
+  position: absolute;
+  top: 96px;
+  right: 12px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(3, 22px);
+  grid-template-areas:
+    '. n iso'
+    'w top e'
+    '. s .';
+  gap: 3px;
+}
+
+.view-gizmo button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: #0d1117e0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.view-gizmo button:hover {
+  color: var(--accent-ink);
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+.view-gizmo [data-view='n'] {
+  grid-area: n;
+}
+
+.view-gizmo [data-view='s'] {
+  grid-area: s;
+}
+
+.view-gizmo [data-view='e'] {
+  grid-area: e;
+}
+
+.view-gizmo [data-view='w'] {
+  grid-area: w;
+}
+
+.view-gizmo [data-view='top'] {
+  grid-area: top;
+  color: var(--accent);
+}
+
+.view-gizmo [data-view='iso'] {
+  grid-area: iso;
+  font-size: 9px;
+}
+
+/* Ficha del objeto elegido en 3D. */
+.pick-card {
+  position: absolute;
+  top: 72px;
+  left: 32px;
+  z-index: 6;
+  display: grid;
+  gap: 0.35rem;
+  width: 280px;
+  max-width: calc(100% - 64px);
+  padding: 0.6rem 0.7rem;
+  font-size: 12.5px;
+  background: #0d1117eb;
+  border: 1px solid #ffd23f88;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px #0007;
+}
+
+.pick-card p {
+  margin: 0;
+}
+
+.pick-card-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.pick-card-head strong {
+  color: #ffd23f;
+  overflow-wrap: anywhere;
+}
+
+.pick-card button {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.pick-card button.pick-card-close {
+  padding: 0.15rem;
+  background: none;
+  border: 0;
+}
+
+.pick-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* Buscador de acciones (Ctrl+K). */
+.palette-backdrop {
+  align-items: start;
+  padding-top: 12vh;
+}
+
+.palette {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(620px, calc(100vw - 32px));
+  max-height: 64vh;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px #000a;
+}
+
+.palette input {
+  padding: 0.85rem 1rem;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+}
+
+.palette ul {
+  margin: 0;
+  padding: 0.35rem;
+  overflow: auto;
+  list-style: none;
+}
+
+.palette li button {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.1rem 0.7rem;
+  align-items: baseline;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.palette li button.on {
+  background: var(--panel-2);
+}
+
+.palette-kind {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.palette-label {
+  font-size: 13.5px;
+}
+
+.palette li small {
+  grid-column: 2;
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-empty {
+  margin: 0;
+  padding: 1rem;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .quick-bar {
+    top: 24px;
+    left: 26px;
+    max-width: calc(100% - 90px);
+  }
+
+  .quick-bar button {
+    height: 28px;
+    padding: 0 0.5rem;
+  }
+
+  .quick-search kbd,
+  .quick-bar .quick-label {
+    display: none;
+  }
+
+  .pick-card {
+    top: auto;
+    bottom: 56px;
+    left: 10px;
+  }
+}

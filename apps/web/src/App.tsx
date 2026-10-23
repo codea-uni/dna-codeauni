@@ -33,6 +33,7 @@ import { PRODUCT_NAME, useEditorTool, useProductChrome, useProjectKind } from '.
 import { useProjectSession } from './server/projectSession';
 import { useUiStore } from './stores/uiStore';
 import { LEFT_TABS } from './panels/registry';
+import { CommandPalette } from './viewport/CommandPalette';
 import { Viewport } from './viewport/Viewport';
 import { openWorkspacePanel, WorkspaceWindows } from './components/WorkspaceWindows';
 
@@ -132,6 +133,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
       <WorkspaceWindows />
       <DemoOverlay />
       <AskDialog />
+      <CommandPalette />
       {shortcutsOpen && (
         <ShortcutsDialog
           onClose={() => {

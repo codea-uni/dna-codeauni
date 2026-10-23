@@ -51,10 +51,14 @@ import {
 } from './cameras/frame';
 import {
   dollyOrbit,
+  dollyToward,
   fitOrbit,
+  flyOrbit,
+  lookBy,
   orbitBy,
   orbitPosition,
   panOrbit,
+  repivotOrbit,
   type OrbitState,
 } from './cameras/orbit';
 import { DEFAULT_3D_OPTIONS, Scene3D, type Scene3DOptions } from './scene3d/Scene3D';
@@ -162,7 +166,23 @@ export interface EngineEvents extends Record<string, unknown> {
   xrView: { view: XrView; scale: number };
   /** Empezó (true) o terminó (false) el pintado en vivo de cambios del asistente. */
   building: boolean;
+  /** Objeto elegido con un clic en la vista 3D (null = clic en el vacío). */
+  picked3d: Picked3d | null;
 }
+
+/**
+ * Lo que se eligió con un clic en la vista 3D. Los taladros van además a la selección; el resto
+ * lo muestra la ficha de la web. Puntos en coordenadas de proyecto.
+ */
+export type Picked3d =
+  | { kind: 'holes'; ids: HoleId[]; point: Vec3 }
+  | { kind: 'boundary'; id: BoundaryId; name: string; point: Vec3 }
+  | { kind: 'working'; name?: string; point: Vec3 }
+  | { kind: 'monitor'; id: string; name: string; point: Vec3 }
+  | { kind: 'terrain'; target: 'surface' | 'model'; point: Vec3 };
+
+/** Píxeles de tolerancia para elegir un taladro o un punto con el clic en 3D. */
+const PICK_PX = 7;
 
 export type ViewMode = 'plan' | '3d';
 
@@ -577,11 +597,62 @@ export class Engine {
       getTool: () => this.tool,
       toToolPointer: (e) => this.toToolPointer(e),
       is3D: () => this.viewMode === '3d',
-      click3d: (sx, sy) => {
+      click3d: (sx, sy, additive) => {
         const tool = this.tool;
-        if (!tool.onClick3d) return;
+        if (!tool.onClick3d) {
+          this.select3dAt(sx, sy, additive);
+          return;
+        }
         const hit = this.pick3d(sx, sy);
         if (hit) tool.onClick3d(hit, this.toolContext);
+      },
+      pivot3d: (sx, sy) => {
+        if (!this.orbit) return;
+        const hit = this.pick3d(sx, sy);
+        if (!hit) return;
+        const next = repivotOrbit(this.orbit, {
+          x: hit.point.x - this.origin.x,
+          y: hit.point.y - this.origin.y,
+          z: hit.point.z - this.origin.z,
+        });
+        if (next) this.orbit = next;
+      },
+      look3d: (dx, dy) => {
+        this.cameraFlight = null;
+        if (!this.orbit) return;
+        this.orbit = lookBy(this.orbit, dx, dy);
+        this.applyCamera3d();
+      },
+      dolly3dAt: (factor, sx, sy) => {
+        this.cameraFlight = null;
+        if (!this.orbit) return;
+        this.orbit = dollyToward(this.orbit, factor, this.cursorOnTargetPlane(sx, sy));
+        this.applyCamera3d();
+      },
+      fly3d: (axes, dt, boost) => {
+        this.cameraFlight = null;
+        if (!this.orbit) return;
+        // Velocidad según la escala de lo que se mira (como la de Unity, ajustable con la rueda).
+        const speed =
+          Math.min(2000, Math.max(3, this.orbit.distance)) * 0.6 * this.flySpeed * (boost ? 3 : 1);
+        const step = speed * dt;
+        this.orbit = flyOrbit(this.orbit, axes.forward * step, axes.right * step, axes.up * step);
+        this.applyCamera3d();
+      },
+      flySpeed3d: (factor) => {
+        this.flySpeed = Math.min(20, Math.max(0.05, this.flySpeed * factor));
+      },
+      dblclick3d: (sx, sy) => {
+        const hit = this.pick3d(sx, sy);
+        if (!hit || !this.orbit) return;
+        // Centra en el punto y se acerca a la mitad, sin cambiar desde dónde se mira.
+        const fov = (this.camera3d.fov * Math.PI) / 180;
+        this.flyCamera({
+          at: hit.point,
+          size: Math.max(6, this.orbit.distance * Math.tan(fov / 2)),
+          yawDeg: (this.orbit.yaw * 180) / Math.PI,
+          pitchDeg: (Math.max(0.1, this.orbit.pitch) * 180) / Math.PI,
+        });
       },
       orbit3d: (dx, dy) => {
         // Tocar la cámara cancela el vuelo del asistente.
@@ -1507,6 +1578,183 @@ export class Engine {
     if (this.extraPoints.length === 0) return own;
     const ids = new Set(own.map((p) => p.id));
     return [...own, ...this.extraPoints.filter((p) => !ids.has(p.id))];
+  }
+
+  /** Multiplicador de la velocidad de vuelo (rueda mientras se vuela). */
+  private flySpeed = 1;
+
+  /** Rayo de la cámara 3D por un punto del canvas (px CSS), en coordenadas de render. */
+  private ray3d(sx: number, sy: number): Raycaster {
+    const ray = new Raycaster();
+    ray.setFromCamera(
+      new Vector2((sx / this.width) * 2 - 1, -(sy / this.height) * 2 + 1),
+      this.camera3d,
+    );
+    return ray;
+  }
+
+  /**
+   * Punto del cursor sobre el plano horizontal del centro de la vista (render): hacia ahí acerca
+   * la rueda. Barato (no recorre la geometría); null si se mira al cielo o muy rasante.
+   */
+  private cursorOnTargetPlane(sx: number, sy: number): { x: number; y: number; z: number } | null {
+    const o = this.orbit;
+    if (!o || this.width <= 0 || this.height <= 0) return null;
+    const { origin, direction: d } = this.ray3d(sx, sy).ray;
+    if (Math.abs(d.z) < 1e-4) return null;
+    const t = (o.targetZ - origin.z) / d.z;
+    if (t <= 0 || t > o.distance * 20) return null;
+    return { x: origin.x + d.x * t, y: origin.y + d.y * t, z: o.targetZ };
+  }
+
+  /**
+   * Clic en la vista 3D (como en Unity): elige un taladro, un punto de control, una labor, un
+   * perímetro (el terreno dentro de él) o el terreno. Con `additive` suma o quita taladros.
+   */
+  select3dAt(sx: number, sy: number, additive = false): Picked3d | null {
+    if (this.viewMode !== '3d' || !this.orbit) return null;
+    const ray = this.ray3d(sx, sy).ray;
+    const fov = (this.camera3d.fov * Math.PI) / 180;
+    const radPerPx = (2 * Math.tan(fov / 2)) / Math.max(1, this.height);
+    const toProject = (v: { x: number; y: number; z: number }): Vec3 => ({
+      x: v.x + this.origin.x,
+      y: v.y + this.origin.y,
+      z: v.z + this.origin.z,
+    });
+    let picked: Picked3d | null = null;
+    // 1) Taladros: el tramo más cercano a la cámara que pasa por el cursor.
+    const hole = this.scene3d.root.visible
+      ? this.scene3d.pickHole(ray.origin, ray.direction, (t) => t * radPerPx * PICK_PX)
+      : null;
+    if (hole) {
+      const h = this.document.project.blasts.flatMap((b) => b.holes).find((x) => x.id === hole);
+      if (additive) {
+        const next = new Set(this.selection.ids);
+        if (next.has(hole)) next.delete(hole);
+        else next.add(hole);
+        this.selection.set([...next]);
+      } else this.selection.set([hole]);
+      picked = {
+        kind: 'holes',
+        ids: [...this.selection.ids],
+        point: h?.collar ?? toProject(ray.origin),
+      };
+    }
+    // 2) Puntos de control, por cercanía en pantalla.
+    if (!picked) {
+      let best: { p: MonitoringPoint; d: number } | null = null;
+      const v = new Vector3();
+      for (const p of this.allMonitoringPoints()) {
+        v.set(
+          p.position.x - this.origin.x,
+          p.position.y - this.origin.y,
+          p.position.z - this.origin.z,
+        ).project(this.camera3d);
+        if (v.z > 1 || v.z < -1) continue;
+        const px = ((v.x + 1) / 2) * this.width;
+        const py = ((1 - v.y) / 2) * this.height;
+        const d = Math.hypot(px - sx, py - sy);
+        if (d < PICK_PX * 2 && (!best || d < best.d)) best = { p, d };
+      }
+      if (best)
+        picked = { kind: 'monitor', id: best.p.id, name: best.p.name, point: best.p.position };
+    }
+    // 3) Labor, perímetro (terreno dentro de él) o terreno.
+    if (!picked) {
+      const hit = this.pick3d(sx, sy);
+      if (hit?.target === 'working')
+        picked = { kind: 'working', ...(hit.name ? { name: hit.name } : {}), point: hit.point };
+      else if (hit) {
+        const b = this.document.project.blasts
+          .flatMap((x) => x.boundaries)
+          .find((x) => pointInPolygon(hit.point.x, hit.point.y, x.polygon));
+        picked = b
+          ? { kind: 'boundary', id: b.id, name: b.name, point: hit.point }
+          : { kind: 'terrain', target: hit.target, point: hit.point };
+        if (b) this.setActiveBoundary(b.id);
+      }
+    }
+    if (!hole && !additive) this.selection.clear();
+    this.events.emit('picked3d', picked);
+    this.loop.invalidate();
+    return picked;
+  }
+
+  /**
+   * Encuadra en 3D los taladros seleccionados (tecla F, como en Unity), sin cambiar desde dónde se
+   * mira. false si no hay selección.
+   */
+  frameSelection3d(): boolean {
+    if (this.viewMode !== '3d' || this.selection.ids.size === 0) return false;
+    const box = {
+      minX: Infinity,
+      minY: Infinity,
+      minZ: Infinity,
+      maxX: -Infinity,
+      maxY: -Infinity,
+      maxZ: -Infinity,
+    };
+    const add = (p: Vec3) => {
+      box.minX = Math.min(box.minX, p.x);
+      box.minY = Math.min(box.minY, p.y);
+      box.minZ = Math.min(box.minZ, p.z);
+      box.maxX = Math.max(box.maxX, p.x);
+      box.maxY = Math.max(box.maxY, p.y);
+      box.maxZ = Math.max(box.maxZ, p.z);
+    };
+    for (const b of this.document.project.blasts)
+      for (const h of b.holes)
+        if (this.selection.has(h.id)) {
+          add(h.collar);
+          add(holeToe(h));
+        }
+    if (!Number.isFinite(box.minX)) return false;
+    this.focus3d(
+      { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2, z: (box.minZ + box.maxZ) / 2 },
+      // Un taladro solo se ve con algo de entorno (≥ 30 m).
+      Math.max(30, Math.hypot(box.maxX - box.minX, box.maxY - box.minY, box.maxZ - box.minZ) * 1.3),
+    );
+    return true;
+  }
+
+  /** Vuela a un punto (coordenadas de proyecto) para que quepa `size` m, mirando desde donde se mira. */
+  focus3d(at: Vec3, size: number): void {
+    const o = this.orbit;
+    this.flyCamera({
+      at,
+      size,
+      ...(o
+        ? {
+            yawDeg: (o.yaw * 180) / Math.PI,
+            pitchDeg: (Math.max(0.15, o.pitch) * 180) / Math.PI,
+          }
+        : {}),
+    });
+  }
+
+  /**
+   * Mira el mismo punto desde otro ángulo (cubo de vistas): `yawDeg` desde dónde se mira (0 =
+   * desde el Norte, 90 = desde el Este), `pitchDeg` la elevación (90 = planta).
+   */
+  viewFrom(yawDeg: number, pitchDeg: number): void {
+    const o = this.orbit;
+    if (this.viewMode !== '3d' || !o) return;
+    const fov = (this.camera3d.fov * Math.PI) / 180;
+    this.flyCamera({
+      at: {
+        x: o.targetX + this.origin.x,
+        y: o.targetY + this.origin.y,
+        z: o.targetZ + this.origin.z,
+      },
+      size: (o.distance * Math.tan(fov / 2) * 2) / 1.1,
+      yawDeg,
+      pitchDeg,
+    });
+  }
+
+  /** Rumbo de la cámara 3D [°] (0 = mirando desde el Norte), para el cubo de vistas. */
+  get cameraYawDeg(): number {
+    return this.orbit ? ((((this.orbit.yaw * 180) / Math.PI) % 360) + 360) % 360 : 0;
   }
 
   /**
@@ -2845,6 +3093,7 @@ export class Engine {
     this.holes.setSelected(selected, true);
     this.holes.flush();
     this.lastSelection = ids;
+    this.scene3d.setHighlight(ids);
     this.loop.invalidate();
   }
 
