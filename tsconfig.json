@@ -6,6 +6,7 @@
     { "path": "packages/workers" },
     { "path": "packages/api" },
     { "path": "apps/web" },
-    { "path": "apps/server" }
+    { "path": "apps/server" },
+    { "path": "apps/calc" }
   ]
 }
