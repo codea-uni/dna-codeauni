@@ -1,15 +1,23 @@
 import type { Mine, PlatformOrganization, PlatformUser } from '@cronos/api';
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import { useFormat, useFormatDate, useT, type MessageKey } from '../i18n';
 import { api, useAuth } from '../server/api';
 import { workspaceErrorKey } from '../stores/workspaceStore';
 import { PageShell } from './PageShell';
+import { FeedbackInbox } from './PlatformFeedback';
 import { roleKey } from './roles';
+
+const TABS = [
+  ['companies', 'platform.companies'],
+  ['feedback', 'feedback.tab'],
+] as const satisfies readonly (readonly [string, MessageKey])[];
+type Tab = (typeof TABS)[number][0];
 
 /**
  * Consola de la plataforma (superadministrador, D-14): todas las empresas con sus números, alta
- * de empresas con su primer administrador y desactivación de empresas o cuentas.
+ * de empresas con su primer administrador y desactivación de empresas o cuentas; y el buzón de
+ * mejoras que llega desde el editor.
  */
 export function PlatformPage() {
   const t = useT();
@@ -17,6 +25,27 @@ export function PlatformPage() {
   const [orgs, setOrgs] = useState<PlatformOrganization[] | null>(null);
   const [error, setError] = useState<MessageKey | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [newCount, setNewCount] = useState<number | null>(null);
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const tab: Tab = TABS.find(([id]) => id === requested)?.[0] ?? 'companies';
+
+  // Contador de pedidos nuevos para la pestaña (la lista del buzón lo mantiene al día).
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let alive = true;
+    api.platformFeedback({ status: 'new', limit: 1 }).then(
+      (l) => {
+        if (alive) setNewCount(l.newCount);
+      },
+      () => {
+        // sin contador: la pestaña sigue funcionando
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -56,51 +85,77 @@ export function PlatformPage() {
         <h1>{t('platform.title')}</h1>
         <p className="lede">{t('platform.intro')}</p>
       </header>
+      <div className="admin-tabs" role="tablist">
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => {
+              setParams(id === 'companies' ? {} : { tab: id }, { replace: true });
+            }}
+          >
+            {t(label)}
+            {id === 'feedback' && newCount !== null && newCount > 0 && (
+              <span className="tab-badge" aria-label={t('feedback.newBadge', { n: newCount })}>
+                {newCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
       {error && (
         <p className="form-error" role="alert">
           {t(error)}
         </p>
       )}
 
-      <section className="section">
-        <div className="section-head">
-          <h2>{t('platform.companies')}</h2>
-          {orgs && orgs.length > 0 && (
-            <span className="muted">
-              {t('platform.activeCount', { n: active })}
-              {disabled > 0 && <> · {t('platform.disabledCount', { n: disabled })}</>}
-            </span>
-          )}
-        </div>
-        {!orgs && !error && <p className="muted">{t('workspace.loading')}</p>}
-        {orgs?.length === 0 && (
-          <p className="empty">
-            <strong>{t('platform.emptyTitle')}</strong>
-            {t('platform.empty')}
-          </p>
-        )}
-        <ul className="company-list">
-          {orgs?.map((o) => (
-            <CompanyRow
-              key={o.id}
-              org={o}
-              expanded={open === o.id}
-              onToggleUsers={() => {
-                setOpen(open === o.id ? null : o.id);
-              }}
-              onToggleDisabled={() => void toggle(o)}
-              onUpdated={replace}
-              onError={setError}
-            />
-          ))}
-        </ul>
-      </section>
+      {tab === 'feedback' && <FeedbackInbox orgs={orgs} onNewCount={setNewCount} />}
+      {tab === 'companies' && (
+        <>
+          <section className="section">
+            <div className="section-head">
+              <h2>{t('platform.companies')}</h2>
+              {orgs && orgs.length > 0 && (
+                <span className="muted">
+                  {t('platform.activeCount', { n: active })}
+                  {disabled > 0 && <> · {t('platform.disabledCount', { n: disabled })}</>}
+                </span>
+              )}
+            </div>
+            {!orgs && !error && <p className="muted">{t('workspace.loading')}</p>}
+            {orgs?.length === 0 && (
+              <p className="empty">
+                <strong>{t('platform.emptyTitle')}</strong>
+                {t('platform.empty')}
+              </p>
+            )}
+            <ul className="company-list">
+              {orgs?.map((o) => (
+                <CompanyRow
+                  key={o.id}
+                  org={o}
+                  expanded={open === o.id}
+                  onToggleUsers={() => {
+                    setOpen(open === o.id ? null : o.id);
+                  }}
+                  onToggleDisabled={() => void toggle(o)}
+                  onUpdated={replace}
+                  onError={setError}
+                />
+              ))}
+            </ul>
+          </section>
 
-      <NewCompany
-        onCreated={(org) => {
-          setOrgs((list) => [...(list ?? []), org].sort((a, b) => a.name.localeCompare(b.name)));
-        }}
-      />
+          <NewCompany
+            onCreated={(org) => {
+              setOrgs((list) =>
+                [...(list ?? []), org].sort((a, b) => a.name.localeCompare(b.name)),
+              );
+            }}
+          />
+        </>
+      )}
     </PageShell>
   );
 }
