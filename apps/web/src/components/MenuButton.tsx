@@ -6,6 +6,8 @@ export interface MenuItem {
   icon: LucideIcon;
   label: string;
   hint?: string;
+  /** Ancla del agente guía; sin ella, `<guide del menú>.<n>` por posición. */
+  guide?: string;
   onSelect: () => void;
 }
 
@@ -16,12 +18,15 @@ export function MenuButton({
   displayLabel,
   items,
   showLabel = false,
+  guide,
 }: {
   icon: LucideIcon;
   label: string;
   displayLabel?: string;
   items: MenuItem[];
   showLabel?: boolean;
+  /** Ancla del agente guía (`data-guide`) del botón. */
+  guide?: string;
 }) {
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -60,7 +65,10 @@ export function MenuButton({
     if (!open) return;
     const outside = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (!trigger.current?.contains(target) && !list.current?.contains(target)) setOpen(false);
+      // La burbuja del agente guía no cierra el menú que está señalando.
+      const guideUi = target instanceof Element && target.closest('[data-guide-ui]');
+      if (!trigger.current?.contains(target) && !list.current?.contains(target) && !guideUi)
+        setOpen(false);
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -87,6 +95,7 @@ export function MenuButton({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? id : undefined}
+        data-guide={guide}
         onClick={() => {
           focusLast.current = false;
           setOpen((value) => !value);
@@ -131,12 +140,13 @@ export function MenuButton({
               }
             }}
           >
-            {items.map((item) => (
+            {items.map((item, i) => (
               <button
                 key={item.label}
                 type="button"
                 role="menuitem"
                 tabIndex={-1}
+                data-guide={item.guide ?? (guide ? `${guide}.${i}` : undefined)}
                 onClick={() => {
                   setOpen(false);
                   trigger.current?.focus();

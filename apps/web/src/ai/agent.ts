@@ -103,7 +103,12 @@ const AUDIO_NOTE =
  * herramientas. Devuelve el texto final del asistente ('' si se canceló o falló; el error queda en
  * la conversación).
  */
-export async function sendToAssistant(text: string, audio?: VoiceAudio): Promise<string> {
+export async function sendToAssistant(
+  text: string,
+  audio?: VoiceAudio,
+  /** Contexto que va al modelo y no se muestra en la conversación (p. ej. desde la guía). */
+  note?: string,
+): Promise<string> {
   const store = useAiStore.getState();
   if (store.busy || (!text.trim() && !audio)) return '';
   store.push({ kind: 'user', text: audio ? `🎤 ${text.trim()}`.trim() : text.trim() });
@@ -114,7 +119,8 @@ export async function sendToAssistant(text: string, audio?: VoiceAudio): Promise
   const mark = history.length;
   // Si el diseño cambió fuera del asistente (deshacer, edición a mano), va el estado real antes.
   const changed = designChangeNote();
-  const message = changed ? `${changed}\n${text.trim()}` : text.trim();
+  const asked = note ? `${note}\n${text.trim()}` : text.trim();
+  const message = changed ? `${changed}\n${asked}` : asked;
   history.push({
     role: 'user',
     parts: audio

@@ -780,6 +780,25 @@ export class Engine {
   }
 
   /**
+   * Punto de proyecto (con cota) → píxeles CSS del canvas en la vista actual (planta o 3D), para
+   * anclar burbujas del agente guía a objetos. `visible` es false si queda detrás de la cámara o
+   * fuera del canvas.
+   */
+  worldToScreen(p: Vec3): { x: number; y: number; visible: boolean } {
+    if (this.viewMode !== '3d') {
+      const s = this.projectToScreen(p.x, p.y);
+      return { ...s, visible: s.x >= 0 && s.y >= 0 && s.x <= this.width && s.y <= this.height };
+    }
+    const v = new Vector3(p.x - this.origin.x, p.y - this.origin.y, p.z - this.origin.z).project(
+      this.camera3d,
+    );
+    const x = ((v.x + 1) / 2) * this.width;
+    const y = ((1 - v.y) / 2) * this.height;
+    const front = v.z > -1 && v.z < 1;
+    return { x, y, visible: front && x >= 0 && y >= 0 && x <= this.width && y <= this.height };
+  }
+
+  /**
    * Encuadra todos los taladros y perímetros (o la selección si `selectionOnly`); sin diseño, los
    * levantamientos cargados (sin unir sectores lejanos, ver `cameras/frame.ts`). En 3D encuadra la
    * vista 3D y deja la planta encuadrada también (al volver a planta no queda en otro lugar).

@@ -57,6 +57,7 @@ import { UNDERGROUND_READ_ONLY, UNDERGROUND_TOOLS } from './undergroundTools';
 import { GEOTECH_READ_ONLY, GEOTECH_TOOLS } from './geotechTools';
 import { VIBRATION_READ_ONLY, VIBRATION_TOOLS } from './vibrationTools';
 import { SURVEY_READ_ONLY, SURVEY_TOOLS } from './surveyTools';
+import { GUIDE_READ_ONLY, GUIDE_TOOLS } from './guideTools';
 import { recordStep } from './steps';
 import { confirmedArg, holesAtRisk, needsConfirmation } from './confirm';
 import { logTool } from './transcript';
@@ -1594,6 +1595,7 @@ const TOOLS: Record<string, ToolDef> = {
   ...GEOTECH_TOOLS,
   ...VIBRATION_TOOLS,
   ...SURVEY_TOOLS,
+  ...GUIDE_TOOLS,
   get_design: {
     description:
       'Full design state: bench, perimeters (vertices, edges, free faces), patterns, hole counts, tie-up and the product library. Call it before acting when unsure.',
@@ -1704,6 +1706,7 @@ export const READ_ONLY_TOOLS = new Set([
   ...GEOTECH_READ_ONLY,
   ...VIBRATION_READ_ONLY,
   ...SURVEY_READ_ONLY,
+  ...GUIDE_READ_ONLY,
 ]);
 
 // ------------------------------------------------------------------ Gemini

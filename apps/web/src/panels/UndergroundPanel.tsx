@@ -111,6 +111,7 @@ export function UndergroundPanel() {
           <button
             key={id}
             role="tab"
+            data-guide={`ug.tab.${id}`}
             aria-selected={!analysisOpen && current === id}
             className={!analysisOpen && current === id ? 'active' : ''}
             onClick={() => {
@@ -124,6 +125,7 @@ export function UndergroundPanel() {
         ))}
         <button
           role="tab"
+          data-guide="ug.tab.analysis"
           aria-selected={analysisOpen}
           className={analysisOpen ? 'active' : ''}
           onClick={() => {
@@ -791,6 +793,7 @@ function SendBox({
       )}
       <button
         className="primary"
+        data-guide="ug.send"
         disabled={disabled}
         onClick={() => {
           onSend(placement);
@@ -1262,7 +1265,7 @@ function LocationBox({ which, placement }: { which: UndergroundTab; placement: P
   };
   return (
     <div className="ug-location">
-      <label className="field">
+      <label className="field" data-guide="ug.location">
         <span className="field-label">
           {t(which === 'ring' ? 'ug.loc.titleRing' : 'ug.loc.title')}
         </span>

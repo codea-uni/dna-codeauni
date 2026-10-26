@@ -15,6 +15,8 @@ export interface IconButtonProps {
   /** Muestra el texto junto al ícono. */
   showLabel?: boolean;
   className?: string;
+  /** Ancla del agente guía (`data-guide`), ver guide/targets.ts. */
+  guide?: string;
   onClick: () => void;
   children?: ReactNode;
 }
@@ -30,6 +32,7 @@ export function IconButton({
   disabled,
   showLabel,
   className,
+  guide,
   onClick,
 }: IconButtonProps) {
   const title = [shortcut ? `${label} (${shortcut})` : label, hint].filter(Boolean).join('\n');
@@ -41,6 +44,7 @@ export function IconButton({
       aria-label={label}
       aria-pressed={active}
       disabled={disabled}
+      data-guide={guide}
       onClick={onClick}
     >
       <Icon size={17} strokeWidth={1.8} aria-hidden />

@@ -11,6 +11,11 @@ import {
 import { AskDialog } from './components/AskDialog';
 import { StatusBar } from './components/StatusBar';
 import { DemoOverlay } from './demo/DemoOverlay';
+import { FeedbackDialog } from './guide/FeedbackDialog';
+import { GuideLauncher } from './guide/GuideLauncher';
+import { GuideOffer } from './guide/GuideOffer';
+import { GuideOverlay } from './guide/GuideOverlay';
+import { startGuideWatch } from './guide/watch';
 import { stopDemo } from './demo/playback';
 import { Toolbar } from './components/Toolbar';
 import { useShortcuts } from './hooks/useShortcuts';
@@ -85,6 +90,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
     const stopAutosave = startAutosave();
     const stopTopography = startTopographySync();
     const stopDesignWatch = startDesignWatch();
+    const stopGuideWatch = startGuideWatch();
     if (restoreLocalDraft) void restoreLatestAutosave();
     const stops = [
       startEnergyRunner(),
@@ -100,6 +106,7 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
       stopAutosave();
       stopTopography();
       stopDesignWatch();
+      stopGuideWatch();
       for (const stop of stops) stop();
     };
   }, [restoreLocalDraft]);
@@ -134,6 +141,10 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
       <DemoOverlay />
       <AskDialog />
       <CommandPalette />
+      <GuideLauncher />
+      <GuideOffer />
+      <GuideOverlay />
+      <FeedbackDialog />
       {shortcutsOpen && (
         <ShortcutsDialog
           onClose={() => {

@@ -206,6 +206,7 @@ export function Toolbar() {
   const workingsItem = {
     icon: Spline,
     label: tr('import.menu.workings'),
+    guide: 'import.workings',
     hint: tr('import.menu.workingsHint'),
     onSelect: () => {
       actions.withCrs(() => {
@@ -220,6 +221,7 @@ export function Toolbar() {
     {
       icon: Mountain,
       label: tr('import.menu.topography'),
+      guide: 'import.topography',
       hint: tr('import.menu.topographyHint'),
       onSelect: () => {
         actions.withCrs(() => topographyInput.current?.click());
@@ -229,6 +231,7 @@ export function Toolbar() {
     {
       icon: Boxes,
       label: tr('import.menu.model3d'),
+      guide: 'import.model3d',
       hint: tr('import.menu.model3dHint'),
       onSelect: () => {
         actions.withCrs(() => model3dInput.current?.click());
@@ -237,6 +240,7 @@ export function Toolbar() {
     {
       icon: DraftingCompass,
       label: tr('import.menu.holes'),
+      guide: 'import.holes',
       hint: tr('import.menu.holesHint'),
       onSelect: () => {
         actions.withCrs(() => holesInput.current?.click());
@@ -248,6 +252,7 @@ export function Toolbar() {
           {
             icon: Drill,
             label: tr('import.menu.drillSurvey'),
+            guide: 'import.drillSurvey',
             hint: tr('import.menu.drillSurveyHint'),
             onSelect: () => {
               openWorkspacePanel('drillSurvey');
@@ -258,6 +263,7 @@ export function Toolbar() {
     {
       icon: Pentagon,
       label: tr('import.menu.boundariesCsv'),
+      guide: 'import.boundaries',
       onSelect: () => {
         actions.withCrs(() => boundariesInput.current?.click());
       },
@@ -265,6 +271,7 @@ export function Toolbar() {
     {
       icon: MapIcon,
       label: tr('import.menu.geoJson'),
+      guide: 'import.geoJson',
       onSelect: () => {
         actions.withCrs(() => geoJsonInput.current?.click());
       },
@@ -275,6 +282,7 @@ export function Toolbar() {
           {
             icon: Activity,
             label: tr('import.menu.seismographs'),
+            guide: 'import.seismographs',
             onSelect: () => {
               openWorkspacePanel('vibration');
             },
@@ -331,6 +339,7 @@ export function Toolbar() {
             tabIndex={ribbonTab === id ? 0 : -1}
             aria-selected={ribbonTab === id}
             className={ribbonTab === id ? 'active' : ''}
+            data-guide={`ribbon.${id}`}
             onClick={() => {
               setRibbonTab(id);
               // La sección de IA abre directamente la conversación.
@@ -343,6 +352,7 @@ export function Toolbar() {
       </nav>
       <button
         className="toolbar-documentation"
+        data-guide="documentation"
         onClick={() => {
           openWorkspacePanel('documentation');
         }}
@@ -433,11 +443,18 @@ export function Toolbar() {
                 useUiStore.getState().setSettingsOpen(true);
               }}
             />
-            <MenuButton showLabel icon={FileUp} label={tr('toolbar.import')} items={importItems} />
+            <MenuButton
+              showLabel
+              icon={FileUp}
+              label={tr('toolbar.import')}
+              items={importItems}
+              guide="menu.import"
+            />
             <MenuButton
               showLabel
               icon={FileDown}
               label={tr('toolbar.export')}
+              guide="menu.export"
               items={[
                 ...(serverMode
                   ? [
@@ -452,31 +469,37 @@ export function Toolbar() {
                 {
                   icon: Sheet,
                   label: tr('toolbar.exportCsv'),
+                  guide: 'export.csv',
                   onSelect: () => void actions.exportCsv(),
                 },
                 {
                   icon: DraftingCompass,
                   label: tr('toolbar.exportDxf'),
+                  guide: 'export.dxf',
                   onSelect: () => void actions.exportDxf(),
                 },
                 {
                   icon: MapIcon,
                   label: tr('toolbar.exportGeoJson'),
+                  guide: 'export.geoJson',
                   onSelect: () => void actions.exportGeoJson(),
                 },
                 {
                   icon: ImageIcon,
                   label: tr('toolbar.exportPng'),
+                  guide: 'export.png',
                   onSelect: actions.exportPlanPng,
                 },
                 {
                   icon: ClipboardCopy,
                   label: tr('toolbar.copyTsv'),
+                  guide: 'export.tsv',
                   onSelect: () => void actions.copyHolesTsv(),
                 },
                 {
                   icon: FileText,
                   label: tr('toolbar.exportPdf'),
+                  guide: 'export.pdf',
                   onSelect: () => void actions.exportReport(),
                 },
               ]}
@@ -644,6 +667,7 @@ export function Toolbar() {
                     shortcut={t.key}
                     hint={tr(t.hint)}
                     active={tool === t.name}
+                    guide={`tool.${t.name}`}
                     onClick={() => {
                       setViewMode('plan');
                       setTool(t.name);
@@ -763,6 +787,7 @@ export function Toolbar() {
                 showLabel
                 active={floating.some((win) => win.id === `workspace.${panel.id}`)}
                 disabled={!available}
+                guide={`panel.${panel.id}`}
                 hint={
                   !available
                     ? tr(panel.requires === 'charged' ? 'tabs.needCharge' : 'tabs.needHoles')

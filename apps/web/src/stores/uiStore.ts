@@ -94,7 +94,7 @@ function saveFloating(list: FloatingPanel[]): FloatingPanel[] {
   return list;
 }
 
-interface UiState {
+export interface UiState {
   ribbonTab: 'home' | 'view' | 'tools' | 'charge' | 'timing' | 'analysis' | 'library' | 'ai';
   setRibbonTab: (tab: UiState['ribbonTab']) => void;
   rightCollapsed: boolean;

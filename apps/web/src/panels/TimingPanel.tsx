@@ -218,6 +218,7 @@ export function TimingPanel() {
               }}
             />
             <button
+              data-guide="timing.applyNonel"
               className="primary"
               onClick={() => {
                 actions.generateRowTieUp(
@@ -270,6 +271,7 @@ export function TimingPanel() {
                   }}
                 />
                 <button
+                  data-guide="timing.applyElectronic"
                   className="primary"
                   onClick={() => {
                     actions.assignElectronicTimes(

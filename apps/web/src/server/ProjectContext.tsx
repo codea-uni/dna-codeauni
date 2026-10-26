@@ -90,6 +90,7 @@ export function ProjectContext() {
             // «Guardar versión» con texto junto al aviso: es el guardado real en la mina.
             <button
               className="save-version"
+              data-guide="save.version"
               title={t('save.versionHint')}
               onClick={() => {
                 show('publish');

@@ -37,12 +37,13 @@ export function QuickBar() {
   const [open, setOpen] = useState<'layers' | 'help' | null>(null);
 
   return (
-    <div className="quick-bar" role="toolbar" aria-label={t('quick.bar')}>
+    <div className="quick-bar" role="toolbar" aria-label={t('quick.bar')} data-guide="quick.bar">
       <div className="quick-seg" role="group">
         <button
           type="button"
           className={viewMode === 'plan' ? 'on' : ''}
           aria-pressed={viewMode === 'plan'}
+          data-guide="quick.plan"
           title={t('quick.planHint')}
           onClick={() => {
             setViewMode('plan');
@@ -54,6 +55,7 @@ export function QuickBar() {
           type="button"
           className={viewMode === '3d' ? 'on' : ''}
           aria-pressed={viewMode === '3d'}
+          data-guide="quick.3d"
           title={t('quick.3dHint')}
           onClick={() => {
             setViewMode('3d');
@@ -77,6 +79,7 @@ export function QuickBar() {
           <button
             type="button"
             className="quick-play"
+            data-guide="quick.simulate"
             title={t('quick.simulateHint')}
             onClick={simulateBlast}
           >
@@ -108,13 +111,19 @@ export function QuickBar() {
         <LayerList />
       </Popover>
 
-      <button type="button" title={t('quick.fitHint')} onClick={frameSelectionOrAll}>
+      <button
+        type="button"
+        data-guide="quick.fit"
+        title={t('quick.fitHint')}
+        onClick={frameSelectionOrAll}
+      >
         <Maximize2 size={15} aria-hidden /> <span className="quick-label">{t('quick.fit')}</span>
       </button>
 
       <button
         type="button"
         className="quick-search"
+        data-guide="quick.search"
         title={t('quick.searchHint')}
         onClick={() => {
           setPaletteOpen(true);

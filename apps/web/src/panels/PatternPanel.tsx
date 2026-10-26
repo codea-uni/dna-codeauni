@@ -331,6 +331,7 @@ export function PatternPanel() {
         {!clip && <p className="hint">{t('pattern.centeredHint')}</p>}
         {replacing > 0 && <p className="hint">{t('pattern.willReplace', { n: replacing })}</p>}
         <button
+          data-guide="pattern.generate"
           className="primary"
           disabled={busy !== null}
           onClick={() => {

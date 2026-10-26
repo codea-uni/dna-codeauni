@@ -278,6 +278,7 @@ export function ChargePanel() {
         {/* Con 0 o 1 taladro seleccionado (p. ej. el que se miró antes) lo habitual es cargar todos. */}
         <div className="row">
           <button
+            data-guide="charge.applySelection"
             className={selection.size >= 2 ? 'primary-inline' : ''}
             disabled={selection.size === 0}
             onClick={() => {
@@ -289,6 +290,7 @@ export function ChargePanel() {
               : t('charge.applySelection', { n: selection.size })}
           </button>
           <button
+            data-guide="charge.applyAll"
             className={selection.size >= 2 ? '' : 'primary-inline'}
             onClick={() => {
               void apply(blast?.holes.map((h) => h.id) ?? []);

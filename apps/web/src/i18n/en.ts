@@ -26,6 +26,7 @@ import * as workspace from './ns/workspace';
 import * as xr from './ns/xr';
 import * as ux from './ns/ux';
 import * as quick from './ns/quick';
+import * as guide from './ns/guide';
 
 export const en = {
   ...ai.en,
@@ -53,6 +54,7 @@ export const en = {
   ...xr.en,
   ...ux.en,
   ...quick.en,
+  ...guide.en,
   'toolbar.documentation': 'Documentation',
   'workspace.loading': 'Loading…',
   'toolbar.newProject': 'New project',

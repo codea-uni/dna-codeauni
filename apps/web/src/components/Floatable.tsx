@@ -150,6 +150,7 @@ export function FloatingWindow({
       className={`floating-window${className ? ` ${className}` : ''}`}
       role="dialog"
       aria-label={title}
+      data-guide={`window.${win.id.replace(/^workspace\./, '')}`}
       style={{ left: x, top: y, width: win.w, height: win.h, zIndex: z }}
       onPointerDown={() => {
         raiseFloating(win.id);

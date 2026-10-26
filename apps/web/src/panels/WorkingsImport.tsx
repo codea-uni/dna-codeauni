@@ -228,7 +228,11 @@ export function WorkingsImport() {
             </>
           ) : (
             <div className="row">
-              <button className="primary" onClick={() => input.current?.click()}>
+              <button
+                className="primary"
+                data-guide="workings.choose"
+                onClick={() => input.current?.click()}
+              >
                 {t('topo.workings.choose')}
               </button>
               <button

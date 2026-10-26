@@ -196,6 +196,7 @@ export function TopographyPanel() {
         <h3>{t('topo.importHeading')}</h3>
         <button
           className="topo-import-btn"
+          data-guide="topo.import"
           onClick={() => {
             actions.withCrs(() => input.current?.click());
           }}
