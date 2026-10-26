@@ -17,20 +17,27 @@ describe.runIf(await databaseAvailable())('datos predeterminados en producción'
     await t.drop();
   });
 
-  it('crea cuentas, empresas, minas y proyectos con topografía; la segunda vez no crea nada', async () => {
-    expect(await seedDemo(t.db, s.auth)).toEqual({
-      users: 5,
-      organizations: 2,
-      mines: 2,
-      projects: 3,
-    });
-    expect(await seedDemo(t.db, s.auth)).toEqual({
-      users: 0,
-      organizations: 0,
-      mines: 0,
-      projects: 0,
-    });
-  });
+  // La siembra hashea cinco contraseñas: con las demás pruebas en paralelo pasa de los 5 s.
+  it(
+    'crea cuentas, empresas, minas y proyectos con topografía; la segunda vez no crea nada',
+    {
+      timeout: 20_000,
+    },
+    async () => {
+      expect(await seedDemo(t.db, s.auth)).toEqual({
+        users: 5,
+        organizations: 2,
+        mines: 2,
+        projects: 3,
+      });
+      expect(await seedDemo(t.db, s.auth)).toEqual({
+        users: 0,
+        organizations: 0,
+        mines: 0,
+        projects: 0,
+      });
+    },
+  );
 
   it('las cuentas del README entran sin cambiar la contraseña y con su rol', async () => {
     for (const a of DEMO_ACCOUNTS) {

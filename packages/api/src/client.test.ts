@@ -74,4 +74,25 @@ describe('ApiClient', () => {
       message: 'Inicial "1"',
     });
   });
+
+  it('buzón de mejoras: envía el pedido y arma los filtros sin campos vacíos', async () => {
+    const seen: { url?: string; init?: RequestInit } = {};
+    const api = new ApiClient({
+      baseUrl: '/api',
+      fetch: fakeFetch(201, { id: 'f1', createdAt: 'x' }, seen),
+    });
+    await expect(
+      api.sendFeedback({ kind: 'bug', text: 'No carga', context: { screen: 'Carguío' } }),
+    ).resolves.toEqual({ id: 'f1', createdAt: 'x' });
+    expect(seen.url).toBe('/api/feedback');
+    expect(seen.init?.method).toBe('POST');
+
+    const listSeen: { url?: string } = {};
+    const list = new ApiClient({
+      baseUrl: '/api',
+      fetch: fakeFetch(200, { items: [], total: 0, newCount: 0 }, listSeen),
+    });
+    await list.platformFeedback({ status: 'new', q: '', kind: undefined, limit: 25 });
+    expect(listSeen.url).toBe('/api/platform/feedback?status=new&limit=25');
+  });
 });

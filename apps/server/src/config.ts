@@ -19,6 +19,8 @@ const envSchema = z.object({
   // Asistente de IA (Gemini): sin clave, la pestaña IA avisa que no está configurado.
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().min(1).default('gemini-flash-latest'),
+  /** Modelo barato para tareas de fondo (p. ej. agrupar el buzón de mejoras). */
+  GEMINI_LITE_MODEL: z.string().min(1).optional(),
   /** Modelo de voz para leer las respuestas en el visor (`/api/ai/speech`). */
   GEMINI_TTS_MODEL: z.string().min(1).default('gemini-3.8-flash-lite-tts'),
   /** Modelo de voz a voz en vivo (`/api/ai/live-token`): el más rápido medido en FleetView. */
@@ -45,6 +47,8 @@ export interface ServerConfig {
 export interface AiConfig {
   apiKey: string;
   model: string;
+  /** Modelo barato para tareas de fondo (por defecto `gemini-flash-lite-latest`). */
+  liteModel?: string;
   /** Modelo de texto a voz (por defecto el de `GEMINI_TTS_MODEL`). */
   ttsModel?: string;
   /** Modelo de Gemini Live y su voz (por defecto los de `GEMINI_LIVE_MODEL` y `GEMINI_LIVE_VOICE`). */
@@ -95,6 +99,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
           ttsModel: e.GEMINI_TTS_MODEL,
           liveModel: e.GEMINI_LIVE_MODEL,
           liveVoice: e.GEMINI_LIVE_VOICE,
+          ...(e.GEMINI_LITE_MODEL ? { liteModel: e.GEMINI_LITE_MODEL } : {}),
           ...(e.AI_LOG_DIR ? { logDir: e.AI_LOG_DIR } : {}),
         }
       : null,

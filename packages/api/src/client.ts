@@ -102,6 +102,21 @@ import {
   type MinePoint,
   type SaveMinePoint,
 } from './vibration';
+import {
+  feedbackCreatedSchema,
+  feedbackDetailSchema,
+  feedbackItemSchema,
+  feedbackListSchema,
+  feedbackSummarySchema,
+  type FeedbackCreated,
+  type FeedbackDetail,
+  type FeedbackItem,
+  type FeedbackList,
+  type FeedbackQuery,
+  type FeedbackSummary,
+  type SendFeedback,
+  type UpdateFeedback,
+} from './feedback';
 import type { Explosive, SeismographRecord } from '@cronos/core';
 
 /** Error de la API con el estado HTTP y el `code` estable que la UI traduce. */
@@ -334,6 +349,46 @@ export class ApiClient {
     });
   }
 
+  // Buzón de mejoras
+
+  /**
+   * Envía un pedido al buzón de mejoras (lo usa el agente guía del editor). La empresa y la
+   * persona salen de la sesión; `context` lo arma el editor (máx. 64 KB) y `screenshot` es una
+   * data URL JPEG/PNG opcional (máx. ~1,5 MB).
+   */
+  sendFeedback(body: SendFeedback): Promise<FeedbackCreated> {
+    return this.request('/feedback', feedbackCreatedSchema, { method: 'POST', body });
+  }
+
+  /** Pedidos del buzón con filtros y paginado (superadministrador; sin capturas). */
+  platformFeedback(query: FeedbackQuery = {}): Promise<FeedbackList> {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(query) as [string, string | number | undefined][])
+      if (v !== undefined && v !== '') params.set(k, String(v));
+    const qs = params.toString();
+    return this.request(`/platform/feedback${qs ? `?${qs}` : ''}`, feedbackListSchema);
+  }
+
+  platformFeedbackDetail(id: string): Promise<FeedbackDetail> {
+    return this.request(`/platform/feedback/${enc(id)}`, feedbackDetailSchema);
+  }
+
+  updatePlatformFeedback(id: string, body: UpdateFeedback): Promise<FeedbackItem> {
+    return this.request(`/platform/feedback/${enc(id)}`, feedbackItemSchema, {
+      method: 'PATCH',
+      body,
+    });
+  }
+
+  /** Agrupa con IA los pedidos abiertos en temas (superadministrador). */
+  summarizePlatformFeedback(signal?: AbortSignal): Promise<FeedbackSummary> {
+    return this.request('/platform/feedback/summarize', feedbackSummarySchema, {
+      method: 'POST',
+      body: {},
+      ...(signal ? { signal } : {}),
+    });
+  }
+
   // Proyectos y versiones (D-14)
 
   async projects(mineId: string): Promise<ProjectSummary[]> {
@@ -395,7 +450,7 @@ export class ApiClient {
   /** Historial de la mina: versiones de todos sus proyectos, filtradas y paginadas. */
   timeline(mineId: string, query: TimelineQuery = {}): Promise<Timeline> {
     const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(query))
+    for (const [k, v] of Object.entries(query) as [string, string | number | undefined][])
       if (v !== undefined && v !== '') params.set(k, String(v));
     const qs = params.size ? `?${params.toString()}` : '';
     return this.request(`/mines/${enc(mineId)}/versions${qs}`, timelineSchema);

@@ -1,4 +1,4 @@
-import { ApiClient } from '@cronos/api';
+import { ApiClient, type FeedbackCreated, type SendFeedback } from '@cronos/api';
 import { createAuthStore } from '../stores/authStore';
 import { createWorkspaceStore } from '../stores/workspaceStore';
 
@@ -22,3 +22,11 @@ useAuth.subscribe((s, prev) => {
   if (prev.status === 'authenticated' && s.status !== 'authenticated')
     useWorkspace.getState().reset();
 });
+
+/**
+ * Envía un pedido al buzón de mejoras («esto no funciona», «quisiera que…», «no entiendo…»).
+ * Lista para el agente guía del editor; la empresa y la persona salen de la sesión.
+ */
+export function sendFeedback(input: SendFeedback): Promise<FeedbackCreated> {
+  return api.sendFeedback(input);
+}

@@ -13,6 +13,7 @@ import * as muckpile from './ns/muckpile';
 import * as panelsA from './ns/panelsA';
 import * as panelsB from './ns/panelsB';
 import * as platform from './ns/platform';
+import * as feedback from './ns/feedback';
 import * as product from './ns/product';
 import * as projects from './ns/projects';
 import * as topography from './ns/topography';
@@ -41,6 +42,7 @@ export const en = {
   ...panelsA.en,
   ...panelsB.en,
   ...platform.en,
+  ...feedback.en,
   ...product.en,
   ...projects.en,
   ...topography.en,

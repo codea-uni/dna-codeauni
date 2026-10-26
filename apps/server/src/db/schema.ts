@@ -1,4 +1,10 @@
-import type { KnowledgeCategory, KnowledgeLayer, Role } from '@cronos/api';
+import type {
+  FeedbackKind,
+  FeedbackStatus,
+  KnowledgeCategory,
+  KnowledgeLayer,
+  Role,
+} from '@cronos/api';
 import type { ColumnType, Generated, JSONColumnType } from 'kysely';
 import type { ProjectKind } from '@cronos/core';
 
@@ -24,6 +30,7 @@ export interface Database {
   design_preset: DesignPresetTable;
   mine_monitoring_point: MineMonitoringPointTable;
   mine_vibration_record: MineVibrationRecordTable;
+  guide_feedback: GuideFeedbackTable;
 }
 
 type CreatedAt = ColumnType<Date, never, never>;
@@ -203,4 +210,22 @@ export interface MineVibrationRecordTable {
   data: JSONColumnType<Record<string, unknown>>;
   createdBy: string | null;
   createdAt: CreatedAt;
+}
+
+/** Pedido del buzón de mejoras (`context` lo arma el cliente; `screenshot` es una data URL). */
+export interface GuideFeedbackTable {
+  id: string;
+  createdAt: CreatedAt;
+  updatedAt: ColumnType<Date, never, Date>;
+  organizationId: string | null;
+  userId: string | null;
+  mineId: string | null;
+  projectId: string | null;
+  kind: FeedbackKind;
+  text: string;
+  context: JSONColumnType<Record<string, unknown>>;
+  screenshot: string | null;
+  status: ColumnType<FeedbackStatus, FeedbackStatus | undefined, FeedbackStatus>;
+  adminNote: string | null;
+  theme: string | null;
 }
