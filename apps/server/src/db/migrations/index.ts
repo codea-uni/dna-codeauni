@@ -11,6 +11,7 @@ import * as cloudBlocks from './2026_10_20_01_cloud_blocks';
 import * as projectKind from './2026_10_20_02_project_kind';
 import * as workings from './2026_10_20_02_workings';
 import * as mineVibration from './2026_10_20_03_mine_vibration';
+import * as guideFeedback from './2026_10_26_01_guide_feedback';
 
 /**
  * Migraciones en orden de nombre (`AAAA_MM_DD_NN_tema`). Se importan de forma estática para que el
@@ -29,4 +30,5 @@ export const migrations: Record<string, Migration> = {
   '2026_10_20_02_project_kind': projectKind,
   '2026_10_20_02_workings': workings,
   '2026_10_20_03_mine_vibration': mineVibration,
+  '2026_10_26_01_guide_feedback': guideFeedback,
 };

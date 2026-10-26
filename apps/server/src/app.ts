@@ -6,6 +6,7 @@ import type { Db } from './db/db';
 import type { AiConfig } from './config';
 import { aiRoutes } from './routes/ai';
 import { authRoutes } from './routes/auth';
+import { feedbackRoutes } from './routes/feedback';
 import { healthRoutes } from './routes/health';
 import { knowledgeRoutes } from './routes/knowledge';
 import { mineVibrationRoutes } from './routes/mineVibration';
@@ -66,6 +67,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       knowledgeRoutes(api, deps);
       mineVibrationRoutes(api, deps);
       aiRoutes(api, deps);
+      feedbackRoutes(api, deps);
       roomRoutes(api, deps);
       done();
     },

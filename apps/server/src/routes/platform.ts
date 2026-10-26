@@ -23,7 +23,8 @@ export interface PlatformRouteDeps {
 
 type Req = FastifyRequest<{ Params: Record<string, string> }>;
 
-async function requireSuperAdmin(
+/** Usuario de la sesión si es el superadministrador; si no, responde 401/403 y devuelve null. */
+export async function requireSuperAdmin(
   deps: PlatformRouteDeps,
   req: FastifyRequest,
   reply: FastifyReply,
