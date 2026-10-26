@@ -2,7 +2,7 @@ import { Bug, HelpCircle, Lightbulb, Paperclip, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import { api } from '../server/api';
-import { feedbackContext, shrinkImage } from './feedback';
+import { feedbackContext, feedbackWhere, shrinkImage } from './feedback';
 import { useGuideStore } from './store';
 
 type Kind = 'bug' | 'idea' | 'question';
@@ -68,6 +68,7 @@ function FeedbackBody() {
         kind,
         text: text.trim(),
         context: feedbackContext(),
+        ...feedbackWhere(),
         ...(shot ? { screenshot: shot } : {}),
       });
       setState('sent');

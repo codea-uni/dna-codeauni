@@ -235,14 +235,18 @@ function Spotlight({ step }: { step: GuideStep }) {
         const right = { x: px + margin, w: vw - px - margin - 12 };
         const side = left.w >= right.w ? left : right;
         moved.push({ id: win.id, x: win.x, y: win.y, w: win.w });
-        ui.updateFloating(win.id, { x: Math.round(side.x), w: Math.round(Math.max(320, Math.min(win.w, side.w))) });
+        ui.updateFloating(win.id, {
+          x: Math.round(side.x),
+          w: Math.round(Math.max(320, Math.min(win.w, side.w))),
+        });
       }
     }, 1100);
     return () => {
       clearTimeout(id);
       const ui = useUiStore.getState();
       for (const m of moved)
-        if (ui.floating.some((f) => f.id === m.id)) ui.updateFloating(m.id, { x: m.x, y: m.y, w: m.w });
+        if (ui.floating.some((f) => f.id === m.id))
+          ui.updateFloating(m.id, { x: m.x, y: m.y, w: m.w });
     };
   }, [step]);
 

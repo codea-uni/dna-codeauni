@@ -1,6 +1,6 @@
 import { projectKind } from '@cronos/core';
 import { z } from 'zod';
-import { feedbackContext } from '../guide/feedback';
+import { feedbackContext, feedbackWhere } from '../guide/feedback';
 import { FocusError, showObject } from '../guide/focus';
 import { revealTarget } from '../guide/reveal';
 import { findGuideTarget, searchGuideTargets } from '../guide/targets';
@@ -120,6 +120,7 @@ async function reportFeedback(args: z.infer<typeof feedbackSchema>) {
       kind: args.kind,
       text: args.text,
       context: { ...feedbackContext(), via: 'assistant' },
+      ...feedbackWhere(),
     });
   } catch (err) {
     throw new ToolError(

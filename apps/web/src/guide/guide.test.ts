@@ -46,7 +46,8 @@ describe('agente guía', () => {
   it('cada paso de cada recorrido señala un control del catálogo', () => {
     for (const id of TOUR_IDS)
       for (const step of tourSteps(id))
-        if (step.target) expect(findGuideTarget(step.target), `${id}: ${step.target}`).toBeDefined();
+        if (step.target)
+          expect(findGuideTarget(step.target), `${id}: ${step.target}`).toBeDefined();
   });
 
   it('los controles marcados a mano existen en la interfaz', () => {

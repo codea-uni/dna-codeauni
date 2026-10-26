@@ -1,3 +1,4 @@
+import type { FeedbackContext } from '@cronos/api';
 import { projectKind } from '@cronos/core';
 import { useAiStore } from '../ai/agent';
 import { useLocale } from '../i18n';
@@ -12,45 +13,54 @@ import { recentErrors, recentTrail } from './watch';
  * que hizo, los errores recientes y la conversación con el asistente. El equipo lo lee para
  * reproducir el problema sin tener que preguntar.
  */
-export function feedbackContext(): Record<string, unknown> {
+export function feedbackContext(): FeedbackContext {
   const ui = useUiStore.getState();
   const cur = useProjectSession.getState().current;
   const project = session.document.project;
   const guide = useGuideStore.getState();
   const step = guide.steps[guide.index];
+  const conversation = useAiStore
+    .getState()
+    .entries.slice(-12)
+    .flatMap((e): NonNullable<FeedbackContext['conversation']> =>
+      e.kind === 'user' || e.kind === 'assistant'
+        ? [{ role: e.kind, text: e.text.slice(0, 1500) }]
+        : e.kind === 'error'
+          ? [{ role: 'assistant', text: `[error ${e.code}] ${e.text}` }]
+          : [],
+    );
   return {
-    route: window.location.pathname,
+    screen: window.location.pathname,
     tool: cur?.tool ?? projectKind(project),
-    projectKind: projectKind(project),
-    projectId: cur?.projectId ?? null,
+    windows: ui.floating.map((w) => w.id.replace(/^workspace\./, '')),
+    recentActions: recentTrail().map((x) => ({ at: x.at, label: x.what })),
+    recentErrors: recentErrors().map((x) => ({ at: x.at, message: x.text })),
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      dpr: window.devicePixelRatio,
+    },
+    appVersion: APP_VERSION,
+    userAgent: navigator.userAgent.slice(0, 500),
+    locale: useLocale.getState().locale,
+    conversation,
+    // Datos extra (se ven en «Otros datos»).
     projectName: project.name,
-    mineId: cur?.mine.id ?? null,
-    mineName: cur?.mine.name ?? null,
+    projectKind: projectKind(project),
     version: cur?.base.number ?? null,
     viewMode: ui.viewMode,
     ribbonTab: ui.ribbonTab,
-    windows: ui.floating.map((w) => w.id.replace(/^workspace\./, '')),
     holes: project.blasts.reduce((n, b) => n + b.holes.length, 0),
     guide: step
-      ? { source: guide.source, title: guide.title, step: step.text, target: step.target }
+      ? { source: guide.source, title: guide.title, step: step.text, target: step.target ?? null }
       : null,
-    trail: recentTrail(),
-    errors: recentErrors(),
-    assistant: useAiStore
-      .getState()
-      .entries.slice(-12)
-      .map((e) =>
-        e.kind === 'tool'
-          ? `[tool ${e.name}${e.ok ? '' : ' ✗'}]`
-          : e.kind === 'error'
-            ? `[error ${e.code}] ${e.text}`
-            : `${e.kind === 'user' ? 'Usuario' : 'Asistente'}: ${e.text.slice(0, 400)}`,
-      ),
-    screen: { width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio },
-    userAgent: navigator.userAgent,
-    appVersion: APP_VERSION,
-    locale: useLocale.getState().locale,
   };
+}
+
+/** Mina y proyecto abiertos (el servidor los guarda si son de la empresa del usuario). */
+export function feedbackWhere(): { mineId: string | null; projectId: string | null } {
+  const cur = useProjectSession.getState().current;
+  return { mineId: cur?.mine.id ?? null, projectId: cur?.projectId ?? null };
 }
 
 /** Reduce una imagen a JPEG (máx. 1600 px de lado) para que viaje liviana. */

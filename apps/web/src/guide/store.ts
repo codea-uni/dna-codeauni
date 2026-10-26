@@ -114,7 +114,7 @@ export const useGuideStore = create<GuideState>((set, get) => ({
     set(welcome ? { welcome, finished: null } : { welcome });
   },
   setFeedbackOpen: (feedbackOpen) => {
-    set({ feedbackOpen });
+    set(feedbackOpen ? { feedbackOpen, welcome: false } : { feedbackOpen });
   },
   say: (msg) => {
     set((s) => ({ chat: [...s.chat, msg].slice(-6) }));
