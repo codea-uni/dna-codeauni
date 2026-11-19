@@ -147,7 +147,7 @@ export class BlocksLayer {
           settle: new Float32Array(data.count),
         }
       : null;
-    this.fragments.set(frag, frag ? data : null);
+    this.fragments.set(frag, frag ? data : null, origin);
     if (this.fragments.group) root.add(this.fragments.group);
     this.root = root;
     this.applyColors();

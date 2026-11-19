@@ -837,6 +837,8 @@ function muckpileBuffers(r: MuckpileResult): ArrayBuffer[] {
         f.shape,
         f.offset,
         f.rest,
+        f.land,
+        f.restPos,
         f.spread,
         f.omega,
         f.flags,

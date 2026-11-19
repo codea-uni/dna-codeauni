@@ -5,11 +5,14 @@ import {
   DEFAULT_NEAR_FIELD,
   DEFAULT_VIBRATION_OPTIONS,
   isUndergroundHole,
+  projectKind,
   type BlastId,
+  type MuckpileResult,
   type EnergyOptions,
   type Project,
 } from '@cronos/core';
 import { getCompute, session } from '../session';
+import { useUiStore } from '../stores/uiStore';
 import { onRockModelsChange, onTopographyChange, topographyTin } from '../topography/session';
 import { minePointsForCalc, useMineVibration } from '../vibration/mineStore';
 import { useAnalysisStore } from '../stores/analysisStore';
@@ -318,25 +321,47 @@ function benchOnly(project: Project, blastId: BlastId): Project {
  */
 export function startMuckpileRunner(): () => void {
   let token = 0;
-  const run = async () => {
-    const blast = session.document.project.blasts[0];
-    if (!blast) return;
-    const version = session.document.version;
+  // Un solo cálculo por estado (versión, tipo, disparo, parámetros): el de segundo plano y el del
+  // botón «Simular» comparten la promesa, así que al lanzar la simulación ya está (o está en curso).
+  let pending: { key: string; promise: Promise<MuckpileResult | null> } | null = null;
+  const compute = (target: 'bench' | 'underground'): Promise<MuckpileResult | null> | null => {
+    const project = session.document.project;
+    const blast = project.blasts[0];
+    if (!blast) return null;
+    const key = [
+      session.document.version,
+      target,
+      useUgAnalysisStore.getState().designTag ?? '',
+      JSON.stringify(ugPileParams()),
+      blast.bench.topographyId ?? '',
+    ].join('|');
+    if (pending?.key === key) return pending.promise;
     const tin = blast.bench.topographyId ? (topographyTin(blast.bench.topographyId) ?? null) : null;
+    const promise =
+      target === 'underground'
+        ? getCompute().api.computeUndergroundMuckpile(
+            // Pila del disparo elegido: cada diseño sale en su propia volada (A8).
+            shotProject(project),
+            blast.id,
+            ugPileParams(),
+          )
+        : getCompute().api.computeMuckpile(benchOnly(project, blast.id), blast.id, tin);
+    const entry = { key, promise };
+    pending = entry;
+    promise.catch(() => {
+      if (pending === entry) pending = null;
+    });
+    return promise;
+  };
+  const run = async () => {
+    const version = session.document.version;
     const mine = ++token;
     const target = useAnalysisStore.getState().muckpileTarget;
+    const job = compute(target);
+    if (!job) return;
     useAnalysisStore.getState().set({ muckpileComputing: true });
     try {
-      const project = session.document.project;
-      const muckpile =
-        target === 'underground'
-          ? await getCompute().api.computeUndergroundMuckpile(
-              // Pila del disparo elegido: cada diseño sale en su propia volada (A8).
-              shotProject(project),
-              blast.id,
-              ugPileParams(),
-            )
-          : await getCompute().api.computeMuckpile(benchOnly(project, blast.id), blast.id, tin);
+      const muckpile = await job;
       if (mine !== token) return;
       if (session.document.version !== version) {
         useAnalysisStore.getState().set({ muckpileComputing: false });
@@ -370,6 +395,28 @@ export function startMuckpileRunner(): () => void {
     );
     if (mine === sectionToken) useAnalysisStore.getState().set({ muckpileProfile: profile });
   };
+  // Segundo plano: con la vista 3D abierta, 2,5 s después del último cambio se calcula la pila
+  // (piedras incluidas) sin mostrarla; «Simular» la toma al instante.
+  let idle: ReturnType<typeof setTimeout> | null = null;
+  const prefetch = () => {
+    if (idle) clearTimeout(idle);
+    idle = setTimeout(() => {
+      const project = session.document.project;
+      const s = useAnalysisStore.getState();
+      if (useUiStore.getState().viewMode !== '3d' || s.sequencePlaying) return;
+      if (!project.blasts.some((b) => b.holes.length > 0)) return;
+      compute(projectKind(project) === 'underground' ? 'underground' : 'bench')?.catch(
+        (err: unknown) => {
+          console.warn('[pila] segundo plano', err);
+        },
+      );
+    }, 2500);
+  };
+  const offDoc = session.document.subscribe(prefetch);
+  const offUi = useUiStore.subscribe((u, p) => {
+    if (u.viewMode !== p.viewMode) prefetch();
+  });
+  prefetch();
   const off = useAnalysisStore.subscribe((s, prev) => {
     if (s.muckpileRequest !== prev.muckpileRequest) void run();
     if (s.muckpile !== prev.muckpile || s.muckpileSection !== prev.muckpileSection) void section();
@@ -377,6 +424,9 @@ export function startMuckpileRunner(): () => void {
   return () => {
     token++;
     sectionToken++;
+    if (idle) clearTimeout(idle);
     off();
+    offDoc();
+    offUi();
   };
 }

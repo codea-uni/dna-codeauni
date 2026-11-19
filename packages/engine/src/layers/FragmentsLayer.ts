@@ -31,6 +31,12 @@ export interface FragmentsData {
   fineFraction: Float32Array;
   /** Separación máxima respecto del bloque [m]. */
   spreadLimit?: number;
+  /** Aterrizaje propio y lugar final en la pila [x, y, z, …] (coordenadas de proyecto). */
+  land?: Float64Array;
+  restPos?: Float64Array;
+  /** Los mismos, relativos al origen de render (los arma `FragmentsLayer.set`). */
+  landRel?: Float32Array;
+  restRel?: Float32Array;
 }
 
 let shapes: BufferGeometry[] | null = null;
@@ -51,9 +57,20 @@ export class FragmentsLayer {
   private members: Int32Array[] = [];
   private readonly material = new MeshLambertMaterial({ color: 0xffffff });
 
-  set(data: FragmentsData | null, blocks: BlocksData | null): void {
+  set(
+    data: FragmentsData | null,
+    blocks: BlocksData | null,
+    origin: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 },
+  ): void {
     this.disposeMeshes();
-    this.data = data;
+    this.data =
+      data?.land && data.restPos
+        ? {
+            ...data,
+            landRel: relative(data.land, origin),
+            restRel: relative(data.restPos, origin),
+          }
+        : data;
     this.count = data?.count ?? 0;
     if (!data || !blocks || data.count === 0) {
       this.group = null;
@@ -133,6 +150,16 @@ export class FragmentsLayer {
   }
 }
 
+function relative(a: Float64Array, o: { x: number; y: number; z: number }): Float32Array {
+  const out = new Float32Array(a.length);
+  for (let i = 0; i < a.length; i += 3) {
+    out[i] = (a[i] ?? 0) - o.x;
+    out[i + 1] = (a[i + 1] ?? 0) - o.y;
+    out[i + 2] = (a[i + 2] ?? 0) - o.z;
+  }
+  return out;
+}
+
 function frac(x: number): number {
   return x - Math.floor(x);
 }
@@ -174,9 +201,36 @@ export function writeMatrix(
   const ax = (d.offset[3 * j] ?? 0) + ex;
   const ay = (d.offset[3 * j + 1] ?? 0) + ey;
   const az = (d.offset[3 * j + 2] ?? 0) + ez;
-  const px = (st.pos[3 * k] ?? 0) + ax + ((d.rest[3 * j] ?? 0) - ax) * w;
-  const py = (st.pos[3 * k + 1] ?? 0) + ay + ((d.rest[3 * j + 1] ?? 0) - ay) * w;
-  const pz = (st.pos[3 * k + 2] ?? 0) + az + ((d.rest[3 * j + 2] ?? 0) - az) * w;
+  let px: number;
+  let py: number;
+  let pz: number;
+  const L = d.landRel;
+  const R = d.restRel;
+  if (L && R) {
+    // Vuela con su bloque + su separación; desde que aterriza ya no sigue al bloque: se acomoda
+    // desde su punto de caída hasta su hueco en la pila (cercano, nunca de vuelta al frente).
+    if (tau === Infinity) {
+      px = R[3 * j] ?? 0;
+      py = R[3 * j + 1] ?? 0;
+      pz = R[3 * j + 2] ?? 0;
+    } else if (tau < flight) {
+      px = (st.pos[3 * k] ?? 0) + ax;
+      py = (st.pos[3 * k + 1] ?? 0) + ay;
+      pz = (st.pos[3 * k + 2] ?? 0) + az;
+    } else {
+      const lx = L[3 * j] ?? 0;
+      const ly = L[3 * j + 1] ?? 0;
+      const lz = L[3 * j + 2] ?? 0;
+      px = lx + ((R[3 * j] ?? 0) - lx) * w;
+      py = ly + ((R[3 * j + 1] ?? 0) - ly) * w;
+      // Cae sobre la pila: baja o sube a su hueco sin atravesar en línea recta hacia atrás.
+      pz = lz + ((R[3 * j + 2] ?? 0) - lz) * w;
+    }
+  } else {
+    px = (st.pos[3 * k] ?? 0) + ax + ((d.rest[3 * j] ?? 0) - ax) * w;
+    py = (st.pos[3 * k + 1] ?? 0) + ay + ((d.rest[3 * j + 1] ?? 0) - ay) * w;
+    pz = (st.pos[3 * k + 2] ?? 0) + az + ((d.rest[3 * j + 2] ?? 0) - az) * w;
+  }
   // Giro: ángulo |ω|·(vuelo + rodada al asentarse), alrededor de ω̂.
   const wx = d.omega[3 * j] ?? 0;
   const wy = d.omega[3 * j + 1] ?? 0;

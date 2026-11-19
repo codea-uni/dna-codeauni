@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { swebrecB, swebrecPassing } from '../fragmentation/fragmentation';
-import { discretizeFragments, FRAGMENT_FINE } from './fragments';
+import { blockLanding, discretizeFragments, FRAGMENT_FINE } from './fragments';
 import type { MuckpileBlocks } from './types';
 
 /** Bloques de prueba: cubos de lado `s`, una sola curva Swebrec. */
@@ -107,5 +107,29 @@ describe('discretizeFragments (FC-47)', () => {
     const f = discretizeFragments(bl);
     expect(f.count).toBe(0);
     expect(Number.isNaN(f.fineFraction[0] ?? 0)).toBe(true);
+  });
+
+  it('cada piedra aterriza donde la lleva su vuelo y su hueco final está cerca, sin volver', () => {
+    const bl = blocks(40, 1, 0.1, 0.6, 1.2);
+    // La pila (destinos) queda adelante, a 10 m en x, como en la realidad.
+    for (let k = 0; k < bl.count; k++) bl.destination[3 * k] = (bl.origin[3 * k] ?? 0) + 10;
+    const f = discretizeFragments(bl, { budget: 8000, spreadLimit: 1 });
+    let back = 0;
+    let stones = 0;
+    for (let j = 0; j < f.count; j++) {
+      const k = f.parent[j] ?? 0;
+      const L = blockLanding(bl, k);
+      // Aterrizaje = el del bloque + desfase + separación acotada (≤ 1 m + medio bloque).
+      const d = Math.hypot((f.land[3 * j] ?? 0) - L.x, (f.land[3 * j + 1] ?? 0) - L.y);
+      expect(d).toBeLessThanOrEqual(1 + Math.SQRT2 * 0.5 + 1e-6);
+      if ((f.flags[j] ?? 0) & FRAGMENT_FINE) {
+        expect(f.restPos[3 * j]).toBe(f.land[3 * j]);
+        continue;
+      }
+      stones++;
+      if ((f.restPos[3 * j] ?? 0) - (f.land[3 * j] ?? 0) < -2) back++;
+    }
+    expect(stones).toBeGreaterThan(1000);
+    expect(back / stones).toBeLessThan(0.02);
   });
 });

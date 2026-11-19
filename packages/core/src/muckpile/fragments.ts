@@ -106,6 +106,18 @@ export interface MuckpileFragments {
   flags: Uint8Array;
   /** Por bloque: fracción de su volumen bajo el corte (fino); NaN = bloque sin curva (vóxel). */
   fineFraction: Float32Array;
+  /**
+   * Punto donde aterriza cada piedra [x, y, z, …] (coordenadas de proyecto): el aterrizaje de su
+   * bloque + su desfase + su separación propia acotada al momento del impacto.
+   */
+  land: Float64Array;
+  /**
+   * Lugar final de cada piedra en la pila [x, y, z, …]: el hueco libre de su clase de tamaño más
+   * cercano a donde aterrizó, por orden de llegada (no vuelve hacia atrás). Los huecos son los
+   * lugares de las piedras sobre la cama de grava de cada bloque: la pila conserva su forma y su
+   * volumen. Las partículas de finos se quedan donde aterrizan y se funden en la grava.
+   */
+  restPos: Float64Array;
   /** Corte de render usado [m]. */
   cut: Meters;
   /** Separación máxima respecto del bloque [m] (`FragmentParams.spreadLimit`). */
@@ -391,8 +403,22 @@ export function discretizeFragments(
       }
   }
 
+  const { land, restPos } = settleFragments(
+    blocks,
+    parent,
+    size,
+    offset,
+    rest,
+    spread,
+    flags,
+    cut,
+    fp,
+  );
+
   return {
     count: parent.length,
+    land,
+    restPos,
     parent: Int32Array.from(parent),
     size: Float32Array.from(size),
     axes: Float32Array.from(axes),
@@ -420,11 +446,197 @@ export function fragmentBuffers(f: MuckpileFragments): ArrayBuffer[] {
     f.shape,
     f.offset,
     f.rest,
+    f.land,
+    f.restPos,
     f.spread,
     f.omega,
     f.flags,
     f.fineFraction,
   ].map((a) => a.buffer as ArrayBuffer);
+}
+
+const G = 9.80665;
+
+/**
+ * Aterrizaje y duración del vuelo de un bloque, igual que el engine (`BlocksLayer`): trayectoria
+ * muestreada (subterránea), tiro parabólico hasta cruzar la cota de su lugar en la pila (banco) o
+ * sin vuelo (se desliza desde su lugar in situ).
+ */
+export function blockLanding(
+  b: MuckpileBlocks,
+  k: number,
+): { x: number; y: number; z: number; flight: number } {
+  const ox = b.origin[3 * k] ?? 0;
+  const oy = b.origin[3 * k + 1] ?? 0;
+  const oz = b.origin[3 * k + 2] ?? 0;
+  const P = b.pathPoints ?? 0;
+  if (b.path && P >= 2) {
+    const pl = (k * P + P - 1) * 4;
+    return {
+      x: ox + (b.path[pl] ?? 0),
+      y: oy + (b.path[pl + 1] ?? 0),
+      z: oz + (b.path[pl + 2] ?? 0),
+      flight: b.path[pl + 3] ?? 0,
+    };
+  }
+  const vx = b.velocity[3 * k] ?? 0;
+  const vy = b.velocity[3 * k + 1] ?? 0;
+  const vz = b.velocity[3 * k + 2] ?? 0;
+  const dz = b.destination[3 * k + 2] ?? 0;
+  const disc = vz * vz + 2 * G * (oz - dz);
+  const tLand = disc >= 0 ? (vz + Math.sqrt(disc)) / G : NaN;
+  if (Number.isFinite(tLand) && tLand > 0)
+    return { x: ox + vx * tLand, y: oy + vy * tLand, z: dz, flight: tLand };
+  return { x: ox, y: oy, z: oz, flight: 0 };
+}
+
+/** Ver `MuckpileFragments.land` y `restPos`. */
+function settleFragments(
+  blocks: MuckpileBlocks,
+  parent: readonly number[],
+  size: readonly number[],
+  offset: readonly number[],
+  rest: readonly number[],
+  spread: readonly number[],
+  flags: readonly number[],
+  cut: number,
+  fp: FragmentParams,
+): { land: Float64Array; restPos: Float64Array } {
+  const n = parent.length;
+  const land = new Float64Array(3 * n);
+  const restPos = new Float64Array(3 * n);
+  const landing = Array.from({ length: blocks.count }, (_, k) => blockLanding(blocks, k));
+  const arrival = new Float64Array(n);
+  for (let j = 0; j < n; j++) {
+    const k = parent[j] ?? 0;
+    const L = landing[k];
+    if (!L) continue;
+    const F = L.flight;
+    let ex = (spread[3 * j] ?? 0) * F;
+    let ey = (spread[3 * j + 1] ?? 0) * F;
+    let ez = (spread[3 * j + 2] ?? 0) * F;
+    const em = Math.hypot(ex, ey, ez);
+    if (em > fp.spreadLimit) {
+      const f = fp.spreadLimit / em;
+      ex *= f;
+      ey *= f;
+      ez *= f;
+    }
+    land[3 * j] = L.x + (offset[3 * j] ?? 0) + ex;
+    land[3 * j + 1] = L.y + (offset[3 * j + 1] ?? 0) + ey;
+    land[3 * j + 2] = L.z + (offset[3 * j + 2] ?? 0) + ez;
+    // Hueco propio (sobre la cama de grava de su bloque): punto de partida del reparto.
+    restPos[3 * j] = (blocks.destination[3 * k] ?? 0) + (rest[3 * j] ?? 0);
+    restPos[3 * j + 1] = (blocks.destination[3 * k + 1] ?? 0) + (rest[3 * j + 1] ?? 0);
+    restPos[3 * j + 2] = (blocks.destination[3 * k + 2] ?? 0) + (rest[3 * j + 2] ?? 0);
+    arrival[j] = (blocks.launchTime[k] ?? NaN) + F;
+  }
+  // Reparto de huecos por clase de tamaño (6 por década), en orden de llegada: cada piedra toma
+  // el hueco libre más cercano a donde cayó. Grilla en planta para buscar por anillos.
+  const CELL = 0.5;
+  const bins = new Map<number, number[]>();
+  for (let j = 0; j < n; j++) {
+    if ((flags[j] ?? 0) & FRAGMENT_FINE || !Number.isFinite(arrival[j] ?? NaN)) continue;
+    const b = Math.floor((Math.log10(Math.max(size[j] ?? cut, cut) / cut) * 6) | 0);
+    let list = bins.get(b);
+    if (!list) bins.set(b, (list = []));
+    list.push(j);
+  }
+  const slotX = new Float64Array(restPos);
+  for (const ids of bins.values()) {
+    // Grilla densa sobre la caja de los huecos de esta clase; cada celda guarda sus huecos libres
+    // (se sacan al ocuparse) y la búsqueda arranca en la celda de la caja más cercana a la caída.
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const j of ids) {
+      x0 = Math.min(x0, slotX[3 * j] ?? 0);
+      x1 = Math.max(x1, slotX[3 * j] ?? 0);
+      y0 = Math.min(y0, slotX[3 * j + 1] ?? 0);
+      y1 = Math.max(y1, slotX[3 * j + 1] ?? 0);
+    }
+    const nx = Math.max(1, Math.floor((x1 - x0) / CELL) + 1);
+    const ny = Math.max(1, Math.floor((y1 - y0) / CELL) + 1);
+    const cells: number[][] = Array.from({ length: nx * ny }, () => []);
+    const cellOf = (x: number, y: number) => {
+      const ix = Math.min(nx - 1, Math.max(0, Math.floor((x - x0) / CELL)));
+      const iy = Math.min(ny - 1, Math.max(0, Math.floor((y - y0) / CELL)));
+      return [ix, iy] as const;
+    };
+    ids.forEach((j, s) => {
+      const [ix, iy] = cellOf(slotX[3 * j] ?? 0, slotX[3 * j + 1] ?? 0);
+      cells[iy * nx + ix]?.push(s);
+    });
+    const order = ids.map((j) => j).sort((a, b) => (arrival[a] ?? 0) - (arrival[b] ?? 0) || a - b);
+    const maxR = Math.max(nx, ny);
+    for (const j of order) {
+      const lx = land[3 * j] ?? 0;
+      const ly = land[3 * j + 1] ?? 0;
+      const lz = land[3 * j + 2] ?? 0;
+      const [cx, cy] = cellOf(lx, ly);
+      // Distancia de la caída a la caja: los anillos se miden desde la celda de entrada.
+      const gap = Math.hypot(
+        Math.max(0, x0 - lx, lx - (x0 + nx * CELL)),
+        Math.max(0, y0 - ly, ly - (y0 + ny * CELL)),
+      );
+      let best = -1;
+      let bestCell = -1;
+      let bestIdx = -1;
+      let bestD = Infinity;
+      const visit = (ix: number, iy: number) => {
+        if (ix < 0 || iy < 0 || ix >= nx || iy >= ny) return;
+        const c = cells[iy * nx + ix];
+        if (!c) return;
+        for (let i = 0; i < c.length; i++) {
+          const q = ids[c[i] ?? 0] ?? 0;
+          const dx = (slotX[3 * q] ?? 0) - lx;
+          const dy = (slotX[3 * q + 1] ?? 0) - ly;
+          // La cota pesa menos: caer sobre la pila y quedar un poco más abajo es lo normal.
+          const dz = 0.3 * ((slotX[3 * q + 2] ?? 0) - lz);
+          const d = dx * dx + dy * dy + dz * dz;
+          if (d < bestD) {
+            bestD = d;
+            best = c[i] ?? 0;
+            bestCell = iy * nx + ix;
+            bestIdx = i;
+          }
+        }
+      };
+      for (let r = 0; r <= maxR; r++) {
+        if (best >= 0 && gap + (r - 1) * CELL > Math.sqrt(bestD)) break;
+        if (r === 0) visit(cx, cy);
+        else {
+          for (let d = -r; d <= r; d++) {
+            visit(cx + d, cy - r);
+            visit(cx + d, cy + r);
+          }
+          for (let d = -r + 1; d <= r - 1; d++) {
+            visit(cx - r, cy + d);
+            visit(cx + r, cy + d);
+          }
+        }
+      }
+      if (best < 0) continue;
+      const c = cells[bestCell];
+      if (c) {
+        c[bestIdx] = c[c.length - 1] ?? 0;
+        c.pop();
+      }
+      const q = ids[best] ?? 0;
+      restPos[3 * j] = slotX[3 * q] ?? 0;
+      restPos[3 * j + 1] = slotX[3 * q + 1] ?? 0;
+      restPos[3 * j + 2] = slotX[3 * q + 2] ?? 0;
+    }
+  }
+  // Finos: se quedan donde caen.
+  for (let j = 0; j < n; j++)
+    if ((flags[j] ?? 0) & FRAGMENT_FINE) {
+      restPos[3 * j] = land[3 * j] ?? 0;
+      restPos[3 * j + 1] = land[3 * j + 1] ?? 0;
+      restPos[3 * j + 2] = land[3 * j + 2] ?? 0;
+    }
+  return { land, restPos };
 }
 
 function clamp(x: number, lo: number, hi: number): number {
