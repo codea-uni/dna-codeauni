@@ -229,3 +229,35 @@ describe('«Ver en 3D» de un levantamiento', () => {
     expect(engine.orbit?.targetX).toBeCloseTo(300_003, 0);
   });
 });
+
+describe('zoom con botones', () => {
+  it('en planta escala metros por píxel y conserva el centro', () => {
+    const engine = Object.create(Engine.prototype) as CameraHarness & {
+      zoomBy: (f: number) => void;
+    };
+    Object.assign(engine, {
+      viewMode: 'plan',
+      view: { centerX: 12, centerY: -7, metersPerPixel: 0.2 },
+      applyView: vi.fn(),
+    });
+    engine.zoomBy(0.5);
+    expect(engine.view).toEqual({ centerX: 12, centerY: -7, metersPerPixel: 0.1 });
+    engine.zoomBy(0); // factor inválido: no cambia
+    expect(engine.view.metersPerPixel).toBe(0.1);
+  });
+
+  it('en 3D acerca la órbita sin mover el objetivo', () => {
+    const engine = Object.create(Engine.prototype) as CameraHarness & {
+      zoomBy: (f: number) => void;
+    };
+    const applyCamera3d = vi.fn();
+    Object.assign(engine, {
+      viewMode: '3d',
+      orbit: { targetX: 1, targetY: 2, targetZ: 3, yaw: 0, pitch: 0.5, distance: 200 },
+      applyCamera3d,
+    });
+    engine.zoomBy(0.5);
+    expect(engine.orbit).toMatchObject({ targetX: 1, targetY: 2, targetZ: 3, distance: 100 });
+    expect(applyCamera3d).toHaveBeenCalledOnce();
+  });
+});

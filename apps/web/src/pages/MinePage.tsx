@@ -7,7 +7,7 @@ import {
   type ProjectVersion,
 } from '@cronos/api';
 import { createEmptyProject, PROJECT_KINDS, type ProjectKind } from '@cronos/core';
-import { ArrowLeft, Eye, FilePlus, FileUp, History } from 'lucide-react';
+import { ArrowRight, Eye, FilePlus, FileUp, Folder, History } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import {
@@ -161,10 +161,11 @@ export function MinePage() {
   };
 
   return (
-    <PageShell tool={tool} wide>
-      <Link to="/" className="back-link">
-        <ArrowLeft size={14} aria-hidden /> {t('workspace.backToMines')}
-      </Link>
+    <PageShell
+      tool={tool}
+      wide
+      crumbs={[{ label: t('workspace.mines'), to: '/' }, { label: detail?.mine.name ?? '…' }]}
+    >
       {error && (
         <p className="form-error" role="alert">
           {t(error)}
@@ -232,7 +233,7 @@ export function MinePage() {
           </div>
 
           <div className="mine-grid">
-            <section className="section mine-projects" aria-labelledby="projects-title">
+            <section className="section card mine-projects" aria-labelledby="projects-title">
               <div className="section-head">
                 <h2 id="projects-title">{t('product.projectsOf', { tool: toolName })}</h2>
                 <p>{t('product.shared')}</p>
@@ -294,13 +295,7 @@ export function MinePage() {
                     : t('projects.emptyReviewer')}
                 </div>
               )}
-              {mine && mine.length > 0 && (
-                <ul className="rows">
-                  {mine.map((p) => (
-                    <ProjectRow key={p.id} project={p} tool={tool} />
-                  ))}
-                </ul>
-              )}
+              {mine && mine.length > 0 && <ProjectTable projects={mine} tool={tool} />}
 
               <details className="tool-others">
                 <summary>
@@ -312,13 +307,7 @@ export function MinePage() {
                     {t('product.othersEmpty', { tool: t(PRODUCT_NAME[otherTool]) })}
                   </p>
                 )}
-                {others && others.length > 0 && (
-                  <ul className="rows">
-                    {others.map((p) => (
-                      <ProjectRow key={p.id} project={p} tool={tool} />
-                    ))}
-                  </ul>
-                )}
+                {others && others.length > 0 && <ProjectTable projects={others} tool={tool} />}
               </details>
             </section>
 
@@ -343,34 +332,73 @@ export function MinePage() {
   );
 }
 
+/** Proyectos en tabla: nombre, versión, último cambio, fecha y autor, y abrir (o ver, si son de la otra herramienta). */
+function ProjectTable({ projects, tool }: { projects: ProjectSummary[]; tool: ProjectKind }) {
+  const t = useT();
+  return (
+    <div className="table-scroll">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th scope="col">{t('projects.col.name')}</th>
+            <th scope="col">{t('projects.col.version')}</th>
+            <th scope="col">{t('projects.col.description')}</th>
+            <th scope="col">{t('projects.col.modified')}</th>
+            <th scope="col">
+              <span className="visually-hidden">{t('projects.open')}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {projects.map((p) => (
+            <ProjectRow key={p.id} project={p} tool={tool} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /** Un proyecto de la lista; si es de la otra herramienta, se abre solo para verlo. */
 function ProjectRow({ project: p, tool }: { project: ProjectSummary; tool: ProjectKind }) {
   const t = useT();
   const fmt = useFormat();
   const fmtDate = useFormatDate();
   return (
-    <li className="project-row">
-      <span className="row-title">
-        <strong>{p.name}</strong>
-        <span className="row-meta">{t('projects.holes', { n: fmt(p.latest.holeCount) })}</span>
-      </span>
-      <span className="latest">
+    <tr>
+      <td>
+        <span className="cell-title">
+          <Folder size={16} aria-hidden />
+          <span>
+            <strong>{p.name}</strong>
+            <span className="row-meta">{t('projects.holes', { n: fmt(p.latest.holeCount) })}</span>
+          </span>
+        </span>
+      </td>
+      <td>
         <span className="version-tag">v{p.latest.number}</span>
-        <p title={p.latest.message}>{p.latest.message || t('history.initial')}</p>
-      </span>
-      <span className="row-meta project-by">
-        {t('projects.by', { date: fmtDate(p.latest.createdAt), author: p.latest.authorName })}
-      </span>
-      <Link className="button-link" to={projectPath(p.id, p.kind, tool)}>
-        {p.kind === tool ? (
-          t('projects.open')
-        ) : (
-          <>
-            <Eye size={14} aria-hidden /> {t('product.view')}
-          </>
-        )}
-      </Link>
-    </li>
+      </td>
+      <td className="cell-message" title={p.latest.message}>
+        {p.latest.message || t('history.initial')}
+      </td>
+      <td>
+        <span className="mono">{fmtDate(p.latest.createdAt)}</span>
+        <span className="row-meta">{p.latest.authorName}</span>
+      </td>
+      <td className="cell-action">
+        <Link className="row-link" to={projectPath(p.id, p.kind, tool)}>
+          {p.kind === tool ? (
+            <>
+              {t('projects.open')} <ArrowRight size={14} aria-hidden />
+            </>
+          ) : (
+            <>
+              <Eye size={14} aria-hidden /> {t('product.view')}
+            </>
+          )}
+        </Link>
+      </td>
+    </tr>
   );
 }
 

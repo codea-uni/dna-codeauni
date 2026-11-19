@@ -3,6 +3,7 @@ import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNo
 import { createPortal } from 'react-dom';
 import { useT } from '../i18n';
 import { useUiStore, type FloatingPanel } from '../stores/uiStore';
+import { useDialogFocus } from './useDialogFocus';
 
 const MIN_W = 320;
 const MIN_H = 180;
@@ -90,6 +91,13 @@ export function FloatingWindow({
   const z = useUiStore((s) => 60 + s.floating.findIndex((f) => f.id === win.id));
   const { dockPanel, updateFloating, raiseFloating } = useUiStore.getState();
   const ref = useRef<HTMLDivElement>(null);
+  const onKeyDown = useDialogFocus(
+    ref,
+    () => {
+      dockPanel(win.id);
+    },
+    { modal: false },
+  );
   // Siempre visible aunque la pantalla se haya achicado desde la última vez. En celular la ventana
   // entra entera (antes quedaba la posición de la pantalla ancha y se cortaba a la derecha).
   const narrow = window.innerWidth < 700;
@@ -152,6 +160,7 @@ export function FloatingWindow({
       aria-label={title}
       data-guide={`window.${win.id.replace(/^workspace\./, '')}`}
       style={{ left: x, top: y, width: win.w, height: win.h, zIndex: z }}
+      onKeyDown={onKeyDown}
       onPointerDown={() => {
         raiseFloating(win.id);
       }}

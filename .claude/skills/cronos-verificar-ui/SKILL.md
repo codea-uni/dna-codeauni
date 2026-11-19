@@ -44,20 +44,41 @@ Un cambio de UI no está terminado porque compile. Está terminado cuando **se v
 
 Para un cambio en otra pantalla, añade al script los pasos que llegan a ella siguiendo el mismo patrón: rol y nombre accesible, nunca selectores CSS frágiles.
 
-## Línea base (2026-11-18, antes de cualquier rediseño)
+## Línea base vigente (2026-11-18, rama `feat/ux-rediseno`)
 
-Úsala para el antes y el después. Si un valor empeora, es una regresión.
+Úsala para el antes y el después. **Si un valor empeora, es una regresión.**
 
-| Comprobación | Línea base |
+| Comprobación | Esperado |
 |---|---|
-| axe | 1 crítica: `aria-required-attr` en `.sidebar-resize`, en todas las pestañas |
-| `6,5` | Se acepta, pero el campo lo muestra como `6.5`; los resultados de al lado usan coma |
-| `1.234,5` y `7,25 m` | Inválidos (solo borde rojo) |
-| ↑ en un campo numérico | No hace nada |
-| Esc en una ventana flotante | No la cierra |
-| Ajustes del proyecto | No recibe el foco y Esc no lo cierra |
-| 1024×768 | Sin desbordamiento horizontal |
+| axe (8 pestañas del editor y páginas del servidor) | 0 violaciones |
+| `6,5` y `6.5` | Se aceptan y el campo muestra `6,5` |
+| `1.234,5` y `1,234.5` | Se aceptan como 1234,5 |
+| `7,25 m` en el primer campo de «Generar malla» | Inválido, y es lo correcto: ese campo es el diámetro en **mm** |
+| ↑ en un campo numérico | Incrementa |
+| Esc en una ventana flotante | La cierra |
+| Ajustes del proyecto | Recibe el foco al abrirse y Esc lo cierra |
+| 1440, 1280 y 1024 px | Sin desbordamiento horizontal |
 | Errores JS | 0 |
+
+El script **no pulsa Esc entre un valor y otro**: con el campo ya confirmado, Esc cierra la ventana.
+
+## Modo servidor sin base de datos
+
+Sin Docker, `pnpm dev:online` no arranca. Para ver las páginas del servidor (minas, historial, administración):
+
+1. Arranca un segundo Vite en modo servidor.
+   - PowerShell: `$env:VITE_API_URL='/api'; pnpm --dir apps/web exec vite --port 5174`.
+2. Ejecuta `node scripts/server-mock.cjs /mines/m1 mina [ancho alto]`.
+   - Intercepta solo las rutas que **empiezan** por `/api/`. Con un patrón `**/api/**` también se capturan módulos de Vite (`/@fs/.../packages/api/...`).
+   - En Git Bash antepón `MSYS_NO_PATHCONV=1`; si no, `/mines/m1` se convierte en una ruta de Windows.
+3. Si la salida lista rutas en `missing`, agrega datos que cumplan el esquema Zod de `packages/api/src`.
+4. **Login y pantallas sin sesión:** antepón `MOCK_SIGNED_OUT=1`. Así `/api/me` responde 401 y se muestra el login.
+   - Revísalo a 1440 px y a 390 px.
+   - Comprueba el botón de mostrar contraseña (`aria-pressed`) y el cambio de idioma.
+
+## Contraste
+
+Ejecuta `node scripts/contrast.cjs "#primer-plano" "#fondo"` antes de aceptar un color nuevo. El mínimo es 4,5:1 para texto y 3:1 para bordes de controles y foco.
 
 ## Lo que el script no cubre (hazlo a mano)
 

@@ -220,19 +220,27 @@ export const useUiStore = create<UiState>()((set) => ({
     set((s) => {
       if (s.floating.some((f) => f.id === id)) return {};
       const n = s.floating.length;
-      const workspace = id.startsWith('workspace.');
-      const ribbonBottom =
-        document.querySelector('.toolbar')?.getBoundingClientRect().bottom ?? 150;
-      const y = workspace
-        ? Math.min(ribbonBottom + 12 + n * 16, Math.max(0, window.innerHeight - 220))
-        : 70 + n * 28;
+      const host = id.startsWith('workspace.')
+        ? document.querySelector('.viewport-host')?.getBoundingClientRect()
+        : undefined;
+      if (host) {
+        // Paneles de trabajo: anclados al borde izquierdo del visor, a toda su altura y con un
+        // ancho acotado, para que el plano siga a la vista (cronos-ux-interfaz, regla 1). Las
+        // tablas anchas (documentación, librería) se centran porque necesitan el espacio.
+        const wide = width > 700;
+        const offset = Math.min(n, 4) * 24;
+        const w = Math.round(Math.min(wide ? width : Math.min(width, 460), host.width - 40));
+        const x = wide
+          ? Math.round(host.left + Math.max(20, (host.width - w) / 2) + offset)
+          : Math.round(host.left + 12 + offset);
+        const y = Math.round(host.top + 12 + offset);
+        const h = Math.round(Math.max(220, host.height - 24 - offset));
+        return { floating: saveFloating([...s.floating, { id, x, y, w, h }]) };
+      }
+      const y = 70 + n * 28;
       const w = Math.min(width, window.innerWidth - 40);
       const h = Math.min(Math.round(window.innerHeight * 0.72), window.innerHeight - y - 40);
-      const availableWidth = workspace
-        ? (document.querySelector('.viewport-host')?.getBoundingClientRect().width ??
-          window.innerWidth)
-        : window.innerWidth;
-      const x = Math.max(20, Math.round((availableWidth - w) / 2) + n * 28);
+      const x = Math.max(20, Math.round((window.innerWidth - w) / 2) + n * 28);
       return { floating: saveFloating([...s.floating, { id, x, y, w, h }]) };
     });
   },

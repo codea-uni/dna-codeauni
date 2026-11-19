@@ -1,5 +1,6 @@
 import { KeyRound, LogOut, UserRound, X } from 'lucide-react';
 import { useState } from 'react';
+import { Modal } from '../components/Modal';
 import { MenuButton } from '../components/MenuButton';
 import { useT } from '../i18n';
 import { useAuth } from '../server/api';
@@ -36,22 +37,15 @@ export function UserMenu() {
         ]}
       />
       {changing && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={close}>
-          <div
-            className="modal dialog-narrow"
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            <header>
-              <h2>{t('auth.changePassword')}</h2>
-              <button className="icon" onClick={close} aria-label={t('settings.close')}>
-                <X size={16} />
-              </button>
-            </header>
-            <ChangePasswordForm onDone={close} />
-          </div>
-        </div>
+        <Modal label={t('auth.changePassword')} onClose={close} className="dialog-narrow">
+          <header>
+            <h2>{t('auth.changePassword')}</h2>
+            <button className="icon" onClick={close} aria-label={t('settings.close')}>
+              <X size={16} />
+            </button>
+          </header>
+          <ChangePasswordForm onDone={close} />
+        </Modal>
       )}
     </>
   );

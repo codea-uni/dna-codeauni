@@ -155,7 +155,7 @@ export const en = {
   'groups.source': 'Blasting course formulas: guidance only, never blocking.',
   'burden.title': 'Theoretical burden',
   'burden.hint':
-    'A reference to choose the operating burden; it does not block. Kd and Ks come from the Konya and Walter (1990) tables.',
+    'A reference to choose the operating burden and never blocks the design. Kd and Ks come from the Konya and Walter (1990) tables.',
   'burden.explosive': 'Explosive',
   'burden.model': 'Model',
   'burden.reference': 'Reference',

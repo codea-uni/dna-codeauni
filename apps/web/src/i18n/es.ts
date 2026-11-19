@@ -158,7 +158,7 @@ export const es = {
   'groups.source': 'Fórmulas del curso de voladura: orientan, no bloquean.',
   'burden.title': 'Burden teórico',
   'burden.hint':
-    'Referencia para elegir el burden operativo; no bloquea. Kd y Ks salen de las tablas de Konya y Walter (1990).',
+    'Referencia para elegir el burden operativo y nunca bloquea el diseño. Kd y Ks salen de las tablas de Konya y Walter (1990).',
   'burden.explosive': 'Explosivo',
   'burden.model': 'Modelo',
   'burden.reference': 'Referencia',

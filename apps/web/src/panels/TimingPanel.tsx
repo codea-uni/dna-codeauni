@@ -1,7 +1,7 @@
 import type { Blast, CalcParams, DetonatorId, PatternId, SurfaceConnectorId } from '@cronos/core';
 import { connectorColorCss } from '@cronos/engine';
 import { Cable, Zap } from 'lucide-react';
-import { useState } from 'react';
+import { usePanelState } from '../stores/panelState';
 import { IconButton } from '../components/IconButton';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
@@ -43,7 +43,7 @@ function Select<T extends string>({
 
 export function TimingPanel() {
   const t = useT();
-  const [tieMode, setTieMode] = useState<'rows' | 'echelon'>('rows');
+  const [tieMode, setTieMode] = usePanelState<'rows' | 'echelon'>('timing.tieMode', 'rows');
   const project = useProject();
   const blast = useActiveBlast();
   const selection = useSelectionIds();
@@ -54,12 +54,12 @@ export function TimingPanel() {
 
   const nonelDetonators = lib.detonators.filter((d) => d.type !== 'electronic');
   const electronicDetonators = lib.detonators.filter((d) => d.type === 'electronic');
-  const [downhole, setDownhole] = useState({
+  const [downhole, setDownhole] = usePanelState(`timing.downhole:${project.id}`, {
     detonatorId: lib.detonators[0]?.id ?? '',
     delayMs: (lib.detonators[0]?.nominalDelay ?? 0.5) * 1000,
   });
   const patterns = blast?.patterns ?? [];
-  const [start, setStart] = useState({
+  const [start, setStart] = usePanelState(`timing.start:${project.id}`, {
     patternId: patterns[0]?.id ?? '',
     startRow: 0,
     startCol: 0,
@@ -68,11 +68,11 @@ export function TimingPanel() {
     ? start.patternId
     : (patterns[0]?.id ?? '');
   const connectors = lib.surfaceConnectors.map((c) => ({ id: c.id, name: c.name }));
-  const [tie, setTie] = useState({
+  const [tie, setTie] = usePanelState(`timing.tie:${project.id}`, {
     interHole: lib.surfaceConnectors[0]?.id ?? '',
     interRow: lib.surfaceConnectors[2]?.id ?? lib.surfaceConnectors[0]?.id ?? '',
   });
-  const [elec, setElec] = useState({
+  const [elec, setElec] = usePanelState(`timing.elec:${project.id}`, {
     interHoleMs: 9,
     interRowMs: 100,
     offsetMs: 0,

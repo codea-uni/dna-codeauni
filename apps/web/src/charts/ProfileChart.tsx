@@ -1,3 +1,4 @@
+import { chart as palette } from './theme';
 import { LineChart } from 'echarts/charts';
 import {
   GridComponent,
@@ -83,7 +84,12 @@ export default function ProfileChart({
         backgroundColor: 'transparent',
         animation: false,
         grid: { left: 52, right: 16, top: 34, bottom: 34 },
-        legend: { top: 0, right: 0, textStyle: { color: '#c9d1d9', fontSize: 11 }, itemHeight: 8 },
+        legend: {
+          top: 0,
+          right: 0,
+          textStyle: { color: palette.text, fontSize: palette.fontSize },
+          itemHeight: 8,
+        },
         tooltip: {
           trigger: 'axis',
           valueFormatter: (v: unknown) =>
@@ -96,8 +102,8 @@ export default function ProfileChart({
           nameGap: 22,
           min: 0,
           max: round(p.length),
-          axisLabel: { color: '#8b949e' },
-          splitLine: { lineStyle: { color: '#21262d' } },
+          axisLabel: { color: palette.axis },
+          splitLine: { lineStyle: { color: palette.grid } },
         },
         yAxis: {
           type: 'value',
@@ -105,8 +111,8 @@ export default function ProfileChart({
           nameLocation: 'middle',
           nameGap: 40,
           scale: true,
-          axisLabel: { color: '#8b949e' },
-          splitLine: { lineStyle: { color: '#21262d' } },
+          axisLabel: { color: palette.axis },
+          splitLine: { lineStyle: { color: palette.grid } },
         },
         series: [
           {
@@ -114,16 +120,16 @@ export default function ProfileChart({
             type: 'line',
             showSymbol: false,
             data: series(p.base),
-            lineStyle: { color: '#6e7681', width: 1, type: 'dashed' },
-            itemStyle: { color: '#6e7681' },
+            lineStyle: { color: palette.reference, width: 1, type: 'dashed' },
+            itemStyle: { color: palette.reference },
           },
           {
             name: t('muckpile.chart.before'),
             type: 'line',
             showSymbol: false,
             data: series(p.before),
-            lineStyle: { color: '#8ab4f8', width: 1.5 },
-            itemStyle: { color: '#8ab4f8' },
+            lineStyle: { color: palette.secondary, width: 1.5 },
+            itemStyle: { color: palette.secondary },
           },
           {
             name: t('muckpile.chart.after'),
@@ -131,12 +137,12 @@ export default function ProfileChart({
             showSymbol: false,
             data: series(p.after),
             areaStyle: { color: 'rgba(210, 153, 34, 0.25)', origin: 'start' },
-            lineStyle: { color: '#d29922', width: 2 },
-            itemStyle: { color: '#d29922' },
+            lineStyle: { color: palette.highlight, width: 2 },
+            itemStyle: { color: palette.highlight },
             markLine: {
               symbol: 'none',
-              lineStyle: { color: '#f0f6fc', type: 'dotted' },
-              label: { color: '#f0f6fc', fontSize: 10, position: 'insideEndTop' },
+              lineStyle: { color: palette.text, type: 'dotted' },
+              label: { color: palette.text, fontSize: palette.fontSize, position: 'insideEndTop' },
               data: marks,
             },
           },

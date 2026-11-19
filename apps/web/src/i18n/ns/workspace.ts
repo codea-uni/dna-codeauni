@@ -13,6 +13,7 @@ export const es = {
   'workspace.mines': 'Minas',
   'workspace.minesOf': 'Minas de {org}',
   'workspace.navigation': 'Secciones',
+  'workspace.breadcrumb': 'Ruta',
   'workspace.minesLede': 'Elige una mina para ver sus proyectos y cómo ha cambiado su diseño.',
   'workspace.noOrganizationTitle': 'Tu cuenta no pertenece a ninguna empresa',
   'workspace.noMinesMember': 'Cuando el administrador de tu empresa cree una mina, aparecerá aquí.',
@@ -111,6 +112,7 @@ export const en = {
   'workspace.mines': 'Mines',
   'workspace.minesOf': '{org} mines',
   'workspace.navigation': 'Sections',
+  'workspace.breadcrumb': 'Breadcrumb',
   'workspace.minesLede': 'Pick a mine to see its projects and how its design has changed.',
   'workspace.noOrganizationTitle': 'Your account does not belong to any company',
   'workspace.noMinesMember':

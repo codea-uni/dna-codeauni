@@ -4,6 +4,12 @@ import { App } from './App';
 import { ServerApp } from './pages/ServerApp';
 import { serverMode } from './server/api';
 import { getCompute, getEngine, session } from './session';
+// Barlow autohospedada (identidad, ARCHITECTURE L127): texto 400/500/600 y titulares semicondensados.
+import '@fontsource/barlow/400.css';
+import '@fontsource/barlow/500.css';
+import '@fontsource/barlow/600.css';
+import '@fontsource/barlow-semi-condensed/500.css';
+import '@fontsource/barlow-semi-condensed/600.css';
 import './styles.css';
 import './server.css';
 import './product/product.css';

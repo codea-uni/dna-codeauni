@@ -80,6 +80,9 @@ export const es = {
   'view.noTimes': 'Sin tiempos: asigna detonadores y amarres (pestaña Tiempos).',
   'view.pause': 'Pausa',
   'view.play': 'Reproducir',
+  'view.stop': 'Detener y volver al inicio',
+  'view.speed': 'Velocidad de la secuencia',
+  'view.seek': 'Tiempo de la secuencia',
 
   'results.title': 'Resultados',
   'results.computing': 'Calculando…',
@@ -422,6 +425,9 @@ export const en = {
   'view.noTimes': 'No times: assign detonators and tie-ups (Timing tab).',
   'view.pause': 'Pause',
   'view.play': 'Play',
+  'view.stop': 'Stop and rewind',
+  'view.speed': 'Sequence speed',
+  'view.seek': 'Sequence time',
 
   'results.title': 'Results',
   'results.computing': 'Computing…',

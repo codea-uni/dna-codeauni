@@ -69,8 +69,7 @@ function ColumnDiagram({
         y={y(0)}
         width={34}
         height={hole.length * scale}
-        fill="#0d1117"
-        stroke="#30363d"
+        style={{ fill: 'var(--bg)', stroke: 'var(--border-strong)' }}
       />
       {intervals.map(({ deck, top, bottom: b }, i) => (
         <g key={deck.id}>

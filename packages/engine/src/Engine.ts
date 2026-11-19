@@ -799,6 +799,21 @@ export class Engine {
   }
 
   /**
+   * Acerca (`factor` < 1) o aleja (> 1) la vista desde el centro, en planta o en 3D: lo usan los
+   * botones de zoom sobre el plano, para quien no usa la rueda del ratón.
+   */
+  zoomBy(factor: number): void {
+    if (!(factor > 0)) return;
+    if (this.viewMode === '3d') {
+      if (!this.orbit) return;
+      this.orbit = dollyOrbit(this.orbit, factor);
+      this.applyCamera3d();
+      return;
+    }
+    this.setView({ ...this.view, metersPerPixel: this.view.metersPerPixel * factor });
+  }
+
+  /**
    * Encuadra todos los taladros y perímetros (o la selección si `selectionOnly`); sin diseño, los
    * levantamientos cargados (sin unir sectores lejanos, ver `cameras/frame.ts`). En 3D encuadra la
    * vista 3D y deja la planta encuadrada también (al volver a planta no queda en otro lugar).

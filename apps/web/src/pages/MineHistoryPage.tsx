@@ -5,7 +5,7 @@ import type {
   ProjectVersion,
   TimelineQuery,
 } from '@cronos/api';
-import { ArrowLeft, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useFormatDate, useLocale, useT, type MessageKey } from '../i18n';
@@ -131,10 +131,13 @@ export function MineHistoryPage() {
   };
 
   return (
-    <PageShell>
-      <Link to={`/mines/${mineId}`} className="back-link">
-        <ArrowLeft size={14} aria-hidden /> {t('projects.backToMine')}
-      </Link>
+    <PageShell
+      crumbs={[
+        { label: t('workspace.mines'), to: '/' },
+        { label: mine?.mine.name ?? '…', to: `/mines/${mineId}` },
+        { label: t('history.mineLink') },
+      ]}
+    >
       <header className="page-head">
         <h1>{mine ? t('history.mineTitle', { mine: mine.mine.name }) : t('history.mineLink')}</h1>
         <p className="lede">{t('history.mineHint')}</p>

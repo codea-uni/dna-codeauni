@@ -26,7 +26,8 @@ import { NumberField } from '../components/NumberField';
 import { MethodDetail } from '../methods/MethodDetail';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useUnits } from '../hooks/useUnits';
-import { formatDay, useFormat, useT, type MessageKey } from '../i18n';
+import { formatDay, useFormat, useLocale, useT, type MessageKey } from '../i18n';
+import { formatInputNumber, parseUserNumber } from '../i18n/numbers';
 import { getEngine, session } from '../session';
 import { useAnalysisStore, type MuckpileColorBy } from '../stores/analysisStore';
 import { onTopographyChange, topographyTin } from '../topography/session';
@@ -721,16 +722,27 @@ function DomainsSection({ blast }: { blast: Blast }) {
                 </td>
                 <td>
                   <input
-                    type="number"
-                    step="any"
-                    defaultValue={d.grade ?? ''}
+                    className="cell"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label={`${t('muckpile.domain.grade')} · ${d.material}`}
+                    defaultValue={
+                      d.grade === undefined
+                        ? ''
+                        : formatInputNumber(d.grade, 6, useLocale.getState().locale)
+                    }
                     onBlur={(e) => {
+                      // Vacío quita la ley; si no es un número, se vuelve al valor guardado.
                       const raw = e.target.value.trim();
-                      const v = Number(raw.replace(',', '.'));
+                      const v = parseUserNumber(raw);
                       if (raw === '') {
                         if (d.grade !== undefined) clearGrade(d);
-                      } else if (Number.isFinite(v) && v !== d.grade)
-                        edit(d, { grade: v }, t('muckpile.domain.grade'));
+                      } else if (v === null) {
+                        e.target.value =
+                          d.grade === undefined
+                            ? ''
+                            : formatInputNumber(d.grade, 6, useLocale.getState().locale);
+                      } else if (v !== d.grade) edit(d, { grade: v }, t('muckpile.domain.grade'));
                     }}
                   />
                 </td>

@@ -4,20 +4,29 @@ import { ProductMark } from '../product/CrossView';
 import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import { UserMenu } from '../auth/UserMenu';
+import { BrandMark } from '../components/BrandMark';
 import { useT } from '../i18n';
 import { useAuth, useWorkspace } from '../server/api';
 import { activeRole } from '../stores/workspaceStore';
 
+export interface Crumb {
+  label: string;
+  /** Sin `to`, es la página actual. */
+  to?: string;
+}
+
 /**
- * Marco de las páginas fuera del editor: marca, empresa del usuario (fija, D-15), navegación y
- * cuenta. `children` va en una columna de contenido centrada (o a todo el ancho con `wide`).
+ * Marco de las páginas fuera del editor: marca, ruta (dónde estoy), navegación y cuenta.
+ * `children` va en una columna de contenido centrada (o a todo el ancho con `wide`).
  */
 export function PageShell({
   children,
+  crumbs,
   tool,
   wide = false,
 }: {
   children: ReactNode;
+  crumbs?: Crumb[];
   tool?: ProjectKind;
   /** Usa todo el ancho de la pantalla (páginas con varias columnas, como la mina). */
   wide?: boolean;
@@ -37,11 +46,26 @@ export function PageShell({
     <div className="page">
       <header className="topbar">
         {/* Una sola marca: «Cronos» y, dentro de una mina, la herramienta con su acento. */}
-        <Link to="/" className="wordmark" translate="no">
-          Cronos
+        <Link to="/" className="wordmark" translate="no" aria-label="Cronos">
+          <BrandMark size={24} />
           {tool && <ProductMark tool={tool} short />}
         </Link>
-        <nav aria-label={t('workspace.navigation')}>
+        {crumbs && crumbs.length > 0 && (
+          <nav className="crumbs-nav" aria-label={t('workspace.breadcrumb')}>
+            <ol>
+              {crumbs.map((c) => (
+                <li key={c.label}>
+                  {c.to ? (
+                    <Link to={c.to}>{c.label}</Link>
+                  ) : (
+                    <strong aria-current="page">{c.label}</strong>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
+        <nav className="sections-nav" aria-label={t('workspace.navigation')}>
           {organization && (
             <NavLink to="/" end>
               {t('workspace.minesOf', { org: organization.name })}

@@ -19,6 +19,8 @@ import {
   type TopoWarning,
 } from '@cronos/core';
 import { X } from 'lucide-react';
+import { NumberInput } from '../components/CellInput';
+import { Modal } from '../components/Modal';
 import { useEffect, useMemo, useState } from 'react';
 import { useFormat, useT, type MessageKey } from '../i18n';
 import { es } from '../i18n/es';
@@ -364,13 +366,12 @@ export function TopographyImportDialog({
   );
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={tr('topo.import.aria')}
+    <Modal
+      label={tr('topo.import.aria')}
+      onClose={onClose}
+      className="topo-import"
+      closeOnBackdrop={false}
     >
-      <div className="modal topo-import">
         <header>
           <h2>{tr('topo.import.title')}</h2>
           <button className="icon" onClick={onClose} aria-label={tr('settings.close')}>
@@ -462,13 +463,14 @@ export function TopographyImportDialog({
               <label className="field" title={tr('topo.import.demToleranceHint')}>
                 <span className="field-label">{tr('topo.import.demTolerance')}</span>
                 <span className="field-input">
-                  <input
-                    type="number"
+                  <NumberInput
                     min={0.01}
                     step={0.1}
+                    decimals={2}
+                    unit="m"
                     value={demTolerance}
-                    onChange={(e) => {
-                      setDemTolerance(Math.max(0.01, Number(e.target.value) || 0.01));
+                    onCommit={(v) => {
+                      setDemTolerance(v);
                       invalidate();
                     }}
                   />
@@ -480,13 +482,13 @@ export function TopographyImportDialog({
               <label className="field" title={tr('topo.import.maxEdgeTextHint')}>
                 <span className="field-label">{tr('topo.import.maxEdgeText')}</span>
                 <span className="field-input">
-                  <input
-                    type="number"
+                  <NumberInput
                     min={1}
                     step={1}
+                    decimals={2}
                     value={maxEdgeFactor}
-                    onChange={(e) => {
-                      setMaxEdgeFactor(Math.max(1, Number(e.target.value) || 1));
+                    onCommit={(v) => {
+                      setMaxEdgeFactor(v);
                       invalidate();
                     }}
                   />
@@ -498,13 +500,14 @@ export function TopographyImportDialog({
               <label className="field" title={tr('topo.import.cellHint')}>
                 <span className="field-label">{tr('topo.import.cell')}</span>
                 <span className="field-input">
-                  <input
-                    type="number"
+                  <NumberInput
                     min={0}
                     step={0.5}
+                    decimals={2}
+                    unit="m"
                     value={cell}
-                    onChange={(e) => {
-                      setCell(Math.max(0, Number(e.target.value) || 0));
+                    onCommit={(v) => {
+                      setCell(v);
                       invalidate();
                     }}
                   />
@@ -665,8 +668,7 @@ export function TopographyImportDialog({
           </button>
           {acceptButton}
         </footer>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

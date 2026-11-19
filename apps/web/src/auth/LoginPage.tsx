@@ -1,3 +1,4 @@
+import { Eye, EyeOff, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { useLocale, useT } from '../i18n';
 import { useAuth } from '../server/api';
@@ -12,6 +13,8 @@ export function LoginPage() {
   const setLocale = useLocale((s) => s.setLocale);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
 
   return (
     <AuthShell>
@@ -24,7 +27,10 @@ export function LoginPage() {
           });
         }}
       >
-        <h1 className="auth-title">{t('auth.title')}</h1>
+        <div className="auth-heading">
+          <h1 className="auth-title">{t('auth.title')}</h1>
+          <p className="muted">{t('auth.welcome')}</p>
+        </div>
         <label>
           <span>{t('auth.email')}</span>
           <input
@@ -42,16 +48,42 @@ export function LoginPage() {
         </label>
         <label>
           <span>{t('auth.password')}</span>
-          <input
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-            }}
-          />
+          <span className="password-field">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              aria-describedby={capsLock ? 'caps-lock-hint' : undefined}
+              onChange={(e) => {
+                setPassword(e.target.value);
+              }}
+              onKeyUp={(e) => {
+                setCapsLock(e.getModifierState('CapsLock'));
+              }}
+              onBlur={() => {
+                setCapsLock(false);
+              }}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              aria-pressed={showPassword}
+              aria-label={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
+              title={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
+              onClick={() => {
+                setShowPassword((v) => !v);
+              }}
+            >
+              {showPassword ? <EyeOff size={17} aria-hidden /> : <Eye size={17} aria-hidden />}
+            </button>
+          </span>
+          {capsLock && (
+            <span id="caps-lock-hint" className="auth-caps" role="status">
+              <TriangleAlert size={14} aria-hidden /> {t('auth.capsLock')}
+            </span>
+          )}
         </label>
         {error && (
           <p className="auth-error" role="alert">
@@ -62,12 +94,13 @@ export function LoginPage() {
           {busy ? t('auth.signingIn') : t('auth.signIn')}
         </button>
         <p className="auth-note">{t('auth.noAccount')}</p>
-        <div className="auth-locale">
+        <div className="auth-locale" role="group" aria-label={t('auth.language')}>
           {(['es', 'en'] as const).map((l) => (
             <button
               key={l}
               type="button"
-              className={`link${locale === l ? ' active' : ''}`}
+              lang={l}
+              aria-pressed={locale === l}
               onClick={() => {
                 setLocale(l);
               }}

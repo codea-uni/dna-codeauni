@@ -9,6 +9,7 @@ import {
   startMuckpileRunner,
 } from './analysis/runner';
 import { AskDialog } from './components/AskDialog';
+import { CrsChip, MapControls } from './components/MapControls';
 import { StatusBar } from './components/StatusBar';
 import { DemoOverlay } from './demo/DemoOverlay';
 import { FeedbackDialog } from './guide/FeedbackDialog';
@@ -134,6 +135,8 @@ export function App({ restoreLocalDraft = true }: { restoreLocalDraft?: boolean 
         }}
       >
         <Viewport />
+        <MapControls />
+        <CrsChip />
       </main>
       <RightSidebar />
       <StatusBar />

@@ -46,13 +46,17 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
 
 ## Reglas de diseño de pantalla
 
-1. **No tapar el plano.** Los paneles de trabajo (malla, carguío, tiempos) van acoplados a un lado o en una ventana que se pueda acoplar. Nunca se abren centrados sobre la zona de taladros.
-   - Hoy `stores/uiStore.ts:212-229` abre ventanas de unos 640 px centradas sobre el visor: es el problema n.º 1 de la auditoría.
-2. **Un paso, un clic.** Si una pestaña de la cinta tiene un solo panel (Carguío, Asistente IA), al hacer clic en la pestaña se abre ese panel.
-3. **Herramientas transversales siempre a mano.** Seleccionar (V), lazo (L), forzado (snap) y deshacer no dependen de la pestaña activa.
-   - Hoy `Toolbar.tsx:540` los oculta en Carguío.
-4. **Lo que el usuario escribió sobrevive.** Los valores de un formulario viven en un store (Zustand), no en un `useState` que se pierde al cerrar la ventana.
-   - Hoy se pierden en `PatternPanel.tsx:28`, `ChargePanel.tsx:61` y `TimingPanel.tsx:57`.
+1. **No tapar el plano.**
+   - Los paneles de trabajo se abren anclados al borde izquierdo del visor, a toda su altura y con 460 px de ancho (`uiStore.floatPanel`).
+   - Solo las tablas anchas (documentación, librería) se centran.
+   - Un panel nuevo sigue esa misma regla.
+2. **Un paso, un clic.** Si una pestaña de la cinta tiene un solo panel, al hacer clic en la pestaña se abre ese panel. El Asistente IA ya lo hace; Carguío está pendiente.
+3. **Herramientas transversales siempre a mano.**
+   - `MapControls`, sobre el plano, ofrece seleccionar, lazo, desplazar, zoom, encuadrar y planta/3D en cualquier pestaña.
+   - Pendiente: el forzado (snap) solo está en la pestaña Vista.
+4. **Lo que el usuario escribió sobrevive.**
+   - Los formularios de panel usan `usePanelState`, no `useState`.
+   - Malla, carguío y tiempos ya lo cumplen.
 5. **El resultado junto a su causa.** Al cambiar un parámetro, la cifra que afecta (factor de carga, burden de referencia) se ve en el mismo panel y se actualiza en vivo.
 6. **React no dibuja el diseño** (CLAUDE.md, regla 1).
    - Ningún panel recibe la lista de taladros para pintarla.
@@ -95,27 +99,54 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
   - Sin códigos de requisito sueltos.
 - **Explicabilidad:** junto a cada resultado de un modelo van el nombre del modelo, los parámetros usados y su estado R0–R4. Los valores estimados se marcan como tales («sin CR»).
 
-## Sistema visual
+## Sistema visual (aprobado el 2026-11-18, a partir de la referencia del usuario)
 
-- **Los colores salen de los tokens de `:root` en `apps/web/src/styles.css`.**
-  - Nunca se escribe un hex en TSX ni en las opciones de ECharts. Hoy hay 42 hex en TSX y los gráficos usan una paleta ajena en `charts/*.tsx`.
-  - Los gráficos leen los colores con `getComputedStyle(document.documentElement)`.
-- **Cuando llegue el diseño nuevo:** se traduce primero a tokens en `:root` (color, espaciado, radio, sombra, escala tipográfica) y después se sustituyen los valores fijos componente a componente. Nunca al revés. Mantén actualizada esta sección con la paleta aprobada.
-- **Semántica de color fija** (ARCHITECTURE L127):
-  - ámbar = tiempo y detonación;
-  - peligro = error;
-  - información = azul.
-  - La escala de colores de los taladros debe distinguirse con daltonismo y apoyarse en la etiqueta o la forma.
+**Identidad:** roca volcánica de base, crisocola (turquesa) de acento, ámbar para tiempo y detonación, azurita para información. La referencia se adapta, no se copia: no lleva foto aérea de fondo ni un panel de agente fijo en el editor.
+
+**Tokens** (`:root` en `apps/web/src/styles.css`, la única fuente; nunca se escribe un hex en TSX, CSS de componente ni ECharts):
+
+| Grupo | Tokens | Uso |
+|---|---|---|
+| Superficies | `--bg` `#0b1218` · `--panel` `#111b22` · `--panel-2` · `--panel-3` | Fondo → panel → elevado → hover |
+| Bordes | `--border` (divisor) · `--border-input` (control, 3,4:1) · `--border-strong` | Un campo siempre usa `--border-input` |
+| Texto | `--text` (15:1) · `--muted` (8:1) · `--faint` (solo decorativo) | `--faint` nunca para texto que se lee |
+| Acento | `--accent` `#4fd6e6` · `--accent-2` (hover) · `--accent-ink` (texto sobre acento) · `--accent-soft` (selección) | Acción principal, pestaña activa, foco |
+| Semántica | `--amber` (tiempo, aviso) · `--danger` · `--info` · `--success` | Siempre con icono o texto, nunca solo color |
+| Tipografía | `--font` Barlow · `--font-display` Barlow Semi Condensed · `--font-mono` · `--fs-xs` 11 … `--fs-xl` 20 | Monoespaciada solo para coordenadas, EPSG y fechas |
+| Forma | `--r-sm` 4 · `--r-md` 6 · `--r-lg` 10 · `--shadow-1` · `--shadow-2` | Tarjetas con `--r-lg` |
+
+**Reglas:**
+
+- **Contraste medido.** Para cambiar o agregar un color, mide el contraste primero: 4,5:1 para texto y 3:1 para bordes de controles. El cálculo está en la skill **cronos-verificar-ui**.
+- **Gráficos:** importa `chart as palette` desde `charts/theme.ts`. Sus papeles son `primary`, `secondary`, `highlight` y `reference`.
+- **Colores de datos.** Los materiales de carga (`DeckEditor`), las bandas SDOB y la leyenda 3D se comparten con el motor. No se cambian solo en la UI, porque el plano y el panel deben coincidir.
 - **Tipografía:**
-  - Mínimo 12 px para texto que se lee y 11 px para etiquetas secundarias. Hoy hay 8,5, 9,5 y 10 px en `styles.css:383,722,958`.
-  - Las cifras de tablas y resultados van con `font-variant-numeric: tabular-nums` para que se alineen.
-- **Iconos:** lucide-react, 16 px en la cinta y 14 px en línea, con un único grosor de trazo. Nada de glifos Unicode como ⏸ ▶ ⏹ en el lugar de un icono.
-- **Escalas fijas:** espaciado en múltiplos de 4 px y radios de 4, 6 u 8 px.
+  - Ningún texto baja de 11 px.
+  - Las cifras van con `tabular-nums`.
+  - Los títulos y las pestañas usan `--font-display`.
+- **Iconos:** lucide-react, 16 px en controles y 14 px en línea. Nada de glifos Unicode en lugar de un icono.
+- **Escalas:** espaciado en múltiplos de 4 px.
+
+**Componentes que se reutilizan (no los dupliques):**
+
+| Necesito | Uso |
+|---|---|
+| Diálogo modal | `components/Modal` (foco, Tab atrapado, Esc, devolución del foco) |
+| Ventana flotante con teclado | `FloatingWindow` (ya usa `useDialogFocus`, sin modal) |
+| Formulario de panel que sobrevive a cerrar | `usePanelState(clave, inicial)` (`stores/panelState.ts`); la clave lleva `project.id` si apunta a la librería |
+| Número | `NumberField`, `NumberCell` o `NumberInput` (ver cronos-entrada-numerica) |
+| Marca | `BrandMark` |
+| Controles del plano | `MapControls` y `CrsChip` (no repitas zoom ni herramientas de navegación en otro sitio) |
+| Página del modo servidor | `PageShell` con `crumbs`; `.card`, `.card-head`, `.seg-tabs` con `.count`, `.data-table` |
 
 ## Accesibilidad: mínimo por pantalla (WCAG 2.2 AA)
 
-- **Nombre accesible en cada control.** Una celda de tabla se nombra así: «Burden, taladro 12». Hoy unas 43 `NumberCell` no tienen nombre.
-- **Diálogos y ventanas:** foco inicial dentro, foco atrapado, Esc cierra y el foco vuelve al botón que los abrió. Hoy solo cumple el diálogo de atajos.
+- **Nombre accesible en cada control.**
+  - Una celda de tabla se nombra así: «Burden, taladro 12», con la prop `label` de `NumberCell`.
+  - Pendiente: varias `NumberCell` de `LibraryPanel` todavía no lo pasan.
+- **Diálogos y ventanas:** foco inicial dentro, foco atrapado, Esc cierra y el foco vuelve al botón que los abrió.
+  - Usa `Modal` o `useDialogFocus`. Ya lo cumplen los 10 diálogos y todas las ventanas flotantes.
+  - Esc en un campo con borrador primero revierte el campo; el segundo Esc cierra.
 - **Pestañas** (`role=tablist`): se recorren con las flechas y llevan `aria-controls`. La cinta lo cumple; la barra lateral derecha no.
 - **Visor (canvas):** lleva `aria-label`, `tabindex` y un anillo de foco visible. Todo lo que se hace en el plano tiene una alternativa por tabla o teclado.
 - **Contraste:** 4,5:1 para texto y 3:1 para bordes de controles y foco.
@@ -127,7 +158,7 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
 ## Velocidad
 
 - **Atajos:** se agregan en `hooks/useShortcuts.ts`, en `dialogs/ShortcutsDialog.tsx` y en i18n.
-  - Teclas ocupadas: `V L A B C T I M R H 3 F ? Supr Esc`, más Ctrl+Z, Ctrl+Y, Ctrl+A y Ctrl+S.
+  - Teclas ocupadas: `V L A B C T I M R H 3 F + − ? Supr Esc`, más Ctrl+Z, Ctrl+Y, Ctrl+A y Ctrl+S.
   - Cada atajo nuevo aparece en el tooltip de su botón.
 - **Valores por defecto:** los de `01 §17`. Además se recuerda el último valor usado en cada proyecto.
 - **Edición por lotes:** se aplica a la selección, a un grupo o a todo. Si la selección tiene valores mixtos, se muestra «múltiple».

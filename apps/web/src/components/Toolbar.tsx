@@ -52,8 +52,10 @@ import { EXAMPLES } from '@cronos/core';
 import { useRef } from 'react';
 import * as actions from '../actions';
 import { startDemo, stopDemo } from '../demo/playback';
-import { useHistory } from '../hooks/useDocument';
+import { useActiveBlast, useHistory, useProject } from '../hooks/useDocument';
+import { BrandMark } from './BrandMark';
 import { useUiStore } from '../stores/uiStore';
+import { NumberInput } from './CellInput';
 import { IconButton } from './IconButton';
 import { MenuButton } from './MenuButton';
 import { UserMenu } from '../auth/UserMenu';
@@ -171,6 +173,18 @@ export const TOOL_KEYS: Record<string, ToolName> = Object.fromEntries(
 export function toolHint(tool: ToolName): string {
   const t = ALL_TOOLS.find((x) => x.name === tool);
   return t ? `${translate(t.label)}: ${translate(t.hint)}` : '';
+}
+
+/** Dónde estoy (modo local): proyecto / voladura activa, como en el modo servidor. */
+function LocalCrumbs() {
+  const project = useProject();
+  const blast = useActiveBlast();
+  return (
+    <span className="crumbs toolbar-context" title={project.name}>
+      <strong>{project.name}</strong>
+      {blast && project.blasts.length > 1 && <> / {blast.name}</>}
+    </span>
+  );
 }
 
 export function Toolbar() {
@@ -293,11 +307,13 @@ export function Toolbar() {
 
   return (
     <header className="toolbar">
-      <strong className="brand" translate="no">
+      {/* Empresa (CODEa UNI) · producto (Cronos) · herramienta con su acento. */}
+      <span className="brand" translate="no">
         <img className="brand-logo" src="/brand/codeauni-blanco.png" alt="CODEa UNI" />
-        <ProductMark tool={productTool} />
-      </strong>
-      {serverMode && <ProjectContext />}
+        <BrandMark size={22} />
+        <ProductMark tool={productTool} short />
+      </span>
+      {serverMode ? <ProjectContext /> : <LocalCrumbs />}
       <nav
         className="ribbon-tabs"
         role="tablist"
@@ -720,16 +736,16 @@ export function Toolbar() {
               }}
             />
             {snap.grid && (
-              <input
+              <NumberInput
                 className="grid-size"
-                type="number"
                 min={0.01}
                 step={0.5}
+                decimals={2}
+                unit="m"
                 value={snap.gridSize}
                 title={tr('tools.gridSize')}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  if (v > 0) setSnap({ gridSize: v });
+                onCommit={(v) => {
+                  setSnap({ gridSize: v });
                 }}
               />
             )}

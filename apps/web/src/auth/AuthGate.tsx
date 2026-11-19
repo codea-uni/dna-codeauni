@@ -1,7 +1,10 @@
 import { useEffect, type ReactNode } from 'react';
 import { useLocale, useT } from '../i18n';
 import { useAuth } from '../server/api';
+import { BrandMark } from '../components/BrandMark';
+import { APP_VERSION } from '../session';
 import { BlastSequence } from './BlastSequence';
+import { Contours } from './Contours';
 import { ChangePasswordForm } from './ChangePasswordForm';
 import { LoginPage } from './LoginPage';
 
@@ -84,15 +87,20 @@ export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="auth-page">
       <section className="auth-hero">
-        <img className="auth-logo" src="/brand/codeauni-blanco.png" alt="CODEa UNI" />
-        <span className="wordmark" translate="no">
-          Cronos <span className="wordmark-sub">· agente de voladura</span>
-        </span>
-        <BlastSequence />
-        <p className="claim">{t('auth.claim')}</p>
+        <Contours />
+        <div className="auth-brand">
+          <img className="auth-logo" src="/brand/codeauni-blanco.png" alt="CODEa UNI" />
+          <BrandMark size={34} />
+        </div>
+        <div className="auth-hero-body">
+          <p className="kicker">{t('auth.kicker')}</p>
+          <BlastSequence />
+          <p className="claim">{t('auth.claim')}</p>
+        </div>
       </section>
       <section className="auth-panel">
         <div className="auth-card">{children}</div>
+        <p className="auth-version mono">Cronos v{APP_VERSION}</p>
       </section>
     </main>
   );

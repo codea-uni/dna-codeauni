@@ -3,6 +3,7 @@ import type { DiffSummary } from '@cronos/core';
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { Modal } from '../components/Modal';
 import * as actions from '../actions';
 import { useT } from '../i18n';
 import { APP_VERSION, getCompute, session } from '../session';
@@ -97,91 +98,86 @@ export function PublishDialog({ onClose }: { onClose: () => void }) {
   const parts = summary ? summaryParts(summary, t) : [];
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
-      <div
-        className="modal dialog-narrow"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <header>
-          <h2>{phase === 'conflict' ? t('history.conflictTitle') : t('history.publishTitle')}</h2>
-          <button className="icon" onClick={onClose} aria-label={t('settings.close')}>
-            <X size={16} />
-          </button>
-        </header>
+    <Modal
+      label={phase === 'conflict' ? t('history.conflictTitle') : t('history.publishTitle')}
+      onClose={onClose}
+      className="dialog-narrow"
+    >
+      <header>
+        <h2>{phase === 'conflict' ? t('history.conflictTitle') : t('history.publishTitle')}</h2>
+        <button className="icon" onClick={onClose} aria-label={t('settings.close')}>
+          <X size={16} />
+        </button>
+      </header>
 
-        {phase === 'conflict' ? (
-          <div className="dialog-body">
-            <p>{t('history.conflict')}</p>
-            <div className="stack">
-              <button className="primary-inline" onClick={() => void saveAsNew()}>
-                {t('history.saveAsNew')}
-              </button>
-              <button onClick={() => void actions.saveProject()}>
-                {t('history.downloadMine')}
-              </button>
-              <button
-                className="danger"
-                onClick={() => {
-                  onClose();
-                  void reload();
-                }}
-              >
-                {t('history.discardAndReload')}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form
-            className="auth-form dialog-body"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void publish();
-            }}
-          >
-            <p className="muted">{t('history.publishHint')}</p>
-            <div>
-              <strong>{t('history.changesSince', { n: current.base.number })}</strong>
-              {phase === 'diff' ? (
-                <p className="muted">{t('history.computing')}</p>
-              ) : (
-                <ul className="change-list">
-                  {parts.map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <label>
-              <span>{t('history.message')}</span>
-              <textarea
-                name="version-message"
-                required
-                maxLength={500}
-                rows={3}
-                placeholder={t('history.messagePlaceholder')}
-                value={message}
-                onChange={(e) => {
-                  setMessage(e.target.value);
-                }}
-              />
-            </label>
-            {error && (
-              <p className="auth-error" role="alert">
-                {error}
-              </p>
-            )}
-            <button
-              className="primary"
-              type="submit"
-              disabled={phase !== 'ready' || message.trim() === ''}
-            >
-              {phase === 'publishing' ? t('history.publishing') : t('history.publish')}
+      {phase === 'conflict' ? (
+        <div className="dialog-body">
+          <p>{t('history.conflict')}</p>
+          <div className="stack">
+            <button className="primary-inline" onClick={() => void saveAsNew()}>
+              {t('history.saveAsNew')}
             </button>
-          </form>
-        )}
-      </div>
-    </div>
+            <button onClick={() => void actions.saveProject()}>{t('history.downloadMine')}</button>
+            <button
+              className="danger"
+              onClick={() => {
+                onClose();
+                void reload();
+              }}
+            >
+              {t('history.discardAndReload')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form
+          className="auth-form dialog-body"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void publish();
+          }}
+        >
+          <p className="muted">{t('history.publishHint')}</p>
+          <div>
+            <strong>{t('history.changesSince', { n: current.base.number })}</strong>
+            {phase === 'diff' ? (
+              <p className="muted">{t('history.computing')}</p>
+            ) : (
+              <ul className="change-list">
+                {parts.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <label>
+            <span>{t('history.message')}</span>
+            <textarea
+              name="version-message"
+              required
+              maxLength={500}
+              rows={3}
+              placeholder={t('history.messagePlaceholder')}
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+              }}
+            />
+          </label>
+          {error && (
+            <p className="auth-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button
+            className="primary"
+            type="submit"
+            disabled={phase !== 'ready' || message.trim() === ''}
+          >
+            {phase === 'publishing' ? t('history.publishing') : t('history.publish')}
+          </button>
+        </form>
+      )}
+    </Modal>
   );
 }

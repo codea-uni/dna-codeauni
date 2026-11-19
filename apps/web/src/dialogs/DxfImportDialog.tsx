@@ -1,6 +1,7 @@
 import { commands, nextHoleNumber, type DxfInspection, type DxfLayerRole } from '@cronos/core';
 import { X } from 'lucide-react';
 import { useState } from 'react';
+import { Modal } from '../components/Modal';
 import { getCompute, getEngine, session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { boundaryOps } from '../actions';
@@ -121,78 +122,76 @@ export function DxfImportDialog({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={tr('dxf.aria')}>
-      <div className="modal">
-        <header>
-          <h2>{tr('dxf.title', { file: preview.fileName })}</h2>
-          <button className="icon" onClick={onClose} aria-label={tr('settings.close')}>
-            <X size={16} />
-          </button>
-        </header>
-        <p className="muted">
-          {tr('dxf.summary', {
-            entities: preview.inspection.entityCount,
-            layers: preview.inspection.layers.length,
-          })}
-        </p>
-        <table className="grid-table layers">
-          <thead>
-            <tr>
-              <th>{tr('dxf.layer')}</th>
-              <th>{tr('dxf.content')}</th>
-              <th>{tr('dxf.useAs')}</th>
+    <Modal label={tr('dxf.aria')} onClose={onClose} closeOnBackdrop={false}>
+      <header>
+        <h2>{tr('dxf.title', { file: preview.fileName })}</h2>
+        <button className="icon" onClick={onClose} aria-label={tr('settings.close')}>
+          <X size={16} />
+        </button>
+      </header>
+      <p className="muted">
+        {tr('dxf.summary', {
+          entities: preview.inspection.entityCount,
+          layers: preview.inspection.layers.length,
+        })}
+      </p>
+      <table className="grid-table layers">
+        <thead>
+          <tr>
+            <th>{tr('dxf.layer')}</th>
+            <th>{tr('dxf.content')}</th>
+            <th>{tr('dxf.useAs')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {preview.inspection.layers.map((l) => (
+            <tr key={l.name}>
+              <td className="mono">{l.name}</td>
+              <td className="muted small">{describe(l.counts)}</td>
+              <td>
+                <select
+                  className="cell"
+                  value={roles[l.name] ?? 'ignore'}
+                  onChange={(e) => {
+                    setRoles((r) => ({ ...r, [l.name]: e.target.value as DxfLayerRole }));
+                  }}
+                >
+                  {ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {tr(r.label)}
+                    </option>
+                  ))}
+                </select>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {preview.inspection.layers.map((l) => (
-              <tr key={l.name}>
-                <td className="mono">{l.name}</td>
-                <td className="muted small">{describe(l.counts)}</td>
-                <td>
-                  <select
-                    className="cell"
-                    value={roles[l.name] ?? 'ignore'}
-                    onChange={(e) => {
-                      setRoles((r) => ({ ...r, [l.name]: e.target.value as DxfLayerRole }));
-                    }}
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r.value} value={r.value}>
-                        {tr(r.label)}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
+          ))}
+        </tbody>
+      </table>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={replace}
+          onChange={(e) => {
+            setReplace(e.target.checked);
+          }}
+        />
+        {tr('csv.replace')}
+      </label>
+      {warnings.length > 0 && (
+        <div className="errors">
+          <ul>
+            {warnings.map((w) => (
+              <li key={w}>{importErrorText({ message: w })}</li>
             ))}
-          </tbody>
-        </table>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={replace}
-            onChange={(e) => {
-              setReplace(e.target.checked);
-            }}
-          />
-          {tr('csv.replace')}
-        </label>
-        {warnings.length > 0 && (
-          <div className="errors">
-            <ul>
-              {warnings.map((w) => (
-                <li key={w}>{importErrorText({ message: w })}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <footer>
-          <button onClick={onClose}>{tr('common.cancel')}</button>
-          <button className="primary-inline" disabled={busy || nothing} onClick={() => void run()}>
-            {busy ? tr('csv.importing') : tr('toolbar.import')}
-          </button>
-        </footer>
-      </div>
-    </div>
+          </ul>
+        </div>
+      )}
+      <footer>
+        <button onClick={onClose}>{tr('common.cancel')}</button>
+        <button className="primary-inline" disabled={busy || nothing} onClick={() => void run()}>
+          {busy ? tr('csv.importing') : tr('toolbar.import')}
+        </button>
+      </footer>
+    </Modal>
   );
 }

@@ -42,8 +42,13 @@ async function axe(page) {
   }
 }
 
+// Cierra ventanas flotantes con su botón × (por nombre accesible, sin depender del orden del DOM).
 const closeWindows = async (page) => {
-  for (const b of await page.locator('[role=dialog] button[aria-label]').all()) await b.click().catch(() => {});
+  for (let i = 0; i < 8; i++) {
+    const close = page.locator('.floating-window .floating-header button').first();
+    if (!(await close.count())) return;
+    await close.click({ timeout: 2000 }).catch(() => {});
+  }
 };
 
 (async () => {
@@ -71,14 +76,14 @@ const closeWindows = async (page) => {
   await page.getByRole('button', { name: /Generar malla/ }).click();
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(OUT, 'win-generar-malla.png') });
-  const field = page.locator('[role=dialog]').last().locator('input[inputmode=decimal]').first();
+  const field = page.getByRole('dialog', { name: 'Generar malla' }).locator('input[inputmode=decimal]').first();
   for (const typed of DECIMALS) {
     await field.click();
     await field.fill(typed);
     await page.keyboard.press('Enter');
     await page.waitForTimeout(150);
     report.decimals.push({ typed, shown: await field.inputValue(), invalid: await field.getAttribute('aria-invalid') });
-    await page.keyboard.press('Escape');
+    // Sin Esc aquí: con el campo confirmado, Esc cierra la ventana (comportamiento esperado).
   }
   await field.click();
   const before = await field.inputValue();

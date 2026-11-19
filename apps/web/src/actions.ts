@@ -96,6 +96,11 @@ export function zoomToFit(selectionOnly = false): void {
   getEngine()?.zoomToFit(selectionOnly);
 }
 
+/** Acerca (factor < 1) o aleja (> 1) desde el centro de la vista (botones y teclas + / −). */
+export function zoomBy(factor: number): void {
+  getEngine()?.zoomBy(factor);
+}
+
 /** En solo lectura (revisor) no se reemplaza el proyecto abierto: se avisa y no se hace nada. */
 function blockedByReadOnly(): boolean {
   if (!document.readOnly) return false;

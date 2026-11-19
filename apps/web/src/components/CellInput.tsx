@@ -1,7 +1,11 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useId, useState, type KeyboardEvent } from 'react';
+import { useLocale } from '../i18n';
+import { useNumberInput } from './useNumberInput';
 
 interface BaseProps {
   title?: string;
+  /** Nombre accesible de la celda («Burden, taladro 12»); si falta, se usa `title`. */
+  label?: string;
   className?: string;
 }
 
@@ -10,61 +14,118 @@ interface NumberCellProps extends BaseProps {
   onCommit: (value: number) => void;
   decimals?: number;
   min?: number;
+  max?: number;
+  integer?: boolean;
+  /** Paso de ↑/↓ (por defecto 1 o 0,1 según los decimales). */
+  step?: number;
+  unit?: string;
   /** Texto en gris cuando el valor es 0 (p. ej. «∞» = sin límite): la celda queda vacía y vacío es 0. */
   zeroText?: string;
 }
 
-/** Celda numérica compacta para tablas: confirma con Enter o al salir; Escape revierte. */
-export function NumberCell(props: NumberCellProps) {
-  return <NumberCellInner key={props.value} {...props} />;
+/**
+ * Pasa el foco a la celda de la misma columna en la fila siguiente (o anterior), como en una hoja
+ * de cálculo. Devuelve false si no hay otra fila.
+ */
+function focusSibling(input: HTMLInputElement, up: boolean): boolean {
+  const td = input.closest('td');
+  const row = td?.parentElement;
+  if (!td || !row) return false;
+  const col = Array.prototype.indexOf.call(row.children, td);
+  const next = (up ? row.previousElementSibling : row.nextElementSibling)?.children[col];
+  const target = next?.querySelector<HTMLInputElement>('input.cell');
+  if (!target) return false;
+  target.focus();
+  target.select();
+  return true;
 }
 
-function NumberCellInner({
+/**
+ * Celda numérica compacta para tablas: acepta coma o punto, Enter confirma y baja (Mayús+Enter
+ * sube), Escape revierte, ↑/↓ cambian el valor; el error con el rango va en el tooltip.
+ */
+export function NumberCell(props: NumberCellProps) {
+  return <NumberInput {...props} className={`cell ${props.className ?? ''}`} />;
+}
+
+/**
+ * Entrada numérica sin etiqueta propia (para filas `.field` ya armadas o barras de herramientas):
+ * mismo comportamiento que `NumberCell`, con la clase que se le pase.
+ */
+export function NumberInput(props: NumberCellProps) {
+  const locale = useLocale((s) => s.locale);
+  return <NumberInputInner key={`${locale}:${props.value}`} {...props} />;
+}
+
+function NumberInputInner({
   value,
   onCommit,
   decimals = 3,
   min,
+  max,
+  integer,
+  step,
+  unit,
   title,
+  label,
   className,
   zeroText,
 }: NumberCellProps) {
-  const text = value === 0 && zeroText !== undefined ? '' : String(Number(value.toFixed(decimals)));
-  const [draft, setDraft] = useState(text);
-  const [invalid, setInvalid] = useState(false);
-  const commit = () => {
-    const raw = draft.trim();
-    const n =
-      zeroText !== undefined && (raw === '' || raw === '∞' || raw === zeroText)
-        ? 0
-        : Number(raw.replace(',', '.'));
-    if (draft.trim() === text) return;
-    if (!Number.isFinite(n) || (min !== undefined && n < min)) {
-      setInvalid(true);
-      return;
-    }
-    setInvalid(false);
-    onCommit(n);
-  };
+  const errorId = useId();
+  const { draft, setDraft, error, dirty, commit, revert, stepKey } = useNumberInput(
+    value,
+    onCommit,
+    {
+      decimals,
+      min,
+      max,
+      integer,
+      step,
+      unit,
+      zeroText,
+    },
+  );
   return (
-    <input
-      className={`cell ${className ?? ''}`}
-      inputMode="decimal"
-      title={title}
-      value={draft}
-      placeholder={zeroText}
-      aria-invalid={invalid}
-      onChange={(e) => {
-        setDraft(e.target.value);
-      }}
-      onBlur={commit}
-      onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') e.currentTarget.blur();
-        if (e.key === 'Escape') {
-          setDraft(text);
-          setInvalid(false);
-        }
-      }}
-    />
+    <>
+      <input
+        className={className}
+        inputMode="decimal"
+        autoComplete="off"
+        title={error ?? title}
+        aria-label={label ?? title}
+        value={draft}
+        placeholder={zeroText}
+        aria-invalid={error !== null}
+        aria-describedby={error ? errorId : undefined}
+        onChange={(e) => {
+          setDraft(e.target.value);
+        }}
+        onBlur={() => {
+          commit();
+        }}
+        onFocus={(e) => {
+          e.currentTarget.select();
+        }}
+        onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+          if (stepKey(e)) return;
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const input = e.currentTarget;
+            // Sin fila siguiente, el foco se queda en la celda (no se pierde el lugar).
+            if (commit() && !focusSibling(input, e.shiftKey)) input.select();
+          }
+          if (e.key === 'Escape' && dirty) {
+            e.preventDefault();
+            revert();
+          }
+        }}
+      />
+      {error && (
+        <span id={errorId} className="visually-hidden">
+          {error}
+        </span>
+      )}
+    </>
   );
 }
 

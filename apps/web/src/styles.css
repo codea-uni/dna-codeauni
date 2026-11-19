@@ -1,21 +1,53 @@
-/* Superficies neutras para el editor técnico; el color del plano conserva su significado. */
+/*
+ * Identidad Cronos (ARCHITECTURE L127): roca volcánica de base, crisocola de acento, ámbar para el
+ * tiempo y la detonación, azurita para la información. Contrastes medidos (WCAG 2.2 AA): texto
+ * 15:1, secundario 8:1, acento 10:1, borde de campo 3,4:1 sobre --panel. Toda superficie, texto o
+ * borde sale de aquí; ningún componente escribe un hex (cronos-ux-interfaz).
+ */
 :root {
-  /* Marca CODEa UNI: navy #0A2030 y acento #4869FF (como FleetView). */
-  --bg: #08151f;
-  --panel: #0e2130;
-  --panel-2: #14304a;
-  --border: #20405a;
-  --text: #eef3f8;
-  --muted: #8fa3b8;
-  --accent: #5b7aff;
-  --accent-ink: #ffffff;
-  --accent-2: #4869ff;
-  --brand: #4869ff;
-  --brand-green: #72ad3a;
-  --amber: #ffae00;
-  --danger: #ed8279;
-  --font: 'Segoe UI', 'Noto Sans', Arial, sans-serif;
-  --font-display: var(--font);
+  /* Superficies, de la más honda a la más alta */
+  --bg: #0b1218;
+  --panel: #111b22;
+  --panel-2: #17242d;
+  --panel-3: #1d2c37;
+  /* Bordes: divisor decorativo, borde de control (3:1) y realce */
+  --border: #24363f;
+  --border-input: #557282;
+  --border-strong: #35505e;
+  /* Texto */
+  --text: #e8eff3;
+  --muted: #a3b5c0;
+  --faint: #71879a;
+  /* Crisocola: acción principal, selección, foco */
+  --accent: #4fd6e6;
+  --accent-2: #82e4ef;
+  --accent-ink: #03191e;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* Semántica fija: ámbar = tiempo y detonación; azurita = información */
+  --amber: #f2b55c;
+  --danger: #f68a80;
+  --info: #7fb2ff;
+  --success: #5ad596;
+  /* Herramientas (product.css): Cielo abierto = crisocola; Subterránea = cobre. */
+  --copper: #ef8f5a;
+  /* Alias de la marca anterior: la acción principal y el «ok» usan la paleta nueva. */
+  --brand: var(--accent);
+  --brand-green: var(--success);
+  /* Tipografía: Barlow (autohospedada), monoespaciada para coordenadas, fechas y cifras de código */
+  --font: 'Barlow', 'Segoe UI', 'Noto Sans', Arial, sans-serif;
+  --font-display: 'Barlow Semi Condensed', var(--font);
+  --font-mono: 'Cascadia Mono', 'JetBrains Mono', Consolas, ui-monospace, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  /* Forma */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --shadow-1: 0 4px 14px rgb(0 0 0 / 0.35);
+  --shadow-2: 0 14px 44px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
@@ -27,7 +59,8 @@ body,
 }
 
 body {
-  font: 13px/1.4 var(--font);
+  word-spacing: 0.03em;
+  font: var(--fs-md)/1.45 var(--font);
   font-variant-numeric: tabular-nums;
   background: var(--bg);
   color: var(--text);
@@ -230,9 +263,29 @@ body {
 }
 
 .field-unit {
-  width: 1.8rem;
+  min-width: 1.8rem;
+  flex: none;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+/* Error de un campo: explica el rango y queda visible hasta corregirlo. */
+.field-error {
+  grid-column: 1 / -1;
+  justify-self: end;
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+/* Solo para lectores de pantalla. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .check {
@@ -249,24 +302,56 @@ button {
   font: inherit;
   color: var(--text);
   background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+}
+
+input,
+select,
+textarea {
+  /* Borde de control a 3:1 sobre el panel (WCAG 1.4.11): el campo se ve sin pasar el ratón. */
+  border-color: var(--border-input);
 }
 
 input,
 select {
   min-width: 0;
   width: 100%;
-  padding: 0.2rem 0.35rem;
+  min-height: 28px;
+  padding: 0.2rem 0.45rem;
+}
+
+input:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 input[type='checkbox'],
 input[type='radio'] {
-  width: auto;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 4px;
+  accent-color: var(--accent);
 }
 
 input[aria-invalid='true'] {
   border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+/* Cifras de campos y tablas alineadas (cronos-entrada-numerica). */
+input[inputmode='decimal'],
+input[inputmode='numeric'] {
+  font-variant-numeric: tabular-nums;
 }
 
 input:disabled,
@@ -286,20 +371,24 @@ button {
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--accent-2);
+  border-color: var(--accent);
 }
 
 button:focus-visible,
-.sidebar-resize:focus-visible {
-  outline: 2px solid var(--accent-2);
+.sidebar-resize:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 button.active {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-soft);
 }
 
+/* Acción principal: crisocola rellena (una por bloque). */
 button.primary {
   width: 100%;
   margin-top: 0.5rem;
@@ -307,6 +396,11 @@ button.primary {
   border-color: var(--accent);
   color: var(--accent-ink);
   font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
 }
 
 button.danger:hover:not(:disabled) {
@@ -349,7 +443,7 @@ button.danger:hover:not(:disabled) {
 
 .hint {
   margin: 0.3rem 0;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -362,7 +456,7 @@ button.danger:hover:not(:disabled) {
   display: flex;
   gap: 1.25rem;
   padding: 0.25rem 0.75rem;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   background: var(--panel);
   border-top: 1px solid var(--border);
   white-space: nowrap;
@@ -439,7 +533,7 @@ button.danger:hover:not(:disabled) {
   align-items: center;
   min-width: 0;
   padding: 0.35rem 0.05rem 0.3rem;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
@@ -460,7 +554,7 @@ button.danger:hover:not(:disabled) {
 
 .panel h3 {
   margin: 0.8rem 0 0.3rem;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
 }
@@ -474,7 +568,7 @@ button.danger:hover:not(:disabled) {
 
 .grid-table th {
   font-weight: 500;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   text-align: left;
   padding: 0 2px;
@@ -516,7 +610,7 @@ table:has(tbody tr:first-child > td:nth-child(10).num) thead th:nth-child(10) {
 .cell {
   width: 100%;
   padding: 0.1rem 0.25rem;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 button.icon {
@@ -547,11 +641,11 @@ button.primary-inline {
 
 tr.warn td,
 .warn {
-  color: #e3b341;
+  color: var(--amber);
 }
 
 .small {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
@@ -565,7 +659,7 @@ tr.warn td,
 }
 
 .col-label {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   fill: var(--text);
 }
 
@@ -574,7 +668,7 @@ tr.warn td,
 }
 
 .col-depth {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   fill: var(--muted);
 }
 
@@ -590,7 +684,7 @@ tr.warn td,
 .legend-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -599,7 +693,7 @@ tr.warn td,
   flex-wrap: wrap;
   gap: 0.3rem 0.7rem;
   margin: 0.3rem 0;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .legend-chip {
@@ -677,7 +771,7 @@ tr.warn td,
   height: 16px;
   padding: 0;
   border-radius: 3px;
-  border: 1px solid #0008;
+  border: 1px solid rgb(0 0 0 / 0.5);
 }
 
 /* Sobre las ventanas flotantes (z 60+): si no, la ventana abierta tapa el diálogo (p. ej. guardar versión). */
@@ -687,7 +781,7 @@ tr.warn td,
   z-index: 200;
   display: grid;
   place-items: center;
-  background: #0009;
+  background: rgb(4 9 12 / 0.66);
 }
 
 .modal {
@@ -698,7 +792,7 @@ tr.warn td,
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 12px 40px #0008;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
 }
 
 .modal header,
@@ -757,7 +851,7 @@ tr.warn td,
 
 .grid-table.preview {
   table-layout: auto;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
@@ -769,10 +863,10 @@ tr.warn td,
 .errors {
   margin-top: 0.5rem;
   padding: 0.4rem 0.6rem;
-  color: #e3b341;
-  border: 1px solid #e3b34155;
+  color: var(--amber);
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .errors ul {
@@ -801,7 +895,7 @@ tr.warn td,
 }
 
 .icon-btn.active {
-  background: #304459;
+  background: var(--accent-soft);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -811,7 +905,7 @@ tr.warn td,
   right: 1px;
   bottom: 0;
   padding: 0;
-  font-size: 8.5px;
+  font-size: var(--fs-xs);
   line-height: 1;
   border: 0;
   background: none;
@@ -889,7 +983,7 @@ kbd {
 
 .kpi span,
 .kpi small {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -921,7 +1015,7 @@ kbd {
 }
 
 .segmented button.active {
-  background: #304459;
+  background: var(--accent-soft);
   color: var(--accent);
 }
 
@@ -955,7 +1049,7 @@ kbd {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 8px 24px #0008;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
 }
 
 .menu-list button {
@@ -991,8 +1085,8 @@ kbd {
   bottom: 10px;
   max-width: 280px;
   padding: 0.5rem 0.6rem;
-  font-size: 11.5px;
-  background: #0d1117d9;
+  font-size: var(--fs-sm);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
   border: 1px solid var(--border);
   border-radius: 6px;
   pointer-events: auto;
@@ -1038,7 +1132,7 @@ kbd {
 }
 
 .overlay-3d kbd {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   padding: 0 3px;
 }
 
@@ -1047,11 +1141,11 @@ kbd {
   min-width: 14px;
   margin-left: 4px;
   padding: 0 4px;
-  font-size: 9.5px;
+  font-size: var(--fs-xs);
   font-style: normal;
   line-height: 14px;
   text-align: center;
-  color: #0d1117;
+  color: var(--accent-ink);
   background: var(--accent);
   border-radius: 7px;
 }
@@ -1066,7 +1160,7 @@ kbd {
 }
 
 .menu-list button small {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -1145,18 +1239,18 @@ kbd {
 }
 
 .sev-error {
-  color: #ff7b72;
-  border-color: #ff7b7255;
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 
 .sev-warning {
-  color: #e3b341;
-  border-color: #e3b34155;
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 35%, transparent);
 }
 
 .sev-info {
-  color: #79c0ff;
-  border-color: #79c0ff55;
+  color: var(--info);
+  border-color: color-mix(in srgb, var(--info) 35%, transparent);
 }
 
 .check-ok {
@@ -1164,7 +1258,7 @@ kbd {
   gap: 0.4rem;
   align-items: center;
   margin: 0.2rem 0;
-  color: #3fb950;
+  color: var(--success);
 }
 
 .overlay-3d strong {
@@ -1243,14 +1337,14 @@ kbd {
 }
 
 .demo-seg.done {
-  background: linear-gradient(90deg, #f7b733, #fc4a1a);
+  background: linear-gradient(90deg, var(--accent), var(--amber));
 }
 
 .demo-seg i {
   display: block;
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, #f7b733, #fc4a1a);
+  background: linear-gradient(90deg, var(--accent), var(--amber));
   transform-origin: left;
   animation: demo-fill linear forwards;
 }
@@ -1291,7 +1385,7 @@ kbd {
   bottom: 6px;
   height: 2px;
   border-radius: 1px;
-  background: linear-gradient(90deg, #f7b733, #fc4a1a);
+  background: linear-gradient(90deg, var(--accent), var(--amber));
   transform-origin: left;
   animation: demo-grow 0.8s ease-out 0.3s both;
 }
@@ -1299,7 +1393,7 @@ kbd {
 .demo-chapter-num {
   font-size: 34px;
   font-weight: 800;
-  background: linear-gradient(90deg, #ffd27a, #fc4a1a);
+  background: linear-gradient(90deg, var(--accent-2), var(--amber));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -1308,7 +1402,7 @@ kbd {
 .demo-chapter-title {
   font-size: 22px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text);
   letter-spacing: 0.02em;
 }
 
@@ -1325,7 +1419,7 @@ kbd {
   padding: 0.9rem 1.1rem 0.9rem 1.3rem;
   background: rgba(11, 15, 23, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-left: 4px solid #fc4a1a;
+  border-left: 4px solid var(--accent);
   border-radius: 14px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(10px);
@@ -1340,18 +1434,18 @@ kbd {
 .demo-kicker {
   display: block;
   margin-bottom: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #f7b733;
+  color: var(--accent);
 }
 
 .demo-caption p {
   margin: 0;
   font-size: 17px;
   line-height: 1.45;
-  color: #f1f3f7;
+  color: var(--text);
 }
 
 .demo-controls {
@@ -1538,7 +1632,7 @@ button.link {
   justify-content: center;
   border-radius: 50%;
   border: 1px solid var(--border);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
 }
 
@@ -1550,7 +1644,7 @@ button.link {
 .first-steps li.done .step-mark {
   background: var(--accent);
   border-color: var(--accent);
-  color: #111;
+  color: var(--accent-ink);
 }
 
 /* Foco visible con teclado en toda la app */
@@ -1606,7 +1700,7 @@ button.link {
 .survey-badge {
   justify-self: start;
   margin-top: 0.2rem;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--accent);
 }
 
@@ -1638,7 +1732,7 @@ button.link {
 
 .modal.topo-import h4 {
   margin: 0.6rem 0 0.2rem;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .topo-sample {
@@ -1646,7 +1740,7 @@ button.link {
   margin: 0.4rem 0 0.6rem;
   padding: 0.4rem 0.5rem;
   overflow: auto;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1678,7 +1772,7 @@ button.link {
   background: var(--panel);
   border: 1px solid var(--accent);
   border-radius: 6px;
-  box-shadow: 0 8px 28px #0008;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.5);
 }
 
 .topo-tools {
@@ -1716,7 +1810,7 @@ button.link {
 
 /* Valor heredado del banco (cara libre por perímetro, A7b). */
 .grid-table td.inherited .cell {
-  color: var(--muted, #8b949e);
+  color: var(--muted);
 }
 
 /* Cinta técnica: comandos compactos, dos filas y rótulos completos. */
@@ -1726,9 +1820,10 @@ button.link {
   background: var(--panel);
 }
 .toolbar .brand {
-  font: 600 13px var(--font);
-  color: var(--text);
-  padding: 0 12px 0 0;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 0 14px 0 2px;
   border-right: 1px solid var(--border);
 }
 .ribbon-tabs {
@@ -1744,9 +1839,11 @@ button.link {
 .ribbon-tabs button {
   flex-shrink: 0;
   padding: 10px 13px 8px;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: 15px;
   line-height: 18px;
   font-weight: 500;
+  letter-spacing: 0.01em;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
@@ -1758,9 +1855,9 @@ button.link {
   background: var(--panel-2);
 }
 .ribbon-tabs button.active {
-  color: var(--text);
+  color: var(--accent);
   border-bottom-color: var(--accent);
-  background: var(--panel-2);
+  background: transparent;
 }
 .toolbar > .toolbar-account {
   order: 2;
@@ -1779,7 +1876,7 @@ button.link {
   padding: 7px 0 5px;
   border-top: 1px solid var(--border);
   scrollbar-width: thin;
-  scrollbar-color: #46505c transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 .ribbon-body .toolbar-group {
   position: relative;
@@ -1806,7 +1903,7 @@ button.link {
   left: 0;
   right: 12px;
   text-align: center;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   line-height: 15px;
   color: var(--muted);
   pointer-events: none;
@@ -1824,7 +1921,7 @@ button.link {
   border: 1px solid transparent;
   border-radius: 3px;
   background: transparent;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 19px;
   font-weight: 400;
   white-space: nowrap;
@@ -1850,13 +1947,13 @@ button.link {
   display: none;
 }
 .ribbon-body .icon-btn:hover:not(:disabled) {
-  background: #343e4a;
-  border-color: #546171;
+  background: var(--panel-3);
+  border-color: var(--border-input);
 }
 .ribbon-body .icon-btn.active {
   color: var(--text);
-  background: #304459;
-  border-color: #5c7e9f;
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 .ribbon-body .icon-btn:disabled {
   opacity: 0.45;
@@ -1879,7 +1976,7 @@ button.link {
   border-radius: 4px;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  box-shadow: 0 8px 24px #0006;
+  box-shadow: var(--shadow-1);
 }
 .menu-popover button {
   flex-shrink: 0;
@@ -1895,7 +1992,7 @@ button.link {
 }
 .menu-popover button small {
   margin-top: 3px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.45;
 }
 .menu-popover button:focus-visible {
@@ -1907,7 +2004,7 @@ button.link {
   font-weight: 600;
 }
 .sidebar .panel h3 {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .workspace-window .floating-body > .panel {
   padding: 0;
@@ -1950,7 +2047,7 @@ button.link {
   gap: 6px;
   padding: 5px 9px;
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 .toolbar-documentation svg {
@@ -2035,7 +2132,7 @@ button.link {
   gap: 2px 8px;
   padding: 3px 8px;
   border-left: 3px solid var(--accent);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .ai-tool strong {
@@ -2084,7 +2181,7 @@ button.link {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 .ai-options label {
@@ -2113,8 +2210,11 @@ button.link {
   width: auto;
   display: block;
 }
-.toolbar .brand span {
-  letter-spacing: 0.01em;
+/* Empresa | producto: un divisor fino separa el logo de CODEa UNI de la marca Cronos. */
+.toolbar .brand .brand-logo {
+  padding-right: 10px;
+  border-right: 1px solid var(--border-strong);
+  box-sizing: content-box;
 }
 
 /* ------------------------------------------------------------------ Voz en vivo (Gemini Live) */
@@ -3579,4 +3679,108 @@ button.link {
     bottom: 56px;
     left: 10px;
   }
+
+/* ------------------------------------------------------------------ Marca y contexto */
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--accent);
+}
+.brand-glyph {
+  flex: none;
+}
+.brand-word {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+/* Dónde estoy: proyecto / voladura (o mina / proyecto en el servidor). */
+.toolbar > .crumbs {
+  align-self: center;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+.toolbar > .crumbs strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ Controles del plano */
+
+/* Siempre a mano sobre el plano, bajo las reglas; no tapan taladros al estar en el borde. */
+.map-controls {
+  position: absolute;
+  z-index: 4;
+  top: 34px;
+  left: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.map-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--muted);
+}
+.map-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--panel-3);
+  border-color: transparent;
+}
+.map-btn[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.map-sep {
+  height: 1px;
+  margin: 3px 4px;
+  background: var(--border-strong);
+}
+
+/* Sistema de coordenadas del proyecto (abajo a la derecha, junto al borde). */
+.crs-chip {
+  position: absolute;
+  z-index: 4;
+  right: 12px;
+  bottom: 12px;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 10px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  pointer-events: none;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+.crs-chip.missing {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 45%, transparent);
 }

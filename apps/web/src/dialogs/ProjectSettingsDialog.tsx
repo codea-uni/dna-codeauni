@@ -1,7 +1,7 @@
 import type { DisplayUnits } from '@cronos/core';
 import { X } from 'lucide-react';
-import { useEffect } from 'react';
 import { CrsPicker } from '../components/CrsPicker';
+import { Modal } from '../components/Modal';
 import { useProject } from '../hooks/useDocument';
 import { useLocale, useT, type Locale } from '../i18n';
 import { session } from '../session';
@@ -21,31 +21,10 @@ export function ProjectSettingsDialog({ onClose }: { onClose: () => void }) {
       t('settings.units'),
     );
   };
-  // Escape cierra los ajustes, también desde un campo.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
+  // Escape cierra los ajustes (Modal): un campo con borrador lo revierte primero.
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('settings.title')}
-      onClick={onClose}
-    >
-      <div
-        className="modal"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
+    <Modal label={t('settings.title')} onClose={onClose}>
         <header>
           <h2>{t('settings.title')}</h2>
           <button className="icon" onClick={onClose} aria-label={t('settings.close')}>
@@ -110,7 +89,6 @@ export function ProjectSettingsDialog({ onClose }: { onClose: () => void }) {
             <option value="en">English</option>
           </select>
         </label>
-      </div>
-    </div>
+    </Modal>
   );
 }

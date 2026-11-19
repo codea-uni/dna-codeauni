@@ -1,3 +1,4 @@
+import { chart as palette } from './theme';
 import { BarChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
@@ -52,20 +53,20 @@ export default function Histogram({ starts, holes, kg, binMs }: HistogramProps) 
           data: starts.map(
             (s) => `${formatNumber(s, 0, locale)}–${formatNumber(s + binMs, 0, locale)} ms`,
           ),
-          axisLabel: { formatter: (v: string) => v.split('–')[0] ?? v, color: '#8b949e' },
+          axisLabel: { formatter: (v: string) => v.split('–')[0] ?? v, color: palette.axis },
         },
         yAxis: [
           {
             type: 'value',
             name: t('chart.holesAxis'),
             minInterval: 1,
-            axisLabel: { color: '#8b949e' },
-            splitLine: { lineStyle: { color: '#21262d' } },
+            axisLabel: { color: palette.axis },
+            splitLine: { lineStyle: { color: palette.grid } },
           },
           {
             type: 'value',
             name: 'kg',
-            axisLabel: { color: '#8b949e' },
+            axisLabel: { color: palette.axis },
             splitLine: { show: false },
           },
         ],
@@ -74,7 +75,7 @@ export default function Histogram({ starts, holes, kg, binMs }: HistogramProps) 
             name: t('chart.holes'),
             type: 'bar',
             data: holes,
-            itemStyle: { color: '#58a6ff' },
+            itemStyle: { color: palette.primary },
             barCategoryGap: '10%',
           },
           {
@@ -82,7 +83,7 @@ export default function Histogram({ starts, holes, kg, binMs }: HistogramProps) 
             type: 'bar',
             yAxisIndex: 1,
             data: kg,
-            itemStyle: { color: '#ff7b39', opacity: 0.6 },
+            itemStyle: { color: palette.highlight, opacity: 0.6 },
             barGap: '-100%',
           },
         ],

@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Modal } from '../components/Modal';
 import * as actions from '../actions';
 import { formatDateTime, useT } from '../i18n';
 import { listVersions } from '../persistence/autosave';
@@ -17,51 +18,38 @@ export function VersionsDialog({ onClose }: { onClose: () => void }) {
   }, []);
 
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('versions.title')}
-      onClick={onClose}
-    >
-      <div
-        className="modal"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <header>
-          <h2>{t('versions.title')}</h2>
-          <button className="icon" onClick={onClose} aria-label={t('settings.close')}>
-            <X size={16} />
-          </button>
-        </header>
-        <p className="hint">{t('versions.hint')}</p>
-        {error && <p className="muted">{t('versions.unavailable')}</p>}
-        {versions?.length === 0 && <p className="muted">{t('versions.empty')}</p>}
-        {versions && versions.length > 0 && (
-          <table className="kv">
-            <tbody>
-              {versions.map((v) => (
-                <tr key={v.id}>
-                  <td>{formatDateTime(v.savedAt)}</td>
-                  <td>{v.name}</td>
-                  <td>{t('versions.holes', { n: v.holes })}</td>
-                  <td>
-                    <button
-                      onClick={() => {
-                        void actions.restoreVersion(v.id, true).then(onClose);
-                      }}
-                    >
-                      {t('versions.restore')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
+    <Modal label={t('versions.title')} onClose={onClose}>
+      <header>
+        <h2>{t('versions.title')}</h2>
+        <button className="icon" onClick={onClose} aria-label={t('settings.close')}>
+          <X size={16} />
+        </button>
+      </header>
+      <p className="hint">{t('versions.hint')}</p>
+      {error && <p className="muted">{t('versions.unavailable')}</p>}
+      {versions?.length === 0 && <p className="muted">{t('versions.empty')}</p>}
+      {versions && versions.length > 0 && (
+        <table className="kv">
+          <tbody>
+            {versions.map((v) => (
+              <tr key={v.id}>
+                <td>{formatDateTime(v.savedAt)}</td>
+                <td>{v.name}</td>
+                <td>{t('versions.holes', { n: v.holes })}</td>
+                <td>
+                  <button
+                    onClick={() => {
+                      void actions.restoreVersion(v.id, true).then(onClose);
+                    }}
+                  >
+                    {t('versions.restore')}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Modal>
   );
 }

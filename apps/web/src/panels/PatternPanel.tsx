@@ -9,6 +9,7 @@ import { useFormat, useT } from '../i18n';
 import { BurdenReference } from './BurdenReference';
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { usePanelState } from '../stores/panelState';
 import { IconButton } from '../components/IconButton';
 import * as actions from '../actions';
 import { NumberField } from '../components/NumberField';
@@ -28,7 +29,7 @@ export function PatternPanel() {
   const busy = useUiStore((s) => s.busy);
   const template = useUiStore((s) => s.holeTemplate);
   const setTemplate = useUiStore((s) => s.setHoleTemplate);
-  const [form, setForm] = useState<actions.PatternForm>({
+  const [form, setForm] = usePanelState<actions.PatternForm>('pattern.form', {
     kind: 'staggered',
     burden: 6,
     spacing: 7,
@@ -45,7 +46,7 @@ export function PatternPanel() {
   };
   const boundaries = blast?.boundaries ?? [];
   // "auto" = el perímetro activo; se resuelve al generar.
-  const [boundaryChoice, setBoundaryChoice] = useState<string>('active');
+  const [boundaryChoice, setBoundaryChoice] = usePanelState<string>('pattern.boundary', 'active');
   const selectedBoundary =
     boundaryChoice === 'none'
       ? undefined

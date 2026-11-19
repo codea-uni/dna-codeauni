@@ -4,7 +4,9 @@ import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
 import { toolHint } from './Toolbar';
 import { topographyElevation } from '../topography/session';
-import { useT } from '../i18n';
+import { useLocale, useT } from '../i18n';
+import { formatInputNumber } from '../i18n/numbers';
+import { useUnits } from '../hooks/useUnits';
 import { tabAvailable, useWorkflow } from '../hooks/useWorkflow';
 import { VibrationLawChip } from './VibrationLawChip';
 
@@ -20,6 +22,10 @@ export function StatusBar() {
   const message = useUiStore((s) => s.message);
   const busy = useUiStore((s) => s.busy);
   const workflow = useWorkflow();
+  const { len } = useUnits();
+  const locale = useLocale((s) => s.locale);
+  // Coordenadas en la unidad del proyecto, con la coma del idioma y sin miles (se leen dígito a dígito).
+  const coord = (m: number) => formatInputNumber(len.show(m), 2, locale);
   const holeCount = project.blasts.reduce((n, b) => n + b.holes.length, 0);
   const hoverLabel = hover ? session.document.findHole(hover)?.hole.label : undefined;
   // O(log n) con el índice del worker: se puede consultar en cada movimiento del cursor.
@@ -44,18 +50,19 @@ export function StatusBar() {
   return (
     <footer className="statusbar">
       <span className="mono">
-        {pointer ? `E ${pointer.x.toFixed(2)}  N ${pointer.y.toFixed(2)}` : 'E —  N —'}
+        {pointer ? `E ${coord(pointer.x)}  N ${coord(pointer.y)}  ${len.unit}` : 'E —  N —'}
       </span>
       {project.topography.length > 0 && (
         <span className="mono" title={tr('topo.cursorZ')}>
-          {groundZ !== null ? `Z ${groundZ.toFixed(2)}` : 'Z —'}
+          {groundZ !== null ? `Z ${coord(groundZ)} ${len.unit}` : 'Z —'}
         </span>
       )}
       <span>{tr('status.holes', { n: holeCount })}</span>
       <span className="status-selected">{tr('status.selected', { n: selected.size })}</span>
       {hoverLabel !== undefined && <span>{tr('status.hole', { label: hoverLabel })}</span>}
       {tabAvailable('charged', workflow) && <VibrationLawChip />}
-      <span className="grow muted">
+      {/* Región viva: los mensajes y el trabajo en curso se anuncian al lector de pantalla. */}
+      <span className="grow muted" role="status" aria-live="polite">
         {busy ??
           (message ? (
             <span className={message.kind}>{message.text}</span>

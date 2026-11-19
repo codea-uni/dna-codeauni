@@ -4,6 +4,12 @@
  */
 export const es = {
   'projects.title': 'Proyectos',
+  'projects.col.name': 'Proyecto',
+  'projects.col.version': 'Versión',
+  'projects.col.description': 'Último cambio',
+  'projects.col.modified': 'Modificado',
+  'projects.create': 'Crear',
+  'projects.sections': 'Contenido de la mina',
   'projects.empty': 'Esta mina todavía no tiene proyectos',
   'projects.emptyHint': 'Crea uno vacío con el nombre del banco o importa un .cronos.json.',
   'projects.emptyHintUg':
@@ -29,6 +35,12 @@ export const es = {
 
 export const en = {
   'projects.title': 'Projects',
+  'projects.col.name': 'Project',
+  'projects.col.version': 'Version',
+  'projects.col.description': 'Latest change',
+  'projects.col.modified': 'Modified',
+  'projects.create': 'Create',
+  'projects.sections': 'Mine contents',
   'projects.empty': 'This mine has no projects yet',
   'projects.emptyHint': 'Create an empty one named after the bench, or import a .cronos.json.',
   'projects.emptyHintUg':

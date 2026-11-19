@@ -1,6 +1,8 @@
 import type { Blast, BlastAnalysis } from '@cronos/core';
 import { turboCss } from '@cronos/engine';
 import { colorRange, sequenceTimes, SDOB_COLORS } from '../analysis/visualize';
+import { Pause, Play, Square } from 'lucide-react';
+import { NumberInput } from '../components/CellInput';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject } from '../hooks/useDocument';
 import { useFormat, useT } from '../i18n';
@@ -155,14 +157,15 @@ export function ViewPanel() {
       <label className="field">
         <span className="field-label">{t('view.isochroneInterval')}</span>
         <span className="field-input">
-          <input
-            type="number"
+          <NumberInput
             min={0}
             step={5}
+            decimals={0}
+            unit="ms"
             value={s.isochroneIntervalMs}
             title={t('view.autoZero')}
-            onChange={(e) => {
-              s.set({ isochroneIntervalMs: Math.max(0, Number(e.target.value)) });
+            onCommit={(v) => {
+              s.set({ isochroneIntervalMs: v });
             }}
           />
           <span className="field-unit">ms</span>
@@ -195,14 +198,24 @@ export function ViewPanel() {
         <>
           <div className="row seq-controls">
             {s.sequencePlaying ? (
-              <button onClick={pause}>⏸ {t('view.pause')}</button>
+              <button onClick={pause}>
+                <Pause size={14} aria-hidden /> {t('view.pause')}
+              </button>
             ) : (
-              <button onClick={play}>▶ {t('view.play')}</button>
+              <button onClick={play}>
+                <Play size={14} aria-hidden /> {t('view.play')}
+              </button>
             )}
-            <button onClick={stop} disabled={s.sequenceTime === null}>
-              ⏹
+            <button
+              onClick={stop}
+              disabled={s.sequenceTime === null}
+              aria-label={t('view.stop')}
+              title={t('view.stop')}
+            >
+              <Square size={14} aria-hidden />
             </button>
             <select
+              aria-label={t('view.speed')}
               value={s.sequenceSpeed}
               onChange={(e) => {
                 const v = Number(e.target.value);
@@ -220,6 +233,7 @@ export function ViewPanel() {
           <input
             className="slider"
             type="range"
+            aria-label={t('view.seek')}
             min={(timing.firstTime - 0.02) * 1000}
             max={(timing.lastTime + 0.02) * 1000}
             step={1}
@@ -333,14 +347,15 @@ function TopographyView() {
       <label className="field">
         <span className="field-label">{t('topo.contourInterval')}</span>
         <span className="field-input">
-          <input
-            type="number"
+          <NumberInput
             min={0}
             step={0.5}
+            decimals={2}
+            unit="m"
             value={s.topoContourInterval}
             title={t('view.autoZero')}
-            onChange={(e) => {
-              s.set({ topoContourInterval: Math.max(0, Number(e.target.value)) });
+            onCommit={(v) => {
+              s.set({ topoContourInterval: v });
             }}
           />
           <span className="field-unit">m</span>

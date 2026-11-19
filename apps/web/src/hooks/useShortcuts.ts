@@ -57,6 +57,10 @@ export function useShortcuts(): void {
       } else if (!mod && !e.altKey && key === 'f') {
         // Como en Unity: F centra lo seleccionado; sin selección, encuadra todo.
         frameSelectionOrAll();
+      } else if (!mod && !e.altKey && (e.key === '+' || e.key === '=')) {
+        actions.zoomBy(0.8);
+      } else if (!mod && !e.altKey && (e.key === '-' || e.key === '_')) {
+        actions.zoomBy(1.25);
       } else if (
         !mod &&
         !e.altKey &&

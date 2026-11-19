@@ -2,6 +2,7 @@ import { ROLES, permissions, type AuditEvent, type Mine, type Role } from '@cron
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
+import { Modal } from '../components/Modal';
 import { useFormatDate, useT, type MessageKey } from '../i18n';
 import { api, useAuth, useWorkspace } from '../server/api';
 import { workspaceErrorKey } from '../stores/workspaceStore';
@@ -376,55 +377,52 @@ function AccessDialog({ mine, onClose }: { mine: Mine; onClose: () => void }) {
   const candidates = (members ?? []).filter((m) => m.role !== 'admin');
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
-      <div
-        className="modal dialog-narrow"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <header>
-          <h2>{t('admin.accessTitle', { mine: mine.name })}</h2>
-          <button className="icon" onClick={onClose} aria-label={t('settings.close')}>
-            <X size={16} />
-          </button>
-        </header>
-        <div className="dialog-body">
-          <p className="muted">{t('admin.accessHint')}</p>
-          <div className="access-list">
-            {candidates.map((m) => (
-              <label key={m.userId}>
-                <input
-                  type="checkbox"
-                  checked={selected.has(m.userId)}
-                  onChange={(e) => {
-                    const next = new Set(selected);
-                    if (e.target.checked) next.add(m.userId);
-                    else next.delete(m.userId);
-                    setSelected(next);
-                  }}
-                />
-                {m.name} <span className="muted">({t(roleKey(m.role))})</span>
-              </label>
-            ))}
-          </div>
+    <Modal
+      label={t('admin.accessTitle', { mine: mine.name })}
+      onClose={onClose}
+      className="dialog-narrow"
+    >
+      <header>
+        <h2>{t('admin.accessTitle', { mine: mine.name })}</h2>
+        <button className="icon" onClick={onClose} aria-label={t('settings.close')}>
+          <X size={16} />
+        </button>
+      </header>
+      <div className="dialog-body">
+        <p className="muted">{t('admin.accessHint')}</p>
+        <div className="access-list">
+          {candidates.map((m) => (
+            <label key={m.userId}>
+              <input
+                type="checkbox"
+                checked={selected.has(m.userId)}
+                onChange={(e) => {
+                  const next = new Set(selected);
+                  if (e.target.checked) next.add(m.userId);
+                  else next.delete(m.userId);
+                  setSelected(next);
+                }}
+              />
+              {m.name} <span className="muted">({t(roleKey(m.role))})</span>
+            </label>
+          ))}
         </div>
-        <footer>
-          <button onClick={onClose}>{t('workspace.cancel')}</button>
-          <button
-            className="primary-inline"
-            disabled={busy}
-            onClick={() => {
-              void setAccess(mine.id, [...selected]).then((ok) => {
-                if (ok) onClose();
-              });
-            }}
-          >
-            {t('admin.saveAccess')}
-          </button>
-        </footer>
       </div>
-    </div>
+      <footer>
+        <button onClick={onClose}>{t('workspace.cancel')}</button>
+        <button
+          className="primary-inline"
+          disabled={busy}
+          onClick={() => {
+            void setAccess(mine.id, [...selected]).then((ok) => {
+              if (ok) onClose();
+            });
+          }}
+        >
+          {t('admin.saveAccess')}
+        </button>
+      </footer>
+    </Modal>
   );
 }
 

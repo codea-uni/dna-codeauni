@@ -5,6 +5,7 @@ import { useT } from '../i18n';
 /** Arrastrador de ancho de panel que no interfiere con el contenido del visor. */
 export function SidebarResizeHandle({ side }: { side: 'right' }) {
   const t = useT();
+  const width = useUiStore((s) => s.rightWidth);
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -35,6 +36,10 @@ export function SidebarResizeHandle({ side }: { side: 'right' }) {
       className={`sidebar-resize ${side}`}
       role="separator"
       aria-orientation="vertical"
+      // Un separador enfocable debe decir su valor (WAI-ARIA): el ancho del panel en px.
+      aria-valuenow={Math.round(width)}
+      aria-valuemin={240}
+      aria-valuemax={520}
       aria-label={t('sidebar.resizeRight')}
       title={t('sidebar.resizeHint')}
       onPointerDown={onPointerDown}

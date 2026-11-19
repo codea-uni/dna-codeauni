@@ -20,14 +20,19 @@ El ingeniero escribe cifras todo el día y con prisa. Un campo numérico debe:
   - Si falta una magnitud (ms/m, lb, ft en la leyenda), agrégala a `useUnits`. No conviertas a mano en el componente.
 - **Redondear es cosa de la presentación.** El motor nunca redondea.
   - Si el texto del campo no cambió, no se hace commit: un 6,4999 que se muestra como «6,50» sigue valiendo 6,4999. `NumberField` ya lo respeta y hay que conservarlo.
-- **Prohibido usar `<input type="number">`.** Hace commit con cada tecla y trata la coma distinto según el navegador. Hoy aparece en:
-  - `Toolbar.tsx:621`;
-  - `ViewPanel.tsx:157,323`;
-  - `TopographyImportDialog.tsx:423-464`;
-  - `MuckpilePanel.tsx:709`;
-  - `AdminPage.tsx:324`.
+- **Prohibido usar `<input type="number">`.** Hace commit con cada tecla y trata la coma distinto según el navegador. Ya no queda ninguno en `apps/web`; búscalo con grep antes de entregar.
 
-  Sustitúyelo por `NumberField`, o por `NumberCell` si es una tabla.
+## Qué componente usar (ya implementados)
+
+| Caso | Componente |
+|---|---|
+| Campo con etiqueta en un panel | `NumberField` (`components/NumberField.tsx`) |
+| Celda de tabla | `NumberCell` (`components/CellInput.tsx`); pasa `label` |
+| Campo sin etiqueta propia (fila `.field` armada o barra) | `NumberInput` (mismo archivo) |
+| Lógica común | `useNumberInput` (`components/useNumberInput.ts`) |
+| Leer y mostrar | `parseUserNumber` y `formatInputNumber` (`i18n/numbers.ts`, con tests en `numbers.test.ts`) |
+
+Para un caso nuevo, extiende `useNumberInput`. No copies la lógica en el componente.
 
 ## Contrato de un campo numérico
 
@@ -36,7 +41,7 @@ El ingeniero escribe cifras todo el día y con prisa. Un campo numérico debe:
 | Lectura | `parseUserNumber` (abajo). Acepta coma o punto, separador de miles, espacios y la unidad del campo escrita al final («7,25 m»). |
 | Visualización en el campo | Separador decimal del idioma (coma en español) y la precisión de la magnitud, **sin separador de miles**. Si llevara miles, «1.234» se volvería a leer como 1,234. |
 | Visualización de solo lectura | `useFormat()(v, decimales)` **con** miles («10.728 m²»). |
-| Confirmar | Enter, Tab o salir del campo. Esc revierte. Si el texto no cambió, no se confirma nada. |
+| Confirmar | Enter, Tab o salir del campo. **Enter no suelta el foco**: selecciona el texto para seguir ajustando. Esc revierte; un segundo Esc cierra la ventana. Si el texto no cambió, no se confirma nada. |
 | Valor inválido | Borde, icono y un mensaje que da el rango («Entre 0 y 30 m»), unido con `aria-describedby`. El foco se queda en el campo y el mensaje no desaparece solo. |
 | Teclado | ↑/↓ suman o restan un paso de la magnitud. Mayús multiplica el paso por 10 y Alt lo divide entre 10. RePág/AvPág multiplican por 10. **La rueda del ratón no cambia el valor**: el usuario está desplazando el panel. |
 | Selección mixta | `value=null` muestra el placeholder «múltiple». Lo que se escriba se aplica a todos. |
@@ -51,7 +56,7 @@ El ingeniero escribe cifras todo el día y con prisa. Un campo numérico debe:
 
 ## Lector de números de referencia
 
-Es una función pura y testeable en Vitest. Ubícala en `apps/web/src/components/` o en `apps/web/src/i18n/`, y haz que la usen `NumberField` y `CellInput`.
+La versión vigente está en `apps/web/src/i18n/numbers.ts`. Este fragmento explica la regla; si los dos difieren, manda el código con sus tests.
 
 ```ts
 /**
@@ -105,7 +110,9 @@ Las expresiones (`=6*1,15`) son una mejora posible, pero solo con un analizador 
 
 ## Precisión de visualización: propuesta pendiente de confirmar
 
-Los documentos no fijan decimales por magnitud (auditoría de `docs/`). La tabla siguiente es un **supuesto razonable (D-12)**. Al adoptarla, anótala en `docs/QUESTIONS.md` §2 y centralízala en un único mapa `PRECISION` en lugar de dispersar números mágicos.
+Los documentos no fijan decimales por magnitud (auditoría de `docs/`). La tabla siguiente es un **supuesto razonable (D-12)** que el usuario aceptó el 2026-11-18.
+
+**Pendiente:** centralizarla en un único mapa `PRECISION`, porque hoy cada panel pasa su propio `decimals`, y anotarla en `docs/QUESTIONS.md` §2.
 
 | Magnitud | Unidad mostrada | Decimales | Paso ↑/↓ |
 |---|---|---|---|

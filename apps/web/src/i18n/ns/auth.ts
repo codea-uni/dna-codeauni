@@ -3,6 +3,12 @@
  */
 export const es = {
   'auth.title': 'Iniciar sesión',
+  'auth.kicker': 'Diseño y simulación de voladuras',
+  'auth.welcome': 'Entra con la cuenta de tu empresa.',
+  'auth.showPassword': 'Mostrar contraseña',
+  'auth.hidePassword': 'Ocultar contraseña',
+  'auth.capsLock': 'Bloq Mayús está activado',
+  'auth.language': 'Idioma',
   'auth.claim':
     'Malla, carguío, tiempos y resultados de cada voladura, con el historial de versiones de cada mina.',
   'auth.heroAlt': 'Malla de voladura en planta que se enciende siguiendo su secuencia de disparo',
@@ -41,6 +47,12 @@ export const es = {
 
 export const en = {
   'auth.title': 'Sign in',
+  'auth.kicker': 'Blast design and simulation',
+  'auth.welcome': 'Sign in with your company account.',
+  'auth.showPassword': 'Show password',
+  'auth.hidePassword': 'Hide password',
+  'auth.capsLock': 'Caps Lock is on',
+  'auth.language': 'Language',
   'auth.claim':
     'Pattern, charging, timing and results of every blast, with the version history of each mine.',
   'auth.heroAlt': 'Blast pattern in plan view lighting up in its firing sequence',

@@ -9,6 +9,7 @@ import {
   type RockMass,
 } from '@cronos/core';
 import { useState } from 'react';
+import { usePanelState } from '../stores/panelState';
 import { NumberField } from '../components/NumberField';
 import { useActiveBlast, useProject, useSelectionIds } from '../hooks/useDocument';
 import { GeotechRockSection } from './GeotechRockSection';
@@ -65,7 +66,7 @@ export function ChargePanel() {
   const blast = useActiveBlast();
   const selection = useSelectionIds();
   const lib = project.library;
-  const [form, setForm] = useState<RuleForm>(() => ({
+  const [form, setForm] = usePanelState<RuleForm>(`charge.form:${project.id}`, () => ({
     stemmingLength: 4,
     stemmingMaterialId: lib.stemmingMaterials[0]?.id ?? ('' as ChargeRule['stemmingMaterialId']),
     explosiveId: lib.explosives[0]?.id ?? ('' as ChargeRule['explosiveId']),
@@ -87,7 +88,7 @@ export function ChargePanel() {
   };
   const selectedHoles = blast?.holes.filter((h) => selection.has(h.id)) ?? [];
 
-  const [groupId, setGroupId] = useState<string>('');
+  const [groupId, setGroupId] = usePanelState<string>(`charge.group:${project.id}`, '');
   const group = blast?.groups.find((g) => g.id === groupId);
   const fmt = useFormat();
   // Conservar el detonador (y su retardo) de cada taladro: cambiar el explosivo no borra tiempos.

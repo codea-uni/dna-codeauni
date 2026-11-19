@@ -1,3 +1,4 @@
+import { chart as palette } from './theme';
 import { LineChart } from 'echarts/charts';
 import {
   GridComponent,
@@ -50,7 +51,11 @@ export default function SizeCurve({ result }: { result: Pick<FragmentationResult
         backgroundColor: 'transparent',
         animation: false,
         grid: { left: 40, right: 14, top: 30, bottom: 34 },
-        legend: { top: 0, textStyle: { color: '#c9d1d9', fontSize: 11 }, itemHeight: 8 },
+        legend: {
+          top: 0,
+          textStyle: { color: palette.text, fontSize: palette.fontSize },
+          itemHeight: 8,
+        },
         tooltip: {
           trigger: 'axis',
           valueFormatter: (v: unknown) =>
@@ -61,15 +66,15 @@ export default function SizeCurve({ result }: { result: Pick<FragmentationResult
           name: 'cm',
           nameGap: 4,
           min: 0.1,
-          axisLabel: { color: '#8b949e' },
-          splitLine: { lineStyle: { color: '#21262d' } },
+          axisLabel: { color: palette.axis },
+          splitLine: { lineStyle: { color: palette.grid } },
         },
         yAxis: {
           type: 'value',
           min: 0,
           max: 100,
-          axisLabel: { color: '#8b949e', formatter: '{value} %' },
-          splitLine: { lineStyle: { color: '#21262d' } },
+          axisLabel: { color: palette.axis, formatter: '{value} %' },
+          splitLine: { lineStyle: { color: palette.grid } },
         },
         series: [
           {
@@ -77,12 +82,12 @@ export default function SizeCurve({ result }: { result: Pick<FragmentationResult
             type: 'line',
             showSymbol: false,
             data: series('swebrec'),
-            lineStyle: { width: 2, color: '#ff7b39' },
-            itemStyle: { color: '#ff7b39' },
+            lineStyle: { width: 2, color: palette.primary },
+            itemStyle: { color: palette.primary },
             markLine: {
               symbol: 'none',
-              label: { color: '#8b949e', fontSize: 10, formatter: '{b}' },
-              lineStyle: { color: '#8b949e', type: 'dashed' },
+              label: { color: palette.axis, fontSize: palette.fontSize, formatter: '{b}' },
+              lineStyle: { color: palette.axis, type: 'dashed' },
               data: [
                 { name: 'P80', yAxis: 80 },
                 { name: 'P50', yAxis: 50 },
@@ -94,8 +99,8 @@ export default function SizeCurve({ result }: { result: Pick<FragmentationResult
             type: 'line',
             showSymbol: false,
             data: series('rosinRammler'),
-            lineStyle: { width: 1.5, color: '#58a6ff', type: 'dashed' },
-            itemStyle: { color: '#58a6ff' },
+            lineStyle: { width: 1.5, color: palette.secondary, type: 'dashed' },
+            itemStyle: { color: palette.secondary },
           },
         ],
       },
