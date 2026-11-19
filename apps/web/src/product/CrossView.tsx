@@ -10,6 +10,7 @@ import { api } from '../server/api';
 import { confirmLeave } from '../server/ProjectContext';
 import { isCrossView, useProjectSession } from '../server/projectSession';
 import { PRODUCT_ICON, PRODUCT_NAME, mineToolPath, otherKind, projectPath } from './product';
+import { Modal } from '../components/Modal';
 
 /** Nombre e ícono de la herramienta (Cronos Open Pit / Cronos Underground). */
 export function ProductMark({ tool, short = false }: { tool: ProjectKind; short?: boolean }) {
@@ -105,46 +106,38 @@ export function WorkHereDialog() {
     void navigate(to);
   };
   return (
-    <div
-      className="modal-backdrop work-dialog-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('product.workDialogTitle')}
-      onClick={close}
+    <Modal
+      label={t('product.workDialogTitle')}
+      onClose={close}
+      className="work-dialog"
+      backdropClassName="work-dialog-backdrop"
     >
-      <div
-        className="modal work-dialog"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <header>
-          <h2>{t('product.workDialogTitle')}</h2>
-          <button className="icon" onClick={close} aria-label={t('product.keepViewing')}>
-            <X size={16} />
-          </button>
-        </header>
-        <p>{t('product.workDialogBody', { tool })}</p>
-        <div className="actions">
-          <button
-            className="primary"
-            onClick={() => {
-              go(`/projects/${current.projectId}`);
-            }}
-          >
-            <FolderOpen size={15} aria-hidden /> {t('product.openThere', { tool })}
-          </button>
-          <button
-            onClick={() => {
-              go(`${mineToolPath(current.mine.id, current.kind)}&new=1`);
-            }}
-          >
-            <FilePlus size={15} aria-hidden /> {t('product.createThere', { tool })}
-          </button>
-          <button onClick={close}>{t('product.keepViewing')}</button>
-        </div>
+      <header>
+        <h2>{t('product.workDialogTitle')}</h2>
+        <button className="icon" onClick={close} aria-label={t('product.keepViewing')}>
+          <X size={16} />
+        </button>
+      </header>
+      <p>{t('product.workDialogBody', { tool })}</p>
+      <div className="actions">
+        <button
+          className="primary"
+          onClick={() => {
+            go(`/projects/${current.projectId}`);
+          }}
+        >
+          <FolderOpen size={15} aria-hidden /> {t('product.openThere', { tool })}
+        </button>
+        <button
+          onClick={() => {
+            go(`${mineToolPath(current.mine.id, current.kind)}&new=1`);
+          }}
+        >
+          <FilePlus size={15} aria-hidden /> {t('product.createThere', { tool })}
+        </button>
+        <button onClick={close}>{t('product.keepViewing')}</button>
       </div>
-    </div>
+    </Modal>
   );
 }
 

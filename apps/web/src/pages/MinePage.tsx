@@ -28,6 +28,7 @@ import { CrsPicker, crsDisplayName } from '../components/CrsPicker';
 import { MineSiteData } from './MineSiteData';
 import { PageShell } from './PageShell';
 import { roleKey } from './roles';
+import { Modal } from '../components/Modal';
 
 interface Loaded {
   mineId: string;
@@ -336,7 +337,7 @@ export function MinePage() {
 function ProjectTable({ projects, tool }: { projects: ProjectSummary[]; tool: ProjectKind }) {
   const t = useT();
   return (
-    <div className="table-scroll">
+    <div className="data-table-wrap">
       <table className="data-table">
         <thead>
           <tr>
@@ -446,45 +447,32 @@ function MineCrsDialog({
   const [epsg, setEpsg] = useState<number | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('crs.title')}
-      onClick={onClose}
-    >
-      <div
-        className="modal dialog-narrow"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <header>
-          <h2>{t('crs.title')}</h2>
-        </header>
-        <CrsPicker value={epsg} onChange={setEpsg} autoFocus />
-        <p className="muted">{t('crs.mineInherit')}</p>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        <footer>
-          <button onClick={onClose}>{t('common.cancel')}</button>
-          <button
-            className="primary-inline"
-            disabled={epsg === undefined}
-            onClick={() => {
-              if (epsg === undefined) return;
-              api.updateMine(mineId, { epsg }).then(onSaved, (err: unknown) => {
-                setError(t(workspaceErrorKey(err)));
-              });
-            }}
-          >
-            {t('crs.save')}
-          </button>
-        </footer>
-      </div>
-    </div>
+    <Modal label={t('crs.title')} onClose={onClose} className="dialog-narrow">
+      <header>
+        <h2>{t('crs.title')}</h2>
+      </header>
+      <CrsPicker value={epsg} onChange={setEpsg} autoFocus />
+      <p className="muted">{t('crs.mineInherit')}</p>
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      <footer>
+        <button onClick={onClose}>{t('common.cancel')}</button>
+        <button
+          className="primary-inline"
+          disabled={epsg === undefined}
+          onClick={() => {
+            if (epsg === undefined) return;
+            api.updateMine(mineId, { epsg }).then(onSaved, (err: unknown) => {
+              setError(t(workspaceErrorKey(err)));
+            });
+          }}
+        >
+          {t('crs.save')}
+        </button>
+      </footer>
+    </Modal>
   );
 }

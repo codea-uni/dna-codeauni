@@ -20,6 +20,7 @@ import {
   COMPETENCE_UCS,
   setBlockStyle,
 } from '../topography/session';
+import { parseUserNumber } from '../i18n/numbers';
 
 const rgb = (c: readonly number[]) => `rgb(${String(c[0])}, ${String(c[1])}, ${String(c[2])})`;
 
@@ -50,7 +51,8 @@ export function BlockModelControls({ survey }: { survey: TopographySurvey }) {
   const totals = blockTotals(model, coloring?.visible);
   const legend = coloring?.legend;
   const isNumeric = model.numeric.some((a) => a.name === style.attribute);
-  const num = (v: string) => (v.trim() === '' ? undefined : Number(v.replace(',', '.')));
+  // Coma o punto (cronos-entrada-numerica); vacío o ilegible = sin filtro.
+  const num = (v: string) => (v.trim() === '' ? undefined : (parseUserNumber(v) ?? undefined));
   const update = (patch: {
     attribute?: string;
     min?: number | undefined;
@@ -124,8 +126,9 @@ export function BlockModelControls({ survey }: { survey: TopographySurvey }) {
           <label>
             {t('topo.model3d.filterMin')}{' '}
             <input
-              type="number"
-              step="any"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               defaultValue={style.min ?? ''}
               key={`min-${style.attribute}`}
               onBlur={(e) => {
@@ -136,8 +139,9 @@ export function BlockModelControls({ survey }: { survey: TopographySurvey }) {
           <label>
             {t('topo.model3d.filterMax')}{' '}
             <input
-              type="number"
-              step="any"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
               defaultValue={style.max ?? ''}
               key={`max-${style.attribute}`}
               onBlur={(e) => {
@@ -251,7 +255,7 @@ function ColumnMapping({
     : undefined;
   const table = lith ? lithologyTable(lith.categories, mapping.lithologies) : [];
   const setCell = (row: LithologyProps, field: (typeof LITH_FIELDS)[number], raw: string) => {
-    const v = raw.trim() === '' ? undefined : Number(raw.replace(',', '.'));
+    const v = raw.trim() === '' ? undefined : (parseUserNumber(raw) ?? NaN);
     const next = table.map((r) => {
       if (r.name !== row.name) return r;
       const keep = v !== undefined && Number.isFinite(v);
@@ -329,8 +333,9 @@ function ColumnMapping({
                     {LITH_FIELDS.map((f) => (
                       <td key={f}>
                         <input
-                          type="number"
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
                           style={{ width: '5em' }}
                           key={`${row.name}-${f}-${String(row[f] ?? '')}`}
                           defaultValue={row[f] ?? ''}

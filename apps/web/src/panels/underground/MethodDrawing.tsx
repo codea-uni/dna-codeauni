@@ -12,15 +12,15 @@ import { ROLE_COLORS } from '../../underground/drawings';
 export const METHOD_ROLE_COLORS: Record<MethodHoleRole, string> = {
   ...ROLE_COLORS,
   longhole: '#6f8cff',
-  ring: '#ffae00',
+  ring: '#f2b55c',
   slot: '#ff9f6b',
   crater: '#c792ff',
   breast: '#6f8cff',
-  upper: '#72ad3a',
+  upper: '#5ad596',
 };
 
 const CHARGE = '#ff8a4c';
-const STROKE = '#8fa3b8';
+const STROKE = '#a3b5c0';
 const FREE_FACE = '#2fc5d0';
 
 function project(view: MethodView, p: P3): UV {
@@ -114,7 +114,7 @@ export function MethodView2D({
                 ? 'rgba(255,174,0,0.05)'
                 : 'none'
           }
-          stroke={o.kind === 'freeFace' ? FREE_FACE : o.kind === 'stope' ? '#ffae00' : STROKE}
+          stroke={o.kind === 'freeFace' ? FREE_FACE : o.kind === 'stope' ? '#f2b55c' : STROKE}
           strokeDasharray={
             o.kind === 'stope'
               ? '6 4'

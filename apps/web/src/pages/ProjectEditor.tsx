@@ -150,7 +150,12 @@ function EditorBanner() {
   if (!draft || isCrossView(current)) return null;
   // Aviso en el centro (no una franja que se pierde detrás de las ventanas): hay que elegir.
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('history.draftTitle')}
+    >
       <div className="modal ask-dialog">
         <header>
           <h2>{t('history.draftTitle')}</h2>

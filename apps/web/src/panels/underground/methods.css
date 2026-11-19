@@ -31,13 +31,13 @@
 
 .ugm-card:hover,
 .ugm-card:focus-visible {
-  border-color: var(--accent, #5b7aff);
+  border-color: var(--accent);
 }
 
 .ugm-thumb {
   height: 110px;
   border-radius: 6px;
-  background: radial-gradient(ellipse at 50% 40%, #102638 0%, var(--bg) 75%);
+  background: radial-gradient(ellipse at 50% 40%, var(--panel-2) 0%, var(--bg) 75%);
   overflow: hidden;
 }
 
@@ -70,10 +70,10 @@
 }
 
 .ugm-code {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: #ffae00;
+  color: var(--amber);
 }
 
 .ugm-back {
@@ -109,11 +109,11 @@
 }
 
 .ug-kpis .kpi.ok strong {
-  color: #72ad3a;
+  color: var(--success);
 }
 
 .ug-kpis .kpi.warn strong {
-  color: #ffae00;
+  color: var(--amber);
 }
 
 @media (max-width: 760px) {

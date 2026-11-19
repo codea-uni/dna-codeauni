@@ -8,6 +8,7 @@ import { api, serverMode } from '../server/api';
 import { useProjectSession } from '../server/projectSession';
 import { session } from '../session';
 import { useUiStore } from '../stores/uiStore';
+import { Modal } from '../components/Modal';
 
 /** Importación que espera el sistema de coordenadas (sigue sola al elegirlo). */
 export const useCrsPrompt = create<{ pending: (() => void) | null }>(() => ({ pending: null }));
@@ -63,45 +64,32 @@ export function CrsPromptDialog() {
   }, [pending]);
   if (!pending) return null;
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-label={tr('crs.promptTitle')}
-      onClick={close}
-    >
-      <div
-        className="modal dialog-narrow"
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <header>
-          <h2>{tr('crs.promptTitle')}</h2>
-          <button className="icon" onClick={close} aria-label={tr('settings.close')}>
-            <X size={16} />
-          </button>
-        </header>
-        <p>{tr('crs.promptHint')}</p>
-        <CrsPicker value={epsg} onChange={setEpsg} autoFocus />
-        <footer>
-          <button onClick={close}>{tr('common.cancel')}</button>
-          <button
-            className="primary-inline"
-            disabled={epsg === undefined}
-            onClick={() => {
-              if (epsg === undefined) return;
-              setProjectCrs(epsg);
-              useUiStore.getState().notify(tr('crs.saved', { name: crsDisplayName(epsg) }));
-              close();
-              // En el mismo clic: abrir el selector de archivos necesita la activación del usuario.
-              pending();
-            }}
-          >
-            {tr('crs.continue')}
-          </button>
-        </footer>
-      </div>
-    </div>
+    <Modal label={tr('crs.promptTitle')} onClose={close} className="dialog-narrow">
+      <header>
+        <h2>{tr('crs.promptTitle')}</h2>
+        <button className="icon" onClick={close} aria-label={tr('settings.close')}>
+          <X size={16} />
+        </button>
+      </header>
+      <p>{tr('crs.promptHint')}</p>
+      <CrsPicker value={epsg} onChange={setEpsg} autoFocus />
+      <footer>
+        <button onClick={close}>{tr('common.cancel')}</button>
+        <button
+          className="primary-inline"
+          disabled={epsg === undefined}
+          onClick={() => {
+            if (epsg === undefined) return;
+            setProjectCrs(epsg);
+            useUiStore.getState().notify(tr('crs.saved', { name: crsDisplayName(epsg) }));
+            close();
+            // En el mismo clic: abrir el selector de archivos necesita la activación del usuario.
+            pending();
+          }}
+        >
+          {tr('crs.continue')}
+        </button>
+      </footer>
+    </Modal>
   );
 }

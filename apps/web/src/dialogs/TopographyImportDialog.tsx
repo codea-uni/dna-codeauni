@@ -372,302 +372,302 @@ export function TopographyImportDialog({
       className="topo-import"
       closeOnBackdrop={false}
     >
-        <header>
-          <h2>{tr('topo.import.title')}</h2>
-          <button className="icon" onClick={onClose} aria-label={tr('settings.close')}>
-            <X size={16} />
+      <header>
+        <h2>{tr('topo.import.title')}</h2>
+        <button className="icon" onClick={onClose} aria-label={tr('settings.close')}>
+          <X size={16} />
+        </button>
+      </header>
+      <p className="muted">
+        {tr(`topo.import.format.${format}`)} · {files.map((f) => f.name).join(', ')}
+      </p>
+      {rejected.length > 0 && (
+        <div className="errors">
+          <ul>
+            {rejected.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {workingsLayers.length > 0 && (
+        <div className="hint-box row" role="status">
+          <span>
+            {tr('topo.import.workingsLayers', {
+              layers: workingsLayers.map((l) => `«${l}»`).join(', '),
+            })}
+          </span>
+          <button className="primary-inline" onClick={importAsWorkings}>
+            {tr('topo.import.workingsLayersAction')}
           </button>
-        </header>
-        <p className="muted">
-          {tr(`topo.import.format.${format}`)} · {files.map((f) => f.name).join(', ')}
-        </p>
-        {rejected.length > 0 && (
-          <div className="errors">
-            <ul>
-              {rejected.map((m) => (
-                <li key={m}>{m}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        </div>
+      )}
 
-        {workingsLayers.length > 0 && (
-          <div className="hint-box row" role="status">
-            <span>
-              {tr('topo.import.workingsLayers', {
-                layers: workingsLayers.map((l) => `«${l}»`).join(', '),
-              })}
-            </span>
-            <button className="primary-inline" onClick={importAsWorkings}>
-              {tr('topo.import.workingsLayersAction')}
-            </button>
-          </div>
-        )}
+      <div className="modal-cols">
+        <section>
+          <h3>{tr('topo.import.crs')}</h3>
+          <label className="field wide">
+            <span className="field-label">{tr('topo.import.sourceCrs')}</span>
+            <select
+              value={String(source)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSource(v === 'project' || v === 'local' ? v : Number(v));
+                invalidate();
+              }}
+            >
+              <option value="project">
+                {tr('topo.import.sameAsProject', { epsg: projectEpsg ?? '—' })}
+              </option>
+              {canReproject &&
+                Object.entries(CRS_DEFS)
+                  .filter(([epsg]) => Number(epsg) !== projectEpsg)
+                  .map(([epsg, def]) => (
+                    <option key={epsg} value={epsg}>
+                      {def.name} (EPSG {epsg})
+                      {Number(epsg) === inspection.epsg ? ` · ${tr('topo.import.declared')}` : ''}
+                    </option>
+                  ))}
+              <option value="local">{tr('topo.import.localGrid')}</option>
+            </select>
+          </label>
+          {projectEpsg !== undefined && (
+            <p className="hint">{tr('topo.import.target', { name: crsName(projectEpsg) })}</p>
+          )}
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={swapNE}
+              onChange={(e) => {
+                setSwapNE(e.target.checked);
+                invalidate();
+              }}
+            />
+            {tr('topo.import.swapNE')}
+          </label>
+          {source === 'local' && (
+            <ControlPoints
+              rows={control}
+              onChange={(rows) => {
+                setControl(rows);
+                invalidate();
+              }}
+              grid={grid}
+            />
+          )}
 
-        <div className="modal-cols">
-          <section>
-            <h3>{tr('topo.import.crs')}</h3>
-            <label className="field wide">
-              <span className="field-label">{tr('topo.import.sourceCrs')}</span>
-              <select
-                value={String(source)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setSource(v === 'project' || v === 'local' ? v : Number(v));
-                  invalidate();
-                }}
-              >
-                <option value="project">
-                  {tr('topo.import.sameAsProject', { epsg: projectEpsg ?? '—' })}
-                </option>
-                {canReproject &&
-                  Object.entries(CRS_DEFS)
-                    .filter(([epsg]) => Number(epsg) !== projectEpsg)
-                    .map(([epsg, def]) => (
-                      <option key={epsg} value={epsg}>
-                        {def.name} (EPSG {epsg})
-                        {Number(epsg) === inspection.epsg ? ` · ${tr('topo.import.declared')}` : ''}
+          <h3>{tr('topo.import.options')}</h3>
+          {isImage && <p className="hint">{tr('topo.import.imageHint')}</p>}
+          {format === 'geotiff' && !isImage && (
+            <label className="field" title={tr('topo.import.demToleranceHint')}>
+              <span className="field-label">{tr('topo.import.demTolerance')}</span>
+              <span className="field-input">
+                <NumberInput
+                  min={0.01}
+                  step={0.1}
+                  decimals={2}
+                  unit="m"
+                  value={demTolerance}
+                  onCommit={(v) => {
+                    setDemTolerance(v);
+                    invalidate();
+                  }}
+                />
+                <span className="field-unit">m</span>
+              </span>
+            </label>
+          )}
+          {!isImage && format !== 'geotiff' && (
+            <label className="field" title={tr('topo.import.maxEdgeTextHint')}>
+              <span className="field-label">{tr('topo.import.maxEdgeText')}</span>
+              <span className="field-input">
+                <NumberInput
+                  min={1}
+                  step={1}
+                  decimals={2}
+                  value={maxEdgeFactor}
+                  onCommit={(v) => {
+                    setMaxEdgeFactor(v);
+                    invalidate();
+                  }}
+                />
+                <span className="field-unit">×</span>
+              </span>
+            </label>
+          )}
+          {(format === 'points' || format === 'las') && (
+            <label className="field" title={tr('topo.import.cellHint')}>
+              <span className="field-label">{tr('topo.import.cell')}</span>
+              <span className="field-input">
+                <NumberInput
+                  min={0}
+                  step={0.5}
+                  decimals={2}
+                  unit="m"
+                  value={cell}
+                  onCommit={(v) => {
+                    setCell(v);
+                    invalidate();
+                  }}
+                />
+                <span className="field-unit">m</span>
+              </span>
+            </label>
+          )}
+        </section>
+
+        <section>
+          <h3>{tr('topo.import.content')}</h3>
+          {format === 'dxf' && (
+            <table className="grid-table layers">
+              <thead>
+                <tr>
+                  <th>{tr('topo.import.layer')}</th>
+                  <th>{tr('topo.import.entities')}</th>
+                  <th>{tr('topo.import.useAs')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(inspection.layers ?? []).map((l) => (
+                  <tr key={l.name}>
+                    <td className="mono">{l.name}</td>
+                    <td className="muted small">{describe(l.counts)}</td>
+                    <td>
+                      <select
+                        className="cell"
+                        value={roles[l.name] ?? 'ignore'}
+                        onChange={(e) => {
+                          setRoles((r) => ({ ...r, [l.name]: e.target.value as TopoLayerRole }));
+                          invalidate();
+                        }}
+                      >
+                        {LAYER_ROLES.map((role) => (
+                          <option key={role} value={role}>
+                            {tr(`topo.role.${role}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {format === 'points' && (
+            <>
+              {(['east', 'north', 'elevation'] as const).map((k) => (
+                <label key={k} className="field">
+                  <span className="field-label">{tr(`topo.import.${k}`)}</span>
+                  <select
+                    value={columns[k]}
+                    onChange={(e) => {
+                      setColumns((c) => ({ ...c, [k]: Number(e.target.value) }));
+                      invalidate();
+                    }}
+                  >
+                    {Array.from({ length: columnCount }, (_, i) => (
+                      <option key={i} value={i}>
+                        {headerCells[i]
+                          ? tr('topo.import.columnNamed', { n: i + 1, name: headerCells[i] })
+                          : tr('topo.import.column', { n: i + 1 })}
                       </option>
                     ))}
-                <option value="local">{tr('topo.import.localGrid')}</option>
-              </select>
-            </label>
-            {projectEpsg !== undefined && (
-              <p className="hint">{tr('topo.import.target', { name: crsName(projectEpsg) })}</p>
-            )}
+                  </select>
+                </label>
+              ))}
+              <pre className="topo-sample">{(inspection.points?.sample ?? []).join('\n')}</pre>
+            </>
+          )}
+          {(format === 'surpac' || format === 'landxml') && (
+            <p className="hint">{tr(`topo.import.format.${format}`)}</p>
+          )}
+          {inspection.raster && (
+            <p className="hint">
+              {tr(inspection.raster.kind === 'dem' ? 'topo.import.dem' : 'topo.import.ortho', {
+                w: inspection.raster.width,
+                h: inspection.raster.height,
+              })}
+            </p>
+          )}
+          {format === 'image' && <p className="hint">{tr('topo.import.worldFile')}</p>}
+          {inspection.cloud && (
+            <p className="hint">
+              {tr('topo.import.cloud', {
+                n: fmt(inspection.cloud.count),
+                version: inspection.cloud.version,
+                kind: inspection.cloud.compressed ? 'LAZ' : 'LAS',
+              })}
+            </p>
+          )}
+
+          <label className="field">
+            <span className="field-label">{tr('topo.import.name')}</span>
+            <input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+              }}
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">{tr('topo.import.date')}</span>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+              }}
+            />
+          </label>
+          {blast && !underground && (
             <label className="check">
               <input
                 type="checkbox"
-                checked={swapNE}
+                checked={useInBench}
                 onChange={(e) => {
-                  setSwapNE(e.target.checked);
-                  invalidate();
+                  setUseInBench(e.target.checked);
                 }}
               />
-              {tr('topo.import.swapNE')}
+              {tr('topo.import.useInBench')}
             </label>
-            {source === 'local' && (
-              <ControlPoints
-                rows={control}
-                onChange={(rows) => {
-                  setControl(rows);
-                  invalidate();
-                }}
-                grid={grid}
-              />
-            )}
+          )}
+        </section>
+      </div>
 
-            <h3>{tr('topo.import.options')}</h3>
-            {isImage && <p className="hint">{tr('topo.import.imageHint')}</p>}
-            {format === 'geotiff' && !isImage && (
-              <label className="field" title={tr('topo.import.demToleranceHint')}>
-                <span className="field-label">{tr('topo.import.demTolerance')}</span>
-                <span className="field-input">
-                  <NumberInput
-                    min={0.01}
-                    step={0.1}
-                    decimals={2}
-                    unit="m"
-                    value={demTolerance}
-                    onCommit={(v) => {
-                      setDemTolerance(v);
-                      invalidate();
-                    }}
-                  />
-                  <span className="field-unit">m</span>
-                </span>
-              </label>
-            )}
-            {!isImage && format !== 'geotiff' && (
-              <label className="field" title={tr('topo.import.maxEdgeTextHint')}>
-                <span className="field-label">{tr('topo.import.maxEdgeText')}</span>
-                <span className="field-input">
-                  <NumberInput
-                    min={1}
-                    step={1}
-                    decimals={2}
-                    value={maxEdgeFactor}
-                    onCommit={(v) => {
-                      setMaxEdgeFactor(v);
-                      invalidate();
-                    }}
-                  />
-                  <span className="field-unit">×</span>
-                </span>
-              </label>
-            )}
-            {(format === 'points' || format === 'las') && (
-              <label className="field" title={tr('topo.import.cellHint')}>
-                <span className="field-label">{tr('topo.import.cell')}</span>
-                <span className="field-input">
-                  <NumberInput
-                    min={0}
-                    step={0.5}
-                    decimals={2}
-                    unit="m"
-                    value={cell}
-                    onCommit={(v) => {
-                      setCell(v);
-                      invalidate();
-                    }}
-                  />
-                  <span className="field-unit">m</span>
-                </span>
-              </label>
-            )}
-          </section>
-
-          <section>
-            <h3>{tr('topo.import.content')}</h3>
-            {format === 'dxf' && (
-              <table className="grid-table layers">
-                <thead>
-                  <tr>
-                    <th>{tr('topo.import.layer')}</th>
-                    <th>{tr('topo.import.entities')}</th>
-                    <th>{tr('topo.import.useAs')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(inspection.layers ?? []).map((l) => (
-                    <tr key={l.name}>
-                      <td className="mono">{l.name}</td>
-                      <td className="muted small">{describe(l.counts)}</td>
-                      <td>
-                        <select
-                          className="cell"
-                          value={roles[l.name] ?? 'ignore'}
-                          onChange={(e) => {
-                            setRoles((r) => ({ ...r, [l.name]: e.target.value as TopoLayerRole }));
-                            invalidate();
-                          }}
-                        >
-                          {LAYER_ROLES.map((role) => (
-                            <option key={role} value={role}>
-                              {tr(`topo.role.${role}`)}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {format === 'points' && (
-              <>
-                {(['east', 'north', 'elevation'] as const).map((k) => (
-                  <label key={k} className="field">
-                    <span className="field-label">{tr(`topo.import.${k}`)}</span>
-                    <select
-                      value={columns[k]}
-                      onChange={(e) => {
-                        setColumns((c) => ({ ...c, [k]: Number(e.target.value) }));
-                        invalidate();
-                      }}
-                    >
-                      {Array.from({ length: columnCount }, (_, i) => (
-                        <option key={i} value={i}>
-                          {headerCells[i]
-                            ? tr('topo.import.columnNamed', { n: i + 1, name: headerCells[i] })
-                            : tr('topo.import.column', { n: i + 1 })}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ))}
-                <pre className="topo-sample">{(inspection.points?.sample ?? []).join('\n')}</pre>
-              </>
-            )}
-            {(format === 'surpac' || format === 'landxml') && (
-              <p className="hint">{tr(`topo.import.format.${format}`)}</p>
-            )}
-            {inspection.raster && (
-              <p className="hint">
-                {tr(inspection.raster.kind === 'dem' ? 'topo.import.dem' : 'topo.import.ortho', {
-                  w: inspection.raster.width,
-                  h: inspection.raster.height,
-                })}
-              </p>
-            )}
-            {format === 'image' && <p className="hint">{tr('topo.import.worldFile')}</p>}
-            {inspection.cloud && (
-              <p className="hint">
-                {tr('topo.import.cloud', {
-                  n: fmt(inspection.cloud.count),
-                  version: inspection.cloud.version,
-                  kind: inspection.cloud.compressed ? 'LAZ' : 'LAS',
-                })}
-              </p>
-            )}
-
-            <label className="field">
-              <span className="field-label">{tr('topo.import.name')}</span>
-              <input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                }}
-              />
-            </label>
-            <label className="field">
-              <span className="field-label">{tr('topo.import.date')}</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => {
-                  setDate(e.target.value);
-                }}
-              />
-            </label>
-            {blast && !underground && (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={useInBench}
-                  onChange={(e) => {
-                    setUseInBench(e.target.checked);
-                  }}
-                />
-                {tr('topo.import.useInBench')}
-              </label>
-            )}
-          </section>
+      {result && <p className="topo-result">{stats}</p>}
+      {(result?.r.warnings.length ?? 0) > 0 && (
+        <div className="errors">
+          <ul>
+            {result?.r.warnings.map((w, i) => (
+              <li key={`${w.code}-${String(i)}`}>{topoWarningText(w, tr)}</li>
+            ))}
+          </ul>
         </div>
-
-        {result && <p className="topo-result">{stats}</p>}
-        {(result?.r.warnings.length ?? 0) > 0 && (
-          <div className="errors">
-            <ul>
-              {result?.r.warnings.map((w, i) => (
-                <li key={`${w.code}-${String(i)}`}>{topoWarningText(w, tr)}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        <footer>
-          <button onClick={onClose}>{tr('common.cancel')}</button>
-          <button
-            disabled={busy || (grid !== null && 'error' in grid)}
-            onClick={() => void process()}
-          >
-            {busy ? tr('topo.import.processing') : tr('topo.import.preview')}
-          </button>
-          <button
-            disabled={!result}
-            onClick={() => {
-              setPeek(true);
-            }}
-          >
-            {tr('topo.import.showOnMap')}
-          </button>
-          {acceptButton}
-        </footer>
+      )}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+      <footer>
+        <button onClick={onClose}>{tr('common.cancel')}</button>
+        <button
+          disabled={busy || (grid !== null && 'error' in grid)}
+          onClick={() => void process()}
+        >
+          {busy ? tr('topo.import.processing') : tr('topo.import.preview')}
+        </button>
+        <button
+          disabled={!result}
+          onClick={() => {
+            setPeek(true);
+          }}
+        >
+          {tr('topo.import.showOnMap')}
+        </button>
+        {acceptButton}
+      </footer>
     </Modal>
   );
 }

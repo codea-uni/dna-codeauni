@@ -10,19 +10,25 @@ export function Modal({
   label,
   onClose,
   className,
+  backdropClassName,
   closeOnBackdrop = true,
   children,
 }: {
   label: string;
   onClose: () => void;
   className?: string;
+  /** Clase extra del fondo (p. ej. un fondo propio de un diálogo). */
+  backdropClassName?: string;
   closeOnBackdrop?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const onKeyDown = useDialogFocus(ref, onClose);
   return (
-    <div className="modal-backdrop" onClick={closeOnBackdrop ? onClose : undefined}>
+    <div
+      className={backdropClassName ? `modal-backdrop ${backdropClassName}` : 'modal-backdrop'}
+      onClick={closeOnBackdrop ? onClose : undefined}
+    >
       <div
         ref={ref}
         className={className ? `modal ${className}` : 'modal'}

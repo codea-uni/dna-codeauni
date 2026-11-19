@@ -486,7 +486,13 @@ function FeedbackDetailDialog({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('feedback.detail.heading')}
+      onClick={onClose}
+    >
       <div
         className="modal dialog-wide fb-detail"
         onClick={(e) => {

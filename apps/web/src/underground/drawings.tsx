@@ -12,8 +12,8 @@ export const ROLE_COLORS: Record<FaceHoleRole, string> = {
   relief: '#eef3f8',
   cut: '#ff6b6b',
   stoping: '#6f8cff',
-  wall: '#72ad3a',
-  roof: '#ffae00',
+  wall: '#5ad596',
+  roof: '#f2b55c',
   contour: '#c792ff',
   lifter: '#2fc5d0',
 };
@@ -27,7 +27,7 @@ export const ROLE_ORDER: readonly FaceHoleRole[] = [
   'lifter',
 ];
 const CHARGE_COLOR = '#ff8a4c';
-const PROFILE_STROKE = '#8fa3b8';
+const PROFILE_STROKE = '#a3b5c0';
 
 interface Box {
   minU: number;
@@ -329,7 +329,7 @@ export function RingDrawing({ ring, ms }: { ring: RingComputation; ms: (s: numbe
           cx={pivot.u}
           cy={-pivot.v}
           r={fs * 0.35}
-          fill="#08151f"
+          fill="#0b1218"
           stroke="#eef3f8"
           strokeWidth={1.2}
           vectorEffect="non-scaling-stroke"

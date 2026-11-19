@@ -420,10 +420,10 @@ export function cardFromTool(name: string, args: unknown, result: unknown): Agen
 // ------------------------------------------------------------------ visor
 
 export const TONE_COLOR: Record<Tone, string> = {
-  ok: '#72ad3a',
-  warn: '#ffae00',
-  bad: '#ff4d5e',
-  accent: '#5b7aff',
+  ok: '#5ad596',
+  warn: '#f2b55c',
+  bad: '#f68a80',
+  accent: '#4fd6e6',
 };
 
 /** Filas del panel del visor para una tarjeta. */
@@ -448,7 +448,7 @@ export function cardXrLines(c: AgentCard): XrLine[] {
       label: '',
       bar: [
         { fraction: Math.min(1, b.fill), color: TONE_COLOR[b.tone] },
-        { fraction: Math.max(0, 1 - Math.min(1, b.fill)), color: '#20405a' },
+        { fraction: Math.max(0, 1 - Math.min(1, b.fill)), color: '#24363f' },
       ],
     });
   }

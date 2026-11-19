@@ -62,7 +62,7 @@
 }
 .badge.saved {
   color: var(--brand-green);
-  border-color: #72ad3a88;
+  border-color: color-mix(in srgb, var(--success) 53%, transparent);
 }
 
 /* Elegir el sistema de coordenadas */
@@ -127,8 +127,8 @@
   margin: 8px 0;
   padding: 8px 10px;
   color: var(--text);
-  background: #ffae0014;
-  border: 1px solid #ffae0066;
+  background: color-mix(in srgb, var(--amber) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
   border-radius: 6px;
 }
 

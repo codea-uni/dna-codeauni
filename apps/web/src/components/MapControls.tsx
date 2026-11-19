@@ -1,14 +1,5 @@
 import type { ToolName } from '@cronos/engine';
-import {
-  Box,
-  Hand,
-  Lasso,
-  Map as MapIcon,
-  Maximize,
-  Minus,
-  MousePointer2,
-  Plus,
-} from 'lucide-react';
+import { Hand, Lasso, Minus, MousePointer2, Plus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import * as actions from '../actions';
 import { useProject } from '../hooks/useDocument';
@@ -24,9 +15,10 @@ const NAV_TOOLS: { name: ToolName; label: MessageKey; key: string; icon: LucideI
 ];
 
 /**
- * Controles flotantes del plano: selección y desplazamiento, zoom, encuadre y planta/3D. Están
- * siempre a mano, sin importar la pestaña de la cinta (cronos-ux-interfaz, regla 3), y cada uno
- * muestra su tecla. React solo emite comandos al motor: no dibuja nada del diseño.
+ * Controles flotantes del plano: selección, lazo, desplazamiento y zoom. Están siempre a mano, sin
+ * importar la pestaña de la cinta (cronos-ux-interfaz, regla 3), y cada uno muestra su tecla.
+ * Planta/3D y encuadrar están en la barra rápida de arriba (QuickBar): no se repiten aquí.
+ * React solo emite comandos al motor: no dibuja nada del diseño.
  */
 export function MapControls() {
   const t = useT();
@@ -78,27 +70,6 @@ export function MapControls() {
         }}
       >
         <Minus size={16} aria-hidden />
-      </button>
-      <button
-        className="map-btn"
-        aria-label={t('tools.zoomFit')}
-        title={tip(t('tools.zoomFit'), 'F')}
-        onClick={() => {
-          actions.zoomToFit();
-        }}
-      >
-        <Maximize size={16} aria-hidden />
-      </button>
-      <span className="map-sep" aria-hidden />
-      <button
-        className="map-btn"
-        aria-label={t(viewMode === '3d' ? 'map.toPlan' : 'map.to3d')}
-        title={tip(t(viewMode === '3d' ? 'map.toPlan' : 'map.to3d'), '3')}
-        onClick={() => {
-          setViewMode(viewMode === '3d' ? 'plan' : '3d');
-        }}
-      >
-        {viewMode === '3d' ? <MapIcon size={16} aria-hidden /> : <Box size={16} aria-hidden />}
       </button>
     </div>
   );

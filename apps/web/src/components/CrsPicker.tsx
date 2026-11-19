@@ -78,12 +78,11 @@ export function CrsPicker({
       <label className="crs-code">
         <span>{t('crs.other')}</span>
         <input
-          type="number"
+          type="text"
           inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
           name="crs-epsg"
-          min={1024}
-          max={32767}
-          step={1}
           value={code}
           onChange={(e) => {
             setCode(e.target.value);

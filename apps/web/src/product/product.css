@@ -1,14 +1,15 @@
 /*
  * Cronos Open Pit y Cronos Underground: cada herramienta con su acento. `data-product` va en
- * <html> (lo pone `useProductChrome`); Open Pit conserva el azul de la marca.
+ * <html> (lo pone `useProductChrome`). Minerales del cobre: Open Pit lleva la crisocola de la
+ * marca; Underground, el cobre (más rojizo que el ámbar de tiempos y detonación).
  */
 :root {
-  --product-surface: #5b7aff;
-  --product-surface-2: #4869ff;
-  --product-surface-ink: #ffffff;
-  --product-underground: #f0913f;
-  --product-underground-2: #e07a24;
-  --product-underground-ink: #1d1006;
+  --product-surface: #4fd6e6;
+  --product-surface-2: #82e4ef;
+  --product-surface-ink: #03191e;
+  --product-underground: var(--copper);
+  --product-underground-2: #f5ab82;
+  --product-underground-ink: #2a1206;
 }
 
 :root[data-product='surface'] {
@@ -181,7 +182,7 @@
   border: 1px solid var(--cross-color);
   border-left-width: 4px;
   border-radius: 8px;
-  box-shadow: 0 10px 28px #00000073;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.45);
   transform: translateX(-50%);
 }
 

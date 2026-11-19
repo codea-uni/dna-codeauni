@@ -1266,9 +1266,22 @@ a.button-link.primary:hover {
 }
 
 /* La tabla se desplaza dentro de su tarjeta si la columna es angosta (nunca la página). */
-.table-scroll {
+.data-table-wrap {
   min-width: 0;
   overflow-x: auto;
+}
+
+/* Fecha arriba y autor debajo, en la misma celda. */
+.data-table td > .row-meta {
+  display: block;
+}
+
+/* Columna de proyectos angosta (la mina tiene 2 o 3 columnas): sin «Último cambio». */
+@container (max-width: 860px) {
+  .data-table th:nth-child(3),
+  .data-table td:nth-child(3) {
+    display: none;
+  }
 }
 
 /* Tarjeta: superficie con borde y radio grande (contenedor principal de una página). */
@@ -2003,7 +2016,7 @@ a.button-link.primary:hover {
 
 .fb-chat li.from-user {
   justify-self: end;
-  background: #4869ff33;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .fb-chat small {
