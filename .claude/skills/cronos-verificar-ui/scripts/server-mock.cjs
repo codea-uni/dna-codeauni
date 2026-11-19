@@ -26,6 +26,7 @@ const routes = {
   'GET /api/mines/m1': { mine: mine('m1', 'Cuajone', 3, '2026-11-17T18:12:00'), role: 'admin' },
   'GET /api/mines/m1/projects': { projects: P },
   'GET /api/mines/m1/versions': { versions: [P[0].latest, P[1].latest, version('p1', 2, 'Polígono 77', 'Cara libre redefinida', '2026-11-14T11:20:00', 214, sum({ holesMoved: 12 })), P[2].latest], hasMore: false },
+  'GET /api/mines/m1/perimeters': { perimeters: [{ id: 'pe1', name: 'P1 · Fase 2', project: { id: 'p2', name: 'Banco 3420 · Fase 2', kind: 'surface' }, area: 18450, vertices: 9, outline: [[0, 0], [160, 10], [210, 80], [190, 140], [60, 150], [-10, 90]], floorElevation: 3420, topography: { id: 's1', name: 'NP-POL 77', surveyDate: '2026-10-21' }, version: 5, updatedAt: iso('2026-11-15T09:40:00'), authorName: 'Ana Quispe' }] },
   'GET /api/mines/m1/surveys': { surveys: [{ survey: { id: 's1', name: 'NP-POL 77', surveyDate: '2026-10-21', epsg: 32719, source: { format: 'dxf', files: ['np-pol-77.dxf'] }, bounds: { minX: 0, minY: 0, minZ: 3300, maxX: 900, maxY: 700, maxZ: 3620 }, stats: { points: 184220, triangles: 366012, lines: 412 }, assets: {} }, createdAt: iso('2026-10-21T15:00:00'), createdBy: { id: 'u2', name: 'Luis Mamani' } }] },
 };
 

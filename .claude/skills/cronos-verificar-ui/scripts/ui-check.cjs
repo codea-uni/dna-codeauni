@@ -76,7 +76,8 @@ const closeWindows = async (page) => {
   await page.getByRole('button', { name: /Generar malla/ }).click();
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(OUT, 'win-generar-malla.png') });
-  const field = page.getByRole('dialog', { name: 'Generar malla' }).locator('input[inputmode=decimal]').first();
+  // Burden (m): no dispara confirmaciones (la altura de banco sí, si hay taladros que cambiarían).
+  const field = page.getByRole('dialog', { name: 'Generar malla' }).getByRole('textbox', { name: /^Burden/ }).first();
   for (const typed of DECIMALS) {
     await field.click();
     await field.fill(typed);

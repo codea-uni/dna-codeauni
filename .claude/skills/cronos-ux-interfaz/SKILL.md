@@ -52,7 +52,7 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
    - Un panel nuevo sigue esa misma regla.
 2. **Un paso, un clic.** Si una pestaña de la cinta tiene un solo panel, al hacer clic en la pestaña se abre ese panel. El Asistente IA ya lo hace; Carguío está pendiente.
 3. **Herramientas transversales siempre a mano.**
-   - `MapControls`, sobre el plano, ofrece seleccionar, lazo, desplazar, zoom, encuadrar y planta/3D en cualquier pestaña.
+   - Sobre el plano, en cualquier pestaña: la barra rápida (`QuickBar`: planta/3D, simular, capas, encuadrar y buscar acción) y, debajo, `MapControls` (seleccionar, lazo, desplazar y zoom). Ninguno repite un botón del otro.
    - Pendiente: el forzado (snap) solo está en la pestaña Vista.
 4. **Lo que el usuario escribió sobrevive.**
    - Los formularios de panel usan `usePanelState`, no `useState`.
@@ -84,7 +84,7 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
 **Confirmaciones.**
 - Si la acción se puede deshacer, no se pide confirmación: deshacer es la red de seguridad.
 - Solo se confirma lo irreversible: descartar cambios sin guardar o borrar un proyecto.
-- Se usa un diálogo propio, no `window.confirm`; hoy hay 15 llamadas a `window.confirm`.
+- Se usa un diálogo propio (`ask()`), no `window.confirm`; hoy quedan 16 llamadas a `window.confirm`.
 
 ## Textos y terminología
 
@@ -112,6 +112,7 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
 | Texto | `--text` (15:1) · `--muted` (8:1) · `--faint` (solo decorativo) | `--faint` nunca para texto que se lee |
 | Acento | `--accent` `#4fd6e6` · `--accent-2` (hover) · `--accent-ink` (texto sobre acento) · `--accent-soft` (selección) | Acción principal, pestaña activa, foco |
 | Semántica | `--amber` (tiempo, aviso) · `--danger` · `--info` · `--success` | Siempre con icono o texto, nunca solo color |
+| Herramienta | `product.css`: Cielo abierto = crisocola (`--product-surface`); Subterránea = cobre (`--copper` `#ef8f5a`) | `data-product` en `<html>` redefine `--accent`: lo que usa el acento cambia solo de color. El cobre no se usa para tiempos (eso es `--amber`) |
 | Tipografía | `--font` Barlow · `--font-display` Barlow Semi Condensed · `--font-mono` · `--fs-xs` 11 … `--fs-xl` 20 | Monoespaciada solo para coordenadas, EPSG y fechas |
 | Forma | `--r-sm` 4 · `--r-md` 6 · `--r-lg` 10 · `--shadow-1` · `--shadow-2` | Tarjetas con `--r-lg` |
 
@@ -135,9 +136,10 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
 | Ventana flotante con teclado | `FloatingWindow` (ya usa `useDialogFocus`, sin modal) |
 | Formulario de panel que sobrevive a cerrar | `usePanelState(clave, inicial)` (`stores/panelState.ts`); la clave lleva `project.id` si apunta a la librería |
 | Número | `NumberField`, `NumberCell` o `NumberInput` (ver cronos-entrada-numerica) |
-| Marca | `BrandMark` |
-| Controles del plano | `MapControls` y `CrsChip` (no repitas zoom ni herramientas de navegación en otro sitio) |
-| Página del modo servidor | `PageShell` con `crumbs`; `.card`, `.card-head`, `.seg-tabs` con `.count`, `.data-table` |
+| Marca | Logo de CODEa UNI (`/brand/codeauni-blanco.png`) + `BrandMark` + `ProductMark` (herramienta). En las páginas del servidor basta `BrandMark` + `ProductMark` |
+| Pedir una decisión | `ask()` de `components/AskDialog` (en lugar de `window.confirm`) |
+| Controles del plano | `QuickBar`, `MapControls` y `CrsChip` (no repitas zoom ni herramientas de navegación en otro sitio) |
+| Página del modo servidor | `PageShell` con `crumbs` (y `tool`/`wide` en la mina); `.card`, `.data-table` dentro de `.data-table-wrap` |
 
 ## Accesibilidad: mínimo por pantalla (WCAG 2.2 AA)
 
@@ -145,7 +147,7 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
   - Una celda de tabla se nombra así: «Burden, taladro 12», con la prop `label` de `NumberCell`.
   - Pendiente: varias `NumberCell` de `LibraryPanel` todavía no lo pasan.
 - **Diálogos y ventanas:** foco inicial dentro, foco atrapado, Esc cierra y el foco vuelve al botón que los abrió.
-  - Usa `Modal` o `useDialogFocus`. Ya lo cumplen los 10 diálogos y todas las ventanas flotantes.
+  - Usa `Modal` o `useDialogFocus`. Ya lo cumplen los diálogos y todas las ventanas flotantes; `AskDialog` y la paleta de comandos llevan su propio manejo de foco.
   - Esc en un campo con borrador primero revierte el campo; el segundo Esc cierra.
 - **Pestañas** (`role=tablist`): se recorren con las flechas y llevan `aria-controls`. La cinta lo cumple; la barra lateral derecha no.
 - **Visor (canvas):** lleva `aria-label`, `tabindex` y un anillo de foco visible. Todo lo que se hace en el plano tiene una alternativa por tabla o teclado.

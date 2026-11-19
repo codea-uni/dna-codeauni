@@ -38,13 +38,13 @@ Un cambio de UI no está terminado porque compile. Está terminado cuando **se v
 |---|---|
 | Carga | Ejemplo cargado: la barra de estado muestra «N taladros». Errores JS (`pageerror`) |
 | Cinta | Captura y axe (WCAG 2.2 AA) de las 8 pestañas |
-| Decimales | Escribe `6,5`, `6.5`, `1.234,5`, `1,234.5` y `7,25 m` en «Generar malla» y registra qué muestra el campo y si quedó inválido. Comprueba si ↑ incrementa el valor |
+| Decimales | Escribe `6,5`, `6.5`, `1.234,5`, `1,234.5` y `7,25 m` en el **Burden** de «Generar malla» y registra qué muestra el campo y si quedó inválido. Comprueba si ↑ incrementa el valor. (La altura de banco no sirve: con taladros, cambiarla abre «Taladros existentes».) |
 | Teclado | Si Esc cierra la ventana, si el diálogo «Ajustes del proyecto» recibe el foco al abrirse y si Esc lo cierra |
 | Pantallas | 1440×900, 1280×720 y 1024×768: captura y desbordamiento horizontal |
 
 Para un cambio en otra pantalla, añade al script los pasos que llegan a ella siguiendo el mismo patrón: rol y nombre accesible, nunca selectores CSS frágiles.
 
-## Línea base vigente (2026-11-18, rama `feat/ux-rediseno`)
+## Línea base vigente (2026-11-18, rama `feat/ux-rediseno-sub`, sobre `subterranea`)
 
 Úsala para el antes y el después. **Si un valor empeora, es una regresión.**
 
@@ -53,7 +53,7 @@ Para un cambio en otra pantalla, añade al script los pasos que llegan a ella si
 | axe (8 pestañas del editor y páginas del servidor) | 0 violaciones |
 | `6,5` y `6.5` | Se aceptan y el campo muestra `6,5` |
 | `1.234,5` y `1,234.5` | Se aceptan como 1234,5 |
-| `7,25 m` en el primer campo de «Generar malla» | Inválido, y es lo correcto: ese campo es el diámetro en **mm** |
+| `7,25 m` en el Burden | Se acepta como 7,25 (la unidad del campo es m) |
 | ↑ en un campo numérico | Incrementa |
 | Esc en una ventana flotante | La cierra |
 | Ajustes del proyecto | Recibe el foco al abrirse y Esc lo cierra |
@@ -66,14 +66,17 @@ El script **no pulsa Esc entre un valor y otro**: con el campo ya confirmado, Es
 
 Sin Docker, `pnpm dev:online` no arranca. Para ver las páginas del servidor (minas, historial, administración):
 
-1. Arranca un segundo Vite en modo servidor.
-   - PowerShell: `$env:VITE_API_URL='/api'; pnpm --dir apps/web exec vite --port 5174`.
+1. Arranca un segundo Vite en modo servidor, **desde PowerShell**.
+   - `$env:VITE_API_URL='/api'; pnpm --dir apps/web exec vite --port 5174 --strictPort`.
+   - Desde Git Bash, `/api` se convierte en `C:/Program Files/Git/api` y la app muestra «Sin conexión con el servidor» (en la consola: `Fetch API cannot load file:///…/api/me`).
+   - Si el puerto quedó tomado por un Vite anterior, ciérralo antes: con `--strictPort` el nuevo falla en vez de abrir otro puerto.
 2. Ejecuta `node scripts/server-mock.cjs /mines/m1 mina [ancho alto]`.
    - Intercepta solo las rutas que **empiezan** por `/api/`. Con un patrón `**/api/**` también se capturan módulos de Vite (`/@fs/.../packages/api/...`).
    - En Git Bash antepón `MSYS_NO_PATHCONV=1`; si no, `/mines/m1` se convierte en una ruta de Windows.
 3. Si la salida lista rutas en `missing`, agrega datos que cumplan el esquema Zod de `packages/api/src`.
 4. **Login y pantallas sin sesión:** antepón `MOCK_SIGNED_OUT=1`. Así `/api/me` responde 401 y se muestra el login.
    - Revísalo a 1440 px y a 390 px.
+5. **Subterránea:** agrega `?tool=underground` a la ruta de la mina para ver el acento cobre.
    - Comprueba el botón de mostrar contraseña (`aria-pressed`) y el cambio de idioma.
 
 ## Contraste

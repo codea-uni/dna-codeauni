@@ -32,7 +32,10 @@ El ingeniero escribe cifras todo el día y con prisa. Un campo numérico debe:
 | Lógica común | `useNumberInput` (`components/useNumberInput.ts`) |
 | Leer y mostrar | `parseUserNumber` y `formatInputNumber` (`i18n/numbers.ts`, con tests en `numbers.test.ts`) |
 
-Para un caso nuevo, extiende `useNumberInput`. No copies la lógica en el componente.
+Para un caso nuevo, extiende `useNumberInput`. No copies la lógica en el componente. Ya tiene:
+
+- `parseText`: lectura propia del texto (p. ej. pies con `'` en el largo de barra). Si devuelve `null`, se intenta la lectura normal con coma o punto.
+- `zeroText`: el 0 significa otra cosa (p. ej. «∞» = sin límite en `VibrationPanel`). Con 0 el campo queda vacío con ese texto de ayuda, y vacío, `∞` o ese texto confirman 0.
 
 ## Contrato de un campo numérico
 
