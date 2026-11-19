@@ -90,6 +90,7 @@ export * from './muckpile/heightmap';
 export * from './muckpile/profile';
 export * from './muckpile/export';
 export * from './muckpile/compare';
+export * from './muckpile/fragments';
 export * from './charging/sdob';
 export * from './charging/pressures';
 export * from './diagnostics/chargeChecks';

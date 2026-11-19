@@ -1,5 +1,6 @@
 import type { ScalarGrid } from '../energy/contours';
 import type { Meters, Seconds } from '../model/types';
+import type { MuckpileFragments } from './fragments';
 
 /** Superficie consultable en planta (la topografía con `SurfaceIndex`, o una grilla). */
 export interface ElevationSource {
@@ -39,6 +40,11 @@ export interface MuckpileBlocks {
   fragmentSize: Float32Array;
   /** Índice del dominio en `blast.domains` (−1 = sin dominio). */
   domain: Int16Array;
+  /**
+   * Curva de tamaños (Swebrec/KCO) de la roca del bloque [x50, xmax, b, …] (la de su taladro o
+   * zona del frente); NaN sin datos. Con ella se discretiza en fragmentos (`fragments.ts`).
+   */
+  curve?: Float32Array;
   /**
    * Trayectoria muestreada (solo la pila subterránea, que choca con techo y paredes): por bloque,
    * `pathPoints` muestras [dx, dy, dz, t] relativas al origen in situ y a la salida, de la salida
@@ -125,6 +131,8 @@ export interface MuckpileVectors {
 
 export interface MuckpileResult {
   blocks: MuckpileBlocks;
+  /** Población de fragmentos (FC-47); la calcula el worker con el presupuesto del dispositivo. */
+  fragments?: MuckpileFragments | null;
   vectors: MuckpileVectors;
   grids: MuckpileGrids;
   stats: MuckpileStats;

@@ -10,6 +10,7 @@ import type { ScalarGrid } from '../energy/contours';
 import {
   kuzRam,
   kuzRamInputsFromBlast,
+  swebrecB,
   rosinRammlerSize,
   type KuzRamResult,
 } from '../fragmentation/fragmentation';
@@ -665,6 +666,16 @@ export function simulateMuckpile(
 
   // ------------------------------------------------------------ Atributos
   const fragmentSize = fragmentSizes(n, bHole, ox, oy, oz, kin);
+  // Curva KCO del taladro de cada bloque (FC-47): x50 y n de Kuz-Ram, xmax = espaciamiento.
+  const curve = new Float32Array(3 * n).fill(NaN);
+  for (let k = 0; k < n; k++) {
+    const kr = kin[bHole[k] ?? -1]?.kuzRam;
+    if (!kr || !average || !(kr.x50 > 0)) continue;
+    const xmax = Math.max(kr.x50 * 1.05, average.spacing);
+    curve[3 * k] = kr.x50;
+    curve[3 * k + 1] = xmax;
+    curve[3 * k + 2] = average.swebrecB ?? swebrecB(kr.x50, xmax, kr.n);
+  }
   const domains = blast.domains ?? [];
   const domain = new Int16Array(n).fill(-1);
   if (domains.length > 0)
@@ -690,6 +701,7 @@ export function simulateMuckpile(
     topSlope: Float32Array.from(bSlope),
     fragmentSize,
     domain,
+    curve,
   };
   const grids = cellAttributes(hm, before, blocks, domains.length);
   const stats = {

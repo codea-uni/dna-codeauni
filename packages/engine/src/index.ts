@@ -15,6 +15,7 @@ export { diffColorCss } from './layers/VersionDiffLayer';
 export type { IsochroneData } from './layers/IsochronesLayer';
 export type { EnergyData } from './layers/EnergyLayer';
 export type { BlocksData, BlockFrames } from './layers/BlocksLayer';
+export type { FragmentsData } from './layers/FragmentsLayer';
 export type { MuckpileSurfaceData } from './layers/MuckpileLayer';
 export type { VectorsData } from './layers/VectorsLayer';
 export { TOPO_LINE_COLORS, type TopographyViewData } from './layers/TopographyLayer';

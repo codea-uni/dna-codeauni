@@ -21,6 +21,9 @@ import type { MuckpileBlocks, MuckpileResult, MuckpileVectors } from '../muckpil
 import { computeTiming } from '../timing/timing';
 import { chargeSegment, DEFAULT_ADVANCE_EFFICIENCY, holeAxis, isChargedHole } from './analysis';
 import { CUT_TAG, GUIDE_TAG, isUndergroundHole, RELIEF_TAG } from './toHoles';
+import { deckIntervals, indexLibrary } from '../charging/charge';
+import { rockFactor, swebrecB, type KuzRamVariant } from '../fragmentation/fragmentation';
+import { undergroundKuzRam } from './fragmentation';
 
 /**
  * Pila de material subterránea (roca volada en un frente o en un tajeo). Modelo cinemático puro y
@@ -217,6 +220,77 @@ export function hash01(k: number, salt = 0): number {
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
+}
+
+/**
+ * Curva KCO de un taladro subterráneo (FC-47): Kuz-Ram por taladro con su carga Q, burden al hueco
+ * abierto B, espaciamiento S = distancia al taladro cargado más cercano del mismo diseño y factor
+ * de carga K = Q/(B·S·H). El arranque (B chico, K alto) sale fino; el contorno, grueso. xmax =
+ * min(S, bloque in situ) como en `undergroundFragmentation`.
+ */
+function holeCurve(
+  input: UgMuckpileInput,
+  i: number,
+  g: { a: Vec3; b: Vec3 },
+  B: number,
+  segOf: Map<number, { a: Vec3; b: Vec3 }>,
+  chargeLength: number,
+): [number, number, number] | null {
+  const fr = input.fragmentation;
+  const h = input.blast.holes[i];
+  const Q = input.chargePerHole[i] ?? 0;
+  if (!fr || !h || !(Q > 0) || !(chargeLength > 0)) return null;
+  let S = Infinity;
+  for (const [j, gj] of segOf) if (j !== i) S = Math.min(S, segmentGap(g.a, g.b, gj.a, gj.b));
+  if (!Number.isFinite(S)) S = B * 1.2;
+  S = Math.max(0.2, S);
+  const H = Math.max(h.length, chargeLength);
+  let rwsLen = 0;
+  let len = 0;
+  const lib = indexLibrary(input.library);
+  for (const iv of deckIntervals(h)) {
+    if (iv.deck.kind !== 'explosive') continue;
+    const e = lib.explosives.get(iv.deck.explosiveId);
+    if (e) {
+      rwsLen += e.rws * (iv.bottom - iv.top);
+      len += iv.bottom - iv.top;
+    }
+  }
+  const rws = len > 0 ? rwsLen / len : 1;
+  const kr = undergroundKuzRam(
+    {
+      zone: h.tags?.includes(CUT_TAG) ? 'cut' : 'stoping',
+      mass: Q,
+      loadingFactor: Q / (B * S * H),
+      chargePerHole: Q,
+      burden: B,
+      spacing: S,
+      diameter: h.diameter,
+      chargeLength,
+      holeLength: H,
+      bottomChargeLength: chargeLength,
+      columnChargeLength: 0,
+    },
+    fr.rockFactor,
+    {
+      rws,
+      drillDeviation: fr.drillDeviation,
+      ...(fr.variant ? { variant: fr.variant } : {}),
+      ...(fr.calibration !== undefined ? { calibration: fr.calibration } : {}),
+    },
+  );
+  if (!(kr.x50 > 0)) return null;
+  const xmax = Math.max(Math.min(S, fr.inSituBlock ?? Infinity), kr.x50 * 1.05);
+  return [kr.x50, xmax, swebrecB(kr.x50, xmax, kr.n)];
+}
+
+function blockCurves(acc: BlockAcc): Float32Array {
+  const out = new Float32Array(3 * acc.hole.length).fill(NaN);
+  acc.hole.forEach((h, k) => {
+    const c = acc.holeCurve.get(h);
+    if (c) out.set(c, 3 * k);
+  });
+  return out;
 }
 
 /** Distancia de un punto a un segmento 3D. */
@@ -700,6 +774,17 @@ export interface UgMuckpileInput {
   chargePerHole: Float64Array;
   /** Tiempo de disparo por taladro [s] (NaN = sin tiempo). */
   fireTime: Float64Array;
+  /**
+   * Datos para la curva de tamaños de cada taladro (Kuz-Ram subterráneo + Swebrec, FC-47): sin
+   * ellos los bloques no traen curva y se dibujan como vóxeles.
+   */
+  fragmentation?: {
+    rockFactor: number;
+    drillDeviation: number;
+    variant?: KuzRamVariant;
+    calibration?: number;
+    inSituBlock?: number;
+  } | null;
 }
 
 /** Pila subterránea de la voladura activa del proyecto (solo taladros `ug-*` cargados). */
@@ -719,7 +804,18 @@ export function computeUndergroundMuckpile(
     charge.perHole,
   );
   return simulateUndergroundMuckpile(
-    { blast, library: project.library, chargePerHole: charge.perHole, fireTime: timing.fireTime },
+    {
+      blast,
+      library: project.library,
+      chargePerHole: charge.perHole,
+      fireTime: timing.fireTime,
+      fragmentation: rock
+        ? {
+            rockFactor: rockFactor(rock),
+            drillDeviation: blast.calcParams.drillDeviation,
+          }
+        : null,
+    },
     params,
   );
 }
@@ -739,6 +835,8 @@ interface BlockAcc {
   hole: number[];
   volume: number[];
   path: number[];
+  /** Curva KCO por taladro (índice de `blast.holes`): [x50, xmax, b]. */
+  holeCurve: Map<number, [number, number, number]>;
 }
 
 /** Modelo cinemático de la pila subterránea (ver el encabezado del módulo). Determinista. */
@@ -784,6 +882,7 @@ export function simulateUndergroundMuckpile(
     hole: [],
     volume: [],
     path: [],
+    holeCurve: new Map(),
   };
   const designs: UgPileDesign[] = [];
   const galleries: { tag: string; kind: 'drive' | 'stope'; sections: Vec3[][] }[] = [];
@@ -820,6 +919,7 @@ export function simulateUndergroundMuckpile(
     topSlope: new Float32Array(2 * count),
     fragmentSize: new Float32Array(count).fill(NaN),
     domain: new Int16Array(count).fill(-1),
+    curve: blockCurves(acc),
     path: Float32Array.from(acc.path),
     pathPoints: UG_PATH_POINTS,
   };
@@ -1021,6 +1121,8 @@ function simulateChamber(
           ? 'roof'
           : 'other';
     infos.set(i, { a: g.a, b: g.b, speed: Number.isFinite(t) ? v : NaN, burden: B, t, role });
+    const curve = holeCurve(input, i, g, B, segOf, len);
+    if (curve) acc.holeCurve.set(i, curve);
   }
   const tFirst = Math.min(...timedHoles.map((i) => fireTime[i] ?? Infinity));
   const tLast = Math.max(...timedHoles.map((i) => fireTime[i] ?? -Infinity));

@@ -118,6 +118,7 @@ import {
   type SerializeOptions,
   computeMuckpile,
   computeUndergroundMuckpile,
+  discretizeFragments,
   type UndergroundMuckpileResult,
   type UgMuckpileParams,
   muckpileInput,
@@ -312,7 +313,9 @@ export const computeApi = {
     // Con la perforación real activada, se simula con los taladros como quedaron.
     project = asDrilledProject(project);
     const r = computeMuckpile(project, blastId, tin ? SurfaceIndex.build(tin) : null, options);
-    return r ? transfer(r, muckpileBuffers(r)) : null;
+    if (!r) return null;
+    r.fragments = discretizeFragments(r.blocks, { budget: fragmentBudget() });
+    return transfer(r, muckpileBuffers(r));
   },
 
   /**
@@ -328,6 +331,10 @@ export const computeApi = {
     project = asDrilledProject(project);
     const r = computeUndergroundMuckpile(project, blastId, params);
     if (!r) return null;
+    r.fragments = discretizeFragments(r.blocks, {
+      budget: fragmentBudget(),
+      coneSigma: (18 * Math.PI) / 180,
+    });
     const buffers = muckpileBuffers(r);
     const path = r.blocks.path?.buffer;
     if (path instanceof ArrayBuffer && !buffers.includes(path)) buffers.push(path);
@@ -806,11 +813,38 @@ export type ComputeApi = typeof computeApi;
 
 /** Buffers distintos de los arreglos dados (Comlink falla si uno se repite en la lista). */
 /** Buffers de un resultado de la pila (sin repetir), para transferirlos. */
+/**
+ * Presupuesto de fragmentos dibujados (FC-47): 40 000 en escritorio, 15 000 en el Quest y en
+ * móviles (el corte de tamaño se ajusta a él).
+ */
+function fragmentBudget(): number {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  return /OculusBrowser|Quest|Android|iPhone|iPad|Mobile/i.test(ua) ? 15000 : 40000;
+}
+
 function muckpileBuffers(r: MuckpileResult): ArrayBuffer[] {
   const b = r.blocks;
   const g = r.grids;
   const v = r.vectors;
+  const f = r.fragments;
+  const extra: (ArrayBufferView | undefined)[] = f
+    ? [
+        f.parent,
+        f.size,
+        f.axes,
+        f.quat,
+        f.shape,
+        f.offset,
+        f.rest,
+        f.spread,
+        f.omega,
+        f.flags,
+        f.fineFraction,
+      ]
+    : [];
+  extra.push(b.curve);
   return uniqueBuffers([
+    ...extra,
     v.hole,
     v.from,
     v.to,

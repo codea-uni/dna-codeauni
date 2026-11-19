@@ -189,6 +189,7 @@ function undergroundView(r: UndergroundMuckpileResult, mode: MuckpileColorBy): M
       frames: null,
       path: r.blocks.path ?? null,
       pathPoints: r.blocks.pathPoints ?? 0,
+      fragments: r.fragments ?? null,
     },
     end: muckpileEnd(r, null),
   };
@@ -228,6 +229,7 @@ function muckpileView(s: ReturnType<typeof useAnalysisStore.getState>): Muckpile
       frames: frames
         ? { ...frames, origin: session.document.project.coordinateSystem.origin }
         : null,
+      fragments: frames ? null : (r.fragments ?? null),
     },
     end: muckpileEnd(r, frames),
   };
