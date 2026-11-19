@@ -4,7 +4,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/.tsbuild/**'] },
+  // .claude: skills y scripts del asistente (no son código de la app).
+  { ignores: ['**/dist/**', '**/coverage/**', '**/.tsbuild/**', '.claude/**'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
