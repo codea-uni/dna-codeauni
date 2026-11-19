@@ -53,6 +53,11 @@ export interface FragmentParams {
   fineProxyShare: number;
   /** Clases por década. */
   classesPerDecade: number;
+  /**
+   * Separación máxima de una piedra respecto de su bloque por su velocidad propia [m]: la
+   * dispersión no choca con nada, así que en subterránea se acota al ancho de la labor.
+   */
+  spreadLimit: Meters;
 }
 
 export const DEFAULT_FRAGMENT_PARAMS: FragmentParams = {
@@ -69,6 +74,7 @@ export const DEFAULT_FRAGMENT_PARAMS: FragmentParams = {
   spinFactor: 0.25,
   fineProxyShare: 0.15,
   classesPerDecade: 12,
+  spreadLimit: 4,
 };
 
 /** Formas base de la biblioteca del engine (`FragmentsLayer`). */
@@ -102,6 +108,8 @@ export interface MuckpileFragments {
   fineFraction: Float32Array;
   /** Corte de render usado [m]. */
   cut: Meters;
+  /** Separación máxima respecto del bloque [m] (`FragmentParams.spreadLimit`). */
+  spreadLimit: Meters;
   /** Volúmenes [m³]: in situ de los bloques con curva, dibujado (piedras) y fino. */
   volume: { total: number; drawn: number; fine: number };
 }
@@ -397,6 +405,7 @@ export function discretizeFragments(
     flags: Uint8Array.from(flags),
     fineFraction,
     cut,
+    spreadLimit: fp.spreadLimit,
     volume: { total, drawn, fine },
   };
 }

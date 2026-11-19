@@ -334,6 +334,7 @@ export const computeApi = {
     r.fragments = discretizeFragments(r.blocks, {
       budget: fragmentBudget(),
       coneSigma: (18 * Math.PI) / 180,
+      spreadLimit: 1.2,
     });
     const buffers = muckpileBuffers(r);
     const path = r.blocks.path?.buffer;

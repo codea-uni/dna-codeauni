@@ -29,6 +29,8 @@ export interface FragmentsData {
   omega: Float32Array;
   flags: Uint8Array;
   fineFraction: Float32Array;
+  /** Separación máxima respecto del bloque [m]. */
+  spreadLimit?: number;
 }
 
 let shapes: BufferGeometry[] | null = null;
@@ -157,9 +159,21 @@ export function writeMatrix(
   const flight = st.flight[k] ?? 0;
   const tf = Math.min(tau, flight);
   // Posición: la del padre + desfase (propio de salida + velocidad relativa) que rueda al de reposo.
-  const ax = (d.offset[3 * j] ?? 0) + (d.spread[3 * j] ?? 0) * tf;
-  const ay = (d.offset[3 * j + 1] ?? 0) + (d.spread[3 * j + 1] ?? 0) * tf;
-  const az = (d.offset[3 * j + 2] ?? 0) + (d.spread[3 * j + 2] ?? 0) * tf;
+  // Separación por la velocidad propia, acotada (la dispersión no choca con paredes ni techo).
+  let ex = (d.spread[3 * j] ?? 0) * tf;
+  let ey = (d.spread[3 * j + 1] ?? 0) * tf;
+  let ez = (d.spread[3 * j + 2] ?? 0) * tf;
+  const lim = d.spreadLimit ?? Infinity;
+  const em = Math.hypot(ex, ey, ez);
+  if (em > lim) {
+    const f = lim / em;
+    ex *= f;
+    ey *= f;
+    ez *= f;
+  }
+  const ax = (d.offset[3 * j] ?? 0) + ex;
+  const ay = (d.offset[3 * j + 1] ?? 0) + ey;
+  const az = (d.offset[3 * j + 2] ?? 0) + ez;
   const px = (st.pos[3 * k] ?? 0) + ax + ((d.rest[3 * j] ?? 0) - ax) * w;
   const py = (st.pos[3 * k + 1] ?? 0) + ay + ((d.rest[3 * j + 1] ?? 0) - ay) * w;
   const pz = (st.pos[3 * k + 2] ?? 0) + az + ((d.rest[3 * j + 2] ?? 0) - az) * w;

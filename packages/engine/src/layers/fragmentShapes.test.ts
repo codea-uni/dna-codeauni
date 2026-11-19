@@ -52,6 +52,12 @@ describe('writeMatrix', () => {
     settle: Float32Array.from([settle]),
   });
 
+  it('acota la separación respecto del bloque', () => {
+    const out = new Float32Array(16);
+    writeMatrix(out, 0, { ...d, spreadLimit: 0.5 }, 0, st(2, 0));
+    expect(out[12]).toBeCloseTo(10 + 0.1 + 0.5, 6);
+  });
+
   it('oculta la piedra antes de la salida', () => {
     const out = new Float32Array(16).fill(9);
     writeMatrix(out, 0, d, 0, st(-1, 0));
