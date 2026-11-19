@@ -138,6 +138,7 @@ La estética viene después y nunca a costa de estos cuatro puntos. Si hay núme
 | Número | `NumberField`, `NumberCell` o `NumberInput` (ver cronos-entrada-numerica) |
 | Marca | Logo de CODEa UNI (`/brand/codeauni-blanco.png`) + `BrandMark` + `ProductMark` (herramienta). En las páginas del servidor basta `BrandMark` + `ProductMark` |
 | Pedir una decisión | `ask()` de `components/AskDialog` (en lugar de `window.confirm`) |
+| Cambiar de herramienta | `ToolSwitch` en la barra (local: `actions.switchTool`, guarda el diseño y reabre el último de la otra; servidor: `ServerToolSwitch`, vuelve a la mina en esa herramienta). Siempre visible: entrar y salir de cada herramienta cuesta un clic |
 | Controles del plano | `QuickBar`, `MapControls` y `CrsChip` (no repitas zoom ni herramientas de navegación en otro sitio) |
 | Página del modo servidor | `PageShell` con `crumbs` (y `tool`/`wide` en la mina); `.card`, `.data-table` dentro de `.data-table-wrap` |
 

@@ -13,6 +13,7 @@ import {
   makeGroup,
   newId,
   nextHoleNumber,
+  projectKind,
   numberHolesFromFirstFree,
   rowTieUp,
   type Blast,
@@ -29,13 +30,19 @@ import {
   type Pattern,
   type PatternId,
   type Project,
+  type ProjectKind,
   type SurfaceConnectorId,
 } from '@cronos/core';
 import { APP_VERSION, getCompute, getEngine, session } from './session';
 import { useAnalysisStore } from './stores/analysisStore';
 import { formatDateTime, formatNumber, t, useLocale } from './i18n';
 import { importErrorText, importWarningText, parseErrorText } from './i18n/coreText';
-import { listVersions, loadWithoutSaving, readVersion } from './persistence/autosave';
+import {
+  flushAutosave,
+  listVersions,
+  loadWithoutSaving,
+  readVersion,
+} from './persistence/autosave';
 import { useUiStore } from './stores/uiStore';
 import { collectAssets, drapeNewHoles, storeEmbeddedAssets } from './topography/session';
 import { putAsset } from './persistence/assets';
@@ -113,6 +120,42 @@ export function newProject(): void {
   if (document.canUndo && !window.confirm(t('actions.discardForNew'))) return;
   document.load(createEmptyProject());
   notify(t('toolbar.newProject'));
+}
+
+/** Último diseño abierto de cada herramienta en este navegador (para volver a él al cambiar). */
+const lastProjectKey = (kind: ProjectKind) => `cronos.lastProject.${kind}`;
+
+function rememberProject(project: Project): void {
+  try {
+    localStorage.setItem(lastProjectKey(projectKind(project)), project.id);
+  } catch {
+    // Sin almacenamiento: al volver se abre un diseño vacío, pero el actual sigue autoguardado.
+  }
+}
+
+function lastProjectId(kind: ProjectKind): string | null {
+  try {
+    return localStorage.getItem(lastProjectKey(kind));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cambia de herramienta en el modo local (Cielo abierto ↔ Subterránea) sin perder nada: el diseño
+ * actual queda autoguardado y se abre el último diseño de la otra herramienta, o uno vacío si es
+ * la primera vez. Volver es lo mismo al revés.
+ */
+export async function switchTool(kind: ProjectKind): Promise<void> {
+  const current = document.project;
+  if (projectKind(current) === kind || blockedByReadOnly()) return;
+  rememberProject(current);
+  flushAutosave();
+  const id = lastProjectId(kind);
+  const saved = id === null ? undefined : (await listVersions()).find((v) => v.projectId === id);
+  if (saved) await restoreVersion(saved.id);
+  else document.load(createEmptyProject(undefined, new Date(), kind));
+  notify(t('product.switched', { tool: t(`product.badge.${kind}`) }));
 }
 
 export async function saveProject(): Promise<void> {

@@ -1,5 +1,11 @@
 import { Maximize2, X } from 'lucide-react';
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useT } from '../i18n';
 import { useUiStore, type FloatingPanel } from '../stores/uiStore';
@@ -98,14 +104,21 @@ export function FloatingWindow({
     },
     { modal: false },
   );
-  // Siempre visible aunque la pantalla se haya achicado desde la última vez. En celular la ventana
-  // entra entera (antes quedaba la posición de la pantalla ancha y se cortaba a la derecha).
-  const narrow = window.innerWidth < 700;
+  // Al cambiar el tamaño del navegador se vuelve a acomodar (las cuentas de abajo leen innerWidth).
+  const [, relayout] = useState(0);
+  useEffect(() => {
+    const onResize = () => {
+      relayout((n) => n + 1);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
+  // Siempre entera en pantalla, aunque se haya achicado desde la última vez: nunca más ancha que
+  // la ventana del navegador y corrida a la izquierda si se saldría por la derecha.
   const fitWidth = Math.min(win.w, window.innerWidth - 8);
-  const x = Math.min(
-    Math.max(0, win.x),
-    Math.max(0, narrow ? window.innerWidth - fitWidth - 4 : window.innerWidth - 120),
-  );
+  const x = Math.min(Math.max(0, win.x), Math.max(0, window.innerWidth - fitWidth - 4));
   const y = Math.min(Math.max(0, win.y), Math.max(0, window.innerHeight - 60));
 
   // Tamaño elegido por el usuario al redimensionar desde la esquina (CSS resize). Con
@@ -159,7 +172,7 @@ export function FloatingWindow({
       role="dialog"
       aria-label={title}
       data-guide={`window.${win.id.replace(/^workspace\./, '')}`}
-      style={{ left: x, top: y, width: win.w, height: win.h, zIndex: z }}
+      style={{ left: x, top: y, width: fitWidth, height: win.h, zIndex: z }}
       onKeyDown={onKeyDown}
       onPointerDown={() => {
         raiseFloating(win.id);

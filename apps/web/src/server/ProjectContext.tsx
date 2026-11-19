@@ -6,6 +6,7 @@ import { IconButton } from '../components/IconButton';
 import { useProject } from '../hooks/useDocument';
 import { t as translate, useT } from '../i18n';
 import { mineToolPath } from '../product/product';
+import { ToolSwitch } from '../product/ToolSwitch';
 import { useUiStore } from '../stores/uiStore';
 import { flushAutosave } from '../persistence/autosave';
 import { hasUnpublished, useProjectSession, useUnpublished } from './projectSession';
@@ -129,6 +130,20 @@ export function confirmLeave(): boolean {
   // El borrador se escribe ya (no tras la pausa del autoguardado) para recuperarlo al volver.
   flushAutosave();
   return true;
+}
+
+/** Selector de herramienta en el modo servidor: lleva a la mina en la herramienta elegida. */
+export function ServerToolSwitch() {
+  const navigate = useNavigate();
+  const mineId = useProjectSession((s) => s.current?.mine.id);
+  return (
+    <ToolSwitch
+      hint="product.switchHintServer"
+      onSelect={(kind) => {
+        if (confirmLeave()) void navigate(mineId ? mineToolPath(mineId, kind) : '/');
+      }}
+    />
+  );
 }
 
 /** Vuelve del editor a la mina del proyecto (o a las minas si no hay proyecto abierto). */

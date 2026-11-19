@@ -9,6 +9,11 @@ export const es = {
   'product.kind.underground': 'Subterránea',
   'product.badge.surface': 'Cielo abierto',
   'product.badge.underground': 'Subterránea',
+  'product.switch': 'Herramienta',
+  'product.switchHint':
+    'Cambia de herramienta cuando quieras: tu diseño queda guardado y vuelves a él.',
+  'product.switchHintServer': 'Cambia de herramienta: vuelves a la mina en la otra herramienta.',
+  'product.switched': 'Estás en {tool}',
   'product.enter.surface': 'Entrar a Cielo abierto',
   'product.enter.underground': 'Entrar a Subterránea',
   'product.enterHint.surface':
@@ -50,6 +55,11 @@ export const en = {
   'product.kind.underground': 'Underground',
   'product.badge.surface': 'Open Pit',
   'product.badge.underground': 'Underground',
+  'product.switch': 'Tool',
+  'product.switchHint':
+    'Switch tools whenever you like: your design is kept and you come back to it.',
+  'product.switchHintServer': 'Switch tools: you go back to the mine in the other tool.',
+  'product.switched': 'Now in {tool}',
   'product.enter.surface': 'Enter Open Pit',
   'product.enter.underground': 'Enter Underground',
   'product.enterHint.surface':

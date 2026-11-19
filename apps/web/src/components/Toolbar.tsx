@@ -59,15 +59,21 @@ import { NumberInput } from './CellInput';
 import { IconButton } from './IconButton';
 import { MenuButton } from './MenuButton';
 import { UserMenu } from '../auth/UserMenu';
-import { BackToMine, ProjectActions, ProjectContext } from '../server/ProjectContext';
+import {
+  BackToMine,
+  ProjectActions,
+  ProjectContext,
+  ServerToolSwitch,
+} from '../server/ProjectContext';
+import { ToolSwitch } from '../product/ToolSwitch';
 import { serverMode } from '../server/api';
 import { t as translate, useT, type MessageKey } from '../i18n';
 import { exampleText } from '../i18n/coreText';
 import { tabAvailable, useWorkflow } from '../hooks/useWorkflow';
 import { WORKSPACE_PANELS, openWorkspacePanel } from './WorkspaceWindows';
 import { XrButtons } from '../xr/XrButtons';
-import { OtherToolProjects, ProductMark } from '../product/CrossView';
-import { fitsKind, kindOrder, useEditorTool, useProjectKind } from '../product/product';
+import { OtherToolProjects } from '../product/CrossView';
+import { fitsKind, kindOrder, useProjectKind } from '../product/product';
 import { importModel3dFiles, MODEL3D_ACCEPT } from '../topography/models3d';
 import { openWorkingsImport } from '../panels/WorkingsImport';
 
@@ -208,8 +214,7 @@ export function Toolbar() {
   const topographyInput = useRef<HTMLInputElement>(null);
   const model3dInput = useRef<HTMLInputElement>(null);
   const holesInput = useRef<HTMLInputElement>(null);
-  // Herramienta en uso (marca) y tipo del proyecto (qué paneles y herramientas tienen sentido).
-  const productTool = useEditorTool();
+  // Tipo del proyecto (qué paneles y herramientas tienen sentido).
   const kind = useProjectKind();
   const panels = WORKSPACE_PANELS.filter(
     (panel) => panel.section === ribbonTab && fitsKind(panel.id, kind),
@@ -307,12 +312,16 @@ export function Toolbar() {
 
   return (
     <header className="toolbar">
-      {/* Empresa (CODEa UNI) · producto (Cronos) · herramienta con su acento. */}
+      {/* Empresa (CODEa UNI) · producto (Cronos) · herramienta, que se cambia aquí mismo. */}
       <span className="brand" translate="no">
         <img className="brand-logo" src="/brand/codeauni-blanco.png" alt="CODEa UNI" />
         <BrandMark size={22} />
-        <ProductMark tool={productTool} short />
       </span>
+      {serverMode ? (
+        <ServerToolSwitch />
+      ) : (
+        <ToolSwitch hint="product.switchHint" onSelect={(kind) => void actions.switchTool(kind)} />
+      )}
       {serverMode ? <ProjectContext /> : <LocalCrumbs />}
       <nav
         className="ribbon-tabs"
