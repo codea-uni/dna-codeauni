@@ -3802,3 +3802,29 @@ button.link {
     left: 10px;
   }
 }
+
+/* ------------------------------------------------------------------ Arrastrar valores */
+
+/* La etiqueta de un campo numérico se arrastra para cambiar el valor (opcional, sin estorbar). */
+.field-label.scrub {
+  cursor: ew-resize;
+  user-select: none;
+  touch-action: none;
+}
+.field-label.scrub:hover {
+  color: var(--text);
+}
+body.scrubbing,
+body.scrubbing * {
+  cursor: ew-resize !important;
+  user-select: none;
+}
+
+/* Deslizador opcional bajo un campo con rango (Vista → Campos numéricos). */
+.field-slider {
+  display: block;
+  width: 100%;
+  margin: -2px 0 8px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}

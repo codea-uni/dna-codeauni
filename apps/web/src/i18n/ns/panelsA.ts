@@ -40,6 +40,10 @@ export const es = {
   'map.scaleBar': 'Barra de escala',
   'map.compass': 'Brújula',
   'map.holeRadius3d': 'Radio de taladros en 3D',
+  'map.numbersTitle': 'Campos numéricos',
+  'map.numberSliders': 'Deslizadores en los campos con rango',
+  'map.numbersHint':
+    'Arrastra la etiqueta de cualquier campo a izquierda o derecha para cambiar su valor (Mayús ×10, Alt ÷10). Un arrastre se deshace de una vez.',
   'map.measureHint': 'mide distancia y azimut entre dos puntos (se ajusta a taladros y malla).',
 
   'view.title': 'Visualización',
@@ -386,6 +390,10 @@ export const en = {
   'map.scaleBar': 'Scale bar',
   'map.compass': 'North arrow',
   'map.holeRadius3d': 'Hole radius in 3D',
+  'map.numbersTitle': 'Number fields',
+  'map.numberSliders': 'Sliders on fields with a range',
+  'map.numbersHint':
+    'Drag the label of any field left or right to change its value (Shift ×10, Alt ÷10). One drag undoes in a single step.',
   'map.measureHint': 'measures distance and azimuth between two points (snaps to holes and grid).',
 
   'view.title': 'Display',

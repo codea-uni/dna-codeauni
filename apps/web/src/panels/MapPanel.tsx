@@ -1,4 +1,5 @@
 import { useT } from '../i18n';
+import { usePrefs } from '../stores/prefsStore';
 import { useUiStore } from '../stores/uiStore';
 
 const ITEMS = [
@@ -15,6 +16,8 @@ export function MapPanel() {
   const setDecorations = useUiStore((s) => s.setDecorations);
   const radiusScale = useUiStore((s) => s.radiusScale);
   const setRadiusScale = useUiStore((s) => s.setRadiusScale);
+  const numberSliders = usePrefs((s) => s.numberSliders);
+  const setNumberSliders = usePrefs((s) => s.setNumberSliders);
   return (
     <section className="panel">
       <h2>{t('map.title')}</h2>
@@ -51,6 +54,18 @@ export function MapPanel() {
       <p className="hint">
         <kbd>R</kbd> {t('map.measureHint')}
       </p>
+      <h3>{t('map.numbersTitle')}</h3>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={numberSliders}
+          onChange={(e) => {
+            setNumberSliders(e.target.checked);
+          }}
+        />
+        {t('map.numberSliders')}
+      </label>
+      <p className="hint">{t('map.numbersHint')}</p>
     </section>
   );
 }

@@ -129,6 +129,32 @@ describe('DocumentStore', () => {
     expect(store.findHole(id)?.hole.collar).toMatchObject({ x: 0, y: 0 });
   });
 
+  // Arrastrar un valor (deslizador o etiqueta) despacha un cambio por cuadro: todo el gesto debe
+  // deshacerse de una vez, y lo que venga después es un paso aparte.
+  it('un grupo junta varios cambios en un solo paso de deshacer', () => {
+    const { store, holes } = setup(3);
+    const id = at(holes, 0).id;
+    const end = store.beginGroup();
+    store.dispatch(moveHoles(store, [id], 1, 0), 'Mover');
+    store.dispatch(moveHoles(store, [id], 1, 0), 'Mover');
+    store.dispatch(moveHoles(store, [id], 1, 0), 'Mover');
+    end();
+    expect(store.findHole(id)?.hole.collar).toMatchObject({ x: 3, y: 0 });
+    store.dispatch(moveHoles(store, [id], 0, 2), 'Mover');
+
+    store.undo();
+    expect(store.findHole(id)?.hole.collar).toMatchObject({ x: 3, y: 0 });
+    store.undo();
+    expect(store.findHole(id)?.hole.collar).toMatchObject({ x: 0, y: 0 });
+    store.redo();
+    expect(store.findHole(id)?.hole.collar).toMatchObject({ x: 3, y: 0 });
+    // Cerrar dos veces no rompe nada; un grupo sin cambios no deja un paso vacío.
+    end();
+    const steps = store.undoLabel;
+    store.beginGroup()();
+    expect(store.undoLabel).toBe(steps);
+  });
+
   it('editar inclinación recalcula la longitud hasta piso + sobreperforación', () => {
     const { store, holes } = setup(1);
     const id = at(holes, 0).id;

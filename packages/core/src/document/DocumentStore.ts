@@ -43,6 +43,8 @@ export class DocumentStore implements DocumentReader {
   private _version = 0;
   private readonly undoStack: HistoryEntry[] = [];
   private readonly redoStack: HistoryEntry[] = [];
+  /** Grupo abierto (`beginGroup`): sus cambios se juntan en esta entrada del historial. */
+  private group: { entry: HistoryEntry | null } | null = null;
   private readonly listeners = new Set<DocumentListener>();
   private readonly appliedListeners = new Set<AppliedListener>();
   private readonly readOnlyListeners = new Set<ReadOnlyListener>();
@@ -125,15 +127,39 @@ export class DocumentStore implements DocumentReader {
     }
     const changes = new ChangeSetBuilder();
     const inverse = this.applyAll(list, changes);
-    this.undoStack.push({ label, ops: list, inverse });
+    const open = this.group?.entry;
+    if (this.group && open && this.undoStack.at(-1) === open) {
+      // Mismo gesto: se agrega al paso abierto; deshacer aplica primero lo último.
+      const merged = { label, ops: [...open.ops, ...list], inverse: [...inverse, ...open.inverse] };
+      this.undoStack[this.undoStack.length - 1] = merged;
+      this.group.entry = merged;
+    } else {
+      const entry = { label, ops: list, inverse };
+      this.undoStack.push(entry);
+      if (this.group) this.group.entry = entry;
+    }
     this.redoStack.length = 0;
     this.commit(changes);
     this.emitApplied(list, label);
     return true;
   }
 
+  /**
+   * Junta en un solo paso de deshacer todo lo que se despache hasta llamar a la función devuelta
+   * (arrastrar un valor con el deslizador o la etiqueta despacha un cambio por cuadro). Un grupo
+   * sin cambios no deja un paso vacío; cerrar dos veces no hace nada.
+   */
+  beginGroup(): () => void {
+    const group = { entry: null };
+    this.group = group;
+    return () => {
+      if (this.group === group) this.group = null;
+    };
+  }
+
   undo(): void {
     if (this._readOnly) return;
+    this.group = null;
     const entry = this.undoStack.pop();
     if (!entry) return;
     const changes = new ChangeSetBuilder();
@@ -145,6 +171,7 @@ export class DocumentStore implements DocumentReader {
 
   redo(): void {
     if (this._readOnly) return;
+    this.group = null;
     const entry = this.redoStack.pop();
     if (!entry) return;
     const changes = new ChangeSetBuilder();

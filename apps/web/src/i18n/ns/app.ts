@@ -10,7 +10,7 @@ export const es = {
   'common.number.min': 'Mínimo {min}',
   'common.number.max': 'Máximo {max}',
   'common.number.integer': 'Debe ser un número entero',
-  'common.number.hint': '↑/↓ cambia el valor · Mayús ×10 · Alt ÷10',
+  'common.number.hint': '↑/↓ o arrastrar la etiqueta cambia el valor · Mayús ×10 · Alt ÷10',
 
   'app.tab.design': 'Diseño',
   'app.tab.charge': 'Carguío',
@@ -265,7 +265,7 @@ export const en = {
   'common.number.min': 'Minimum {min}',
   'common.number.max': 'Maximum {max}',
   'common.number.integer': 'Must be a whole number',
-  'common.number.hint': '↑/↓ changes the value · Shift ×10 · Alt ÷10',
+  'common.number.hint': '↑/↓ or dragging the label changes the value · Shift ×10 · Alt ÷10',
 
   'app.tab.design': 'Design',
   'app.tab.charge': 'Charging',

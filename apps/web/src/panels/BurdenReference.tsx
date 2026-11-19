@@ -105,6 +105,7 @@ export function BurdenReference({
                     <input
                       type="radio"
                       name="burden-reference"
+                      aria-label={t(`burden.${m}`)}
                       checked={reference === m}
                       onChange={() => {
                         setReference(m);

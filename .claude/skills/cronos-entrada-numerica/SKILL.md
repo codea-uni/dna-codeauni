@@ -37,6 +37,13 @@ Para un caso nuevo, extiende `useNumberInput`. No copies la lógica en el compon
 - `parseText`: lectura propia del texto (p. ej. pies con `'` en el largo de barra). Si devuelve `null`, se intenta la lectura normal con coma o punto.
 - `zeroText`: el 0 significa otra cosa (p. ej. «∞» = sin límite en `VibrationPanel`). Con 0 el campo queda vacío con ese texto de ayuda, y vacío, `∞` o ese texto confirman 0.
 
+**Arrastrar y deslizadores (opcionales, para quien los quiera; útiles en demostraciones):**
+
+- Arrastrar la etiqueta de un `NumberField` cambia el valor en vivo: un paso cada 4 px o todo el rango en ~600 px; Mayús ×10, Alt ÷10. Un clic sin arrastrar sigue enfocando el campo. Regla en `components/dragValue.ts` (con tests).
+- Vista → «Campos numéricos» activa un deslizador bajo los campos con `min` y `max`. Apagado por defecto; se guarda en `stores/prefsStore.ts`.
+- Todo el gesto es **un solo deshacer** (`session.document.beginGroup()`), y los cambios se confirman como mucho una vez por cuadro (`liveCommit`).
+- El deslizador y los listeners del arrastre viven fuera del campo que se remonta con cada valor: si los pones dentro, el gesto se corta al primer cambio.
+
 ## Contrato de un campo numérico
 
 | Aspecto | Comportamiento |
